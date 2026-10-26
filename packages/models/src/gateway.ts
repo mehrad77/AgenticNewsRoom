@@ -105,11 +105,12 @@ export class ModelGateway {
             throw new ModelCallFailed(id, failure.message, attempts, error);
           case "rate-limited": {
             const wait = this.#limits.coolDown(entry, failure.retryAfterMs);
-            this.#log(`${id} rate-limited; cooling down ${Math.ceil(wait / 1000)}s`);
+            const scope = entry.sharedQuota ? `${entry.provider} account` : id;
+            this.#log(`${id} rate-limited; cooling down ${scope} ${Math.ceil(wait / 1000)}s`);
             break;
           }
           case "unavailable":
-            this.#limits.coolDown(entry, failure.retryAfterMs ?? UNAVAILABLE_COOLDOWN_MS);
+            this.#limits.pause(entry, failure.retryAfterMs ?? UNAVAILABLE_COOLDOWN_MS);
             this.#log(`${id} unavailable: ${failure.message}`);
             break;
           case "gone":

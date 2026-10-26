@@ -6,6 +6,8 @@ import type { CatalogEntry } from "./catalog.ts";
 
 export interface InvokeOptions {
   tools?: BindToolsInput[];
+  /** "any" makes the model call one of the tools (the probe uses it). */
+  toolChoice?: "any";
   signal?: AbortSignal;
 }
 
@@ -19,7 +21,7 @@ export type ClientFactory = (entry: CatalogEntry) => ChatClient;
 const TIMEOUT_MS = 120_000;
 
 /**
- * LangChain chat models with their own retries off: the gateway decides what a failure means.
+ * LangChain chat models with their own retries and timeouts off: the gateway decides what a failure means.
  * OpenAI-compatible providers use Chat Completions only, so no built-in (web) tools exist.
  */
 export const langchainClient: ClientFactory = (entry) => {
@@ -30,14 +32,42 @@ export const langchainClient: ClientFactory = (entry) => {
           model: entry.model,
           apiKey: entry.apiKey,
           maxRetries: 0,
-          timeout: TIMEOUT_MS,
           configuration: { baseURL: entry.baseUrl },
         });
   return {
-    async invoke(messages, { tools, signal }) {
-      if (!tools?.length) return model.invoke(messages, { signal });
+    invoke(messages, { tools, toolChoice, signal }) {
+      if (!tools?.length) return withTimeout((s) => model.invoke(messages, { signal: s }), signal);
       if (!model.bindTools) throw new Error(`${entry.id} cannot bind tools`);
-      return model.bindTools(tools).invoke(messages, { signal });
+      const bound = model.bindTools(tools, toolChoice ? { tool_choice: toolChoice } : undefined);
+      return withTimeout((s) => bound.invoke(messages, { signal: s }), signal);
     },
   };
 };
+
+/**
+ * Every provider call gets the same deadline (Gemini's client has none of its own). On expiry
+ * it rejects with a TimeoutError, which the gateway treats as an outage, then aborts the call.
+ */
+async function withTimeout<T>(
+  call: (signal: AbortSignal) => Promise<T>,
+  caller?: AbortSignal,
+): Promise<T> {
+  const controller = new AbortController();
+  const onAbort = () => controller.abort(caller?.reason);
+  caller?.addEventListener("abort", onAbort, { once: true });
+  let timer: NodeJS.Timeout | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      const error = new Error(`no answer after ${TIMEOUT_MS / 1000}s`);
+      error.name = "TimeoutError";
+      reject(error);
+      controller.abort(error);
+    }, TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([call(controller.signal), deadline]);
+  } finally {
+    clearTimeout(timer);
+    caller?.removeEventListener("abort", onAbort);
+  }
+}

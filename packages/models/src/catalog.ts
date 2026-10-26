@@ -1,8 +1,9 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { ModelsSchema } from "@anr/schemas";
+import { ModelsSchema, roleChains } from "@anr/schemas";
 import { parse } from "yaml";
 
+export { roleChains };
 export type ModelsConfig = ModelsSchema;
 export type Limits = NonNullable<ModelsConfig["models"][string]["limits"]>;
 
@@ -24,6 +25,8 @@ export interface CatalogEntry {
   limits?: Limits;
   /** Limits shared by every model of the provider (one account). */
   providerLimits?: Limits;
+  /** A 429 on this model means the whole provider account is limited. */
+  sharedQuota: boolean;
   price?: { in: number; out: number };
 }
 
@@ -69,6 +72,7 @@ export function buildCatalog(
       missingEnv,
       limits: m.limits,
       providerLimits: p.limits,
+      sharedQuota: p.shared_quota ?? false,
       price: m.price,
     });
   }
@@ -84,21 +88,4 @@ export function missingKeys(catalog: Catalog): string[] {
     for (const name of e?.missingEnv ?? []) missing.add(name);
   }
   return [...missing].sort();
-}
-
-/** Every role chain, named (desk formats as desk.by_format.<format>). */
-export function roleChains(config: ModelsConfig): [string, string[]][] {
-  const r = config.roles;
-  return [
-    ["planner", r.planner],
-    ["desk", r.desk.default],
-    ...Object.entries(r.desk.by_format ?? {}).map(([f, c]): [string, string[]] => [
-      `desk.by_format.${f}`,
-      c,
-    ]),
-    ["renderer", r.renderer],
-    ["fact-checker", r["fact-checker"]],
-    ["item-matcher", r["item-matcher"]],
-    ["summariser", r.summariser],
-  ];
 }

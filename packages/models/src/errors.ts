@@ -90,13 +90,24 @@ export function classify(error: unknown, now = Date.now()): Failure {
     }
     return { kind: "fatal", message };
   }
-  const name = String(e.name ?? "");
-  const causeCode = String((e.cause as { code?: unknown } | undefined)?.code ?? "");
+  // The OpenAI SDK's APIConnectionError keeps the name "Error" and hides the network code two
+  // causes deep (Error → TypeError "fetch failed" → { code: "ECONNRESET" }).
+  const chain: ErrorLike[] = [];
+  for (
+    let c: unknown = e;
+    c && typeof c === "object" && chain.length < 5;
+    c = (c as ErrorLike).cause
+  ) {
+    chain.push(c as ErrorLike);
+  }
   if (
-    /TimeoutError|APIConnection/.test(name) ||
-    NETWORK_CODES.test(codes[0] ?? "") ||
-    NETWORK_CODES.test(causeCode) ||
-    /fetch failed|socket hang up|timed? ?out/i.test(message)
+    chain.some(
+      (c) =>
+        /TimeoutError|APIConnection/.test(String(c.name ?? "")) ||
+        /APIConnection/.test(String((c as object).constructor?.name ?? "")) ||
+        NETWORK_CODES.test(String(c.code ?? "")),
+    ) ||
+    /fetch failed|socket hang up|timed? ?out|connection error/i.test(message)
   ) {
     return { kind: "unavailable", message };
   }
@@ -126,12 +137,17 @@ export function parseDuration(text: string): number | undefined {
  */
 function retryAfter(e: ErrorLike, now: number): number | undefined {
   const headers = e.headers ?? e.response?.headers;
-  const waits: number[] = [];
+  const valid = (ms: number) => Number.isFinite(ms) && ms > 0;
+  const cap = (ms: number) => Math.min(ms, MAX_RETRY_AFTER_MS);
+  // Retry-After answers this request; Groq's reset headers describe whole windows (a day for
+  // requests), so they only count when Retry-After is missing.
   const ra = header(headers, "retry-after");
   if (ra) {
     const seconds = Number(ra);
-    waits.push(Number.isFinite(seconds) ? seconds * 1000 : Date.parse(ra) - now);
+    const ms = Number.isFinite(seconds) ? seconds * 1000 : Date.parse(ra) - now;
+    if (valid(ms)) return cap(ms);
   }
+  const waits: number[] = [];
   for (const name of ["x-ratelimit-reset-requests", "x-ratelimit-reset-tokens"]) {
     const d = header(headers, name);
     const ms = d === undefined ? undefined : parseDuration(d);
@@ -145,6 +161,6 @@ function retryAfter(e: ErrorLike, now: number): number | undefined {
       if (ms !== undefined) waits.push(ms);
     }
   }
-  const valid = waits.filter((w) => Number.isFinite(w) && w > 0);
-  return valid.length > 0 ? Math.min(Math.max(...valid), MAX_RETRY_AFTER_MS) : undefined;
+  const known = waits.filter(valid);
+  return known.length > 0 ? cap(Math.max(...known)) : undefined;
 }

@@ -42,7 +42,7 @@ export async function probe(catalog: Catalog, client: ClientFactory): Promise<Pr
     try {
       const message = await client(entry).invoke(
         [["human", "Call the ping tool with ok set to true."]],
-        { tools: [PING] },
+        { tools: [PING], toolChoice: "any" },
       );
       const called = (message.tool_calls ?? []).some((c) => c.name === "ping");
       rows.push({ ...row, outcome: called ? "ok" : "no-tools" });

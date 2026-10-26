@@ -35,6 +35,10 @@ class GoogleProvider(BaseModel):
     kind: Literal["google"]
     key_env: EnvVar
     limits: Limits | None = None
+    shared_quota: bool | None = Field(
+        None,
+        description="The quota belongs to the account, not each model: a 429 on one model cools down every model of the provider.",
+    )
 
 
 class OpenaiProvider(BaseModel):
@@ -48,6 +52,10 @@ class OpenaiProvider(BaseModel):
     key_env: EnvVar
     account_env: EnvVar | None = None
     limits: Limits | None = None
+    shared_quota: bool | None = Field(
+        None,
+        description="The quota belongs to the account, not each model: a 429 on one model cools down every model of the provider.",
+    )
 
 
 class Price(BaseModel):

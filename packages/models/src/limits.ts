@@ -39,9 +39,11 @@ export class LimitTracker {
     const state = this.#models.get(entry.id);
     if (state?.disabled) return `disabled: ${state.disabled}`;
     const now = this.#now();
-    if (state && state.cooldownUntil > now) {
-      return `cooling down for ${Math.ceil((state.cooldownUntil - now) / 1000)}s`;
-    }
+    const until = Math.max(
+      state?.cooldownUntil ?? 0,
+      this.#models.get(this.#accountKey(entry))?.cooldownUntil ?? 0,
+    );
+    if (until > now) return `cooling down for ${Math.ceil((until - now) / 1000)}s`;
     return (
       this.#overLimit(`model:${entry.id}`, entry.limits, "model") ??
       this.#overLimit(`provider:${entry.provider}`, entry.providerLimits, entry.provider)
@@ -56,22 +58,44 @@ export class LimitTracker {
   recordSuccess(entry: CatalogEntry, tokens: number): void {
     const now = this.#now();
     for (const key of this.#keys(entry)) this.#use(key).tokens.push([now, tokens]);
-    const state = this.#models.get(entry.id);
-    if (state) state.strikes = 0;
+    for (const key of [entry.id, this.#accountKey(entry)]) {
+      const state = this.#models.get(key);
+      if (state) state.strikes = 0;
+    }
   }
 
-  /** After a 429 (or 5xx): wait as long as the provider said, else back off. */
+  /**
+   * After a 429: wait as long as the provider said, else back off. Repeated 429s back off
+   * even when the provider names a short wait, since that is often a spent daily quota.
+   * A provider with a shared quota cools down as a whole.
+   */
   coolDown(entry: CatalogEntry, retryAfterMs?: number): number {
-    const state = this.#state(entry.id);
+    const state = this.#state(entry.sharedQuota ? this.#accountKey(entry) : entry.id);
     state.strikes += 1;
+    const backoff = Math.min(BACKOFF_BASE_MS * 2 ** (state.strikes - 1), BACKOFF_MAX_MS);
     const wait =
-      retryAfterMs ?? Math.min(BACKOFF_BASE_MS * 2 ** (state.strikes - 1), BACKOFF_MAX_MS);
+      retryAfterMs === undefined
+        ? backoff
+        : state.strikes > 1
+          ? Math.max(retryAfterMs, backoff)
+          : retryAfterMs;
     state.cooldownUntil = this.#now() + wait;
     return wait;
   }
 
+  /** After a 5xx or timeout: skip the model for a while without a rate-limit strike. */
+  pause(entry: CatalogEntry, ms: number): void {
+    const state = this.#state(entry.id);
+    state.cooldownUntil = Math.max(state.cooldownUntil, this.#now() + ms);
+  }
+
   disable(entry: CatalogEntry, reason: string): void {
     this.#state(entry.id).disabled = reason;
+  }
+
+  /** Cooldown key for a provider whose quota is per account. */
+  #accountKey(entry: CatalogEntry): string {
+    return `account:${entry.provider}`;
   }
 
   #keys(entry: CatalogEntry): string[] {

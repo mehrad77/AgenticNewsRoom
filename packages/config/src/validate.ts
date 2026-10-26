@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import type { ModelsSchema } from "@anr/schemas";
+import { type ModelsSchema, roleChains } from "@anr/schemas";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import addFormatsModule from "ajv-formats";
 import type { RawConfig } from "./load.ts";
@@ -51,18 +51,7 @@ function modelsProblems(m: ModelsSchema, file: string, formats: string[]): strin
       errors.push(`${file} model ${id}: ${model.model} has web access`);
     }
   }
-  const chains: [string, string[]][] = [
-    ["planner", m.roles.planner],
-    ["desk", m.roles.desk.default],
-    ...Object.entries(m.roles.desk.by_format ?? {}).map(([format, chain]): [string, string[]] => [
-      `desk.by_format.${format}`,
-      chain,
-    ]),
-    ["renderer", m.roles.renderer],
-    ["fact-checker", m.roles["fact-checker"]],
-    ["item-matcher", m.roles["item-matcher"]],
-    ["summariser", m.roles.summariser],
-  ];
+  const chains = roleChains(m);
   for (const format of Object.keys(m.roles.desk.by_format ?? {})) {
     if (!formats.includes(format)) errors.push(`${file} desk.by_format: unknown format ${format}`);
   }

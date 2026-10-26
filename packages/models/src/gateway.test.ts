@@ -8,7 +8,7 @@ import { ModelGateway } from "./gateway.ts";
 const config: ModelsConfig = {
   providers: {
     a: { kind: "openai", base_url: "https://a.test/v1", key_env: "A_KEY", limits: { rpd: 3 } },
-    b: { kind: "openai", base_url: "https://b.test/v1", key_env: "B_KEY" },
+    b: { kind: "openai", base_url: "https://b.test/v1", key_env: "B_KEY", shared_quota: true },
     c: {
       kind: "openai",
       base_url: "https://c.test/{account}/v1",
@@ -26,6 +26,7 @@ const config: ModelsConfig = {
       tools: true,
       price: { in: 2, out: 10 },
     },
+    "b-small": { provider: "b", model: "vendor/small", family: "small", tools: true },
     "c-big": { provider: "c", model: "big", family: "big", tools: true },
   },
   roles: {
@@ -192,6 +193,52 @@ describe("ModelGateway", () => {
     advance(61_000);
     await gateway.chat({ chain, messages });
     expect(calls).toEqual(["a-big", "b-big", "a-big", "b-big", "b-big"]);
+  });
+
+  it("falls through the OpenAI SDK's connection error", async () => {
+    const network = Object.assign(new TypeError("fetch failed"), { cause: { code: "ECONNRESET" } });
+    const connection = Object.assign(new Error("Connection error."), { cause: network });
+    const { gateway } = setup({ "a-big": [connection] });
+    const res = await gateway.chat({ chain, messages });
+    expect(res.catalogId).toBe("b-big");
+    expect(res.attempts[0]?.outcome).toBe("unavailable");
+  });
+
+  it("prefers Retry-After over Groq's whole-window reset headers", async () => {
+    const tpm = httpError(429, { "retry-after": "7", "x-ratelimit-reset-requests": "2h13m" });
+    const { gateway, advance } = setup({ "a-big": [tpm] });
+    await gateway.chat({ chain, messages });
+    advance(8_000);
+    expect((await gateway.chat({ chain, messages })).catalogId).toBe("a-big");
+  });
+
+  it("backs off past a short retry hint when the 429s keep coming", async () => {
+    const hint = () => httpError(429, { "retry-after": "30" });
+    const { gateway, advance } = setup({ "a-big": [hint(), hint()] });
+    await gateway.chat({ chain, messages }); // 30 s
+    advance(31_000);
+    await gateway.chat({ chain, messages }); // max(30 s, 120 s)
+    advance(31_000);
+    expect((await gateway.chat({ chain, messages })).catalogId).toBe("b-big");
+    advance(90_000);
+    expect((await gateway.chat({ chain, messages })).catalogId).toBe("a-big");
+  });
+
+  it("cools down every model of a provider whose quota is per account", async () => {
+    const { gateway, calls } = setup({ "b-big": [httpError(429)] });
+    await expect(gateway.chat({ chain: ["b-big", "b-small"], messages })).rejects.toBeInstanceOf(
+      AllModelsExhausted,
+    );
+    expect(calls).toEqual(["b-big"]);
+  });
+
+  it("does not count an outage as a rate-limit strike", async () => {
+    const { gateway, advance } = setup({ "a-big": [httpError(503), httpError(429)] });
+    await gateway.chat({ chain, messages }); // 503: paused 30 s
+    advance(31_000);
+    await gateway.chat({ chain, messages }); // first 429: 60 s, not 120 s
+    advance(61_000);
+    expect((await gateway.chat({ chain, messages })).catalogId).toBe("a-big");
   });
 
   it("tries the run's sticky model first", async () => {

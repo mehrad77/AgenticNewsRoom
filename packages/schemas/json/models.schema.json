@@ -34,7 +34,11 @@
       "properties": {
         "kind": { "const": "google" },
         "key_env": { "$ref": "#/$defs/envVar" },
-        "limits": { "$ref": "#/$defs/limits" }
+        "limits": { "$ref": "#/$defs/limits" },
+        "shared_quota": {
+          "type": "boolean",
+          "description": "The quota belongs to the account, not each model: a 429 on one model cools down every model of the provider."
+        }
       }
     },
     "openaiProvider": {
@@ -51,7 +55,11 @@
         },
         "key_env": { "$ref": "#/$defs/envVar" },
         "account_env": { "$ref": "#/$defs/envVar" },
-        "limits": { "$ref": "#/$defs/limits" }
+        "limits": { "$ref": "#/$defs/limits" },
+        "shared_quota": {
+          "type": "boolean",
+          "description": "The quota belongs to the account, not each model: a 429 on one model cools down every model of the provider."
+        }
       }
     },
     "model": {
