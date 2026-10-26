@@ -81,6 +81,23 @@ def test_syndicated_copy_joins_the_original_lead(
     assert web.urls().count("https://openai.com/index/orbit-safety/") == fetches_before
 
 
+def test_a_copy_from_a_better_source_raises_the_lead(
+    ingestor: Ingestor, database: Database, newsroom: Newsroom
+) -> None:
+    # The aggregator (tier 3) runs first; the lab's own feed (tier 1) then sees the same posts.
+    ingestor.ingest_source(newsroom.id, newsroom.sources["digest"])
+    assert {lead["tier"] for lead in leads(database, newsroom)} == {3}
+    report = ingestor.ingest_source(newsroom.id, newsroom.sources["lab"])
+    assert report.new_leads == []
+    stored = leads(database, newsroom)
+    assert len(stored) == 2
+    assert {(lead["tier"], str(lead["source_id"])) for lead in stored} == {
+        (1, newsroom.sources["lab"])
+    }
+    # Both sources' sightings stay, so independence is still counted from them.
+    assert {s["source"] for s in sightings(database, newsroom)} == {"lab", "digest"}
+
+
 def test_arxiv_papers_follow_the_paper_tier_rules(
     ingestor: Ingestor, database: Database, newsroom: Newsroom, web: FakeWeb
 ) -> None:

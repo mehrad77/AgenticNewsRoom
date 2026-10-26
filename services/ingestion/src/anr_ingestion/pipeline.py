@@ -237,9 +237,7 @@ class Ingestor:
             existing = store.lead_by_uri(conn, listed_uri)
             if existing:
                 # Seen from another source: a sighting; from this one again: already known.
-                new = store.add_sighting(
-                    conn, newsroom_id, existing, listed_uri, origin.source_id, "same-uri"
-                )
+                new = self._sighted(conn, newsroom_id, existing, listed_uri, origin, "same-uri")
                 return (Outcome.SIGHTING if new else Outcome.KNOWN), existing
 
         lead = self._build_lead(origin, candidate, listed_uri)
@@ -251,12 +249,8 @@ class Ingestor:
             if lead.uri != listed_uri:
                 existing = store.lead_by_uri(conn, lead.uri)
                 if existing:
-                    store.add_sighting(
-                        conn, newsroom_id, existing, lead.uri, origin.source_id, "same-uri"
-                    )
-                    store.add_sighting(
-                        conn, newsroom_id, existing, listed_uri, origin.source_id, "same-uri"
-                    )
+                    self._sighted(conn, newsroom_id, existing, lead.uri, origin, "same-uri")
+                    self._sighted(conn, newsroom_id, existing, listed_uri, origin, "same-uri")
                     return Outcome.KNOWN, existing
             same = store.lead_by_hash(conn, lead.content_hash)
             match = "same-hash"
@@ -271,7 +265,7 @@ class Ingestor:
                     None,
                 )
             if same is not None:
-                store.add_sighting(conn, newsroom_id, same, lead.uri, origin.source_id, match)
+                self._sighted(conn, newsroom_id, same, lead.uri, origin, match)
                 return Outcome.SIGHTING, same
             lead_id = store.insert_lead(conn, newsroom_id, lead)
             if lead_id is None:
@@ -282,6 +276,16 @@ class Ingestor:
                     conn, newsroom_id, lead_id, listed_uri, origin.source_id, "same-uri"
                 )
             return Outcome.NEW, lead_id
+
+    @staticmethod
+    def _sighted(
+        conn: Conn, newsroom_id: str, lead_id: str, uri: str, origin: Origin, match: str
+    ) -> bool:
+        """Records a copy; a copy from a better-tier source raises the lead and credits it (D67)."""
+        new = store.add_sighting(conn, newsroom_id, lead_id, uri, origin.source_id, match)
+        if origin.source_id is not None:
+            store.credit_lead(conn, lead_id, origin.source_id, origin.tier)
+        return new
 
     def _build_lead(
         self, origin: Origin, candidate: Candidate, listed_uri: str

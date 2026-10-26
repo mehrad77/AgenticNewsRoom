@@ -253,3 +253,14 @@ def raise_tier(conn: Conn, lead_id: str, tier: int) -> bool:
         "update leads set tier = %s where id = %s and tier > %s", (tier, lead_id, tier)
     )
     return cur.rowcount == 1
+
+
+def credit_lead(conn: Conn, lead_id: str, source_id: str, tier: int) -> bool:
+    """Credits a lead to a better-tier source that also carries it (D67). Papers keep D59's tier
+    and their arXiv source, so a copy never makes a paper tier 1."""
+    cur = conn.execute(
+        """update leads set tier = %s, source_id = %s
+           where id = %s and tier > %s and uri not like 'https://arxiv.org/abs/%%'""",
+        (tier, source_id, lead_id, tier),
+    )
+    return cur.rowcount == 1
