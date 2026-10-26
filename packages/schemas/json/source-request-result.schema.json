@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anr.local/schemas/source-request-result.schema.json",
+  "title": "SourceRequestResult",
+  "description": "The lead an agent's source request resolved to: newly stored, or already in the lead pool.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["lead_id", "uri", "tier", "created"],
+  "properties": {
+    "lead_id": { "type": "string", "format": "uuid" },
+    "uri": { "type": "string" },
+    "headline": { "type": ["string", "null"] },
+    "tier": { "enum": [1, 2, 3] },
+    "created": {
+      "type": "boolean",
+      "description": "False when the URL or its text was already stored."
+    }
+  }
+}

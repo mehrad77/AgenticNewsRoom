@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anr.local/schemas/source-request.schema.json",
+  "title": "SourceRequest",
+  "description": "POST /request-source on the ingestion service: an agent run asks for one page to be fetched and stored.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["newsroom_id", "agent_run_id", "url"],
+  "properties": {
+    "newsroom_id": { "type": "string", "format": "uuid" },
+    "agent_run_id": { "type": "string", "format": "uuid" },
+    "url": { "type": "string", "format": "uri", "maxLength": 2048 }
+  }
+}

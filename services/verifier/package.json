@@ -8,5 +8,8 @@
     "lint": "uv run --frozen ruff check . && uv run --frozen ruff format --check .",
     "typecheck": "uv run --frozen mypy src tests",
     "test": "uv run --frozen pytest"
+  },
+  "devDependencies": {
+    "@anr/schemas": "workspace:*"
   }
 }

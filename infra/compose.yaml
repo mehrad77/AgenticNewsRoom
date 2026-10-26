@@ -108,6 +108,10 @@ services:
   agents:
     <<: *app
     image: anr-agents
+    environment:
+      DATABASE_URL: postgres://anr_app:${ANR_APP_DB_PASSWORD:-anr_app}@postgres:5432/anr
+      DATABASE_SYSTEM_URL: postgres://anr_system:${ANR_SYSTEM_DB_PASSWORD:-anr_system}@postgres:5432/anr
+      ANR_INGESTION_URL: http://ingestion:8000
     build: { context: .., dockerfile: infra/docker/node.Dockerfile, args: { APP: agents } }
 
   publisher:
@@ -119,6 +123,12 @@ services:
     <<: *app
     image: anr-ingestion
     build: { context: .., dockerfile: infra/docker/python.Dockerfile, args: { SERVICE: ingestion } }
+    environment:
+      DATABASE_URL: postgres://anr_app:${ANR_APP_DB_PASSWORD:-anr_app}@postgres:5432/anr
+      # Raw pages on a volume until they go to R2 (ANR_RAW_BUCKET, milestone 7).
+      ANR_RAW_DIR: /data/raw
+    volumes:
+      - rawpages:/data/raw
 
   verifier:
     <<: *app
@@ -142,3 +152,4 @@ services:
 volumes:
   pgdata:
   caddy:
+  rawpages:

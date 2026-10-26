@@ -75,7 +75,9 @@ Every tenant row carries `newsroom_id`, enforced by row-level security (see Tena
 | Channel                           | kind (site, Telegram, podcast feed), language, external id, encrypted credentials, status | Data, not config: set up in the editor's desk and stored in Postgres                                           |
 | Beat                              | name, status: open, restricted or banned, IPTC Media Topics                               | Restricted beats always go to a human; banned ones are never assigned. The topics classify every lead and publication in the beat |
 | Source                            | kind (RSS, API, site), url, publisher, tier 1–3, fetch interval, terms checked (date)     | Tier 1 = primary: a lab's own post, a filing, an artist's or label's own statement                             |
-| Lead                              | source, canonical url (ninjs `uri`), headline, stored text (`body`), language, byline (`by`), first and version created, content hash, tier, summary, beats, fetched at | The lead pool. Claims cite the stored snapshot. A lead an agent requests from an unknown site gets tier 3      |
+| Lead                              | source, canonical url (ninjs `uri`), headline, stored text (`body`), language, byline (`by`), first and version created, content hash, SimHash, raw page key, links, tier, summary, beats, requested by (agent run), fetched at | The lead pool. Claims cite the stored snapshot (text, hash, SimHash and raw page are frozen). A lead an agent requests from an unknown site gets tier 3 |
+| Lead sighting                     | lead, uri, source, match (original, same URI, same text, near-duplicate)                  | Every place a lead was seen; a syndicated copy is a sighting, never a second lead or a second independent source |
+| Source fetch state                | source, ETag, Last-Modified, last fetch, status, error, consecutive failures              | Ingestion's own state, apart from the config-synced source row                                               |
 | Editorial cycle                   | starts, ends, theme, angle, status                                                        | One approved cycle per newsroom per period; the period comes from `planning` in `newsroom.yaml`                |
 | Pick                              | cycle, series, week, three candidates, chosen, picked by, deadline                        | The weekly choice. With no pick by the deadline, that week's slot is skipped and the editor is told            |
 | Assignment                        | cycle or pick (empty for daily news), series, slot, angle, leads                          | The unit of work an agent receives                                                                             |
@@ -121,12 +123,14 @@ Each source has its own pg-boss schedule, for example hourly for lab blogs and e
 
 1. **Fetch** the feed, API or page.
 2. **Extract** the main text, and keep the raw page in object storage. The item's headline, byline, language and dates are kept under their ninjs names. For an image, the IPTC Photo Metadata embedded in its XMP is read into the Media row.
-3. **Deduplicate** by canonical URL, then content hash, then near-duplicate text, so a syndicated copy joins the original's lead and never counts as a second source.
-4. **Tier.** Papers keep today's credibility rules, mapped onto tiers: high is tier 1, medium tier 2, low tier 3, and flagged papers are dropped. Other leads take their source's tier.
+3. **Deduplicate** by canonical URL, then content hash, then near-duplicate text (SimHash candidates confirmed by shingle overlap, D56), so a syndicated copy joins the original's lead as a sighting and never counts as a second source.
+4. **Tier.** Other leads take their source's tier. arXiv papers follow the paper tier rules (D59), mapped onto tiers: high is tier 1, medium tier 2, low tier 3, and flagged papers are dropped. High needs Semantic Scholar's venue or citations, never the authors' own claim; preprints are medium.
 5. **Store** the lead with its text. The text is frozen: claims quote this snapshot, never the live page.
 6. **Summarise and classify** with the summariser agent: a short summary, and the newsroom beats the lead belongs to. A lead's IPTC subjects are its beats' Media Topics, so classification never invents a code.
 
-When a desk agent requests a source, it runs through the same steps as a high-priority job, and the agent gets the new lead back.
+When a desk agent requests a source, it runs through the same steps at once, and the agent gets the lead back (D61).
+
+Every fetch goes through one guarded client (D58): http and https only, every address public and checked at connect time, robots.txt honoured, a polite delay per host, conditional GET. Hacker News items are stored as metadata only (D60). The TypeScript `ingest-source` job and the Python service share one contract, the JSON Schemas `ingest-*` and `source-request*` in `packages/schemas` (D62).
 
 ## Agent runs
 

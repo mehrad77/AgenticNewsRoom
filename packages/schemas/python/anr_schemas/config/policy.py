@@ -49,12 +49,24 @@ class NewsletterMin(Enum):
     low = "low"
 
 
+class HighVenue(RootModel[constr(min_length=1)]):
+    root: constr(min_length=1)
+
+
 class Papers(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
     tiers: list[Tier]
     newsletter_min: NewsletterMin
+    high_venues: list[HighVenue] | None = Field(
+        None,
+        description="Venues whose papers are high (tier 1), matched case-insensitively against the venue Semantic Scholar reports, never the authors' own comment.",
+    )
+    high_citations: conint(ge=1) | None = Field(
+        None,
+        description="Citations, as Semantic Scholar counts them, that make a paper high (tier 1).",
+    )
 
 
 class Opinion(Enum):

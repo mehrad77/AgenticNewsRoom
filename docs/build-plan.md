@@ -35,12 +35,12 @@ Gate: **config loads, and a backup restores into a fresh database.** Locally, un
 
 Gate: **the AI newsroom's sources fill the lead pool.**
 
-- [ ] Fetchers for RSS, API and site sources (httpx, feedparser), with per-source rate limits and a refusal of private and internal addresses.
-- [ ] Text extraction (trafilatura); raw page stored in R2; headline, byline, language and dates kept under their ninjs names.
-- [ ] Deduplication: canonical URL, content hash, near-duplicate text; a syndicated copy joins the original lead.
-- [ ] Tiering: source tier; papers mapped from the credibility rules (high 1, medium 2, low 3, flagged dropped).
-- [ ] Lead storage with frozen text; internal HTTP endpoint the pg-boss job calls.
-- [ ] High-priority "request a source" path that returns the lead (for agents), tier 3 for unknown sites, capped per run.
+- [x] Fetchers for RSS, API and site sources (httpx, feedparser), with per-source rate limits and a refusal of private and internal addresses.
+- [x] Text extraction (trafilatura); raw page stored (a local directory until milestone 7, then R2; D55); headline, byline, language and dates kept under their ninjs names.
+- [x] Deduplication: canonical URL, content hash, near-duplicate text; a syndicated copy joins the original lead.
+- [x] Tiering: source tier; papers mapped from the credibility rules (high 1, medium 2, low 3, flagged dropped).
+- [x] Lead storage with frozen text; internal HTTP endpoint the pg-boss job calls.
+- [x] High-priority "request a source" path that returns the lead (for agents), tier 3 for unknown sites, capped per run.
 - [ ] Summariser graph (Flash-Lite): summary and beats per new lead (its IPTC subjects are the beats' Media Topics), logged as an Agent run.
 - [ ] Complete the AI newsroom's `sources.yaml` (one entry per lab blog, arXiv categories), each with verified URL; a person reads each source's terms and sets `terms_checked`.
 - [ ] Gate: a week of scheduled runs fills the AI lead pool with no duplicates across sources.

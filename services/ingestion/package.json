@@ -4,9 +4,12 @@
   "private": true,
   "description": "Python service; this file only lets turbo run its tasks.",
   "scripts": {
-    "dev": "uv run --frozen uvicorn anr_ingestion.app:app --reload --port 8101",
+    "dev": "uv run --frozen --env-file ../../.env uvicorn anr_ingestion.app:app --reload --host 127.0.0.1 --port 8101",
     "lint": "uv run --frozen ruff check . && uv run --frozen ruff format --check .",
     "typecheck": "uv run --frozen mypy src tests",
     "test": "uv run --frozen pytest"
+  },
+  "devDependencies": {
+    "@anr/schemas": "workspace:*"
   }
 }
