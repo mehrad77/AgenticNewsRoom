@@ -35,6 +35,8 @@ passphrase="${ANR_BACKUP_PASSPHRASE:-}"
 [[ "${ANR_WAL_ARCHIVE:-}" == on ]] || problems+=("ANR_WAL_ARCHIVE must be on")
 [[ "${ANR_DATABASES:-}" == anr ]] || problems+=("ANR_DATABASES must be anr (no test database in production)")
 [[ "${ANR_ROOT_DOMAIN:-}" != localhost ]] || problems+=("ANR_ROOT_DOMAIN is still localhost")
+# Free tiers may train on prompts and have no availability promise (D55).
+[[ "${ANR_MODELS:-}" != free ]] || problems+=("ANR_MODELS=free is for development only")
 if ((${#problems[@]} > 0)); then
   printf 'deploy: %s\n' "${problems[@]}" >&2
   exit 1

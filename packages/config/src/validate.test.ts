@@ -1,4 +1,5 @@
 import { fileURLToPath } from "node:url";
+import type { ModelsSchema } from "@anr/schemas";
 import { describe, expect, it } from "vitest";
 import { loadConfig } from "./load.ts";
 import { validateConfig } from "./validate.ts";
@@ -32,17 +33,43 @@ describe("validateConfig", () => {
     );
   });
 
-  it("requires two distinct fact-checker models", () => {
+  it("reads every models file", () => {
+    expect(Object.keys(loadConfig(root).models)).toEqual(["models.free.yaml", "models.yaml"]);
+  });
+
+  const freeModels = (config: ReturnType<typeof loadConfig>) =>
+    config.models["models.free.yaml"] as ModelsSchema;
+
+  it("requires fact-checker models from two families, not just two ids", () => {
     const config = loadConfig(root);
-    const models = config.models as {
-      roles: { "fact-checker": { candidates: { provider: string; model: string }[] } };
-    };
-    const first = models.roles["fact-checker"].candidates[0];
-    if (!first) throw new Error("no candidates");
-    models.roles["fact-checker"].candidates = [first, { ...first }];
+    const m = freeModels(config);
+    // The same weights from two providers are one family.
+    m.roles["fact-checker"] = ["groq-gpt-oss-120b", "cloudflare-gpt-oss-120b"];
     expect(validateConfig(config)).toContain(
-      "models.yaml fact-checker needs at least two distinct candidate models",
+      "models.free.yaml fact-checker needs models from at least two families",
     );
+  });
+
+  it("rejects unknown models, models without tools, and web access", () => {
+    const config = loadConfig(root);
+    const m = freeModels(config);
+    m.roles.planner = ["no-such-model", "gemini-flash-tts"];
+    m.models.web = { provider: "openrouter", model: "x/y:online", family: "y", tools: true };
+    m.models.orphan = { provider: "nowhere", model: "z", family: "z", tools: true };
+    const errors = validateConfig(config);
+    expect(errors).toContain("models.free.yaml planner: unknown model no-such-model");
+    expect(errors).toContain("models.free.yaml planner: gemini-flash-tts has no tool calling");
+    expect(errors).toContain("models.free.yaml model web: x/y:online has web access");
+    expect(errors).toContain("models.free.yaml model orphan: unknown provider nowhere");
+  });
+
+  it("requires models.yaml and known formats in desk.by_format", () => {
+    const config = loadConfig(root);
+    freeModels(config).roles.desk.by_format = { "no-such-format": ["gemini-flash"] };
+    delete config.models["models.yaml"];
+    const errors = validateConfig(config);
+    expect(errors).toContain("config has no models.yaml");
+    expect(errors).toContain("models.free.yaml desk.by_format: unknown format no-such-format");
   });
 
   it("rejects unknown and retired IPTC Media Topics on beats", () => {

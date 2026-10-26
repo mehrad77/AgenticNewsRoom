@@ -2,55 +2,126 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://anr.local/schemas/models.schema.json",
   "title": "ModelsConfig",
-  "description": "config/models.yaml: role -> provider and model, for the model router.",
+  "description": "config/models*.yaml: providers, a model catalog, and per role an ordered chain of catalog ids for the model router and gateway.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["roles", "tts"],
+  "required": ["providers", "models", "roles", "tts"],
   "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9.-]*$" },
+    "envVar": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+    "limits": {
+      "type": "object",
+      "description": "Published free-tier limits; calls stop before reaching them. Omit what the provider does not publish.",
+      "additionalProperties": false,
+      "properties": {
+        "rpm": { "type": "integer", "minimum": 1, "description": "Requests per minute." },
+        "rpd": { "type": "integer", "minimum": 1, "description": "Requests per day." },
+        "tpm": { "type": "integer", "minimum": 1, "description": "Tokens per minute." },
+        "tpd": { "type": "integer", "minimum": 1, "description": "Tokens per day." }
+      }
+    },
+    "chain": {
+      "type": "array",
+      "description": "Catalog ids, tried in order.",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/id" }
+    },
+    "googleProvider": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "key_env"],
+      "properties": {
+        "kind": { "const": "google" },
+        "key_env": { "$ref": "#/$defs/envVar" },
+        "limits": { "$ref": "#/$defs/limits" }
+      }
+    },
+    "openaiProvider": {
+      "type": "object",
+      "description": "Any OpenAI-compatible chat completions API.",
+      "additionalProperties": false,
+      "required": ["kind", "base_url", "key_env"],
+      "properties": {
+        "kind": { "const": "openai" },
+        "base_url": {
+          "type": "string",
+          "pattern": "^https://",
+          "description": "May contain {account}, filled from account_env."
+        },
+        "key_env": { "$ref": "#/$defs/envVar" },
+        "account_env": { "$ref": "#/$defs/envVar" },
+        "limits": { "$ref": "#/$defs/limits" }
+      }
+    },
     "model": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["provider", "model"],
+      "required": ["provider", "model", "family", "tools"],
       "properties": {
-        "provider": { "enum": ["gemini"] },
-        "model": { "type": "string", "minLength": 1 }
+        "provider": { "$ref": "#/$defs/id" },
+        "model": { "type": "string", "minLength": 1, "description": "The provider's model id." },
+        "family": {
+          "$ref": "#/$defs/id",
+          "description": "The weights, whoever serves them. The fact-checker never shares a family with the writer."
+        },
+        "tools": {
+          "type": "boolean",
+          "description": "Supports tool calling (every agent role needs it)."
+        },
+        "limits": { "$ref": "#/$defs/limits" },
+        "price": {
+          "type": "object",
+          "description": "USD per million tokens; omitted means unknown and cost is not recorded.",
+          "additionalProperties": false,
+          "required": ["in", "out"],
+          "properties": {
+            "in": { "type": "number", "minimum": 0 },
+            "out": { "type": "number", "minimum": 0 }
+          }
+        }
       }
     }
   },
   "properties": {
+    "providers": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "$ref": "#/$defs/id" },
+      "additionalProperties": {
+        "anyOf": [{ "$ref": "#/$defs/googleProvider" }, { "$ref": "#/$defs/openaiProvider" }]
+      }
+    },
+    "models": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "$ref": "#/$defs/id" },
+      "additionalProperties": { "$ref": "#/$defs/model" }
+    },
     "roles": {
       "type": "object",
       "additionalProperties": false,
       "required": ["planner", "desk", "renderer", "fact-checker", "item-matcher", "summariser"],
       "properties": {
-        "planner": { "$ref": "#/$defs/model" },
+        "planner": { "$ref": "#/$defs/chain" },
         "desk": {
           "type": "object",
           "additionalProperties": false,
           "required": ["default"],
           "properties": {
-            "default": { "$ref": "#/$defs/model" },
-            "by_format": { "type": "object", "additionalProperties": { "$ref": "#/$defs/model" } }
+            "default": { "$ref": "#/$defs/chain" },
+            "by_format": { "type": "object", "additionalProperties": { "$ref": "#/$defs/chain" } }
           }
         },
-        "renderer": { "$ref": "#/$defs/model" },
+        "renderer": { "$ref": "#/$defs/chain" },
         "fact-checker": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["candidates"],
-          "properties": {
-            "candidates": {
-              "type": "array",
-              "description": "Ordered; the router picks the first that did not write the story.",
-              "minItems": 2,
-              "items": { "$ref": "#/$defs/model" }
-            }
-          }
+          "$ref": "#/$defs/chain",
+          "description": "The router drops every family that wrote the story; at least two families."
         },
-        "item-matcher": { "$ref": "#/$defs/model" },
-        "summariser": { "$ref": "#/$defs/model" }
+        "item-matcher": { "$ref": "#/$defs/chain" },
+        "summariser": { "$ref": "#/$defs/chain" }
       }
     },
-    "tts": { "$ref": "#/$defs/model" }
+    "tts": { "$ref": "#/$defs/id", "description": "Catalog id of the text-to-speech model." }
   }
 }

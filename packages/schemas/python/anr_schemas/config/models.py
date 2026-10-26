@@ -2,56 +2,108 @@
 #   filename:  models.schema.json
 
 from __future__ import annotations
-from enum import Enum
-from pydantic import BaseModel, ConfigDict, Field, constr
+from pydantic import BaseModel, ConfigDict, Field, RootModel, confloat, conint, constr
+from typing import Literal
 
 
-class Provider(Enum):
-    gemini = "gemini"
+class Id(RootModel[constr(pattern=r"^[a-z0-9][a-z0-9.-]*$")]):
+    root: constr(pattern=r"^[a-z0-9][a-z0-9.-]*$")
+
+
+class EnvVar(RootModel[constr(pattern=r"^[A-Z][A-Z0-9_]*$")]):
+    root: constr(pattern=r"^[A-Z][A-Z0-9_]*$")
+
+
+class Limits(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    rpm: conint(ge=1) | None = Field(None, description="Requests per minute.")
+    rpd: conint(ge=1) | None = Field(None, description="Requests per day.")
+    tpm: conint(ge=1) | None = Field(None, description="Tokens per minute.")
+    tpd: conint(ge=1) | None = Field(None, description="Tokens per day.")
+
+
+class Chain(RootModel[list[Id]]):
+    root: list[Id] = Field(..., description="Catalog ids, tried in order.", min_length=1)
+
+
+class GoogleProvider(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    kind: Literal["google"]
+    key_env: EnvVar
+    limits: Limits | None = None
+
+
+class OpenaiProvider(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    kind: Literal["openai"]
+    base_url: constr(pattern=r"^https://") = Field(
+        ..., description="May contain {account}, filled from account_env."
+    )
+    key_env: EnvVar
+    account_env: EnvVar | None = None
+    limits: Limits | None = None
+
+
+class Price(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    in_: confloat(ge=0.0) = Field(..., alias="in")
+    out: confloat(ge=0.0)
 
 
 class Model(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    provider: Provider
-    model: constr(min_length=1)
+    provider: Id
+    model: constr(min_length=1) = Field(..., description="The provider's model id.")
+    family: Id = Field(
+        ...,
+        description="The weights, whoever serves them. The fact-checker never shares a family with the writer.",
+    )
+    tools: bool = Field(..., description="Supports tool calling (every agent role needs it).")
+    limits: Limits | None = None
+    price: Price | None = Field(
+        None, description="USD per million tokens; omitted means unknown and cost is not recorded."
+    )
 
 
 class Desk(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    default: Model
-    by_format: dict[str, Model] | None = None
-
-
-class FactChecker(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    candidates: list[Model] = Field(
-        ...,
-        description="Ordered; the router picks the first that did not write the story.",
-        min_length=2,
-    )
+    default: Chain
+    by_format: dict[str, Chain] | None = None
 
 
 class Roles(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    planner: Model
+    planner: Chain
     desk: Desk
-    renderer: Model
-    fact_checker: FactChecker = Field(..., alias="fact-checker")
-    item_matcher: Model = Field(..., alias="item-matcher")
-    summariser: Model
+    renderer: Chain
+    fact_checker: Chain = Field(
+        ...,
+        alias="fact-checker",
+        description="The router drops every family that wrote the story; at least two families.",
+    )
+    item_matcher: Chain = Field(..., alias="item-matcher")
+    summariser: Chain
 
 
 class ModelsConfig(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
+    providers: dict[Id, GoogleProvider | OpenaiProvider] = Field(..., min_length=1)
+    models: dict[Id, Model] = Field(..., min_length=1)
     roles: Roles
-    tts: Model
+    tts: Id = Field(..., description="Catalog id of the text-to-speech model.")

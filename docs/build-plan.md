@@ -49,6 +49,7 @@ Gate: **the AI newsroom's sources fill the lead pool.**
 
 Gate: **a daily brief is drafted, then passes or is held with reasons.**
 
+- [x] Model gateway (`@anr/models`): role chains with fallback on rate limits, outages and retired models; fact-checker excluded by model family; free development profile (`ANR_MODELS=free`) and `pnpm models:probe`.
 - [ ] Agent tool layer: read lead, search lead pool (trigram search), request source, submit; nothing else reachable.
 - [ ] Prompt assembly: role prompt + newsroom `style.md` + format `guide.md`, versioned, under 5 KB.
 - [ ] Submit validation against the format schema; one retry with errors, then hold.

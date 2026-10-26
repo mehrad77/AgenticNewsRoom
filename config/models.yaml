@@ -1,17 +1,41 @@
-# Role -> provider and model, for the model router in apps/agents.
-# Agents name a role, never a model. A newsroom may override this file in its own folder.
+# Providers, a model catalog, and per role an ordered chain of catalog ids (D23, D56).
+# Agents name a role, never a model; apps/agents/src/router.ts picks the chain and @anr/models
+# calls it, falling through the chain when a model is rate-limited or gone.
+# ANR_MODELS=free selects models.free.yaml instead (development only).
+providers:
+  gemini: { kind: google, key_env: GEMINI_API_KEY }
+
+models:
+  gemini-pro:
+    provider: gemini
+    model: gemini-3.1-pro-preview
+    family: gemini-3.1-pro
+    tools: true
+  gemini-flash:
+    provider: gemini
+    model: gemini-3.8-flash
+    family: gemini-3.8-flash
+    tools: true
+  gemini-flash-lite:
+    provider: gemini
+    model: gemini-3.5-flash-lite
+    family: gemini-3.5-flash-lite
+    tools: true
+  gemini-flash-tts:
+    provider: gemini
+    model: gemini-3.8-flash-tts
+    family: gemini-3.8-flash-tts
+    tools: false
+
 roles:
-  planner: { provider: gemini, model: gemini-3.1-pro-preview }
+  planner: [gemini-pro]
   desk:
-    default: { provider: gemini, model: gemini-3.1-pro-preview }
+    default: [gemini-pro]
     by_format:
-      newsletter-issue: { provider: gemini, model: gemini-3.8-flash }
-  renderer: { provider: gemini, model: gemini-3.8-flash }
-  fact-checker:
-    # Ordered: the router picks the first candidate that did not write the story.
-    candidates:
-      - { provider: gemini, model: gemini-3.8-flash }
-      - { provider: gemini, model: gemini-3.1-pro-preview }
-  item-matcher: { provider: gemini, model: gemini-3.8-flash }
-  summariser: { provider: gemini, model: gemini-3.5-flash-lite }
-tts: { provider: gemini, model: gemini-3.8-flash-tts }
+      newsletter-issue: [gemini-flash]
+  renderer: [gemini-flash]
+  # The router drops every family that wrote the story, then tries the rest in order.
+  fact-checker: [gemini-flash, gemini-pro]
+  item-matcher: [gemini-flash]
+  summariser: [gemini-flash-lite]
+tts: gemini-flash-tts

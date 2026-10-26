@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
+import type { ModelsSchema } from "@anr/schemas";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import addFormatsModule from "ajv-formats";
 import type { RawConfig } from "./load.ts";
@@ -33,6 +34,54 @@ const CHANNEL_TEMPLATE: Record<string, string> = {
   "podcast-rss": "podcast-rss.liquid",
 };
 
+/** Cross-references in a models file that JSON Schema cannot express (D22, D55). */
+function modelsProblems(m: ModelsSchema, file: string, formats: string[]): string[] {
+  const errors: string[] = [];
+  for (const [id, p] of Object.entries(m.providers)) {
+    if (p.kind === "openai" && p.base_url.includes("{account}") && !p.account_env) {
+      errors.push(`${file} provider ${id}: base_url has {account} but no account_env`);
+    }
+  }
+  for (const [id, model] of Object.entries(m.models)) {
+    if (!m.providers[model.provider]) {
+      errors.push(`${file} model ${id}: unknown provider ${model.provider}`);
+    }
+    // OpenRouter's :online variants search the web; agents have no web access (invariant 2).
+    if (model.model.endsWith(":online")) {
+      errors.push(`${file} model ${id}: ${model.model} has web access`);
+    }
+  }
+  const chains: [string, string[]][] = [
+    ["planner", m.roles.planner],
+    ["desk", m.roles.desk.default],
+    ...Object.entries(m.roles.desk.by_format ?? {}).map(([format, chain]): [string, string[]] => [
+      `desk.by_format.${format}`,
+      chain,
+    ]),
+    ["renderer", m.roles.renderer],
+    ["fact-checker", m.roles["fact-checker"]],
+    ["item-matcher", m.roles["item-matcher"]],
+    ["summariser", m.roles.summariser],
+  ];
+  for (const format of Object.keys(m.roles.desk.by_format ?? {})) {
+    if (!formats.includes(format)) errors.push(`${file} desk.by_format: unknown format ${format}`);
+  }
+  for (const [role, chain] of chains) {
+    for (const id of chain) {
+      const model = m.models[id];
+      if (!model) errors.push(`${file} ${role}: unknown model ${id}`);
+      // Every agent ends with the submit tool.
+      else if (!model.tools) errors.push(`${file} ${role}: ${id} has no tool calling`);
+    }
+  }
+  if (!m.models[m.tts]) errors.push(`${file} tts: unknown model ${m.tts}`);
+  const families = new Set(m.roles["fact-checker"].map((id) => m.models[id]?.family));
+  if (families.size < 2) {
+    errors.push(`${file} fact-checker needs models from at least two families`);
+  }
+  return errors;
+}
+
 /** Returns a list of human-readable problems; empty means the config is valid. */
 export function validateConfig(config: RawConfig): string[] {
   const ajv = new Ajv2020({ allErrors: true, strict: true });
@@ -58,12 +107,10 @@ export function validateConfig(config: RawConfig): string[] {
     return true;
   };
 
-  if (check(v.models, config.models, "models.yaml")) {
-    const candidates = (
-      config.models as { roles: { "fact-checker": { candidates: { model: string }[] } } }
-    ).roles["fact-checker"].candidates;
-    if (new Set(candidates.map((c) => c.model)).size < 2) {
-      errors.push("models.yaml fact-checker needs at least two distinct candidate models");
+  if (config.models["models.yaml"] === undefined) errors.push("config has no models.yaml");
+  for (const [file, data] of Object.entries(config.models)) {
+    if (check(v.models, data, file)) {
+      errors.push(...modelsProblems(data as ModelsSchema, file, config.formats));
     }
   }
 

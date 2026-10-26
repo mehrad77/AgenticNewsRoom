@@ -18,6 +18,7 @@ ANR (Agentic News Room): a platform for running publications where humans set th
 | `services/verifier`  | Code checks of the verifier gate                                            | Python           |
 | `packages/core`      | Vocabulary types, language → direction                                      | TS               |
 | `packages/config`    | Loads and validates `config/`                                               | TS               |
+| `packages/models`    | Model catalog, provider clients, fallback gateway, `models:probe`           | TS               |
 | `packages/schemas`   | JSON Schema source → generated zod + pydantic                               | TS/Python        |
 | `packages/db`        | SQL migrations (dbmate), Postgres client, `withNewsroom()`                  | TS/SQL           |
 | `config/`            | Models, formats, newsrooms (versioned configuration)                        | YAML/JSON/Liquid |
@@ -36,6 +37,7 @@ pnpm db:migrate              # apply SQL migrations to anr and the test database
 pnpm check                   # lint, typecheck, test (database tests need db:up), config:check, codegen drift — must pass
 pnpm gen                     # regenerate zod/pydantic from JSON Schema and API types from openapi.yaml
 pnpm config:sync             # load config/ into Postgres
+pnpm models:probe            # ping every model in the active models file (real calls)
 pnpm dev                     # run every app and service in watch mode
 pnpm --filter @anr/<pkg> test   # one package (TS or Python)
 ```
@@ -46,7 +48,7 @@ These come from the charter. A change that crosses one needs a charter change fi
 1. **Only code publishes.** Agents never send to a channel, write HTML, record posts, or write anywhere except through `submit`.
 2. **Agents have four tools:** read a lead, search the lead pool, request a source (via ingestion), submit. No web access.
 3. **Source-grounded.** Every factual claim cites a stored lead and a passage from its frozen text.
-4. **The writer never checks its own facts.** The fact-checker's model differs from the writer's (`apps/agents/src/router.ts`).
+4. **The writer never checks its own facts.** The fact-checker's model family differs from every family that wrote the story (`apps/agents/src/router.ts`).
 5. **The gate can hold, never approve.** Any failed, partial, errored or timed-out check sends the publication to a person.
 6. **Tenancy in the database.** Every tenant table has `newsroom_id` with forced row-level security; app code uses `withNewsroom()`.
 7. **Channels and secrets are never config.** Channels are data in Postgres (credentials encrypted); secrets are only the env vars in `.env.example`.
