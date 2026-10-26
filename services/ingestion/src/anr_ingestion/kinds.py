@@ -213,7 +213,7 @@ def parse_site(content: bytes, url: str, limit: int) -> Listing:
         if parts.path.rstrip("/") + "/" == prefix or href in seen:
             continue
         seen.add(href)
-        candidates.append(Candidate(uri=href, fetch_page=True))
+        candidates.append(Candidate(uri=href, fetch_page=True, article_only=True))
         if len(candidates) >= limit:
             break
     return Listing(candidates, language=language_tag(root.get("lang")))

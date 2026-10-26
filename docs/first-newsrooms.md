@@ -82,6 +82,8 @@ beats:
 sources:
   min_independent: 2
   tier1_alone: true # a lab's own post, a paper or a filing can stand alone
+leads:
+  max_age_days: 14 # scheduled runs skip older and undated items (D68)
 papers:
   tiers: [flagged, high, medium, low] # flagged is dropped; high, medium, low map to tiers 1, 2, 3
   newsletter_min: high

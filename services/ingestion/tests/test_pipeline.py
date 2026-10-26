@@ -1,6 +1,7 @@
 """The whole pipeline against anr_test, with the fake web: sources into leads."""
 
 import json
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -147,7 +148,8 @@ def test_hacker_news_stores_metadata_never_the_linked_page(
 
 def test_site_listing(ingestor: Ingestor, database: Database, newsroom: Newsroom) -> None:
     report = ingestor.ingest_source(newsroom.id, newsroom.sources["anthropic-news"])
-    assert len(report.new_leads) == 1
+    # The category page it also links to is fetched, says it is no article, and is dropped (D69).
+    assert len(report.new_leads) == 1 and report.dropped == 1
     (lead,) = leads(database, newsroom)
     assert lead["uri"] == "https://www.anthropic.com/news/claude-orbit-comparison"
     assert lead["headline"] == "Comparing long-context models" and lead["language"] == "en"
@@ -315,3 +317,36 @@ def test_request_cap_counts_every_fetch(
     assert not created
     with pytest.raises(CapReached):
         ingestor.request_source(newsroom.id, run, "https://unknown.example/report")
+
+
+def test_age_limit_skips_old_and_undated_items(
+    ingestor: Ingestor, database: Database, newsroom: Newsroom, web: FakeWeb
+) -> None:
+    database.system.execute(
+        """update newsrooms set policy = policy || '{"leads": {"max_age_days": 14}}'
+           where id = %s""",
+        (newsroom.id,),
+    )
+    # The feed's items are dated 19-21 October; on 4 November only the 21st is within 14 days.
+    ingestor.now = lambda: datetime(2026, 11, 4, tzinfo=UTC)
+    report = ingestor.ingest_source(newsroom.id, newsroom.sources["lab"])
+    assert report.new_leads == [] and report.dropped == 2 and len(report.errors) == 1
+    # The older items were skipped before their pages were fetched; the 21st's page is gone.
+    assert not any(
+        "/index/introducing-orbit" in u or "/index/orbit-safety" in u for u in web.urls()
+    )
+    # A listing page's link has no date until its page is read; an undated page is not stored.
+    report = ingestor.ingest_source(newsroom.id, newsroom.sources["anthropic-news"])
+    assert report.new_leads == []
+
+
+def test_feed_only_source_never_fetches_pages(
+    ingestor: Ingestor, database: Database, newsroom: Newsroom, web: FakeWeb
+) -> None:
+    database.system.execute(
+        "update sources set fetch_pages = false where id = %s", (newsroom.sources["lab"],)
+    )
+    report = ingestor.ingest_source(newsroom.id, newsroom.sources["lab"])
+    assert len(report.new_leads) == 3  # the gone page is never asked for, so its item stays
+    assert not any("/index/" in u for u in web.urls())
+    assert {lead["raw_key"] for lead in leads(database, newsroom)} == {None}

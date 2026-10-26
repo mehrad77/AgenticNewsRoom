@@ -1,6 +1,7 @@
 """Readable text and metadata from a fetched page (trafilatura), and the item's language."""
 
 import codecs
+import json
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -24,6 +25,48 @@ class Page:
     language: str | None
     canonical: str | None
     """The page's own `<link rel="canonical">`, if it declares one."""
+    article: bool = False
+    """The page says it is an article (`og:type` article, or JSON-LD Article data): D69."""
+
+
+ARTICLE_TYPES = frozenset(
+    {
+        "Article",
+        "NewsArticle",
+        "BlogPosting",
+        "TechArticle",
+        "ScholarlyArticle",
+        "AnalysisNewsArticle",
+        "ReportageNewsArticle",
+    }
+)
+
+
+def _ld_types(node: object) -> set[str]:
+    """Every schema.org `@type` in a JSON-LD value, through lists and `@graph`."""
+    if isinstance(node, list):
+        return {t for item in node for t in _ld_types(item)}
+    if not isinstance(node, dict):
+        return set()
+    kind = node.get("@type")
+    found = {kind} if isinstance(kind, str) else {k for k in kind or [] if isinstance(k, str)}
+    return found | _ld_types(node.get("@graph"))
+
+
+def is_article(tree: "lxml.html.HtmlElement") -> bool:
+    for meta in tree.iterfind(".//meta[@property]"):
+        if meta.get("property") == "og:type" and (meta.get("content") or "").lower() == "article":
+            return True
+    for script in tree.iterfind(".//script[@type]"):
+        if (script.get("type") or "").lower() != "application/ld+json":
+            continue
+        try:
+            data = json.loads(script.text or "")
+        except ValueError:
+            continue
+        if _ld_types(data) & ARTICLE_TYPES:
+            return True
+    return False
 
 
 def tidy(text: str) -> str:
@@ -89,18 +132,20 @@ def extract_page(content: bytes, url: str, content_type: str = "") -> Page:
     )
     declared: str | None = None
     canonical: str | None = None
+    article = False
     try:
         tree = lxml.html.document_fromstring(html)
     except (ParserError, ValueError):
         tree = None
     if tree is not None:
         declared = language_tag(tree.get("lang"))
+        article = is_article(tree)
         for link in tree.iterfind(".//link[@rel]"):
             if "canonical" in (link.get("rel") or "").lower().split() and link.get("href"):
                 canonical = link.get("href")
                 break
     if doc is None or isinstance(doc, dict):
-        return Page(None, None, None, None, declared, canonical)
+        return Page(None, None, None, None, declared, canonical, article)
     text = tidy(doc.text) if doc.text else None
     return Page(
         text=text or None,
@@ -109,6 +154,7 @@ def extract_page(content: bytes, url: str, content_type: str = "") -> Page:
         date=_parse_date(doc.date),
         language=declared,
         canonical=canonical,
+        article=article,
     )
 
 

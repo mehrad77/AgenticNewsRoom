@@ -52,6 +52,17 @@
         }
       }
     },
+    "leads": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_age_days": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Scheduled runs store no item older than this by its newest date, and no undated item."
+        }
+      }
+    },
     "papers": {
       "type": "object",
       "additionalProperties": false,

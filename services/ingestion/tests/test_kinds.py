@@ -83,8 +83,10 @@ def test_hacker_news_is_metadata_only() -> None:
 def test_site_listing() -> None:
     listing = parse_site(fixture("site-listing.html"), "https://www.anthropic.com/news", 10)
     assert [c.uri for c in listing.candidates] == [
-        "https://www.anthropic.com/news/claude-orbit-comparison"
+        "https://www.anthropic.com/news/claude-orbit-comparison",
+        "https://www.anthropic.com/news/announcements",
     ]
+    assert all(c.article_only for c in listing.candidates)
 
 
 def test_extract_page() -> None:
@@ -108,3 +110,10 @@ def test_extract_page_reads_the_declared_charset() -> None:
     assert page.text is not None and "Café crème" in page.text
     meta = b'<meta charset="windows-1252">' + html
     assert "naïve" in (extract_page(meta, "https://x.example/").text or "")
+
+
+def test_a_page_marks_itself_as_an_article() -> None:
+    assert extract_page(fixture("site-post.html"), "https://x.example/").article  # JSON-LD @graph
+    assert not extract_page(fixture("site-category.html"), "https://x.example/").article
+    og = b'<html><head><meta property="og:type" content="article"></head><body></body></html>'
+    assert extract_page(og, "https://x.example/").article

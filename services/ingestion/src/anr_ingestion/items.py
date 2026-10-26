@@ -36,6 +36,9 @@ class Candidate:
     links: list[dict[str, str]] = field(default_factory=list)
     """ninjs `links`, such as `{"href": ..., "rel": "related"}` for a Hacker News item's page."""
     paper: Paper | None = None
+    article_only: bool = False
+    """Keep the fetched page only if it says it is an article: a listing page's links include
+    category and tag pages it cannot tell apart from posts (D69)."""
 
 
 @dataclass(frozen=True)

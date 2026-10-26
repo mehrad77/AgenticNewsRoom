@@ -40,6 +40,16 @@ class Sources(BaseModel):
     tier1_alone: bool
 
 
+class Leads(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    max_age_days: conint(ge=1) | None = Field(
+        None,
+        description="Scheduled runs store no item older than this by its newest date, and no undated item.",
+    )
+
+
 class Tier(Enum):
     flagged = "flagged"
     high = "high"
@@ -88,6 +98,7 @@ class PolicyConfig(BaseModel):
         min_length=1,
     )
     sources: Sources
+    leads: Leads | None = None
     papers: Papers | None = None
     auto_publish: list[str] = Field(
         ...,

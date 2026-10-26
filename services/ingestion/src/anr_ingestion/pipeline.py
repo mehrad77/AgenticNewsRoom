@@ -5,8 +5,9 @@ Network work happens outside transactions; each item is stored in its own short 
 so one bad item never undoes the run, and a crash mid-run loses only the item in flight.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field, replace
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Any
 from urllib.parse import urljoin, urlsplit
@@ -102,9 +103,21 @@ class Origin:
     paper_rules: PaperRules | None = None
     categories: frozenset[str] = frozenset()
     requested_by_run: str | None = None
+    not_before: datetime | None = None
+    """A scheduled run's age limit: older or undated items are not stored (D68)."""
     vouched_section: str | None = None
     """For an agent's request: the section its source vouches for. A page that redirects out of
     it is stored as an unknown site's (tier 3, no source): D61."""
+
+
+def too_old(
+    origin: Origin, first: datetime | None, version: datetime | None, *, undated: bool
+) -> bool:
+    """Past the run's age limit by its newest date; `undated` says what no date at all means."""
+    if origin.not_before is None:
+        return False
+    dates = [d if d.tzinfo else d.replace(tzinfo=UTC) for d in (first, version) if d]
+    return max(dates) < origin.not_before if dates else undated
 
 
 def refuse_unless_fetchable(src: store.Source) -> None:
@@ -126,7 +139,9 @@ class Ingestor:
         *,
         max_new_leads: int = MAX_NEW_LEADS,
         max_requests_per_run: int = MAX_REQUESTS_PER_RUN,
+        now: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
+        self.now = now
         self.pool = pool
         self.fetcher = fetcher
         self.raw_store = raw_store
@@ -178,8 +193,11 @@ class Ingestor:
                     language=listing.language,
                     paper_rules=PaperRules.from_policy(policy),
                     categories=query_categories(src.url),
+                    not_before=self._not_before(policy),
                 )
                 for candidate in listing.candidates:
+                    if not src.fetch_pages:
+                        candidate = replace(candidate, fetch_page=False)
                     if len(report.new_leads) >= self.max_new_leads:
                         complete = False
                         break
@@ -219,6 +237,10 @@ class Ingestor:
             )
         return report
 
+    def _not_before(self, policy: dict[str, Any]) -> datetime | None:
+        days = (policy.get("leads") or {}).get("max_age_days")
+        return self.now() - timedelta(days=int(days)) if days else None
+
     def _listing(
         self, newsroom_id: str, src: store.Source, api: str | None, fetched: Fetched, report: Report
     ) -> Listing:
@@ -252,6 +274,9 @@ class Ingestor:
         self, newsroom_id: str, origin: Origin, candidate: Candidate
     ) -> tuple[Outcome, str | None]:
         listed_uri = canonical_url(candidate.uri)
+        # An item the listing dates too old is skipped before any lookup or fetch (D68).
+        if too_old(origin, candidate.first_created, candidate.version_created, undated=False):
+            return Outcome.DROPPED, None
         with with_newsroom(self.pool, newsroom_id) as conn:
             existing = store.lead_by_uri(conn, listed_uri)
             if existing:
@@ -334,6 +359,8 @@ class Ingestor:
                 # A page may only name a canonical on its own site, or it could claim another's.
                 if same_site(declared, page_response.url):
                     uri = declared
+            if candidate.article_only and not page.article:
+                return None  # a category or tag page, not a post (D69)
             text = page.text or text
             headline = headline or page.headline
             by = by or page.by
@@ -342,6 +369,8 @@ class Ingestor:
         elif candidate.raw is not None:
             raw_key = self.raw_store.put(candidate.raw, candidate.raw_type)
         if not text or not text.strip():
+            return None
+        if too_old(origin, first_created, candidate.version_created, undated=True):
             return None
 
         tier = origin.tier

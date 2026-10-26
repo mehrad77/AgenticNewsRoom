@@ -92,5 +92,11 @@
   },
   "https://www.anthropic.com/community/someones-page": {
     "file": "unknown-report.html"
+  },
+  "https://www.anthropic.com/news/announcements": {
+    "file": "site-category.html",
+    "headers": {
+      "Content-Type": "text/html"
+    }
   }
 }
