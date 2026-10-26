@@ -1,6 +1,8 @@
 # The AI newsroom's sources. Each URL was checked on 2026-10-26 (it answers, and robots.txt lets
 # ANR-Ingestion fetch it). None is fetched until a person has read its terms (link above each
 # entry) and set `terms_checked` to that date (D17); `terms_note` records anything worth keeping.
+# Terms read 2026-10-27. Not approved, so never scheduled: meta-ai-blog, xai-news, cohere-blog
+# (their terms ban automated access or the page blocks scripts) and qwen-blog (feed dead since 2025-09).
 #
 # Lab blogs are tier 1: a lab's own post is a primary source for what the lab says it did.
 
@@ -12,6 +14,8 @@
     publisher: OpenAI,
     tier: 1,
     every: 1h,
+    terms_checked: 2026-10-27,
+    terms_note: "ToU 2026-01-01 bans programmatic extraction; the feed is an offered channel.",
   }
 # Terms: https://www.anthropic.com/legal (no feed: the news listing page is read for post links)
 - {
@@ -21,6 +25,8 @@
     publisher: Anthropic,
     tier: 1,
     every: 2h,
+    terms_checked: 2026-10-27,
+    terms_note: "Consumer Terms 2025-10-08 ban scraping Services incl. websites; scope over /news unclear. EIC approved.",
   }
 # Terms (all Google sites): https://policies.google.com/terms
 - {
@@ -30,6 +36,8 @@
     publisher: Google DeepMind,
     tier: 1,
     every: 1h,
+    terms_checked: 2026-10-27,
+    terms_note: "Google ToS 2026-07-30: automated access allowed when robots.txt is obeyed; robots allows /.",
   }
 - {
     id: google-ai-blog,
@@ -38,6 +46,8 @@
     publisher: Google,
     tier: 1,
     every: 1h,
+    terms_checked: 2026-10-27,
+    terms_note: "Google ToS 2026-07-30: robots-based rule; robots allows the feed and posts. Feed has some non-AI posts.",
   }
 - {
     id: google-research-blog,
@@ -46,6 +56,8 @@
     publisher: Google Research,
     tier: 1,
     every: 2h,
+    terms_checked: 2026-10-27,
+    terms_note: "Google ToS 2026-07-30: robots-based rule; robots allows /.",
   }
 # Terms: https://www.facebook.com/terms.php (Meta's site terms; legal index https://www.meta.com/legal/). No feed.
 - {
@@ -64,6 +76,8 @@
     publisher: Microsoft Research,
     tier: 1,
     every: 2h,
+    terms_checked: 2026-10-27,
+    terms_note: "MS ToU 2022-02-07: personal, non-commercial; the feed is an intended channel. Recheck if monetised.",
   }
 # Terms: https://mistral.ai/terms
 - {
@@ -73,15 +87,20 @@
     publisher: Mistral AI,
     tier: 1,
     every: 2h,
+    terms_checked: 2026-10-27,
+    terms_note: "Mistral ROW Terms 2026-10-12 (f): no extraction beyond permitted means; the RSS feed is offered.",
   }
-# Terms: https://huggingface.co/terms-of-service (the blog also carries community posts)
+# Terms: https://huggingface.co/terms-of-service. Tier 2: the feed also carries community posts;
+# a lab's own copy of one raises its lead to tier 1 (D67).
 - {
     id: huggingface-blog,
     kind: rss,
     url: "https://huggingface.co/blog/feed.xml",
     publisher: Hugging Face,
-    tier: 1,
+    tier: 2,
     every: 1h,
+    terms_checked: 2026-10-27,
+    terms_note: "HF ToS 2022-09-15: no bot ban found. Feed mixes community posts (/blog/<ns>/<slug>), so tier 2.",
   }
 # Terms: https://www.nvidia.com/en-us/about-nvidia/terms-of-service/
 - {
@@ -91,6 +110,8 @@
     publisher: NVIDIA,
     tier: 1,
     every: 2h,
+    terms_checked: 2026-10-27,
+    terms_note: "NVIDIA ToS 3.2(f) bans robots on material not made available; the feed is. Non-commercial.",
   }
 # Terms: https://aws.amazon.com/terms/
 - {
@@ -100,8 +121,11 @@
     publisher: Amazon Web Services,
     tier: 1,
     every: 2h,
+    terms_checked: 2026-10-27,
+    terms_note: "AWS Site Terms 2025-06-04 ban robots and data mining, personal use; the feed is intended. Recheck.",
   }
-# Terms: https://www.apple.com/legal/internet-services/terms/site.html
+# Terms: https://www.apple.com/legal/internet-services/terms/site.html. Feed only: the terms ban
+# robots on the site, so each item's title and abstract from the feed are the lead (D70).
 - {
     id: apple-machine-learning,
     kind: rss,
@@ -109,6 +133,9 @@
     publisher: Apple,
     tier: 1,
     every: 6h,
+    pages: false,
+    terms_checked: 2026-10-27,
+    terms_note: "Apple Site Terms 2009-11-20 ban robots, no feed exception; EIC approved feed-only (pages: false).",
   }
 # Terms: GitHub Pages, https://docs.github.com/en/site-policy/github-terms/github-terms-of-service
 - {
@@ -143,6 +170,8 @@
     publisher: arXiv,
     tier: 2,
     every: 6h,
+    terms_checked: 2026-10-27,
+    terms_note: "arXiv API ToU: 1 request per 3 s on one connection; metadata and abstracts CC0; never serve e-prints.",
   }
 
 # Hacker News: metadata only, tier 3 (D60). Terms: https://github.com/HackerNews/API and
@@ -154,6 +183,8 @@
     publisher: Hacker News,
     tier: 3,
     every: 2h,
+    terms_checked: 2026-10-27,
+    terms_note: "HN Firebase API is the sanctioned route; YC ToU bans site scraping. Metadata only, story URLs not fetched.",
   }
 
 # Enrichment only, never leads: venues and citations for the paper tier rules (D59).
@@ -166,4 +197,6 @@
     tier: 2,
     every: 24h,
     use: enrichment,
+    terms_checked: 2026-10-27,
+    terms_note: "S2 API License: credit Semantic Scholar where its data is used; data CC BY-NC / ODC-BY; back off on 429.",
   }
