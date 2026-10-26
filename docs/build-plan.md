@@ -18,18 +18,18 @@ Each task is done when its code is merged with tests, `pnpm check` passes, and t
 
 Gate: **config loads, and a backup restores onto a fresh VM.**
 
-- [ ] Database roles for production (`anr_migrator`, `anr_app`, `anr_system`) created from environment passwords.
-- [ ] Migrations for the data model in `technical-design.md#data-model`, every tenant table with forced RLS (`add-migration` skill).
-- [ ] `anr.normalize_text()` SQL function, tested against `packages/schemas/fixtures/normalization.json`.
-- [ ] CI check: every table with a `newsroom_id` column has RLS enabled, forced, and a policy.
-- [ ] RLS integration tests: `anr_app` cannot read or write another newsroom's rows; a pooled connection does not leak `anr.newsroom_id`.
-- [ ] Config sync (`packages/config`): upsert newsrooms, beats, sources and series with stable ids, soft-delete removed items, reconcile pg-boss schedules in each newsroom's timezone. Runs at deploy under `anr_system`.
-- [ ] pg-boss schema installed; worker skeletons subscribe to their queues.
-- [ ] Platform key: encrypt and decrypt channel credentials (AES-256-GCM) with tests.
-- [ ] Audit log table and a helper every approval and edit goes through.
-- [ ] pgBackRest to R2 with continuous WAL archiving; a restore drill script.
-- [ ] Production deploy: VM provisioned, Compose `prod` profile, Caddy wildcard certificate, Cloudflare DNS.
-- [ ] Gate: restore the latest backup onto a fresh VM and run `pnpm config:check` plus config sync against it.
+- [x] Database roles for production (`anr_migrator`, `anr_app`, `anr_system`) created from environment passwords.
+- [x] Migrations for the data model in `technical-design.md#data-model`, every tenant table with forced RLS (`add-migration` skill).
+- [x] `anr.normalize_text()` SQL function, tested against `packages/schemas/fixtures/normalization.json`.
+- [x] CI check: every table with a `newsroom_id` column has RLS enabled, forced, and a policy.
+- [x] RLS integration tests: `anr_app` cannot read or write another newsroom's rows; a pooled connection does not leak `anr.newsroom_id`.
+- [x] Config sync (`packages/config`): upsert newsrooms, beats, sources and series with stable ids, soft-delete removed items, reconcile pg-boss schedules in each newsroom's timezone. Runs at deploy under `anr_system`.
+- [x] pg-boss schema installed; worker skeletons subscribe to their queues.
+- [x] Platform key: encrypt and decrypt channel credentials (AES-256-GCM) with tests.
+- [x] Audit log table and a helper every approval and edit goes through.
+- [ ] pgBackRest to R2 with continuous WAL archiving; a restore drill script. Built and rehearsed locally (`infra/backup/drill-local.sh`); waiting on a person: the R2 bucket and its API token (`infra/AGENTS.md#first-deploy`).
+- [ ] Production deploy: VM provisioned, Compose `prod` profile, Caddy wildcard certificate, Cloudflare DNS. Compose `prod` profile and `infra/deploy.sh` built; waiting on a person: the Hetzner VM, the Cloudflare zone, DNS records and API token (`infra/AGENTS.md#first-deploy`).
+- [ ] Gate: restore the latest backup onto a fresh VM and run `pnpm config:check` plus config sync against it (`infra/backup/restore-drill.sh`). Waiting on the two tasks above.
 
 ## 2. Ingestion
 
