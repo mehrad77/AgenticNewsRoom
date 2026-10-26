@@ -1,0 +1,8 @@
+name: { fa: مقاله‌ی کلاسیک هفته, en: Classic Paper of the Week }
+format: classic-article
+languages: [fa, en]
+cadence: { weekly: wed 10:00 }
+pick: { planner_proposes: 3, by: mon, editor_picks_by: tue }
+channels:
+  site: [fa, en]
+  telegram: [fa]

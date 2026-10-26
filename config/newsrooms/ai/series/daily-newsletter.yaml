@@ -1,0 +1,9 @@
+name: { fa: خبرنامه‌ی روزانه, en: Daily Newsletter }
+format: newsletter-issue
+languages: [fa, en]
+cadence: { daily: "21:00" }
+assignment_at: "16:00"
+items: { news: 5-8, articles: 0-2 }
+channels:
+  site: [fa, en]
+  telegram: [fa]

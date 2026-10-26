@@ -1,0 +1,9 @@
+{%- comment -%}
+  AI disclosure. Every channel template renders this partial; the verifier fails any rendition
+  whose template output lacks it. `edited` is true when the audit log shows an editor changed the text.
+{%- endcomment -%}
+{%- case language -%}
+  {%- when "fa" -%}{% if edited %}ساخته‌شده با هوش مصنوعی، ویراسته‌ی یک انسان{% else %}ساخته‌شده با هوش مصنوعی{% endif %}
+  {%- when "tr" -%}{% if edited %}Yapay zekâ ile üretildi, bir insan tarafından düzenlendi{% else %}Yapay zekâ ile üretildi{% endif %}
+  {%- else -%}{% if edited %}AI-made, edited by a person{% else %}AI-made{% endif %}
+{%- endcase -%}

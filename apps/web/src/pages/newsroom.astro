@@ -1,0 +1,10 @@
+---
+import Base from "../layouts/Base.astro";
+
+const site = Astro.locals.site;
+if (site.kind !== "newsroom") return Astro.redirect("/");
+const title = site.newsroom.name[site.language] ?? site.newsroom.slug;
+---
+<Base title={title} language={site.language} direction={site.direction}>
+  <h1>{title}</h1>
+</Base>

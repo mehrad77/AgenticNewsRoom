@@ -1,0 +1,248 @@
+{
+  "scheme": "http://cv.iptc.org/newscodes/genre/",
+  "alias": "genre",
+  "copyright": "IPTC, International Press Telecommunications Council - https://iptc.org",
+  "licence": "http://creativecommons.org/licenses/by/4.0/",
+  "released": "2024-02-13T12:00:00+00:00",
+  "concepts": [
+    {
+      "qcode": "genre:Actuality",
+      "label": "Actuality"
+    },
+    {
+      "qcode": "genre:Advertiser_Supplied",
+      "label": "Advertiser Supplied"
+    },
+    {
+      "qcode": "genre:Advice",
+      "label": "Advice"
+    },
+    {
+      "qcode": "genre:Advisory",
+      "label": "Advisory"
+    },
+    {
+      "qcode": "genre:almanac",
+      "label": "On This Day"
+    },
+    {
+      "qcode": "genre:Analysis",
+      "label": "Analysis"
+    },
+    {
+      "qcode": "genre:Anniversary",
+      "label": "Anniversary",
+      "retired": "2019-07-30T12:00:00+00:00"
+    },
+    {
+      "qcode": "genre:Archive_material",
+      "label": "Archival material"
+    },
+    {
+      "qcode": "genre:Background",
+      "label": "Background"
+    },
+    {
+      "qcode": "genre:Behind_the_Story",
+      "label": "Behind the Story"
+    },
+    {
+      "qcode": "genre:Biography",
+      "label": "Biography"
+    },
+    {
+      "qcode": "genre:Birth_Announcement",
+      "label": "Birth Announcement"
+    },
+    {
+      "qcode": "genre:Current",
+      "label": "Current Events"
+    },
+    {
+      "qcode": "genre:Curtain_Raiser",
+      "label": "Curtain Raiser"
+    },
+    {
+      "qcode": "genre:Daybook",
+      "label": "Planner"
+    },
+    {
+      "qcode": "genre:Exclusive",
+      "label": "Exclusive"
+    },
+    {
+      "qcode": "genre:Fact_Check",
+      "label": "Fact Check"
+    },
+    {
+      "qcode": "genre:Feature",
+      "label": "Feature"
+    },
+    {
+      "qcode": "genre:Fixture",
+      "label": "Fixture"
+    },
+    {
+      "qcode": "genre:Forecast",
+      "label": "Forecast"
+    },
+    {
+      "qcode": "genre:From_the_Scene",
+      "label": "From the Scene"
+    },
+    {
+      "qcode": "genre:Help_Us_to_Report",
+      "label": "Help us to Report"
+    },
+    {
+      "qcode": "genre:History",
+      "label": "History"
+    },
+    {
+      "qcode": "genre:horoscope",
+      "label": "Horoscope"
+    },
+    {
+      "qcode": "genre:Interview",
+      "label": "Interview"
+    },
+    {
+      "qcode": "genre:ListingOfFacts",
+      "label": "Fact Box"
+    },
+    {
+      "qcode": "genre:LiveCoverage",
+      "label": "Live Coverage"
+    },
+    {
+      "qcode": "genre:Music",
+      "label": "Music"
+    },
+    {
+      "qcode": "genre:Obituary",
+      "label": "Obituary"
+    },
+    {
+      "qcode": "genre:Opinion",
+      "label": "Opinion"
+    },
+    {
+      "qcode": "genre:Polls_and_Surveys",
+      "label": "Polls and Surveys"
+    },
+    {
+      "qcode": "genre:Press_Release",
+      "label": "Press Release"
+    },
+    {
+      "qcode": "genre:Press-Digest",
+      "label": "Press-Digest"
+    },
+    {
+      "qcode": "genre:Preview",
+      "label": "Preview"
+    },
+    {
+      "qcode": "genre:Profile",
+      "label": "Profile"
+    },
+    {
+      "qcode": "genre:Program",
+      "label": "Program",
+      "retired": "2021-04-28T12:00:00+00:00"
+    },
+    {
+      "qcode": "genre:Question_and_Answer_Session",
+      "label": "Question and Answer Session"
+    },
+    {
+      "qcode": "genre:Quote",
+      "label": "Quote"
+    },
+    {
+      "qcode": "genre:Raw_Sound",
+      "label": "Raw Sound"
+    },
+    {
+      "qcode": "genre:Response_to_a_Question",
+      "label": "Response to a Question"
+    },
+    {
+      "qcode": "genre:Results_Listings_and_Statistics",
+      "label": "Results Listings and Statistics"
+    },
+    {
+      "qcode": "genre:Retrospective",
+      "label": "Retrospective"
+    },
+    {
+      "qcode": "genre:Review",
+      "label": "Review"
+    },
+    {
+      "qcode": "genre:Satire",
+      "label": "Satire"
+    },
+    {
+      "qcode": "genre:Scener",
+      "label": "Scener",
+      "retired": "2021-04-28T12:00:00+00:00"
+    },
+    {
+      "qcode": "genre:Side_bar_and_supporting_information",
+      "label": "Side bar and Supporting Information"
+    },
+    {
+      "qcode": "genre:Special_Report",
+      "label": "Special Report"
+    },
+    {
+      "qcode": "genre:Sponsored",
+      "label": "Sponsored"
+    },
+    {
+      "qcode": "genre:Summary",
+      "label": "Briefing"
+    },
+    {
+      "qcode": "genre:Supported",
+      "label": "Supported"
+    },
+    {
+      "qcode": "genre:Synopsis",
+      "label": "Synopsis"
+    },
+    {
+      "qcode": "genre:Text_only",
+      "label": "Text only",
+      "retired": "2021-04-28T12:00:00+00:00"
+    },
+    {
+      "qcode": "genre:Transcript_and_Verbatim",
+      "label": "Transcript and Verbatim"
+    },
+    {
+      "qcode": "genre:UGC",
+      "label": "User Generated Content"
+    },
+    {
+      "qcode": "genre:Update",
+      "label": "Update",
+      "retired": "2021-04-28T12:00:00+00:00"
+    },
+    {
+      "qcode": "genre:Voicer",
+      "label": "Voicer"
+    },
+    {
+      "qcode": "genre:Wrap",
+      "label": "Wrap",
+      "retired": "2021-04-28T12:00:00+00:00"
+    },
+    {
+      "qcode": "genre:Wrapup",
+      "label": "Wrapup",
+      "retired": "2021-04-28T12:00:00+00:00"
+    }
+  ]
+}

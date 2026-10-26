@@ -1,0 +1,6 @@
+<b>{{ rendition.title }}</b>
+{% for item in rendition.items %}{% if item.kind == "news" %}
+• <b>{{ item.headline }}</b>
+{{ item.body }}
+{% endif %}{% endfor %}
+{% render "disclosure", language: language, edited: edited %} · {{ site_url }}

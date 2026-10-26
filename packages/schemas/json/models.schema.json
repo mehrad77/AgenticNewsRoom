@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anr.local/schemas/models.schema.json",
+  "title": "ModelsConfig",
+  "description": "config/models.yaml: role -> provider and model, for the model router.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["roles", "tts"],
+  "$defs": {
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "model"],
+      "properties": {
+        "provider": { "enum": ["gemini"] },
+        "model": { "type": "string", "minLength": 1 }
+      }
+    }
+  },
+  "properties": {
+    "roles": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["planner", "desk", "renderer", "fact-checker", "item-matcher", "summariser"],
+      "properties": {
+        "planner": { "$ref": "#/$defs/model" },
+        "desk": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["default"],
+          "properties": {
+            "default": { "$ref": "#/$defs/model" },
+            "by_format": { "type": "object", "additionalProperties": { "$ref": "#/$defs/model" } }
+          }
+        },
+        "renderer": { "$ref": "#/$defs/model" },
+        "fact-checker": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["candidates"],
+          "properties": {
+            "candidates": {
+              "type": "array",
+              "description": "Ordered; the router picks the first that did not write the story.",
+              "minItems": 2,
+              "items": { "$ref": "#/$defs/model" }
+            }
+          }
+        },
+        "item-matcher": { "$ref": "#/$defs/model" },
+        "summariser": { "$ref": "#/$defs/model" }
+      }
+    },
+    "tts": { "$ref": "#/$defs/model" }
+  }
+}

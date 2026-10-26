@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anr.local/schemas/policy.schema.json",
+  "title": "PolicyConfig",
+  "description": "config/newsrooms/<slug>/policy.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["beats", "sources", "auto_publish"],
+  "properties": {
+    "beats": {
+      "type": "object",
+      "minProperties": 1,
+      "description": "Beat name -> status and the IPTC Media Topics that classify it.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["status", "media_topics"],
+        "properties": {
+          "status": {
+            "enum": ["open", "restricted", "banned"]
+          },
+          "media_topics": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "description": "IPTC Media Topic qcodes (packages/schemas/iptc/mediatopic.json); not retired.",
+            "items": {
+              "type": "string",
+              "pattern": "^medtop:[0-9]{8}$"
+            }
+          }
+        }
+      }
+    },
+    "sources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min_independent", "tier1_alone"],
+      "properties": {
+        "min_independent": {
+          "type": "integer",
+          "minimum": 2
+        },
+        "tier1_alone": {
+          "type": "boolean"
+        }
+      }
+    },
+    "papers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tiers", "newsletter_min"],
+      "properties": {
+        "tiers": {
+          "type": "array",
+          "items": {
+            "enum": ["flagged", "high", "medium", "low"]
+          }
+        },
+        "newsletter_min": {
+          "enum": ["high", "medium", "low"]
+        }
+      }
+    },
+    "auto_publish": {
+      "type": "array",
+      "description": "Formats that publish as daily news without an editor when no check holds them.",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "opinion": {
+      "enum": ["not_allowed", "allowed_marked"],
+      "default": "not_allowed"
+    }
+  }
+}

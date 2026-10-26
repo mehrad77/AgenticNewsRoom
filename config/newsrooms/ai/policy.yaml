@@ -1,0 +1,15 @@
+# Each beat: its status, and the IPTC Media Topics that classify it
+# (codes in packages/schemas/iptc/mediatopic.json; publications carry their beat's topics).
+beats:
+  labs: { status: open, media_topics: [medtop:20001298] } # artificial intelligence
+  research: { status: open, media_topics: [medtop:20001298, medtop:20000735] } # + scientific research
+  open-source: { status: open, media_topics: [medtop:20001298, medtop:20000231] } # + software and applications
+  # regulation and law always go to an editor
+  policy: { status: restricted, media_topics: [medtop:20001298, medtop:20000636] } # + regulation of industry
+sources:
+  min_independent: 2
+  tier1_alone: true # a lab's own post, a paper or a filing can stand alone
+papers:
+  tiers: [flagged, high, medium, low] # flagged is dropped; high, medium, low map to tiers 1, 2, 3
+  newsletter_min: high
+auto_publish: [newsletter-issue]

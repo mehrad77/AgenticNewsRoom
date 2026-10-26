@@ -1,0 +1,12 @@
+# Sources start without terms_checked, so ingestion does not schedule them until a person
+# has read each source's terms and set the date. Milestone 6 adds the Turkish music press,
+# label, venue and festival sources.
+- {
+    id: musicbrainz,
+    kind: api,
+    url: "https://musicbrainz.org/ws/2/",
+    publisher: MusicBrainz,
+    tier: 2,
+    every: 24h,
+    use: enrichment,
+  }

@@ -1,0 +1,8 @@
+slug: kultur
+name: { tr: Kültür, en: Kültür, fa: کولتور }
+languages: [tr, en, fa] # tr is primary; fa is right-to-left
+timezone: Europe/Istanbul
+subdomain: kultur # kultur.$ANR_ROOT_DOMAIN; English at /en, Persian at /fa
+editor_in_chief: Mehrad Rousta
+corrections_owner: Mehrad Rousta
+planning: { cycle: 1mo, from: 2026-11-01 } # editorial cycles of one calendar month

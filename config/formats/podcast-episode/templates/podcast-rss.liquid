@@ -1,0 +1,9 @@
+<item>
+  <title>{{ rendition.title }}</title>
+  <description><![CDATA[{{ show_notes }}
+
+{% render "disclosure", language: language, edited: edited %}]]></description>
+  <enclosure url="{{ audio_url }}" length="{{ audio_bytes }}" type="audio/mpeg"/>
+  <guid isPermaLink="false">{{ publication_id }}-{{ language }}</guid>
+  <pubDate>{{ published_at }}</pubDate>
+</item>

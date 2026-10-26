@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anr.local/formats/classic-article/schema.json",
+  "title": "ClassicArticleDraft",
+  "description": "Classic paper article for the site. A desk submit carries the story and its first rendition; a renderer submit carries only a rendition.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["rendition"],
+  "$defs": {
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "text", "lead_id", "quoted_passage"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^c[0-9]+$"
+        },
+        "kind": {
+          "enum": ["fact", "quote", "opinion"]
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "lead_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A stored lead in this newsroom."
+        },
+        "quoted_passage": {
+          "type": "string",
+          "description": "Exact passage from the lead's stored text."
+        }
+      }
+    },
+    "claim_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^c[0-9]+$"
+      }
+    }
+  },
+  "properties": {
+    "story": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary", "beat", "claims"],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "beat": {
+          "type": "string"
+        },
+        "claims": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/claim"
+          }
+        }
+      }
+    },
+    "rendition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["language", "title", "items"],
+      "properties": {
+        "language": {
+          "enum": ["fa", "en", "tr"]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["paragraphs", "claim_ids"],
+            "properties": {
+              "heading": {
+                "type": "string"
+              },
+              "paragraphs": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string"
+                }
+              },
+              "claim_ids": {
+                "$ref": "#/$defs/claim_ids"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

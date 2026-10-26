@@ -1,0 +1,16 @@
+# Each beat: its status, and the IPTC Media Topics that classify it
+# (codes in packages/schemas/iptc/mediatopic.json; publications carry their beat's topics).
+beats:
+  # rock, indie, pop, electronic, punk, other genres
+  music: { status: open, media_topics: [medtop:20000018] } # music
+  visual-art: { status: open, media_topics: [medtop:20000031] } # visual arts
+  audio-art: { status: open, media_topics: [medtop:20000002] } # arts and entertainment
+  # artists' political statements, court cases, bans
+  politics: { status: restricted, media_topics: [medtop:20000588, medtop:20001132] } # censorship and freedom of speech, cultural policy
+  # relationships, health, rumours
+  private-life: { status: banned, media_topics: [medtop:20000505, medtop:20001300] } # celebrity, privacy
+sources:
+  min_independent: 2
+  tier1_alone: true # the artist's or label's own statement
+auto_publish: [] # every piece is themed and waits for an editor
+opinion: allowed_marked # opinion is labelled and never carries a factual claim

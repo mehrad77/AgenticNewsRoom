@@ -1,0 +1,6 @@
+<article lang="{{ language }}" dir="{{ direction }}">
+  <h1>{{ rendition.title }}</h1>
+  <p class="anr-disclosure"><a href="{{ ai_policy_url }}">{% render "disclosure", language: language, edited: edited %}</a></p>
+  <audio controls preload="none" src="{{ audio_url }}"></audio>
+  <p>{{ show_notes }}</p>
+</article>

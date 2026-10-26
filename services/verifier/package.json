@@ -1,0 +1,12 @@
+{
+  "name": "@anr/verifier",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Python service; this file only lets turbo run its tasks.",
+  "scripts": {
+    "dev": "uv run --frozen uvicorn anr_verifier.app:app --reload --port 8102",
+    "lint": "uv run --frozen ruff check . && uv run --frozen ruff format --check .",
+    "typecheck": "uv run --frozen mypy src tests",
+    "test": "uv run --frozen pytest"
+  }
+}

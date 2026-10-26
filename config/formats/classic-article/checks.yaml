@@ -1,0 +1,2 @@
+- id: length
+  rule: words(rendition) in 1200..1800

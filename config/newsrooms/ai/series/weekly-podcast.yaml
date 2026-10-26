@@ -1,0 +1,17 @@
+name: { fa: پادکست هفتگی, en: Weekly Podcast }
+format: podcast-episode
+languages: [fa, en]
+cadence: { weekly: fri 18:00 }
+segments:
+  - { kind: news-recap, minutes: 15, from: week.daily-newsletter }
+  - { kind: story, minutes: 15, from: week.weekly-classic }
+hosts:
+  fa: { niloofar: Sulafat, farzad: Algenib }
+  en: { maya: Kore, leo: Puck }
+narrator: # story segments only
+  fa: Alnilam
+  en: Enceladus
+channels:
+  podcast-rss: [fa, en] # one feed per language
+  site: [fa, en]
+  telegram: [fa]

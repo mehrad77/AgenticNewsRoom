@@ -1,0 +1,92 @@
+{
+  "scheme": "http://cv.iptc.org/newscodes/digitalsourcetype/",
+  "alias": "digsrctype",
+  "copyright": "IPTC, International Press Telecommunications Council - https://iptc.org",
+  "licence": "http://creativecommons.org/licenses/by/4.0/",
+  "released": "2024-10-23T12:00:00+00:00",
+  "concepts": [
+    {
+      "qcode": "digsrctype:algorithmicallyEnhanced",
+      "label": "Algorithmically-altered media"
+    },
+    {
+      "qcode": "digsrctype:algorithmicMedia",
+      "label": "Pure algorithmic media"
+    },
+    {
+      "qcode": "digsrctype:composite",
+      "label": "Composite of elements"
+    },
+    {
+      "qcode": "digsrctype:compositeCapture",
+      "label": "Composite of captured elements"
+    },
+    {
+      "qcode": "digsrctype:compositeSynthetic",
+      "label": "Composite including generative AI elements"
+    },
+    {
+      "qcode": "digsrctype:compositeWithTrainedAlgorithmicMedia",
+      "label": "Edited using Generative AI"
+    },
+    {
+      "qcode": "digsrctype:computationalCapture",
+      "label": "Multi-frame computational capture sampled from real life"
+    },
+    {
+      "qcode": "digsrctype:dataDrivenMedia",
+      "label": "Data-driven media"
+    },
+    {
+      "qcode": "digsrctype:digitalArt",
+      "label": "Digital art",
+      "retired": "2024-09-17T12:00:00+00:00"
+    },
+    {
+      "qcode": "digsrctype:digitalCapture",
+      "label": "Digital capture sampled from real life"
+    },
+    {
+      "qcode": "digsrctype:digitalCreation",
+      "label": "Digital creation"
+    },
+    {
+      "qcode": "digsrctype:humanEdits",
+      "label": "Human-edited media"
+    },
+    {
+      "qcode": "digsrctype:minorHumanEdits",
+      "label": "Original media with minor human edits",
+      "retired": "2024-09-17T12:00:00+00:00"
+    },
+    {
+      "qcode": "digsrctype:negativeFilm",
+      "label": "Digitised from a transparent negative"
+    },
+    {
+      "qcode": "digsrctype:positiveFilm",
+      "label": "Digitised from a transparent positive"
+    },
+    {
+      "qcode": "digsrctype:print",
+      "label": "Digitised from a non-transparent medium"
+    },
+    {
+      "qcode": "digsrctype:screenCapture",
+      "label": "Screen capture"
+    },
+    {
+      "qcode": "digsrctype:softwareImage",
+      "label": "Created by software",
+      "retired": "2022-06-14T12:00:00+00:00"
+    },
+    {
+      "qcode": "digsrctype:trainedAlgorithmicMedia",
+      "label": "Created using Generative AI"
+    },
+    {
+      "qcode": "digsrctype:virtualRecording",
+      "label": "Virtual event recording"
+    }
+  ]
+}

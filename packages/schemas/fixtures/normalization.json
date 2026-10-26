@@ -1,0 +1,47 @@
+{
+  "description": "Shared test vectors for text normalisation. The verifier (Python) and the SQL function anr.normalize_text() must both map each input to its expected output. Case folding depends on the text's language.",
+  "cases": [
+    {
+      "name": "arabic ye to persian ye",
+      "input": "علي",
+      "expected": "علی",
+      "language": "fa"
+    },
+    {
+      "name": "arabic kaf to persian kaf",
+      "input": "كتاب",
+      "expected": "کتاب",
+      "language": "fa"
+    },
+    {
+      "name": "zero-width non-joiner removed",
+      "input": "می‌شود",
+      "expected": "میشود",
+      "language": "fa"
+    },
+    {
+      "name": "persian digits to latin",
+      "input": "۱۴۰۵",
+      "expected": "1405",
+      "language": "fa"
+    },
+    {
+      "name": "turkish dotted capital I",
+      "input": "İSTANBUL",
+      "expected": "istanbul",
+      "language": "tr"
+    },
+    {
+      "name": "turkish dotless capital I",
+      "input": "IRMAK",
+      "expected": "ırmak",
+      "language": "tr"
+    },
+    {
+      "name": "nfkc compatibility forms",
+      "input": "ﬁle",
+      "expected": "file",
+      "language": "en"
+    }
+  ]
+}

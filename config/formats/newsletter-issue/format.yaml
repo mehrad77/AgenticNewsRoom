@@ -1,0 +1,3 @@
+# IPTC description of this format (schema: packages/schemas/json/format.schema.json).
+genre: genre:Summary # Briefing: a summary of a number of news items
+ninjs_type: text

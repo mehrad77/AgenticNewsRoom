@@ -1,0 +1,196 @@
+{
+  "scheme": "http://cv.iptc.org/newscodes/trustindicator/",
+  "alias": "trustindicator",
+  "copyright": "IPTC, International Press Telecommunications Council - https://iptc.org",
+  "licence": "http://creativecommons.org/licenses/by/4.0/",
+  "released": "2025-09-30T12:00:00+00:00",
+  "concepts": [
+    {
+      "qcode": "trustindicator:archive",
+      "label": "archive",
+      "broader": [
+        "trustindicator:partyInfo"
+      ]
+    },
+    {
+      "qcode": "trustindicator:award",
+      "label": "award",
+      "broader": [
+        "trustindicator:partyInfo"
+      ]
+    },
+    {
+      "qcode": "trustindicator:biography",
+      "label": "biography",
+      "broader": [
+        "trustindicator:journalistInfo"
+      ]
+    },
+    {
+      "qcode": "trustindicator:correctedByResource",
+      "label": "corrected by resource",
+      "broader": [
+        "trustindicator:pieceOfWorkInfo"
+      ]
+    },
+    {
+      "qcode": "trustindicator:correctionsPolicy",
+      "label": "corrections policy",
+      "broader": [
+        "trustindicator:editorialPolicy"
+      ]
+    },
+    {
+      "qcode": "trustindicator:correctsResource",
+      "label": "corrects resource",
+      "broader": [
+        "trustindicator:pieceOfWorkInfo"
+      ]
+    },
+    {
+      "qcode": "trustindicator:coveragePolicy",
+      "label": "coverage policy",
+      "broader": [
+        "trustindicator:editorialPolicy"
+      ]
+    },
+    {
+      "qcode": "trustindicator:diversityStaffingReport",
+      "label": "diversity staffing report",
+      "broader": [
+        "trustindicator:organisationInfo"
+      ]
+    },
+    {
+      "qcode": "trustindicator:editorialDiversityPolicy",
+      "label": "editorial diversity policy",
+      "broader": [
+        "trustindicator:editorialPolicy"
+      ]
+    },
+    {
+      "qcode": "trustindicator:editorialPolicy",
+      "label": "editorial policy"
+    },
+    {
+      "qcode": "trustindicator:ethicsPolicy",
+      "label": "ethics policy",
+      "broader": [
+        "trustindicator:editorialPolicy"
+      ]
+    },
+    {
+      "qcode": "trustindicator:externalSourceMaterials",
+      "label": "external source materials",
+      "broader": [
+        "trustindicator:pieceOfWorkInfo"
+      ]
+    },
+    {
+      "qcode": "trustindicator:factCheckingPolicy",
+      "label": "fact checking policy",
+      "broader": [
+        "trustindicator:editorialPolicy"
+      ]
+    },
+    {
+      "qcode": "trustindicator:feedbackPolicy",
+      "label": "feedback policy",
+      "broader": [
+        "trustindicator:editorialPolicy"
+      ]
+    },
+    {
+      "qcode": "trustindicator:internalSourceMaterials",
+      "label": "internal source materials",
+      "broader": [
+        "trustindicator:pieceOfWorkInfo"
+      ]
+    },
+    {
+      "qcode": "trustindicator:journalistImage",
+      "label": "journalist image",
+      "broader": [
+        "trustindicator:journalistInfo"
+      ]
+    },
+    {
+      "qcode": "trustindicator:journalistInfo",
+      "label": "journalist info",
+      "broader": [
+        "trustindicator:partyInfo"
+      ]
+    },
+    {
+      "qcode": "trustindicator:knowsAbout",
+      "label": "knows about",
+      "broader": [
+        "trustindicator:partyInfo"
+      ]
+    },
+    {
+      "qcode": "trustindicator:knowsLanguage",
+      "label": "knows language",
+      "broader": [
+        "trustindicator:partyInfo"
+      ]
+    },
+    {
+      "qcode": "trustindicator:noBylinesPolicy",
+      "label": "no bylines policy",
+      "broader": [
+        "trustindicator:editorialPolicy"
+      ]
+    },
+    {
+      "qcode": "trustindicator:organisationDiversityPolicy",
+      "label": "organisation diversity policy",
+      "broader": [
+        "trustindicator:organisationInfo"
+      ]
+    },
+    {
+      "qcode": "trustindicator:organisationInfo",
+      "label": "organisation info",
+      "broader": [
+        "trustindicator:partyInfo"
+      ]
+    },
+    {
+      "qcode": "trustindicator:ownershipFundingInfo",
+      "label": "ownership and funding information",
+      "broader": [
+        "trustindicator:organisationInfo"
+      ]
+    },
+    {
+      "qcode": "trustindicator:partyInfo",
+      "label": "party info"
+    },
+    {
+      "qcode": "trustindicator:pieceOfWorkInfo",
+      "label": "piece of work info"
+    },
+    {
+      "qcode": "trustindicator:secondarySources",
+      "label": "secondary sources",
+      "broader": [
+        "trustindicator:pieceOfWorkInfo"
+      ]
+    },
+    {
+      "qcode": "trustindicator:seniorEditorialStaff",
+      "label": "senior editorial staff",
+      "broader": [
+        "trustindicator:organisationInfo"
+      ]
+    },
+    {
+      "qcode": "trustindicator:unnamedSourcesPolicy",
+      "label": "unnamed sources policy",
+      "broader": [
+        "trustindicator:editorialPolicy"
+      ]
+    }
+  ]
+}

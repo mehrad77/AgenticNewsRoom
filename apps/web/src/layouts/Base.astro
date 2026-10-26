@@ -1,0 +1,21 @@
+---
+import type { Direction, Language } from "@anr/core";
+
+interface Props {
+  title: string;
+  language: Language;
+  direction: Direction;
+}
+const { title, language, direction } = Astro.props;
+---
+<!doctype html>
+<html lang={language} dir={direction}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>

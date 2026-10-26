@@ -1,0 +1,42 @@
+openapi: 3.1.0
+info:
+  title: ANR API
+  version: 0.0.0
+  description: >-
+    Reads and writes for people: the editor's desk and reader sites. Contract-first: change this
+    file, run `pnpm gen`, then implement. Agents never call this API.
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+servers:
+  - url: /
+security: []
+paths:
+  /healthz:
+    get:
+      operationId: getHealth
+      summary: Liveness check
+      tags: [ops]
+      responses:
+        "200":
+          description: The API process is up.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+tags:
+  - name: ops
+    description: Operational endpoints.
+components:
+  schemas:
+    Health:
+      type: object
+      additionalProperties: false
+      required: [status, service]
+      properties:
+        status:
+          type: string
+          const: ok
+        service:
+          type: string
+          const: api

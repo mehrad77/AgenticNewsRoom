@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anr.local/schemas/newsroom.schema.json",
+  "title": "NewsroomConfig",
+  "description": "config/newsrooms/<slug>/newsroom.yaml. The first language is the primary one.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "slug",
+    "name",
+    "languages",
+    "timezone",
+    "subdomain",
+    "editor_in_chief",
+    "corrections_owner",
+    "planning"
+  ],
+  "properties": {
+    "slug": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "name": {
+      "type": "object",
+      "description": "Display name per language.",
+      "minProperties": 1,
+      "additionalProperties": { "type": "string", "minLength": 1 },
+      "propertyNames": { "enum": ["fa", "en", "tr"] }
+    },
+    "languages": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "enum": ["fa", "en", "tr"] }
+    },
+    "timezone": { "type": "string", "minLength": 1 },
+    "subdomain": {
+      "type": "string",
+      "description": "The newsroom's site is served at <subdomain>.$ANR_ROOT_DOMAIN; other languages at /<lang>.",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "editor_in_chief": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Publicly accountable person, by name."
+    },
+    "corrections_owner": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Named person who answers reader challenges."
+    },
+    "planning": {
+      "type": "object",
+      "description": "The editorial cycle. Cycles run back to back from `from`, each `cycle` long, in the newsroom's timezone; the planner proposes themes when one starts.",
+      "additionalProperties": false,
+      "required": ["cycle", "from"],
+      "properties": {
+        "cycle": {
+          "type": "string",
+          "description": "Length of one editorial cycle: days (d), weeks (w) or calendar months (mo), e.g. 10d, 2w, 1mo.",
+          "pattern": "^[1-9][0-9]*(d|w|mo)$"
+        },
+        "from": {
+          "type": "string",
+          "format": "date",
+          "description": "Start date of the first cycle."
+        }
+      }
+    }
+  }
+}

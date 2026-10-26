@@ -1,0 +1,25 @@
+{
+  "name": "@anr/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "migrate": "dbmate --env-file ../../.env --env DATABASE_MIGRATION_URL --migrations-dir migrations --no-dump-schema up",
+    "migrate:new": "dbmate --migrations-dir migrations new",
+    "typecheck": "tsc -p .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "pg": "8.23.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "@types/pg": "8.23.1",
+    "dbmate": "2.37.0",
+    "typescript": "5.9.3",
+    "vitest": "5.0.5"
+  }
+}

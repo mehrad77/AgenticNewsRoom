@@ -1,0 +1,67 @@
+# Dev: `pnpm db:up` starts Postgres only; run the apps with `pnpm dev`.
+# Production (one VM): `docker compose -f infra/compose.yaml --profile prod up -d`, with
+# POSTGRES_PASSWORD set and DATABASE_URL / DATABASE_MIGRATION_URL pointing at host `postgres`
+# (inside a container, localhost is the container itself).
+name: anr
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    # Loopback only: never reachable from outside the VM.
+    ports: ["127.0.0.1:5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      retries: 10
+
+  api:
+    profiles: [prod]
+    build: { context: .., dockerfile: infra/docker/node.Dockerfile, args: { APP: api } }
+    env_file: ../.env
+    depends_on: { postgres: { condition: service_healthy } }
+
+  web:
+    profiles: [prod]
+    build: { context: .., dockerfile: infra/docker/node.Dockerfile, args: { APP: web } }
+    env_file: ../.env
+    depends_on: { postgres: { condition: service_healthy } }
+
+  agents:
+    profiles: [prod]
+    build: { context: .., dockerfile: infra/docker/node.Dockerfile, args: { APP: agents } }
+    env_file: ../.env
+    depends_on: { postgres: { condition: service_healthy } }
+
+  publisher:
+    profiles: [prod]
+    build: { context: .., dockerfile: infra/docker/node.Dockerfile, args: { APP: publisher } }
+    env_file: ../.env
+    depends_on: { postgres: { condition: service_healthy } }
+
+  ingestion:
+    profiles: [prod]
+    build: { context: .., dockerfile: infra/docker/python.Dockerfile, args: { SERVICE: ingestion } }
+    env_file: ../.env
+
+  verifier:
+    profiles: [prod]
+    build: { context: .., dockerfile: infra/docker/python.Dockerfile, args: { SERVICE: verifier } }
+    env_file: ../.env
+
+  caddy:
+    profiles: [prod]
+    build: { context: .., dockerfile: infra/docker/caddy.Dockerfile }
+    env_file: ../.env
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy:/data
+
+volumes:
+  pgdata:
+  caddy:

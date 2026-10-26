@@ -1,0 +1,8 @@
+slug: ai
+name: { fa: اتاق خبر هوش مصنوعی, en: AI Newsroom }
+languages: [fa, en] # fa is primary and right-to-left; en is left-to-right
+timezone: Europe/Istanbul
+subdomain: ai # ai.$ANR_ROOT_DOMAIN; English at /en
+editor_in_chief: Mehrad Rousta
+corrections_owner: Mehrad Rousta
+planning: { cycle: 1mo, from: 2026-11-01 } # editorial cycles of one calendar month

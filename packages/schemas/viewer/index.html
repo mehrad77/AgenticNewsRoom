@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ANR schemas</title>
+    <style>
+      :root {
+        --bg: #fbfbfa;
+        --panel: #f2f1ee;
+        --ink: #1d1d1b;
+        --muted: #6b6a66;
+        --line: #dedcd6;
+        --accent: #2f5fd0;
+        --req: #b8322a;
+        --b-object: #e4ecfb;
+        --b-array: #e9f4e6;
+        --b-string: #fbefe0;
+        --b-number: #f3e7f7;
+        --b-boolean: #e5f3f3;
+        --b-enum: #f6efc9;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #161615;
+          --panel: #1f1f1d;
+          --ink: #ecebe7;
+          --muted: #9b9a95;
+          --line: #34332f;
+          --accent: #8fb0ff;
+          --req: #ff8a80;
+          --b-object: #26324a;
+          --b-array: #263a2a;
+          --b-string: #45351f;
+          --b-number: #3d2c45;
+          --b-boolean: #1f3b3b;
+          --b-enum: #403a1c;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        display: grid;
+        grid-template-columns: 260px 1fr;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--ink);
+        font: 14px/1.5 system-ui, sans-serif;
+      }
+      nav { background: var(--panel); border-right: 1px solid var(--line); padding: 16px; position: sticky; top: 0; height: 100vh; overflow: auto; }
+      nav h1 { font-size: 15px; margin: 0 0 12px; }
+      nav input { width: 100%; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); }
+      nav h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 18px 0 6px; }
+      nav a { display: block; padding: 4px 8px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+      nav a:hover { background: var(--line); }
+      nav a.active { background: var(--accent); color: var(--bg); }
+      main { padding: 24px 32px; max-width: 1000px; }
+      header h1 { margin: 0; font-size: 22px; }
+      header .file { color: var(--muted); font: 12px ui-monospace, monospace; }
+      header p { color: var(--muted); margin: 6px 0 0; }
+      .toolbar { display: flex; gap: 8px; margin: 16px 0; }
+      button { font: inherit; padding: 4px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); cursor: pointer; }
+      details { margin-left: 18px; border-left: 1px solid var(--line); padding-left: 10px; }
+      details.root { margin-left: 0; border-left: 0; padding-left: 0; }
+      summary { cursor: pointer; padding: 2px 0; list-style: none; }
+      summary::-webkit-details-marker { display: none; }
+      summary::before { content: "▸"; display: inline-block; width: 14px; color: var(--muted); }
+      details[open] > summary::before { content: "▾"; }
+      .leaf { margin-left: 18px; padding: 2px 0 2px 24px; border-left: 1px solid var(--line); }
+      .name { font: 600 13px ui-monospace, monospace; }
+      .req { color: var(--req); margin-left: 2px; }
+      .badge { font: 11px ui-monospace, monospace; padding: 1px 6px; border-radius: 4px; margin-left: 6px; background: var(--b-string); }
+      .t-object { background: var(--b-object); } .t-array { background: var(--b-array); }
+      .t-number, .t-integer { background: var(--b-number); } .t-boolean { background: var(--b-boolean); }
+      .t-enum, .t-const { background: var(--b-enum); }
+      .meta { color: var(--muted); font: 12px ui-monospace, monospace; margin-left: 6px; }
+      .desc { color: var(--muted); margin-left: 6px; }
+      .variant { color: var(--accent); font-weight: 600; }
+      pre { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; overflow: auto; font-size: 12px; }
+      .empty { color: var(--muted); }
+      @media (max-width: 700px) { body { grid-template-columns: 1fr; } nav { position: static; height: auto; } main { padding: 16px; } }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <h1>ANR schemas</h1>
+      <input id="filter" type="search" placeholder="Filter schemas" aria-label="Filter schemas" />
+      <div id="list"></div>
+    </nav>
+    <main id="main"><p class="empty">Pick a schema.</p></main>
+    <script type="module">
+      const $ = (tag, attrs = {}, ...kids) => {
+        const el = document.createElement(tag);
+        for (const [k, v] of Object.entries(attrs)) {
+          if (k === "class") el.className = v;
+          else el.setAttribute(k, v);
+        }
+        for (const kid of kids) if (kid != null) el.append(kid);
+        return el;
+      };
+
+      const typeOf = (s) => {
+        if (s.const !== undefined) return "const";
+        if (s.enum) return "enum";
+        if (s.type) return Array.isArray(s.type) ? s.type.join(" | ") : s.type;
+        if (s.properties || s.additionalProperties) return "object";
+        if (s.items) return "array";
+        if (s.oneOf) return "oneOf";
+        if (s.anyOf) return "anyOf";
+        return "any";
+      };
+
+      const CONSTRAINTS = ["format", "pattern", "minimum", "maximum", "minLength", "maxLength", "minItems", "maxItems", "minProperties", "maxProperties", "uniqueItems", "default"];
+      const meta = (s) => {
+        const parts = [];
+        if (s.enum) parts.push(s.enum.map((v) => JSON.stringify(v)).join(" | "));
+        if (s.const !== undefined) parts.push(`= ${JSON.stringify(s.const)}`);
+        for (const k of CONSTRAINTS) if (s[k] !== undefined) parts.push(`${k}: ${typeof s[k] === "string" ? s[k] : JSON.stringify(s[k])}`);
+        if (s.propertyNames?.enum) parts.push(`keys: ${s.propertyNames.enum.join(" | ")}`);
+        if (s.additionalProperties === false && s.properties) parts.push("closed");
+        return parts.length ? $("span", { class: "meta" }, parts.join(" · ")) : null;
+      };
+
+      const label = (name, s, required, variant) => {
+        const t = typeOf(s);
+        return [
+          variant ? $("span", { class: "variant" }, variant) : $("span", { class: "name" }, name),
+          required ? $("span", { class: "req", title: "required" }, "*") : null,
+          $("span", { class: `badge t-${t.split(" ")[0]}` }, t),
+          meta(s),
+          s.description ? $("span", { class: "desc" }, `— ${s.description}`) : null,
+        ];
+      };
+
+      const children = (s) => {
+        const out = [];
+        const req = new Set(s.required ?? []);
+        for (const [k, v] of Object.entries(s.properties ?? {})) out.push(node(k, v, req.has(k)));
+        if (s.additionalProperties && typeof s.additionalProperties === "object") out.push(node("[any key]", s.additionalProperties, false));
+        if (s.items) out.push(node("[item]", s.items, false));
+        for (const kind of ["oneOf", "anyOf"]) {
+          for (const [i, v] of (s[kind] ?? []).entries()) out.push(node("", v, false, `${kind} #${i + 1}`));
+        }
+        return out;
+      };
+
+      function node(name, s, required, variant, depth = 0) {
+        const kids = children(s);
+        if (!kids.length) return $("div", { class: "leaf" }, ...label(name, s, required, variant));
+        const d = $("details", depth < 3 ? { open: "" } : {}, $("summary", {}, ...label(name, s, required, variant)));
+        for (const k of kids) d.append(k);
+        return d;
+      }
+
+      const main = document.getElementById("main");
+      const list = document.getElementById("list");
+      const filter = document.getElementById("filter");
+      const schemas = await (await fetch("/api/schemas")).json();
+
+      function drawList() {
+        const q = filter.value.toLowerCase();
+        list.replaceChildren();
+        for (const group of ["config", "format"]) {
+          const items = schemas.filter((s) => s.group === group && `${s.id} ${s.title}`.toLowerCase().includes(q));
+          if (!items.length) continue;
+          list.append($("h2", {}, group === "config" ? "Config files" : "Format drafts"));
+          for (const s of items) {
+            const a = $("a", { href: `#${s.id}` }, s.id.split("/")[1]);
+            if (location.hash.slice(1) === s.id) a.classList.add("active");
+            list.append(a);
+          }
+        }
+      }
+
+      async function show() {
+        drawList();
+        const id = location.hash.slice(1);
+        const entry = schemas.find((s) => s.id === id);
+        if (!entry) return;
+        const schema = await (await fetch(`/api/schemas/${encodeURIComponent(id)}`)).json();
+        const tree = node("", { ...schema, description: undefined }, false, " ");
+        tree.classList?.add("root");
+        const raw = $("pre", { hidden: "" }, JSON.stringify(schema, null, 2));
+        const setAll = (open) => {
+          for (const d of main.querySelectorAll("details")) d.open = open;
+        };
+        main.replaceChildren(
+          $("header", {},
+            $("h1", {}, entry.title),
+            $("div", { class: "file" }, entry.file),
+            schema.description ? $("p", {}, schema.description) : null),
+          $("div", { class: "toolbar" },
+            Object.assign($("button", {}, "Expand all"), { onclick: () => setAll(true) }),
+            Object.assign($("button", {}, "Collapse all"), { onclick: () => setAll(false) }),
+            Object.assign($("button", {}, "Raw JSON"), { onclick: () => (raw.hidden = !raw.hidden) })),
+          tree,
+          raw,
+        );
+      }
+
+      filter.addEventListener("input", drawList);
+      addEventListener("hashchange", show);
+      if (!location.hash && schemas[0]) location.hash = schemas[0].id;
+      else show();
+    </script>
+  </body>
+</html>

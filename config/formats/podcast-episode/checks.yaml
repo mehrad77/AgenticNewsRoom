@@ -1,0 +1,15 @@
+# Format-specific code checks, run by the verifier after the shared checks.
+- id: speakers-known
+  rule: every host and speaker is a host of the series for this language, or "narrator" when the series has a narrator voice for it
+- id: segment-length
+  rule: words(segment) within 15% of minutes * 150
+- id: story-arc-complete
+  rule: each story segment has the six beats exactly once, cold-open first and takeaway last, stakes and turning-point in either order
+- id: protagonists-grounded
+  rule: every protagonist's claim_ids are fact claims of this story
+- id: arc-follows-protagonists
+  rule: the turning-point and resolution beats each name at least one protagonist
+- id: cues-sparing
+  rule: at most one cue per beat; pause only with seconds; no cues in news-recap segments
+- id: directions-short
+  rule: direction is at most 40 characters and on at most a third of lines

@@ -1,0 +1,59 @@
+# Sources start without terms_checked, so ingestion does not schedule them until a person
+# has read each source's terms and set the date. Milestone 2 completes this list.
+- {
+    id: arxiv-cs-ai,
+    kind: api,
+    url: "https://export.arxiv.org/api/query?search_query=cat:cs.AI&sortBy=submittedDate",
+    publisher: arXiv,
+    tier: 2,
+    every: 6h,
+  }
+- {
+    id: openai-news,
+    kind: rss,
+    url: "https://openai.com/news/rss.xml",
+    publisher: OpenAI,
+    tier: 1,
+    every: 1h,
+  }
+- {
+    id: google-deepmind-blog,
+    kind: rss,
+    url: "https://deepmind.google/blog/rss.xml",
+    publisher: Google DeepMind,
+    tier: 1,
+    every: 1h,
+  }
+- {
+    id: google-ai-blog,
+    kind: rss,
+    url: "https://blog.google/technology/ai/rss/",
+    publisher: Google,
+    tier: 1,
+    every: 1h,
+  }
+- {
+    id: huggingface-blog,
+    kind: rss,
+    url: "https://huggingface.co/blog/feed.xml",
+    publisher: Hugging Face,
+    tier: 1,
+    every: 1h,
+  }
+- {
+    id: hn-front,
+    kind: api,
+    url: "https://hacker-news.firebaseio.com/v0/topstories.json",
+    publisher: Hacker News,
+    tier: 3,
+    every: 2h,
+  }
+- {
+    id: semantic-scholar,
+    kind: api,
+    url: "https://api.semanticscholar.org/graph/v1",
+    publisher: Semantic Scholar,
+    tier: 2,
+    every: 24h,
+    use: enrichment,
+  }

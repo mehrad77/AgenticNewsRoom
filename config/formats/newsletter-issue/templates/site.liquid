@@ -1,0 +1,9 @@
+<article lang="{{ language }}" dir="{{ direction }}">
+  <h1>{{ rendition.title }}</h1>
+  <p class="anr-disclosure"><a href="{{ ai_policy_url }}">{% render "disclosure", language: language, edited: edited %}</a></p>
+  {% for item in rendition.items %}
+    {% if item.kind == "news" %}<section><h2>{{ item.headline }}</h2><p>{{ item.body }}</p></section>{% endif %}
+  {% endfor %}
+  {% assign articles = rendition.items | where: "kind", "article" %}
+  {% if articles.size > 0 %}<aside>{% for a in articles %}<p><a href="{{ leads[a.lead_id].url }}">{{ a.title }}</a> — {{ a.reason }}</p>{% endfor %}</aside>{% endif %}
+</article>

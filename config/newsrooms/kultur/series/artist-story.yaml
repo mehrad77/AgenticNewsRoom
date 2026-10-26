@@ -1,0 +1,7 @@
+name: { tr: Haftanın Sanatçısı, en: Artist of the Week, fa: هنرمند هفته }
+format: artist-story
+languages: [tr, en, fa]
+cadence: { weekly: thu 12:00 }
+pick: { planner_proposes: 3, by: mon, editor_picks_by: tue }
+channels:
+  site: [tr, en, fa]

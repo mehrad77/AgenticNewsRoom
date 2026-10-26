@@ -1,0 +1,4 @@
+- id: length
+  rule: words(rendition) in 1000..1500
+- id: opinion-has-no-facts
+  rule: every items[opinion=true].claim_ids refer to claims of kind opinion

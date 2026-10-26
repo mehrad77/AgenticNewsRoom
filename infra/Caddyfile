@@ -1,0 +1,15 @@
+# TLS for the root domain and every newsroom subdomain, via a Cloudflare DNS-01 wildcard cert.
+*.{$ANR_ROOT_DOMAIN}, {$ANR_ROOT_DOMAIN} {
+	tls {
+		dns cloudflare {$CLOUDFLARE_DNS_API_TOKEN}
+	}
+
+	# Only the web app and the API are public. Ingestion, verifier, agents and publisher are internal.
+	handle /api/* {
+		uri strip_prefix /api
+		reverse_proxy api:8787
+	}
+	handle {
+		reverse_proxy web:4321
+	}
+}

@@ -1,0 +1,17 @@
+name: { tr: Kültür Podcast, en: Kültür Podcast, fa: پادکست کولتور }
+format: podcast-episode
+languages: [tr, en, fa]
+cadence: { weekly: fri 18:00 }
+segments:
+  - { kind: story, minutes: 20, from: week.artist-story }
+hosts:
+  tr: { deniz: Aoede, emre: Charon }
+  en: { ada: Leda, sam: Orus }
+  fa: { shirin: Despina, kian: Iapetus }
+narrator: # story segments only
+  tr: Gacrux
+  en: Schedar
+  fa: Achernar
+channels:
+  podcast-rss: [tr, en, fa] # one feed per language
+  site: [tr, en, fa]

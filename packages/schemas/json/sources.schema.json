@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anr.local/schemas/sources.schema.json",
+  "title": "SourcesConfig",
+  "description": "config/newsrooms/<slug>/sources.yaml. Ingestion never schedules a source without terms_checked.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["id", "kind", "url", "tier", "every"],
+    "properties": {
+      "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+      "kind": { "enum": ["rss", "api", "site"] },
+      "url": { "type": "string", "format": "uri" },
+      "publisher": {
+        "type": "string",
+        "description": "Who publishes it; independence is counted per publisher."
+      },
+      "tier": { "enum": [1, 2, 3] },
+      "every": { "type": "string", "pattern": "^[0-9]+[mhd]$" },
+      "use": { "enum": ["leads", "enrichment"], "default": "leads" },
+      "terms_checked": {
+        "type": "string",
+        "format": "date",
+        "description": "Set by a person after reading the source's terms."
+      },
+      "terms_note": { "type": "string" }
+    }
+  }
+}

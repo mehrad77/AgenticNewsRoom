@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anr.local/schemas/format.schema.json",
+  "title": "FormatConfig",
+  "description": "config/formats/<format>/format.yaml: how a format is described to the outside world.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["genre", "ninjs_type"],
+  "properties": {
+    "genre": {
+      "type": "string",
+      "pattern": "^genre:[A-Za-z_-]+$",
+      "description": "IPTC Genre qcode (packages/schemas/iptc/genre.json); not retired. Opinion items add genre:Opinion."
+    },
+    "ninjs_type": {
+      "enum": ["text", "audio"],
+      "description": "ninjs `type` of a publication in this format."
+    }
+  }
+}

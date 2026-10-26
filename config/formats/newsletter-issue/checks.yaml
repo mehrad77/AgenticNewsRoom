@@ -1,0 +1,7 @@
+# Format-specific code checks, run by the verifier after the shared checks.
+- id: news-item-count
+  rule: count(items[kind=news]) in 5..8
+- id: article-limit
+  rule: count(items[kind=article]) <= 2
+- id: article-has-reason
+  rule: every items[kind=article].reason is one line

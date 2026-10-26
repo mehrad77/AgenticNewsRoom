@@ -1,0 +1,3 @@
+# IPTC description of this format (schema: packages/schemas/json/format.schema.json).
+genre: genre:Feature # Feature: one paper's story, not breaking news
+ninjs_type: text

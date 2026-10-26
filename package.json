@@ -1,0 +1,30 @@
+{
+  "name": "agentic-newsroom",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.28.2",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "biome check . && turbo run lint",
+    "format": "biome check --write .",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "gen": "turbo run gen",
+    "gen:check": "pnpm gen && git diff --exit-code -- packages/schemas/src/generated packages/schemas/python apps/api/src/generated",
+    "config:check": "pnpm --filter @anr/config run check",
+    "schemas:view": "pnpm --filter @anr/schemas run view",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm config:check && pnpm gen:check",
+    "db:up": "docker compose -f infra/compose.yaml up -d postgres",
+    "db:down": "docker compose -f infra/compose.yaml down",
+    "db:migrate": "pnpm --filter @anr/db run migrate"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.3",
+    "turbo": "2.11.10",
+    "typescript": "5.9.3"
+  }
+}

@@ -1,0 +1,5 @@
+extends:
+  - recommended
+rules:
+  # Health and other ops endpoints have no client errors to describe.
+  operation-4xx-response: off
