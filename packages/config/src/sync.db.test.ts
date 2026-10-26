@@ -118,20 +118,28 @@ describe("syncConfig", () => {
       (await boss.getSchedules(queue)).filter(
         (s) => (s.data as { newsroomId?: string }).newsroomId === newsroomId,
       );
+    // The same config before anyone read the terms: nothing is fetched.
+    const unchecked = testConfig(suffix);
+    const sources = unchecked.newsrooms[0]?.sources as { terms_checked?: string }[];
+    for (const s of sources) delete s.terms_checked;
+    await syncConfig(pools.system, boss, unchecked);
     expect(await mine("ingest-source")).toEqual([]);
     expect((await mine("assign")).map((s) => [s.cron, s.timezone])).toEqual([
       ["0 16 * * *", "Europe/Istanbul"],
     ]);
 
+    // As committed: every lead source with terms_checked, on its own interval.
     const checked = testConfig(suffix);
-    const sources = checked.newsrooms[0]?.sources as { id: string; terms_checked?: string }[];
-    const openai = sources.find((s) => s.id === "openai-news");
-    if (openai) openai.terms_checked = "2026-10-26";
+    const leadSources = (
+      (checked.newsrooms[0]?.sources ?? []) as { terms_checked?: string; use?: string }[]
+    ).filter((s) => s.terms_checked && (s.use ?? "leads") === "leads");
     await syncConfig(pools.system, boss, checked);
-    expect((await mine("ingest-source")).map((s) => s.cron)).toEqual(["0 */1 * * *"]);
+    const scheduled = await mine("ingest-source");
+    expect(scheduled).toHaveLength(leadSources.length);
+    expect(scheduled.map((s) => s.cron)).toContain("0 */1 * * *");
 
-    const report = await syncConfig(pools.system, boss, testConfig(suffix));
-    expect(report.schedules.unscheduled).toBeGreaterThanOrEqual(1);
+    const report = await syncConfig(pools.system, boss, unchecked);
+    expect(report.schedules.unscheduled).toBeGreaterThanOrEqual(leadSources.length);
     expect(await mine("ingest-source")).toEqual([]);
   });
 
