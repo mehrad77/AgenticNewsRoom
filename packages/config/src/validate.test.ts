@@ -82,4 +82,16 @@ describe("validateConfig", () => {
     expect(errors).toContain("newsrooms/ai has no policy.yaml");
     expect(errors).toContain("newsrooms/ai has no sources.yaml");
   });
+
+  it("rejects a source interval cron cannot repeat evenly", () => {
+    const config = loadConfig(root);
+    const ai = config.newsrooms.find((n) => n.slug === "ai");
+    if (!ai) throw new Error("ai newsroom missing");
+    const [first] = ai.sources as { id: string; every: string }[];
+    if (!first) throw new Error("no sources");
+    first.every = "45m";
+    expect(validateConfig(config)).toContain(
+      `newsrooms/ai/sources.yaml source ${first.id}: interval 45m must divide an hour (m) or a day (h), or be 1d`,
+    );
+  });
 });

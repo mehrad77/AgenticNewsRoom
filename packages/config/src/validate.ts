@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import addFormatsModule from "ajv-formats";
 import type { RawConfig } from "./load.ts";
+import { cronEvery } from "./schedules.ts";
 
 const require = createRequire(import.meta.url);
 const schemaPath = (name: string) => require.resolve(`@anr/schemas/json/${name}.schema.json`);
@@ -98,9 +99,17 @@ export function validateConfig(config: RawConfig): string[] {
     if (other) errors.push(`${at} reuses subdomain of newsrooms/${other}`);
     subdomains.set(newsroom.subdomain, n.slug);
 
-    const sourceIds = (Array.isArray(n.sources) ? n.sources : []).map((s: { id: string }) => s.id);
+    const sources = (Array.isArray(n.sources) ? n.sources : []) as { id: string; every: string }[];
+    const sourceIds = sources.map((s) => s.id);
     if (new Set(sourceIds).size !== sourceIds.length)
       errors.push(`${at}/sources.yaml has duplicate ids`);
+    for (const s of sources) {
+      try {
+        cronEvery(s.every);
+      } catch (error) {
+        errors.push(`${at}/sources.yaml source ${s.id}: ${(error as Error).message}`);
+      }
+    }
 
     if (okPolicy) {
       const beats = (n.policy as { beats: Record<string, { media_topics: string[] }> }).beats;
