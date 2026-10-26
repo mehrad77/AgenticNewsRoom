@@ -1,66 +1,142 @@
 # Dev: `pnpm db:up` starts Postgres only; run the apps with `pnpm dev`.
-# Production (one VM): `docker compose -f infra/compose.yaml --profile prod up -d`, with
-# POSTGRES_PASSWORD set and DATABASE_URL / DATABASE_MIGRATION_URL pointing at host `postgres`
-# (inside a container, localhost is the container itself).
+# Production (one VM): `infra/deploy.sh`, which checks .env and then runs
+# `docker compose --env-file .env -f infra/compose.yaml --profile prod up`. The one-shot `migrate`
+# and `config-sync` jobs finish before any app starts.
 name: anr
+
+# Every production app: the whole .env, with database URLs rebuilt for host `postgres` (inside a
+# container, localhost is the container itself); `environment` overrides the dev URLs in .env.
+x-app: &app
+  profiles: [prod]
+  restart: unless-stopped
+  env_file: ../.env
+  environment:
+    DATABASE_URL: postgres://anr_app:${ANR_APP_DB_PASSWORD:-anr_app}@postgres:5432/anr
+    DATABASE_SYSTEM_URL: postgres://anr_system:${ANR_SYSTEM_DB_PASSWORD:-anr_system}@postgres:5432/anr
+  depends_on:
+    postgres: { condition: service_healthy }
+    migrate: { condition: service_completed_successfully }
+    config-sync: { condition: service_completed_successfully }
 
 services:
   postgres:
-    image: postgres:17
+    build: { context: .., dockerfile: infra/docker/postgres.Dockerfile }
+    image: anr-postgres:17
     environment:
+      # Defaults are dev values; production sets every password (infra/AGENTS.md).
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      ANR_MIGRATOR_DB_PASSWORD: ${ANR_MIGRATOR_DB_PASSWORD:-anr_migrator}
+      ANR_APP_DB_PASSWORD: ${ANR_APP_DB_PASSWORD:-anr_app}
+      ANR_SYSTEM_DB_PASSWORD: ${ANR_SYSTEM_DB_PASSWORD:-anr_system}
+      # anr_test holds the integration tests' data; production sets ANR_DATABASES=anr.
+      ANR_DATABASES: ${ANR_DATABASES:-anr anr_test}
+      # pgBackRest (infra/backup/): every option as an environment variable; the repository is
+      # the R2 bucket, encrypted with the backup passphrase. Unused while archiving is off (dev).
+      PGBACKREST_STANZA: anr
+      PGBACKREST_PG1_PATH: /var/lib/postgresql/data
+      PGBACKREST_REPO1_TYPE: s3
+      PGBACKREST_REPO1_PATH: /pgbackrest
+      PGBACKREST_REPO1_S3_BUCKET: ${ANR_BACKUP_BUCKET:-}
+      PGBACKREST_REPO1_S3_ENDPOINT: ${ANR_BACKUP_S3_ENDPOINT:-${R2_ACCOUNT_ID:-}.r2.cloudflarestorage.com}
+      PGBACKREST_REPO1_S3_REGION: ${ANR_BACKUP_S3_REGION:-auto}
+      PGBACKREST_REPO1_S3_URI_STYLE: path
+      PGBACKREST_REPO1_S3_KEY: ${R2_ACCESS_KEY_ID:-}
+      PGBACKREST_REPO1_S3_KEY_SECRET: ${R2_SECRET_ACCESS_KEY:-}
+      PGBACKREST_REPO1_CIPHER_TYPE: aes-256-cbc
+      PGBACKREST_REPO1_CIPHER_PASS: ${ANR_BACKUP_PASSPHRASE:-}
+      PGBACKREST_REPO1_RETENTION_FULL: "4"
+      PGBACKREST_COMPRESS_TYPE: zst
+      PGBACKREST_START_FAST: "y"
+      PGBACKREST_LOG_LEVEL_FILE: "off"
+    # WAL archiving: on in production (ANR_WAL_ARCHIVE=on), off in dev and on a restored copy, which
+    # must never push into the production repository. archive_timeout bounds data loss to 5 minutes.
+    # Changing archive_mode needs a restart; compose recreates the container when it changes.
+    command:
+      - postgres
+      - -c
+      - archive_mode=${ANR_WAL_ARCHIVE:-off}
+      - -c
+      - archive_command=pgbackrest archive-push %p
+      - -c
+      - archive_timeout=300
     # Loopback only: never reachable from outside the VM.
-    ports: ["127.0.0.1:5432:5432"]
+    ports: ["127.0.0.1:${ANR_PG_PORT:-5432}:5432"]
+    restart: unless-stopped
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./postgres/init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "postgres"]
+      # Over TCP: during first-start init the server listens on its unix socket only, so a socket
+      # check would pass while the roles are still being created.
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "postgres"]
       interval: 5s
       retries: 10
 
-  api:
+  # One-shot deploy jobs, in the api image (it holds the whole workspace, dbmate included).
+  migrate:
     profiles: [prod]
-    build: { context: .., dockerfile: infra/docker/node.Dockerfile, args: { APP: api } }
-    env_file: ../.env
+    image: anr-api
+    pull_policy: never
+    working_dir: /repo/packages/db
+    environment:
+      DATABASE_URL: postgres://anr_migrator:${ANR_MIGRATOR_DB_PASSWORD:-anr_migrator}@postgres:5432/anr?sslmode=disable
+    command: [pnpm, exec, dbmate, --wait, --migrations-dir, migrations, --no-dump-schema, up]
     depends_on: { postgres: { condition: service_healthy } }
+
+  config-sync:
+    profiles: [prod]
+    image: anr-api
+    pull_policy: never
+    working_dir: /repo
+    environment:
+      DATABASE_MIGRATION_URL: postgres://anr_migrator:${ANR_MIGRATOR_DB_PASSWORD:-anr_migrator}@postgres:5432/anr
+      DATABASE_SYSTEM_URL: postgres://anr_system:${ANR_SYSTEM_DB_PASSWORD:-anr_system}@postgres:5432/anr
+    command:
+      [sh, -c, "pnpm --filter @anr/db tenancy:check && pnpm config:check && pnpm config:sync"]
+    depends_on: { migrate: { condition: service_completed_successfully } }
+
+  api:
+    <<: *app
+    image: anr-api
+    build: { context: .., dockerfile: infra/docker/node.Dockerfile, args: { APP: api } }
 
   web:
-    profiles: [prod]
+    <<: *app
+    image: anr-web
     build: { context: .., dockerfile: infra/docker/node.Dockerfile, args: { APP: web } }
-    env_file: ../.env
-    depends_on: { postgres: { condition: service_healthy } }
 
   agents:
-    profiles: [prod]
+    <<: *app
+    image: anr-agents
     build: { context: .., dockerfile: infra/docker/node.Dockerfile, args: { APP: agents } }
-    env_file: ../.env
-    depends_on: { postgres: { condition: service_healthy } }
 
   publisher:
-    profiles: [prod]
+    <<: *app
+    image: anr-publisher
     build: { context: .., dockerfile: infra/docker/node.Dockerfile, args: { APP: publisher } }
-    env_file: ../.env
-    depends_on: { postgres: { condition: service_healthy } }
 
   ingestion:
-    profiles: [prod]
+    <<: *app
+    image: anr-ingestion
     build: { context: .., dockerfile: infra/docker/python.Dockerfile, args: { SERVICE: ingestion } }
-    env_file: ../.env
 
   verifier:
-    profiles: [prod]
+    <<: *app
+    image: anr-verifier
     build: { context: .., dockerfile: infra/docker/python.Dockerfile, args: { SERVICE: verifier } }
-    env_file: ../.env
 
   caddy:
     profiles: [prod]
     build: { context: .., dockerfile: infra/docker/caddy.Dockerfile }
-    env_file: ../.env
+    restart: unless-stopped
+    # Only what Caddy needs, not the whole .env.
+    environment:
+      ANR_ROOT_DOMAIN: ${ANR_ROOT_DOMAIN:-localhost}
+      CLOUDFLARE_DNS_API_TOKEN: ${CLOUDFLARE_DNS_API_TOKEN:-}
     ports: ["80:80", "443:443"]
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy:/data
+    depends_on: [api, web]
 
 volumes:
   pgdata:

@@ -18,9 +18,11 @@
     "config:check": "pnpm --filter @anr/config run check",
     "schemas:view": "pnpm --filter @anr/schemas run view",
     "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm config:check && pnpm gen:check",
-    "db:up": "docker compose -f infra/compose.yaml up -d postgres",
-    "db:down": "docker compose -f infra/compose.yaml down",
-    "db:migrate": "pnpm --filter @anr/db run migrate"
+    "db:up": "docker compose --env-file .env -f infra/compose.yaml up -d --build --wait postgres",
+    "db:down": "docker compose --env-file .env -f infra/compose.yaml down",
+    "db:migrate": "pnpm --filter @anr/db run migrate && pnpm --filter @anr/db run migrate:test",
+    "db:roles": "docker compose --env-file .env -f infra/compose.yaml exec postgres anr-roles",
+    "config:sync": "pnpm --filter @anr/config run sync"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.3",

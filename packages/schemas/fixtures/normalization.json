@@ -42,6 +42,42 @@
       "input": "ﬁle",
       "expected": "file",
       "language": "en"
+    },
+    {
+      "name": "arabic alef maksura to persian ye",
+      "input": "موسى",
+      "expected": "موسی",
+      "language": "fa"
+    },
+    {
+      "name": "arabic-indic digits to latin",
+      "input": "٢٠٢٦",
+      "expected": "2026",
+      "language": "fa"
+    },
+    {
+      "name": "arabic presentation forms folded by nfkc, then kaf mapped",
+      "input": "ﻙﺘﺎﺏ",
+      "expected": "کتاب",
+      "language": "fa"
+    },
+    {
+      "name": "lower case outside turkish",
+      "input": "OpenAI GPT",
+      "expected": "openai gpt",
+      "language": "en"
+    },
+    {
+      "name": "dotted capital I outside turkish keeps its dot as a combining mark",
+      "input": "İstanbul",
+      "expected": "i̇stanbul",
+      "language": "en"
+    },
+    {
+      "name": "no language uses the default rules",
+      "input": "IRMAK",
+      "expected": "irmak",
+      "language": null
     }
   ]
 }
