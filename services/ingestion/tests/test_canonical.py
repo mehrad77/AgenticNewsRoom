@@ -1,6 +1,13 @@
 import pytest
 
-from anr_ingestion.canonical import arxiv_id, canonical_url, host_key, registrable_domain, same_site
+from anr_ingestion.canonical import (
+    arxiv_id,
+    canonical_url,
+    host_key,
+    registrable_domain,
+    same_site,
+    section,
+)
 
 
 @pytest.mark.parametrize(
@@ -36,3 +43,9 @@ def test_registrable_domain_uses_the_bundled_suffix_list() -> None:
     # Reserved TLDs and addresses have no public suffix: the whole host is the site.
     assert not same_site("https://unknown.example/a", "https://blocked.example/b")
     assert registrable_domain("http://10.0.0.1/x") == "10.0.0.1"
+
+
+def test_section() -> None:
+    assert section("https://huggingface.co/blog/x?utm_source=a") == "https://huggingface.co/blog"
+    assert section("https://huggingface.co/someone/model") == "https://huggingface.co/someone"
+    assert section("https://example.com") == "https://example.com/"

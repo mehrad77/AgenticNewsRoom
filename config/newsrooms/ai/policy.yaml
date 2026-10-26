@@ -12,4 +12,28 @@ sources:
 papers:
   tiers: [flagged, high, medium, low] # flagged is dropped; high, medium, low map to tiers 1, 2, 3
   newsletter_min: high
+  # Paper tier rules (D59): high (tier 1) only on Semantic Scholar's evidence. Names are matched
+  # case-insensitively against its venue and the venue's alternate names.
+  high_venues:
+    - NeurIPS
+    - Neural Information Processing Systems
+    - ICML
+    - International Conference on Machine Learning
+    - ICLR
+    - International Conference on Learning Representations
+    - ACL
+    - Annual Meeting of the Association for Computational Linguistics
+    - EMNLP
+    - Conference on Empirical Methods in Natural Language Processing
+    - NAACL
+    - North American Chapter of the Association for Computational Linguistics
+    - CVPR
+    - Computer Vision and Pattern Recognition
+    - AAAI
+    - AAAI Conference on Artificial Intelligence
+    - Journal of Machine Learning Research
+    - Transactions on Machine Learning Research
+    - Nature
+    - Science
+  high_citations: 500
 auto_publish: [newsletter-issue]

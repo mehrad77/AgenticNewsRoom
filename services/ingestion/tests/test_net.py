@@ -46,6 +46,25 @@ def test_backend_refuses_when_any_answer_is_private() -> None:
         backend.connect_tcp("rebinding.example", 443)
 
 
+def test_backend_tries_each_checked_address_ipv4_first() -> None:
+    import httpcore
+
+    tried: list[str] = []
+
+    class Inner:
+        def connect_tcp(self, host: str, port: int, **_: object) -> httpcore.NetworkStream:
+            tried.append(host)
+            raise httpcore.ConnectError("unreachable")
+
+    backend = GuardedBackend(
+        resolver=lambda host, port: ["2606:4700::1", "93.184.216.34", "93.184.216.35"]
+    )
+    backend._inner = Inner()  # type: ignore[assignment]
+    with pytest.raises(httpcore.ConnectError):
+        backend.connect_tcp("example.com", 443)
+    assert tried == ["93.184.216.34", "93.184.216.35", "2606:4700::1"]
+
+
 def test_guarded_transport_refuses_loopback_before_connecting() -> None:
     fetcher = Fetcher(GuardedTransport(), user_agent="test", sleep=lambda _: None)
     with pytest.raises(Refused):
@@ -132,3 +151,21 @@ def test_politeness_delay_per_host(web: FakeWeb) -> None:
     fetcher.get("https://export.arxiv.org/api/query", robots=False)  # another host: no wait
     fetcher.get("https://export.arxiv.org/api/query", robots=False)  # 3 s for arXiv
     assert slept == [1.0, 3.0]
+
+
+def test_crawl_delay_from_robots_txt(web: FakeWeb) -> None:
+    now = [0.0]
+    slept: list[float] = []
+
+    def sleep(seconds: float) -> None:
+        slept.append(seconds)
+        now[0] += seconds
+
+    web.routes["https://slow.example/robots.txt"] = {"file": "robots-slow.txt"}
+    web.routes["https://slow.example/a"] = {"file": "site-post.html"}
+    fetcher = Fetcher(
+        httpx.MockTransport(web.handler), user_agent="t", clock=lambda: now[0], sleep=sleep
+    )
+    fetcher.get("https://slow.example/a")  # robots.txt first: 1 s default, then 15 s apply
+    fetcher.get("https://slow.example/a")
+    assert slept == [1.0, 15.0]

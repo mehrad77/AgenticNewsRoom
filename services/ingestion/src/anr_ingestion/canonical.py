@@ -72,3 +72,13 @@ def host_key(url: str) -> str:
     """The host without a leading `www.`, for matching a requested URL to a known source."""
     host = (urlsplit(url).hostname or "").lower()
     return host.removeprefix("www.")
+
+
+def section(url: str) -> str:
+    """`https://huggingface.co/blog` for any post under it: a host and its first path segment.
+
+    Matches the SQL `substring(uri from '^[a-z]+://[^/]+/[^/?#]*')` on canonical URIs.
+    """
+    parts = urlsplit(canonical_url(url))
+    first = parts.path.split("/")[1] if parts.path.count("/") >= 1 else ""
+    return f"{parts.scheme}://{parts.netloc}/{first}"

@@ -91,12 +91,12 @@ auto_publish: [newsletter-issue]
 ```yaml
 # sources.yaml (excerpt)
 - {
-    id: arxiv-cs-ai,
+    id: arxiv,
     kind: api,
-    url: "https://export.arxiv.org/api/query?search_query=cat:cs.AI&sortBy=submittedDate",
+    url: "https://export.arxiv.org/api/query?search_query=cat:cs.AI+OR+cat:cs.CL+OR+cat:cs.LG&sortBy=submittedDate",
     publisher: arXiv,
     tier: 2,
-    every: 6h,
+    every: 2h,
   }
 - {
     id: openai-news,
@@ -125,7 +125,7 @@ auto_publish: [newsletter-issue]
   }
 ```
 
-Lab blogs are tier 1, one entry per lab. Each source is fetched only after a person has read its terms and set `terms_checked`; milestone 2 completes the list.
+Lab blogs are tier 1, one entry per lab (a feed where the lab has one, else its listing page). arXiv is one source over all the newsroom's categories, so a paper's primary category is judged against all of them (D59). Each source is fetched only after a person has read its terms and set `terms_checked`; milestone 2 completes the list.
 
 ```yaml
 # series/daily-newsletter.yaml (excerpt)

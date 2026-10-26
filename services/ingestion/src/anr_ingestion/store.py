@@ -227,6 +227,16 @@ def requests_by_run(conn: Conn, run_id: str) -> int:
     return int(row["n"]) if row else 0
 
 
+def sections(conn: Conn, source_id: str) -> set[str]:
+    """The host-and-first-segment prefixes of every URL this source has given us."""
+    rows = conn.execute(
+        """select distinct substring(uri from '^[a-z]+://[^/]+/[^/?#]*') as section
+           from lead_sightings where source_id = %s""",
+        (source_id,),
+    ).fetchall()
+    return {r["section"] for r in rows if r["section"]}
+
+
 def recent_papers(conn: Conn, source_id: str, days: int) -> list[tuple[str, str, int]]:
     """(lead id, uri, tier) of this source's papers not yet tier 1, fetched in the last `days`."""
     rows = conn.execute(

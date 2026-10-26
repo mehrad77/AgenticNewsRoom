@@ -14,7 +14,10 @@ export const AGENTS_QUEUES: readonly QueueName[] = [
   QUEUES.agentRun,
 ];
 
-/** A handler per queue; a queue without one logs its jobs (assign arrives with milestone 3). */
+/**
+ * A handler per queue. A queue without one is not worked at all, so its jobs wait in Postgres
+ * for a worker that can run them (assign arrives with milestone 3).
+ */
 export interface JobHandlers {
   "ingest-source"?: (job: IngestSourceJob) => Promise<void>;
   assign?: (job: AssignJob) => Promise<void>;
@@ -31,12 +34,13 @@ export async function registerJobs(
     const handler = handlers[queue as keyof JobHandlers] as
       | ((job: Job) => Promise<void>)
       | undefined;
+    if (!handler) {
+      console.log(`[agents] ${queue}: no handler; its jobs wait`);
+      continue;
+    }
     await boss.work<Job>(queue, async (jobs) => {
       // A throw fails the job and pg-boss retries it; a handler returns to complete it.
-      for (const job of jobs) {
-        if (handler) await handler(job.data);
-        else console.log(`[agents] ${queue} ${job.id}: no handler yet`, job.data);
-      }
+      for (const job of jobs) await handler(job.data);
     });
   }
 }

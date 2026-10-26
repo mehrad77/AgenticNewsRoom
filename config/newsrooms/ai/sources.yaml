@@ -1,13 +1,10 @@
-# Sources start without terms_checked, so ingestion does not schedule them until a person
-# has read each source's terms and set the date. Milestone 2 completes this list.
-- {
-    id: arxiv-cs-ai,
-    kind: api,
-    url: "https://export.arxiv.org/api/query?search_query=cat:cs.AI&sortBy=submittedDate",
-    publisher: arXiv,
-    tier: 2,
-    every: 6h,
-  }
+# The AI newsroom's sources. Each URL was checked on 2026-10-26 (it answers, and robots.txt lets
+# ANR-Ingestion fetch it). None is fetched until a person has read its terms (link above each
+# entry) and set `terms_checked` to that date (D17); `terms_note` records anything worth keeping.
+#
+# Lab blogs are tier 1: a lab's own post is a primary source for what the lab says it did.
+
+# Terms: https://openai.com/policies/terms-of-use/ (answers 403 to scripts; open it in a browser)
 - {
     id: openai-news,
     kind: rss,
@@ -16,6 +13,16 @@
     tier: 1,
     every: 1h,
   }
+# Terms: https://www.anthropic.com/legal (no feed: the news listing page is read for post links)
+- {
+    id: anthropic-news,
+    kind: site,
+    url: "https://www.anthropic.com/news",
+    publisher: Anthropic,
+    tier: 1,
+    every: 2h,
+  }
+# Terms (all Google sites): https://policies.google.com/terms
 - {
     id: google-deepmind-blog,
     kind: rss,
@@ -27,11 +34,47 @@
 - {
     id: google-ai-blog,
     kind: rss,
-    url: "https://blog.google/technology/ai/rss/",
+    url: "https://blog.google/innovation-and-ai/technology/ai/rss/",
     publisher: Google,
     tier: 1,
     every: 1h,
   }
+- {
+    id: google-research-blog,
+    kind: rss,
+    url: "https://research.google/blog/rss/",
+    publisher: Google Research,
+    tier: 1,
+    every: 2h,
+  }
+# Terms: https://www.facebook.com/terms.php (Meta's site terms; legal index https://www.meta.com/legal/). No feed.
+- {
+    id: meta-ai-blog,
+    kind: site,
+    url: "https://ai.meta.com/blog/",
+    publisher: Meta,
+    tier: 1,
+    every: 2h,
+  }
+# Terms: https://www.microsoft.com/en-us/legal/terms-of-use (answers 403 to scripts)
+- {
+    id: microsoft-research-blog,
+    kind: rss,
+    url: "https://www.microsoft.com/en-us/research/feed/",
+    publisher: Microsoft Research,
+    tier: 1,
+    every: 2h,
+  }
+# Terms: https://mistral.ai/terms
+- {
+    id: mistral-news,
+    kind: rss,
+    url: "https://mistral.ai/news/rss",
+    publisher: Mistral AI,
+    tier: 1,
+    every: 2h,
+  }
+# Terms: https://huggingface.co/terms-of-service (the blog also carries community posts)
 - {
     id: huggingface-blog,
     kind: rss,
@@ -40,6 +83,68 @@
     tier: 1,
     every: 1h,
   }
+# Terms: https://www.nvidia.com/en-us/about-nvidia/terms-of-service/
+- {
+    id: nvidia-developer-blog,
+    kind: rss,
+    url: "https://developer.nvidia.com/blog/feed",
+    publisher: NVIDIA,
+    tier: 1,
+    every: 2h,
+  }
+# Terms: https://aws.amazon.com/terms/
+- {
+    id: aws-machine-learning-blog,
+    kind: rss,
+    url: "https://aws.amazon.com/blogs/machine-learning/feed/",
+    publisher: Amazon Web Services,
+    tier: 1,
+    every: 2h,
+  }
+# Terms: https://www.apple.com/legal/internet-services/terms/site.html
+- {
+    id: apple-machine-learning,
+    kind: rss,
+    url: "https://machinelearning.apple.com/rss.xml",
+    publisher: Apple,
+    tier: 1,
+    every: 6h,
+  }
+# Terms: GitHub Pages, https://docs.github.com/en/site-policy/github-terms/github-terms-of-service
+- {
+    id: qwen-blog,
+    kind: rss,
+    url: "https://qwenlm.github.io/blog/index.xml",
+    publisher: Alibaba Qwen,
+    tier: 1,
+    every: 6h,
+  }
+# Terms: https://x.ai/legal/terms-of-service (answers 403 to scripts). No feed.
+- { id: xai-news, kind: site, url: "https://x.ai/news", publisher: xAI, tier: 1, every: 2h }
+# Terms: https://cohere.com/terms-of-use. No feed.
+- {
+    id: cohere-blog,
+    kind: site,
+    url: "https://cohere.com/blog",
+    publisher: Cohere,
+    tier: 1,
+    every: 6h,
+  }
+
+# arXiv: one query over all the newsroom's categories, so a paper's primary category is judged
+# against all of them (D59); separate sources per category would make tiers depend on which ran
+# first. Terms: https://info.arxiv.org/help/api/tou.html (one request every 3 seconds).
+- {
+    id: arxiv,
+    kind: api,
+    url: "https://export.arxiv.org/api/query?search_query=cat:cs.AI+OR+cat:cs.CL+OR+cat:cs.LG&sortBy=submittedDate",
+    publisher: arXiv,
+    tier: 2,
+    every: 2h,
+  }
+
+# Hacker News: metadata only, tier 3 (D60). Terms: https://github.com/HackerNews/API and
+# https://www.ycombinator.com/legal/
 - {
     id: hn-front,
     kind: api,
@@ -48,6 +153,9 @@
     tier: 3,
     every: 2h,
   }
+
+# Enrichment only, never leads: venues and citations for the paper tier rules (D59).
+# Terms: https://www.semanticscholar.org/product/api/license
 - {
     id: semantic-scholar,
     kind: api,

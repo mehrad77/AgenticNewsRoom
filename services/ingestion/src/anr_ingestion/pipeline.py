@@ -14,7 +14,13 @@ from urllib.parse import urljoin, urlsplit
 from psycopg_pool import ConnectionPool
 
 from anr_ingestion import enrich, store
-from anr_ingestion.canonical import arxiv_id, canonical_url, registrable_domain, same_site
+from anr_ingestion.canonical import (
+    arxiv_id,
+    canonical_url,
+    registrable_domain,
+    same_site,
+    section,
+)
 from anr_ingestion.db import Conn, with_newsroom
 from anr_ingestion.dedupe import content_hash, is_near_duplicate, simhash
 from anr_ingestion.extract import detect_language, extract_page
@@ -363,19 +369,27 @@ class Ingestor:
                     f"agent run {run_id} already requested {self.max_requests_per_run} sources"
                 )
             site = registrable_domain(url)
-            known = [
+            on_site = [
                 s
                 for s in store.sources(conn)
                 if not s.removed and s.use == "leads" and registrable_domain(s.url) == site
             ]
+            wanted = section(url)
+            # A source vouches only for its own section of its host (`openai.com/index`), never
+            # for the rest of a shared host (`huggingface.co/<anyone>`): D61.
+            vouching = [
+                s
+                for s in on_site
+                if s.terms_checked is not None
+                and wanted in {section(s.url), *store.sections(conn, s.id)}
+            ]
         source_id: str | None = None
-        tier = 3  # An unknown site: an injected page cannot promote itself.
-        if known:
-            checked = [s for s in known if s.terms_checked is not None]
-            if not checked:
-                raise Refused(f"{site} is a source whose terms nobody has checked yet")
-            best = min(checked, key=lambda s: s.tier)
+        tier = 3  # Not vouched for: an injected page cannot promote itself.
+        if vouching:
+            best = min(vouching, key=lambda s: s.tier)
             source_id, tier = best.id, best.tier
+        elif any(s.terms_checked is None for s in on_site):
+            raise Refused(f"{site} is a source whose terms nobody has checked yet")
         origin = Origin(source_id=source_id, tier=tier, requested_by_run=run_id)
         outcome, lead_id = self.store_item(newsroom_id, origin, Candidate(uri=url, fetch_page=True))
         if lead_id is None:

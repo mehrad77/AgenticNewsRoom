@@ -7,9 +7,17 @@ import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import type { AgentRunJob } from "@anr/core";
 import { createTestNewsroom, loadRootEnv, testDatabaseUrl, testPools } from "@anr/db/testing";
+import { FakeListChatModel } from "@langchain/core/utils/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { handleIngestSource, ingestionClient } from "./ingest.ts";
+import { ModelRouter } from "./router.ts";
+import { enqueueSummaries, runSummariser } from "./summariser/run.ts";
+
+const router = ModelRouter.fromFile(
+  fileURLToPath(new URL("../../../config/models.yaml", import.meta.url)),
+);
 
 const ingestionDir = fileURLToPath(new URL("../../../services/ingestion", import.meta.url));
 const pools = testPools();
@@ -119,12 +127,18 @@ describe("ingest-source, end to end", () => {
       await addSource(newsroomId, "site", "site", "https://www.anthropic.com/news", 1),
     ];
     const ingestion = ingestionClient(baseUrl);
-    const handed: string[] = [];
+    const queued: AgentRunJob[] = [];
+    const boss = {
+      send: async (_queue: string, data: object) => {
+        queued.push(data as AgentRunJob);
+        return "job";
+      },
+    };
     const deps = {
       ingestion,
-      onNewLeads: async (_n: string, ids: string[]) => {
-        handed.push(...ids);
-      },
+      // As in the worker: each new lead gets a summariser run.
+      onNewLeads: (n: string, ids: string[]) =>
+        enqueueSummaries(pools.app, boss as never, router, n, ids).then(() => {}),
       log: () => {},
     };
     // Two rounds, like two scheduled runs: the second adds nothing.
@@ -149,7 +163,16 @@ describe("ingest-source, end to end", () => {
       "https://www.anthropic.com/news/claude-orbit-comparison",
     ]);
     expect(new Set(leads.map((l) => l.content_hash)).size).toBe(leads.length);
-    expect(handed).toHaveLength(leads.length); // every new lead goes on to the summariser, once
+    expect(queued).toHaveLength(leads.length); // every new lead gets one summariser run
+
+    const model = new FakeListChatModel({ responses: ['{"summary": "A summary.", "beats": []}'] });
+    for (const job of queued)
+      expect(await runSummariser(pools.app, () => model, job)).toBe("submitted");
+    const { rows: unsummarised } = await pools.system.query(
+      "select uri from leads where newsroom_id = $1 and summary is null",
+      [newsroomId],
+    );
+    expect(unsummarised).toEqual([]);
 
     const { rows: copies } = await pools.system.query<{ uri: string; match: string }>(
       `select uri, match from lead_sightings

@@ -178,14 +178,34 @@ def test_request_source_unknown_site_is_tier_3(
     assert not created and again["id"] == lead["id"]
 
 
-def test_request_source_known_site_takes_its_tier(
+def test_request_source_known_section_takes_its_sources_tier(
     ingestor: Ingestor, newsroom: Newsroom, database: Database
 ) -> None:
     run = agent_run(database, newsroom)
+    # The lab's feed lives at /news, its posts at /index: vouched for once the source gave one.
+    ingestor.ingest_source(newsroom.id, newsroom.sources["lab"])
     lead, created = ingestor.request_source(
-        newsroom.id, run, "https://openai.com/index/orbit-safety/"
+        newsroom.id, run, "https://openai.com/index/orbit-pricing/"
     )
     assert created and lead["tier"] == 1
+    # The site source's own section (/news) is vouched for from the start.
+    lead, _ = ingestor.request_source(
+        newsroom.id, run, "https://www.anthropic.com/news/claude-orbit-comparison"
+    )
+    assert lead["tier"] == 1
+
+
+def test_request_source_elsewhere_on_a_known_host_is_tier_3(
+    ingestor: Ingestor, newsroom: Newsroom, database: Database
+) -> None:
+    # A shared host's other pages (anyone's model card, a community page) are not the source.
+    run = agent_run(database, newsroom)
+    lead, created = ingestor.request_source(
+        newsroom.id, run, "https://www.anthropic.com/community/someones-page"
+    )
+    assert created and lead["tier"] == 3
+    (stored,) = leads(database, newsroom)
+    assert stored["source_id"] is None
 
 
 def test_request_source_refusals(

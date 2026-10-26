@@ -56,11 +56,13 @@ describe("syncConfig", () => {
     );
 
   it("loads a newsroom with its beats, Media Topics, sources and series", async () => {
-    const report = await syncConfig(pools.system, boss, testConfig(suffix));
+    const config = testConfig(suffix);
+    const report = await syncConfig(pools.system, boss, config);
     expect(report.newsrooms.added).toBe(1);
     // Removed counts include other test newsrooms in anr_test, which are not in this config.
     expect(report.beats.added).toBe(4);
-    expect(report.sources.added).toBe(7);
+    const sources = (config.newsrooms[0]?.sources ?? []) as unknown[];
+    expect(report.sources.added).toBe(sources.length);
     expect(report.series.added).toBe(3);
     const beats = await ids();
     expect(beats.find((b) => b.slug === "research")?.media_topics).toEqual([

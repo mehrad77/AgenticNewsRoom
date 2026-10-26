@@ -41,9 +41,9 @@ Gate: **the AI newsroom's sources fill the lead pool.**
 - [x] Tiering: source tier; papers mapped from the credibility rules (high 1, medium 2, low 3, flagged dropped).
 - [x] Lead storage with frozen text; internal HTTP endpoint the pg-boss job calls.
 - [x] High-priority "request a source" path that returns the lead (for agents), tier 3 for unknown sites, capped per run.
-- [ ] Summariser graph (Flash-Lite): summary and beats per new lead (its IPTC subjects are the beats' Media Topics), logged as an Agent run.
-- [ ] Complete the AI newsroom's `sources.yaml` (one entry per lab blog, arXiv categories), each with verified URL; a person reads each source's terms and sets `terms_checked`.
-- [ ] Gate: a week of scheduled runs fills the AI lead pool with no duplicates across sources.
+- [x] Summariser graph (Flash-Lite): summary and beats per new lead (its IPTC subjects are the beats' Media Topics), logged as an Agent run.
+- [ ] Complete the AI newsroom's `sources.yaml` (one entry per lab blog, arXiv categories), each with verified URL; a person reads each source's terms and sets `terms_checked`. *Entries and verified URLs are in; waiting on the Editor-in-Chief to read each source's terms and set `terms_checked`.*
+- [ ] Gate: a week of scheduled runs fills the AI lead pool with no duplicates across sources. *Waiting on `terms_checked` and `GEMINI_API_KEY`; proven on recorded fixtures by `apps/agents/src/pipeline.db.test.ts`.*
 
 ## 3. Desk and verifier
 

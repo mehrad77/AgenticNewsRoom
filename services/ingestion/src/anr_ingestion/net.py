@@ -78,14 +78,23 @@ class GuardedBackend(httpcore.NetworkBackend):
         # Every answer must be public: otherwise a later connection could pick the private one.
         for ip in ips:
             check_address(ip)
-        # TLS still verifies the certificate against `host` (httpcore passes it as the SNI name).
-        return self._inner.connect_tcp(
-            ips[0],
-            port,
-            timeout=timeout,
-            local_address=local_address,
-            socket_options=socket_options,
-        )
+        # Try each checked address, IPv4 first (many networks have no IPv6 route), as httpcore
+        # would; TLS still verifies the certificate against `host` (passed on as the SNI name).
+        ordered = sorted(ips, key=lambda ip: ipaddress.ip_address(ip).version)
+        last: Exception | None = None
+        for ip in ordered:
+            try:
+                return self._inner.connect_tcp(
+                    ip,
+                    port,
+                    timeout=timeout,
+                    local_address=local_address,
+                    socket_options=socket_options,
+                )
+            except (httpcore.ConnectError, httpcore.ConnectTimeout) as error:
+                last = error
+        assert last is not None
+        raise last
 
     def connect_unix_socket(
         self,
@@ -248,6 +257,13 @@ class Fetcher:
             parser.parse([] if unavailable else ["User-agent: *", "Disallow: /"])
             return parser
         parser.parse(fetched.content.decode("utf-8", "replace").splitlines())
+        # A declared Crawl-delay becomes this host's minimum gap between requests.
+        declared = parser.crawl_delay(ROBOTS_TOKEN)
+        host = urlsplit(origin).hostname or ""
+        if declared is not None:
+            with self._lock:
+                current = self.host_delays.get(host, self.min_delay)
+                self.host_delays[host] = max(current, float(declared))
         return parser
 
     def _wait(self, host: str) -> None:

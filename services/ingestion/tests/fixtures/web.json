@@ -86,5 +86,11 @@
   },
   "https://unknown.example/report": {
     "file": "unknown-report.html"
+  },
+  "https://openai.com/index/orbit-pricing/": {
+    "file": "openai-new.html"
+  },
+  "https://www.anthropic.com/community/someones-page": {
+    "file": "unknown-report.html"
   }
 }
