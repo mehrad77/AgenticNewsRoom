@@ -133,7 +133,8 @@
 
 # arXiv: one query over all the newsroom's categories, so a paper's primary category is judged
 # against all of them (D59); separate sources per category would make tiers depend on which ran
-# first. Terms: https://info.arxiv.org/help/api/tou.html (one request every 3 seconds).
+# first. Terms: https://info.arxiv.org/help/api/tou.html (one request every 3 seconds). The API
+# host's robots.txt disallows all crawlers; API calls follow the API terms instead (D64).
 - {
     id: arxiv,
     kind: api,

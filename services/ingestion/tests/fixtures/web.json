@@ -43,7 +43,7 @@
     }
   },
   "https://export.arxiv.org/robots.txt": {
-    "status": 404
+    "file": "robots-arxiv-api.txt"
   },
   "https://export.arxiv.org/api/query?search_query=cat%3Acs.AI&sortBy=submittedDate&sortOrder=descending&max_results=100": {
     "file": "arxiv.xml"
@@ -52,7 +52,7 @@
     "file": "s2-batch.json"
   },
   "https://hacker-news.firebaseio.com/robots.txt": {
-    "status": 404
+    "file": "robots-arxiv-api.txt"
   },
   "https://hacker-news.firebaseio.com/v0/topstories.json": {
     "file": "hn-top.json"

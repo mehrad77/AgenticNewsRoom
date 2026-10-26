@@ -226,3 +226,15 @@ def test_request_source_refusals(
         ingestor.request_source(
             newsroom.id, run, "https://www.anthropic.com/news/claude-orbit-comparison"
         )
+
+
+def test_api_sources_follow_their_terms_not_robots_txt(
+    ingestor: Ingestor, newsroom: Newsroom, web: FakeWeb
+) -> None:
+    # Both API hosts answer `Disallow: /` in the fixtures, as export.arxiv.org really does.
+    assert ingestor.ingest_source(newsroom.id, newsroom.sources["arxiv-cs-ai"]).new_leads
+    assert ingestor.ingest_source(newsroom.id, newsroom.sources["hn"]).new_leads
+    assert not any(u.endswith("/robots.txt") for u in web.urls())
+    # A page on such a host is still fetched under robots.txt.
+    with pytest.raises(Refused, match=r"robots\.txt"):
+        ingestor.fetcher.get("https://export.arxiv.org/abs/2610.01234")

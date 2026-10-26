@@ -151,7 +151,15 @@ class Ingestor:
         url = arxiv_query_url(src.url) if api == "arxiv" else src.url
         report = Report(source_id=src.id)
         try:
-            fetched = self.fetcher.get(url, etag=state.etag, last_modified=state.last_modified)
+            # An API source's own requests answer to its API terms (read before terms_checked),
+            # not robots.txt, which speaks to crawlers; arXiv's API host disallows every
+            # crawler (D64). Pages are always fetched under robots.txt.
+            fetched = self.fetcher.get(
+                url,
+                etag=state.etag,
+                last_modified=state.last_modified,
+                robots=src.kind != "api",
+            )
         except FetchError as error:
             with with_newsroom(self.pool, newsroom_id) as conn:
                 store.record_fetch(conn, src, status=error.status, error=str(error))
@@ -210,7 +218,7 @@ class Ingestor:
                 report.known += 1
                 continue
             try:
-                item = self.fetcher.get(hn_item_url(src.url, item_id))
+                item = self.fetcher.get(hn_item_url(src.url, item_id), robots=False)  # D64
             except FetchError as error:
                 report.errors.append((hn_item_url(src.url, item_id), str(error)))
                 continue

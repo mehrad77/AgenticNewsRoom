@@ -130,7 +130,7 @@ Each source has its own pg-boss schedule, for example hourly for lab blogs and e
 
 When a desk agent requests a source, it runs through the same steps at once, and the agent gets the lead back (D61).
 
-Every fetch goes through one guarded client (D58): http and https only, every address public and checked at connect time, robots.txt honoured, a polite delay per host, conditional GET. Hacker News items are stored as metadata only (D60). The TypeScript `ingest-source` job and the Python service share one contract, the JSON Schemas `ingest-*` and `source-request*` in `packages/schemas` (D62).
+Every fetch goes through one guarded client (D58): http and https only, every address public and checked at connect time, robots.txt honoured for pages (an API source follows its API terms instead, D64), a polite delay per host, conditional GET. Hacker News items are stored as metadata only (D60). The TypeScript `ingest-source` job and the Python service share one contract, the JSON Schemas `ingest-*` and `source-request*` in `packages/schemas` (D62).
 
 ## Agent runs
 
