@@ -1,7 +1,10 @@
 # One image per TypeScript app: docker build --build-arg APP=api -f infra/docker/node.Dockerfile .
 FROM node:24-slim AS base
-RUN corepack enable
 WORKDIR /repo
+# Install the pinned pnpm (packageManager) into the base layer, so containers never download it
+# at start; `corepack enable` alone only installs a shim that fetches pnpm on first use.
+COPY package.json ./
+RUN corepack enable && corepack install
 
 FROM base AS build
 ARG APP
