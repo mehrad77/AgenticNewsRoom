@@ -161,6 +161,44 @@ describe("summariser queueing with real pg-boss", () => {
     }
   });
 
+  it("closes a run whose job used up its retries instead of re-sending it", async () => {
+    const { createBoss } = await import("@anr/db");
+    const { testDatabaseUrl, loadRootEnv } = await import("@anr/db/testing");
+    loadRootEnv();
+    const boss = createBoss(testDatabaseUrl(process.env.DATABASE_URL ?? ""), "agents-test", {
+      supervise: false,
+      schedule: false,
+    });
+    await boss.start();
+    try {
+      const { newsroomId, leadId } = await setup();
+      const [runId] = await enqueueSummaries(pools.app, boss, router, newsroomId, [leadId]);
+      // As if the model failed on every attempt.
+      await pools.system.query(
+        "update pgboss.job set state = 'failed' where name = $1 and data->>'agentRunId' = $2",
+        [QUEUES.agentRun, runId],
+      );
+      const sent: unknown[] = [];
+      const counting = {
+        send: async (_q: string, data: object) => {
+          sent.push(data);
+          return "x";
+        },
+      };
+      await resumeSummaries(pools.app, counting as never, router);
+      expect(sent.filter((d) => (d as { newsroomId: string }).newsroomId === newsroomId)).toEqual(
+        [],
+      );
+      const { rows } = await pools.system.query<{ outcome: string }>(
+        "select outcome from agent_runs where id = $1",
+        [runId],
+      );
+      expect(rows[0]?.outcome).toBe("error");
+    } finally {
+      await boss.stop({ graceful: false });
+    }
+  });
+
   it("resumes leads with no run and runs whose job is gone", async () => {
     const { newsroomId, leadId } = await setup();
     const sent: unknown[] = [];
@@ -179,6 +217,18 @@ describe("summariser queueing with real pg-boss", () => {
     await resumeSummaries(pools.app, boss as never, router);
     const again = sent.filter((d) => (d as { newsroomId: string }).newsroomId === newsroomId);
     expect(again).toHaveLength(1);
+    const runs = await pools.system.query("select id from agent_runs where lead_id = $1", [leadId]);
+    expect(runs.rowCount).toBe(1);
+  });
+
+  it("writes one run per lead when two callers enqueue it", async () => {
+    const { newsroomId, leadId } = await setup();
+    const boss = { send: async () => "x" };
+    const [first, second] = await Promise.all([
+      enqueueSummaries(pools.app, boss as never, router, newsroomId, [leadId]),
+      enqueueSummaries(pools.app, boss as never, router, newsroomId, [leadId]),
+    ]);
+    expect([...(first ?? []), ...(second ?? [])]).toHaveLength(1);
     const runs = await pools.system.query("select id from agent_runs where lead_id = $1", [leadId]);
     expect(runs.rowCount).toBe(1);
   });

@@ -1,4 +1,4 @@
-import { QUEUES } from "@anr/core";
+import { QUEUE_OPTIONS, QUEUES } from "@anr/core";
 import { PGBOSS_SCHEMA, type Pool } from "@anr/db";
 import type {
   FormatSchema,
@@ -50,8 +50,13 @@ export async function syncConfig(pool: Pool, boss: PgBoss, config: RawConfig): P
   const errors = validateConfig(config);
   if (errors.length > 0) throw new Error(`config is invalid:\n${errors.join("\n")}`);
 
-  // Queues must exist before anything is scheduled on them; creating one is idempotent.
-  for (const queue of Object.values(QUEUES)) await boss.createQueue(queue);
+  // Queues must exist before anything is scheduled on them; creating one is idempotent, so an
+  // existing queue is also updated to the platform's options.
+  for (const queue of Object.values(QUEUES)) {
+    const options = QUEUE_OPTIONS[queue];
+    await boss.createQueue(queue, options);
+    if (options) await boss.updateQueue(queue, options);
+  }
 
   const report: SyncReport = {
     formats: counts(),

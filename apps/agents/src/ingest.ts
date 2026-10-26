@@ -1,8 +1,8 @@
-import type { IngestSourceJob } from "@anr/core";
+import { INGEST_TIMEOUT_SECONDS, type IngestSourceJob } from "@anr/core";
 import { IngestResultSchema } from "@anr/schemas";
 
 /** A run of one source can fetch dozens of pages at a polite pace; give it time. */
-const INGEST_TIMEOUT_MS = 15 * 60 * 1000;
+const INGEST_TIMEOUT_MS = INGEST_TIMEOUT_SECONDS * 1000;
 
 export type IngestResult = IngestResultSchema;
 export type IngestOutcome =

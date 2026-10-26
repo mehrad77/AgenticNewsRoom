@@ -48,6 +48,8 @@ export async function enqueueSummaries(
          select $1, 'summariser', $2, $3, $4,
                 encode(sha256(convert_to($4 || ':' || l.content_hash, 'UTF8')), 'hex'), l.id
          from leads l where l.id = $5
+         -- One summariser run per lead: a second enqueue of the same lead writes nothing.
+         on conflict (newsroom_id, lead_id) where role = 'summariser' do nothing
          returning id`,
         [newsroomId, choice.provider, choice.model, PROMPT_VERSION, leadId],
       );
@@ -133,8 +135,10 @@ export async function runSummariser(
 
 /**
  * Puts every unfinished summary back in the queue: leads with no summary and no summariser
- * run (an enqueue lost after its ingest), and runs with no outcome whose job is gone (retries
- * used up). Runs at worker start and after each ingest run, so no lead waits forever.
+ * run (an enqueue lost after its ingest), and runs with no outcome and no job at all (a lost
+ * enqueue). A run whose job used up its retries is closed as `error`, never re-sent, so a lead
+ * the model always fails on costs its retries once. Runs at worker start and after each
+ * ingest run, so no lead waits forever.
  */
 export async function resumeSummaries(
   pool: Pool,
@@ -147,6 +151,18 @@ export async function resumeSummaries(
   let resumed = 0;
   for (const { id: newsroomId } of newsrooms) {
     const { orphans, stalled } = await withNewsroom(pool, newsroomId, async (client) => {
+      await client.query(
+        `update agent_runs r set outcome = 'error', finished_at = now()
+         where r.role = 'summariser' and r.outcome is null
+           and exists (
+             select from pgboss.job j
+             where j.name = $1 and j.data->>'agentRunId' = r.id::text and j.state = 'failed')
+           and not exists (
+             select from pgboss.job j
+             where j.name = $1 and j.data->>'agentRunId' = r.id::text
+               and j.state in ('created', 'retry', 'active'))`,
+        [QUEUES.agentRun],
+      );
       const orphanRows = await client.query<{ id: string }>(
         `select l.id from leads l
          where l.summary is null
@@ -156,9 +172,7 @@ export async function resumeSummaries(
         `select r.id from agent_runs r
          where r.role = 'summariser' and r.outcome is null
            and not exists (
-             select from pgboss.job j
-             where j.name = $1 and j.data->>'agentRunId' = r.id::text
-               and j.state in ('created', 'retry', 'active'))`,
+             select from pgboss.job j where j.name = $1 and j.data->>'agentRunId' = r.id::text)`,
         [QUEUES.agentRun],
       );
       return {

@@ -1,4 +1,5 @@
 import { fileURLToPath } from "node:url";
+import { INGEST_TIMEOUT_SECONDS, QUEUES } from "@anr/core";
 import { createBoss, type Pool } from "@anr/db";
 import { testDatabaseUrl, testPools } from "@anr/db/testing";
 import type { PgBoss } from "pg-boss";
@@ -73,6 +74,11 @@ describe("syncConfig", () => {
       "newsletter-issue",
     ]);
     expect(format).toEqual({ genre: "genre:Summary" });
+  });
+
+  it("gives an ingest job longer than its HTTP call before it expires", async () => {
+    const queue = await boss.getQueue(QUEUES.ingestSource);
+    expect(queue?.expireInSeconds).toBe(INGEST_TIMEOUT_SECONDS + 5 * 60);
   });
 
   it("keeps every id on a second sync", async () => {
