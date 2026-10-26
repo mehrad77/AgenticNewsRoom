@@ -58,7 +58,8 @@ describe("syncConfig", () => {
   it("loads a newsroom with its beats, Media Topics, sources and series", async () => {
     const report = await syncConfig(pools.system, boss, testConfig(suffix));
     expect(report.newsrooms.added).toBe(1);
-    expect(report.beats).toMatchObject({ added: 4, removed: 0 });
+    // Removed counts include other test newsrooms in anr_test, which are not in this config.
+    expect(report.beats.added).toBe(4);
     expect(report.sources.added).toBe(7);
     expect(report.series.added).toBe(3);
     const beats = await ids();
@@ -75,7 +76,7 @@ describe("syncConfig", () => {
   it("keeps every id on a second sync", async () => {
     const before = await ids();
     const report = await syncConfig(pools.system, boss, testConfig(suffix));
-    expect(report.beats).toEqual({ added: 0, kept: 4, removed: 0 });
+    expect(report.beats).toMatchObject({ added: 0, kept: 4 });
     expect(await ids()).toEqual(before);
   });
 
@@ -83,8 +84,19 @@ describe("syncConfig", () => {
     const before = await ids();
     const without = testConfig(suffix);
     delete beatsOf(without).policy;
-    expect((await syncConfig(pools.system, boss, without)).beats.removed).toBe(1);
+    expect((await syncConfig(pools.system, boss, without)).beats.removed).toBeGreaterThanOrEqual(1);
     expect((await ids()).find((b) => b.slug === "policy")?.removed).toBe(true);
+
+    await syncConfig(pools.system, boss, testConfig(suffix));
+    expect(await ids()).toEqual(before);
+  });
+
+  it("soft-deletes a removed newsroom's items with it and revives them with their ids", async () => {
+    const before = await ids();
+    const without = testConfig(suffix);
+    without.newsrooms = [];
+    expect((await syncConfig(pools.system, boss, without)).beats.removed).toBeGreaterThanOrEqual(4);
+    expect((await ids()).every((b) => b.removed)).toBe(true);
 
     await syncConfig(pools.system, boss, testConfig(suffix));
     expect(await ids()).toEqual(before);

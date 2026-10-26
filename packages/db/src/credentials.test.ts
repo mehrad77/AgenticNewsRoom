@@ -34,6 +34,16 @@ describe("channel credentials", () => {
     expect(() => openCredentials(sealed, owner, k)).toThrow();
   });
 
+  it("refuses a truncated credential and an unknown format", () => {
+    const k = key();
+    const sealed = sealCredentials(token, owner, k);
+    expect(() => openCredentials(sealed.subarray(0, 90), owner, k)).toThrow("truncated");
+    expect(() => rewrapCredentials(sealed.subarray(0, 90), owner, k, key())).toThrow("truncated");
+    const v2 = Buffer.from(sealed);
+    v2[0] = 2;
+    expect(() => rewrapCredentials(v2, owner, k, key())).toThrow("unknown credential format");
+  });
+
   it("names the wrong platform key instead of failing obscurely", () => {
     const sealed = sealCredentials(token, owner, key());
     expect(() => openCredentials(sealed, owner, key())).toThrow("another platform key");

@@ -30,6 +30,18 @@ describe("findTenancyProblems", () => {
           using (newsroom_id = (select anr.current_newsroom_id()))
           with check (newsroom_id = (select anr.current_newsroom_id()));
         create policy open_read on scratch.loose for select using (true);
+        create table scratch.or_true (id int, newsroom_id uuid);
+        alter table scratch.or_true enable row level security;
+        alter table scratch.or_true force row level security;
+        create policy tenant on scratch.or_true
+          using (newsroom_id = (select anr.current_newsroom_id()) or true)
+          with check (newsroom_id = (select anr.current_newsroom_id()) or true);
+        create table scratch.some_roles (id int, newsroom_id uuid);
+        alter table scratch.some_roles enable row level security;
+        alter table scratch.some_roles force row level security;
+        create policy tenant on scratch.some_roles to anr_system
+          using (newsroom_id = (select anr.current_newsroom_id()))
+          with check (newsroom_id = (select anr.current_newsroom_id()));
         create table scratch.forgot_newsroom (id int);
         create view scratch.definer_view as select * from scratch.loose;
       `);
@@ -42,6 +54,9 @@ describe("findTenancyProblems", () => {
         "table no_rls does not force row level security",
         "table no_rls has no row-level security policy",
         "table not_forced does not force row level security",
+        "policy tenant on or_true does not read with anr.current_newsroom_id()",
+        "policy tenant on or_true does not check writes with anr.current_newsroom_id()",
+        "policy tenant on some_roles applies to some roles only",
       ]);
     } finally {
       await client.query("rollback");

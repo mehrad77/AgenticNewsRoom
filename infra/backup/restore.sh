@@ -20,7 +20,8 @@ echo "restoring into an empty volume…"
 # pgBackRest refuses a non-empty data directory, so an existing database is never overwritten.
 docker compose run --rm --no-deps --user postgres --entrypoint pgbackrest postgres restore ${target[@]+"${target[@]}"}
 
-docker compose up -d --wait postgres
+# No --wait: the healthcheck fails while WAL replays, and the loop below waits for recovery.
+docker compose up -d postgres
 echo "replaying WAL…"
 for _ in $(seq 1 120); do
   if [[ "$(psql_super -c 'select pg_is_in_recovery()' 2>/dev/null)" == "f" ]]; then

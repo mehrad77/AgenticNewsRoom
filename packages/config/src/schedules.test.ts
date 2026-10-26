@@ -15,6 +15,14 @@ describe("cronEvery", () => {
   });
 });
 
+describe("cronDaily", () => {
+  it("maps a time of day", () => expect(cronDaily("08:05")).toBe("5 8 * * *"));
+
+  it.each(["24:30", "12:60", "8:00"])("refuses %s", (time) => {
+    expect(() => cronDaily(time)).toThrow("must be 00:00 to 23:59");
+  });
+});
+
 describe("newsroomSchedules", () => {
   const sources = [
     { id: "s1", every: "1h", terms_checked: "2026-10-01" },

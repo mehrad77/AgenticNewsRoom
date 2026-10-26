@@ -11,6 +11,9 @@ die() {
 }
 env_file="${ANR_ENV_FILE:-.env}"
 [[ -f "$env_file" ]] || die "no $env_file; copy .env.example and fill in production values (infra/AGENTS.md)"
+# Absolute, so compose's env_file (resolved from infra/) loads this same file into every app.
+ANR_ENV_FILE="$(cd "$(dirname "$env_file")" && pwd)/$(basename "$env_file")"
+export ANR_ENV_FILE
 set -a
 # shellcheck disable=SC1090
 source "$env_file"

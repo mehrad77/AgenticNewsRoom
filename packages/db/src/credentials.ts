@@ -12,6 +12,8 @@ const KEY_BYTES = 32;
 const KEY_ID_BYTES = 4;
 /** Wrapped data key: iv + encrypted key + tag. */
 const WRAPPED_BYTES = IV_BYTES + KEY_BYTES + TAG_BYTES;
+/** Version, key id, wrapped data key, then at least an iv and a tag. */
+const MIN_SEALED_BYTES = 1 + KEY_ID_BYTES + WRAPPED_BYTES + IV_BYTES + TAG_BYTES;
 
 /** Where a sealed credential belongs; bound in as associated data, so it opens nowhere else. */
 export interface CredentialOwner {
@@ -48,13 +50,19 @@ function encrypt(key: Buffer, plaintext: Buffer, associated: Buffer): Buffer {
 function decrypt(key: Buffer, sealed: Buffer, associated: Buffer): Buffer {
   const iv = sealed.subarray(0, IV_BYTES);
   const tag = sealed.subarray(sealed.length - TAG_BYTES);
-  const decipher = createDecipheriv(ALGORITHM, key, iv);
+  // Pinned, so a truncated blob can never be checked against a shorter tag.
+  const decipher = createDecipheriv(ALGORITHM, key, iv, { authTagLength: TAG_BYTES });
   decipher.setAAD(associated);
   decipher.setAuthTag(tag);
   return Buffer.concat([
     decipher.update(sealed.subarray(IV_BYTES, sealed.length - TAG_BYTES)),
     decipher.final(),
   ]);
+}
+
+function assertSealed(sealed: Buffer): void {
+  if (sealed[0] !== VERSION) throw new Error(`unknown credential format ${sealed[0]}`);
+  if (sealed.length < MIN_SEALED_BYTES) throw new Error("sealed credential is truncated");
 }
 
 /**
@@ -82,7 +90,7 @@ export function openCredentials(
   owner: CredentialOwner,
   platform: PlatformKey,
 ): Record<string, string> {
-  if (sealed[0] !== VERSION) throw new Error(`unknown credential format ${sealed[0]}`);
+  assertSealed(sealed);
   const keyId = sealed.subarray(1, 1 + KEY_ID_BYTES);
   if (!keyId.equals(platform.id))
     throw new Error("credential was sealed with another platform key");
@@ -107,6 +115,7 @@ export function rewrapCredentials(
   from: PlatformKey,
   to: PlatformKey,
 ): Buffer {
+  assertSealed(sealed);
   const start = 1 + KEY_ID_BYTES;
   if (!sealed.subarray(1, start).equals(from.id)) throw new Error("credential is not under `from`");
   const dataKey = decrypt(

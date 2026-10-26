@@ -42,9 +42,18 @@ export async function recordAudit(client: Client, entry: AuditEntry): Promise<st
 
 const IDENTIFIER = /^[a-z_][a-z0-9_]*$/;
 
+/** Columns never copied into the audit log, which cannot be purged: only that they changed. */
+const SECRET_COLUMNS = ["credentials"];
+
+const redact = (row: Record<string, unknown>) => {
+  const copy = { ...row };
+  for (const c of SECRET_COLUMNS) if (c in copy) copy[c] = copy[c] == null ? null : "[redacted]";
+  return copy;
+};
+
 /**
- * Updates one row and records it with its before and after state. The row is locked first, so
- * nothing changes between the two snapshots. Row-level security applies: a row of another
+ * Updates one row and records it with its before and after state, secret columns redacted. The
+ * row is locked first, so nothing changes between the two snapshots. Row-level security applies: a row of another
  * newsroom is not found.
  */
 export async function auditedUpdate<T extends Record<string, unknown>>(
@@ -72,6 +81,13 @@ export async function auditedUpdate<T extends Record<string, unknown>>(
     ...Object.values(changes),
   ]);
   const after = rows[0] as T;
-  await recordAudit(client, { actor, action, entity: table, entityId: id, before, after });
+  await recordAudit(client, {
+    actor,
+    action,
+    entity: table,
+    entityId: id,
+    before: redact(before),
+    after: redact(after),
+  });
   return after;
 }

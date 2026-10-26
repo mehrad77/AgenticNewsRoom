@@ -36,7 +36,10 @@ export function cronEvery(every: string): string {
 
 /** Cron for a daily time of day (`16:00`). */
 export function cronDaily(time: string): string {
-  const [hours, minutes] = time.split(":").map(Number);
+  const match = /^([0-9]{2}):([0-9]{2})$/.exec(time);
+  const hours = Number(match?.[1]);
+  const minutes = Number(match?.[2]);
+  if (!match || hours > 23 || minutes > 59) throw new Error(`time ${time} must be 00:00 to 23:59`);
   return `${minutes} ${hours} * * *`;
 }
 

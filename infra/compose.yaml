@@ -4,12 +4,13 @@
 # and `config-sync` jobs finish before any app starts.
 name: anr
 
-# Every production app: the whole .env, with database URLs rebuilt for host `postgres` (inside a
-# container, localhost is the container itself); `environment` overrides the dev URLs in .env.
+# Every production app: the whole env file (ANR_ENV_FILE, absolute, as deploy.sh exports it; else
+# .env), with database URLs rebuilt for host `postgres` (inside a container, localhost is the
+# container itself); `environment` overrides the dev URLs in it.
 x-app: &app
   profiles: [prod]
   restart: unless-stopped
-  env_file: ../.env
+  env_file: ${ANR_ENV_FILE:-../.env}
   environment:
     DATABASE_URL: postgres://anr_app:${ANR_APP_DB_PASSWORD:-anr_app}@postgres:5432/anr
     DATABASE_SYSTEM_URL: postgres://anr_system:${ANR_SYSTEM_DB_PASSWORD:-anr_system}@postgres:5432/anr

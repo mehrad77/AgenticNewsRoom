@@ -50,6 +50,23 @@ describe("auditedUpdate", () => {
     ]);
   });
 
+  it("never copies channel credentials into the audit log", async () => {
+    const actor = { kind: "code", name: "test" } as const;
+    await withNewsroom(pools.app, a, (c) =>
+      auditedUpdate(c, actor, "set-credentials", "channels", channelA, {
+        credentials: Buffer.from("sealed-bytes"),
+      }),
+    );
+    const entry = await withNewsroom(pools.app, a, async (c) => {
+      const { rows } = await c.query<{ before: unknown; after: unknown }>(
+        "select before->'credentials' as before, after->'credentials' as after from audit_log where entity_id = $1 and action = 'set-credentials'",
+        [channelA],
+      );
+      return rows[0];
+    });
+    expect(entry).toEqual({ before: null, after: "[redacted]" });
+  });
+
   it("rolls the audit entry back with a failed change", async () => {
     await expect(
       withNewsroom(pools.app, a, (c) =>

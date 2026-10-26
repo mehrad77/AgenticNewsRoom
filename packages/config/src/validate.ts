@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import addFormatsModule from "ajv-formats";
 import type { RawConfig } from "./load.ts";
-import { cronEvery } from "./schedules.ts";
+import { cronDaily, cronEvery } from "./schedules.ts";
 
 const require = createRequire(import.meta.url);
 const schemaPath = (name: string) => require.resolve(`@anr/schemas/json/${name}.schema.json`);
@@ -93,8 +93,18 @@ export function validateConfig(config: RawConfig): string[] {
     check(v.sources, n.sources, `${at}/sources.yaml`);
     if (!okNewsroom) continue;
 
-    const newsroom = n.newsroom as { slug: string; languages: string[]; subdomain: string };
+    const newsroom = n.newsroom as {
+      slug: string;
+      languages: string[];
+      subdomain: string;
+      timezone: string;
+    };
     if (newsroom.slug !== n.slug) errors.push(`${at}/newsroom.yaml slug must equal folder name`);
+    try {
+      new Intl.DateTimeFormat("en", { timeZone: newsroom.timezone });
+    } catch {
+      errors.push(`${at}/newsroom.yaml timezone ${newsroom.timezone} is not an IANA timezone`);
+    }
     const other = subdomains.get(newsroom.subdomain);
     if (other) errors.push(`${at} reuses subdomain of newsrooms/${other}`);
     subdomains.set(newsroom.subdomain, n.slug);
@@ -135,7 +145,15 @@ export function validateConfig(config: RawConfig): string[] {
         segments?: { kind: string; from: string }[];
         hosts?: Record<string, Record<string, string>>;
         narrator?: Record<string, string>;
+        assignment_at?: string;
       };
+      if (series.assignment_at !== undefined) {
+        try {
+          cronDaily(series.assignment_at);
+        } catch (error) {
+          errors.push(`${where} assignment_at: ${(error as Error).message}`);
+        }
+      }
       if (!config.formats.includes(series.format))
         errors.push(`${where} uses unknown format ${series.format}`);
       for (const l of series.languages) {

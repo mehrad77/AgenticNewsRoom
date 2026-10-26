@@ -1,5 +1,5 @@
 import { QUEUES } from "@anr/core";
-import type { Pool } from "@anr/db";
+import { PGBOSS_SCHEMA, type Pool } from "@anr/db";
 import type {
   FormatSchema,
   NewsroomSchema,
@@ -75,6 +75,15 @@ export async function syncConfig(pool: Pool, boss: PgBoss, config: RawConfig): P
       "newsrooms",
       config.newsrooms.map((n) => n.slug),
     );
+    // A removed newsroom's items go with it; they come back with their ids if it returns.
+    for (const table of ["beats", "sources", "series"] as const) {
+      const { rowCount } = await client.query(
+        `update ${table} set removed_at = now(), updated_at = now()
+         where removed_at is null
+           and newsroom_id in (select id from newsrooms where removed_at is not null)`,
+      );
+      report[table].removed += rowCount ?? 0;
+    }
     report.schedules = await reconcileSchedules(client, boss, desired);
     await client.query("commit");
     return report;
@@ -232,7 +241,7 @@ async function syncNewsroom(
 
 /**
  * Makes pg-boss's schedules on the config-owned queues exactly the desired set, inside the
- * sync's transaction (pg-boss runs these statements through the `db` adapter).
+ * sync's transaction (pg-boss runs its statements through the `db` adapter).
  */
 async function reconcileSchedules(
   client: pg.PoolClient,
@@ -243,12 +252,15 @@ async function reconcileSchedules(
   const id = (queue: string, key: string) => `${queue}\u0000${key}`;
   const wanted = new Map(desired.map((d) => [id(d.queue, d.key), d]));
   let unscheduled = 0;
-  for (const queue of SCHEDULED_QUEUES) {
-    for (const s of await boss.getSchedules(queue)) {
-      if (wanted.has(id(s.name, s.key))) continue;
-      await boss.unschedule(s.name, s.key, { db });
-      unscheduled++;
-    }
+  // Read through the transaction, unpaged: getSchedules() returns at most one page.
+  const { rows: existing } = await client.query<{ name: string; key: string }>(
+    `select name, key from ${PGBOSS_SCHEMA}.schedule where name = any($1)`,
+    [SCHEDULED_QUEUES],
+  );
+  for (const s of existing) {
+    if (wanted.has(id(s.name, s.key))) continue;
+    await boss.unschedule(s.name, s.key, { db });
+    unscheduled++;
   }
   for (const d of desired) {
     await boss.schedule(d.queue, d.cron, d.data, { tz: d.tz, key: d.key, missed: d.missed, db });

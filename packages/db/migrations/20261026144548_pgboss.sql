@@ -495,8 +495,13 @@ grant usage on schema pgboss to anr_app, anr_system;
 grant select, insert, update, delete on all tables in schema pgboss to anr_app, anr_system;
 grant usage, select on all sequences in schema pgboss to anr_app, anr_system;
 grant execute on all functions in schema pgboss to anr_app, anr_system;
+-- So upgrade migrations (anr_migrator) grant the runtime roles what they add.
 alter default privileges for role anr_migrator in schema pgboss
   grant select, insert, update, delete on tables to anr_app, anr_system;
+alter default privileges for role anr_migrator in schema pgboss
+  grant usage, select on sequences to anr_app, anr_system;
+alter default privileges for role anr_migrator in schema pgboss
+  grant execute on functions to anr_app, anr_system;
 
 -- migrate:down
 drop schema pgboss cascade;

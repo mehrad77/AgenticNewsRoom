@@ -41,12 +41,14 @@ create table posts (
   channel_id uuid not null,
   -- Numbers the messages of a split Telegram post.
   part smallint not null default 1 check (part >= 1),
-  idempotency_key text not null unique,
+  idempotency_key text not null,
   status text not null default 'pending' check (status in ('pending', 'sent', 'unknown')),
   external_id text,
   sent_at timestamptz,
   created_at timestamptz not null default now(),
   unique (publication_id, channel_id, part),
+  -- Per newsroom: a key never collides with, or reveals, another newsroom's.
+  unique (newsroom_id, idempotency_key),
   unique (newsroom_id, id),
   foreign key (newsroom_id, publication_id) references publications (newsroom_id, id),
   foreign key (newsroom_id, channel_id) references channels (newsroom_id, id)

@@ -30,8 +30,13 @@ grant usage on schema ${PGBOSS_SCHEMA} to ${runtime};
 grant select, insert, update, delete on all tables in schema ${PGBOSS_SCHEMA} to ${runtime};
 grant usage, select on all sequences in schema ${PGBOSS_SCHEMA} to ${runtime};
 grant execute on all functions in schema ${PGBOSS_SCHEMA} to ${runtime};
+-- So upgrade migrations (anr_migrator) grant the runtime roles what they add.
 alter default privileges for role anr_migrator in schema ${PGBOSS_SCHEMA}
   grant select, insert, update, delete on tables to ${runtime};
+alter default privileges for role anr_migrator in schema ${PGBOSS_SCHEMA}
+  grant usage, select on sequences to ${runtime};
+alter default privileges for role anr_migrator in schema ${PGBOSS_SCHEMA}
+  grant execute on functions to ${runtime};
 
 -- migrate:down
 drop schema ${PGBOSS_SCHEMA} cascade;
