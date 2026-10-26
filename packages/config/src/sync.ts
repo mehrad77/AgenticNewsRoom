@@ -1,4 +1,4 @@
-import { QUEUES } from "@anr/core";
+import { QUEUE_OPTIONS, QUEUES } from "@anr/core";
 import { PGBOSS_SCHEMA, type Pool } from "@anr/db";
 import type {
   FormatSchema,
@@ -50,8 +50,13 @@ export async function syncConfig(pool: Pool, boss: PgBoss, config: RawConfig): P
   const errors = validateConfig(config);
   if (errors.length > 0) throw new Error(`config is invalid:\n${errors.join("\n")}`);
 
-  // Queues must exist before anything is scheduled on them; creating one is idempotent.
-  for (const queue of Object.values(QUEUES)) await boss.createQueue(queue);
+  // Queues must exist before anything is scheduled on them; creating one is idempotent, so an
+  // existing queue is also updated to the platform's options.
+  for (const queue of Object.values(QUEUES)) {
+    const options = QUEUE_OPTIONS[queue];
+    await boss.createQueue(queue, options);
+    if (options) await boss.updateQueue(queue, options);
+  }
 
   const report: SyncReport = {
     formats: counts(),
@@ -178,11 +183,13 @@ async function syncNewsroom(
 
   for (const [slug, beat] of Object.entries(beats)) {
     const { rows } = await client.query<Row>(
-      `insert into beats (newsroom_id, slug, status, media_topics) values ($1, $2, $3, $4)
+      `insert into beats (newsroom_id, slug, status, media_topics, description)
+       values ($1, $2, $3, $4, $5)
        on conflict (newsroom_id, slug) do update set status = excluded.status,
-         media_topics = excluded.media_topics, updated_at = now(), removed_at = null
+         media_topics = excluded.media_topics, description = excluded.description,
+         updated_at = now(), removed_at = null
        ${RETURNING}`,
-      [newsroomId, slug, beat.status, beat.media_topics],
+      [newsroomId, slug, beat.status, beat.media_topics, beat.description ?? null],
     );
     tally(report.beats, rows[0]);
   }
@@ -193,12 +200,13 @@ async function syncNewsroom(
   for (const s of sources) {
     const { rows } = await client.query<Row>(
       `insert into sources (newsroom_id, slug, kind, url, publisher, tier, fetch_every, use,
-         terms_checked, terms_note)
-       values ($1, $2, $3, $4, $5, $6, $7::interval, $8, $9, $10)
+         terms_checked, terms_note, fetch_pages)
+       values ($1, $2, $3, $4, $5, $6, $7::interval, $8, $9, $10, $11)
        on conflict (newsroom_id, slug) do update set kind = excluded.kind, url = excluded.url,
          publisher = excluded.publisher, tier = excluded.tier, fetch_every = excluded.fetch_every,
          use = excluded.use, terms_checked = excluded.terms_checked,
-         terms_note = excluded.terms_note, updated_at = now(), removed_at = null
+         terms_note = excluded.terms_note, fetch_pages = excluded.fetch_pages, updated_at = now(),
+         removed_at = null
        ${RETURNING}`,
       [
         newsroomId,
@@ -211,6 +219,7 @@ async function syncNewsroom(
         s.use ?? "leads",
         s.terms_checked ?? null,
         s.terms_note ?? null,
+        s.pages ?? true,
       ],
     );
     scheduledSources.push({ ...s, id: tally(report.sources, rows[0]) });

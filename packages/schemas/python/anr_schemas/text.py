@@ -1,4 +1,5 @@
-"""Text normalisation for quote matching.
+"""Text normalisation: the one Python normaliser, for the verifier's quote matching and
+ingestion's content hash.
 
 Mirrors the SQL function anr.normalize_text() (packages/db/migrations/*_normalize_text.sql);
 both are tested against packages/schemas/fixtures/normalization.json.

@@ -41,6 +41,10 @@ class SourcesConfigItem(BaseModel):
         None, description="Set by a person after reading the source's terms."
     )
     terms_note: str | None = None
+    pages: bool | None = Field(
+        True,
+        description="false: each feed item's own text is the lead and its page is never fetched (terms that allow the feed only).",
+    )
 
 
 class SourcesConfig(RootModel[list[SourcesConfigItem]]):

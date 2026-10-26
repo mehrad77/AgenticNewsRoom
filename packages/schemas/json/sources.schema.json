@@ -24,7 +24,12 @@
         "format": "date",
         "description": "Set by a person after reading the source's terms."
       },
-      "terms_note": { "type": "string" }
+      "terms_note": { "type": "string" },
+      "pages": {
+        "type": "boolean",
+        "default": true,
+        "description": "false: each feed item's own text is the lead and its page is never fetched (terms that allow the feed only)."
+      }
     }
   }
 }

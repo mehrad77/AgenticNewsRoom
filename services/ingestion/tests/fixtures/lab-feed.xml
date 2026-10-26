@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Example Lab News</title>
+    <link>https://openai.com/news/</link>
+    <language>en-us</language>
+    <item>
+      <title>Introducing Orbit, a smaller model for long documents</title>
+      <link>https://openai.com/index/introducing-orbit/?utm_source=rss&amp;utm_medium=feed</link>
+      <pubDate>Mon, 19 Oct 2026 14:00:00 GMT</pubDate>
+      <description><![CDATA[<p>Orbit reads documents of up to two million tokens.</p>]]></description>
+    </item>
+    <item>
+      <title>Safety evaluations for Orbit</title>
+      <link>https://openai.com/index/orbit-safety/</link>
+      <pubDate>Tue, 20 Oct 2026 09:30:00 GMT</pubDate>
+      <description><![CDATA[<p>How we tested Orbit before release.</p>]]></description>
+    </item>
+    <item>
+      <title>A page that has gone</title>
+      <link>https://openai.com/index/gone/</link>
+      <pubDate>Wed, 21 Oct 2026 08:00:00 GMT</pubDate>
+      <description><![CDATA[<p>This page returns 404.</p>]]></description>
+    </item>
+  </channel>
+</rss>

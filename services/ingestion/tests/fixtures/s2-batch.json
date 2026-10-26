@@ -1,0 +1,12 @@
+[
+  { "paperId": "a1", "venue": "", "publicationVenue": null, "citationCount": 3 },
+  {
+    "paperId": "b2",
+    "venue": "NeurIPS",
+    "publicationVenue": {
+      "name": "Neural Information Processing Systems",
+      "alternate_names": ["NeurIPS", "NIPS"]
+    },
+    "citationCount": 12
+  }
+]

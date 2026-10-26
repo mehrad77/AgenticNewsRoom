@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:arxiv="http://arxiv.org/schemas/atom">
+  <title>arXiv Query: search_query=cat:cs.AI</title>
+  <entry>
+    <id>http://arxiv.org/abs/2610.01234v2</id>
+    <updated>2026-10-20T17:00:00Z</updated>
+    <published>2026-10-18T12:00:00Z</published>
+    <title>Planning with   Long Contexts:
+      A Study of Retrieval Inside the Model</title>
+    <summary>We study whether language models with very long context windows still benefit from
+      explicit retrieval. Across six planning benchmarks we find that models given the full
+      context match retrieval-augmented baselines when the relevant facts are near the start or
+      end of the input, but fall behind by up to twenty points when the facts sit in the middle.
+      We propose a simple training objective that closes most of this gap.</summary>
+    <author><name>Mina Example</name></author>
+    <author><name>Jon Sample</name></author>
+    <arxiv:primary_category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2610.02222v3</id>
+    <updated>2026-10-21T09:00:00Z</updated>
+    <published>2026-10-15T08:00:00Z</published>
+    <title>A Result We No Longer Stand Behind</title>
+    <summary>This paper has been withdrawn by the authors due to an error in the evaluation.</summary>
+    <author><name>Lee Example</name></author>
+    <arxiv:comment>This paper has been withdrawn</arxiv:comment>
+    <arxiv:primary_category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2610.03333v1</id>
+    <updated>2026-10-19T10:00:00Z</updated>
+    <published>2026-10-19T10:00:00Z</published>
+    <title>Faster Optimisers for Sparse Networks</title>
+    <summary>We present an optimiser for sparse neural networks that reaches the same loss as dense
+      training in forty percent fewer steps on image classification and language modelling tasks.
+      The method keeps a running estimate of each weight's importance and updates only the top
+      fraction at every step, which also reduces memory traffic on current accelerators.</summary>
+    <author><name>Sam Example</name></author>
+    <arxiv:comment>Accepted at NeurIPS 2026</arxiv:comment>
+    <arxiv:primary_category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+  </entry>
+</feed>

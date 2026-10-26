@@ -1,4 +1,5 @@
 import { fileURLToPath } from "node:url";
+import { INGEST_TIMEOUT_SECONDS, QUEUES } from "@anr/core";
 import { createBoss, type Pool } from "@anr/db";
 import { testDatabaseUrl, testPools } from "@anr/db/testing";
 import type { PgBoss } from "pg-boss";
@@ -56,11 +57,13 @@ describe("syncConfig", () => {
     );
 
   it("loads a newsroom with its beats, Media Topics, sources and series", async () => {
-    const report = await syncConfig(pools.system, boss, testConfig(suffix));
+    const config = testConfig(suffix);
+    const report = await syncConfig(pools.system, boss, config);
     expect(report.newsrooms.added).toBe(1);
     // Removed counts include other test newsrooms in anr_test, which are not in this config.
     expect(report.beats.added).toBe(4);
-    expect(report.sources.added).toBe(7);
+    const sources = (config.newsrooms[0]?.sources ?? []) as unknown[];
+    expect(report.sources.added).toBe(sources.length);
     expect(report.series.added).toBe(3);
     const beats = await ids();
     expect(beats.find((b) => b.slug === "research")?.media_topics).toEqual([
@@ -71,6 +74,11 @@ describe("syncConfig", () => {
       "newsletter-issue",
     ]);
     expect(format).toEqual({ genre: "genre:Summary" });
+  });
+
+  it("gives an ingest job longer than its HTTP call before it expires", async () => {
+    const queue = await boss.getQueue(QUEUES.ingestSource);
+    expect(queue?.expireInSeconds).toBe(INGEST_TIMEOUT_SECONDS + 5 * 60);
   });
 
   it("keeps every id on a second sync", async () => {
@@ -110,20 +118,28 @@ describe("syncConfig", () => {
       (await boss.getSchedules(queue)).filter(
         (s) => (s.data as { newsroomId?: string }).newsroomId === newsroomId,
       );
+    // The same config before anyone read the terms: nothing is fetched.
+    const unchecked = testConfig(suffix);
+    const sources = unchecked.newsrooms[0]?.sources as { terms_checked?: string }[];
+    for (const s of sources) delete s.terms_checked;
+    await syncConfig(pools.system, boss, unchecked);
     expect(await mine("ingest-source")).toEqual([]);
     expect((await mine("assign")).map((s) => [s.cron, s.timezone])).toEqual([
       ["0 16 * * *", "Europe/Istanbul"],
     ]);
 
+    // As committed: every lead source with terms_checked, on its own interval.
     const checked = testConfig(suffix);
-    const sources = checked.newsrooms[0]?.sources as { id: string; terms_checked?: string }[];
-    const openai = sources.find((s) => s.id === "openai-news");
-    if (openai) openai.terms_checked = "2026-10-26";
+    const leadSources = (
+      (checked.newsrooms[0]?.sources ?? []) as { terms_checked?: string; use?: string }[]
+    ).filter((s) => s.terms_checked && (s.use ?? "leads") === "leads");
     await syncConfig(pools.system, boss, checked);
-    expect((await mine("ingest-source")).map((s) => s.cron)).toEqual(["0 */1 * * *"]);
+    const scheduled = await mine("ingest-source");
+    expect(scheduled).toHaveLength(leadSources.length);
+    expect(scheduled.map((s) => s.cron)).toContain("0 */1 * * *");
 
-    const report = await syncConfig(pools.system, boss, testConfig(suffix));
-    expect(report.schedules.unscheduled).toBeGreaterThanOrEqual(1);
+    const report = await syncConfig(pools.system, boss, unchecked);
+    expect(report.schedules.unscheduled).toBeGreaterThanOrEqual(leadSources.length);
     expect(await mine("ingest-source")).toEqual([]);
   });
 

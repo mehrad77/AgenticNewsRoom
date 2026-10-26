@@ -12,10 +12,10 @@
     },
     "lint": {},
     "typecheck": {
-      "dependsOn": ["^gen"]
+      "dependsOn": ["^gen", "gen"]
     },
     "test": {
-      "dependsOn": ["^gen"]
+      "dependsOn": ["^gen", "gen"]
     },
     "gen": {
       "cache": false
