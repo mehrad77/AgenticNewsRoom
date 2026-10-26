@@ -169,3 +169,21 @@ def test_crawl_delay_from_robots_txt(web: FakeWeb) -> None:
     fetcher.get("https://slow.example/a")  # robots.txt first: 1 s default, then 15 s apply
     fetcher.get("https://slow.example/a")
     assert slept == [1.0, 15.0]
+
+
+def test_unreachable_robots_txt_is_asked_again_soon(web: FakeWeb) -> None:
+    now = [0.0]
+    down = [True]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if down[0] and request.url.path == "/robots.txt":
+            raise httpx.ConnectError("blip", request=request)
+        return web.handler(request)
+
+    fetcher = Fetcher(
+        httpx.MockTransport(handler), user_agent="t", clock=lambda: now[0], sleep=lambda _: None
+    )
+    assert not fetcher.allowed("https://openai.com/index/orbit-safety/")
+    down[0] = False
+    now[0] += 301  # minutes later, not a day
+    assert fetcher.allowed("https://openai.com/index/orbit-safety/")

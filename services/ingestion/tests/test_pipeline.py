@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 from conftest import Database, FakeWeb, Newsroom, rows
 
-from anr_ingestion.net import Refused
+from anr_ingestion.net import FetchError, Refused
 from anr_ingestion.pipeline import CapReached, Ingestor, NotFound
 
 
@@ -255,3 +255,63 @@ def test_api_sources_follow_their_terms_not_robots_txt(
     # A page on such a host is still fetched under robots.txt.
     with pytest.raises(Refused, match=r"robots\.txt"):
         ingestor.fetcher.get("https://export.arxiv.org/abs/2610.01234")
+
+
+def test_capped_run_keeps_no_validators_so_the_next_run_takes_the_rest(
+    ingestor: Ingestor, database: Database, newsroom: Newsroom
+) -> None:
+    ingestor.max_new_leads = 1
+    first = ingestor.ingest_source(newsroom.id, newsroom.sources["lab"])
+    assert len(first.new_leads) == 1
+    (state,) = rows(
+        database, newsroom.id, "select * from source_fetch_state where newsroom_id = %s"
+    )
+    assert state["etag"] is None
+    second = ingestor.ingest_source(newsroom.id, newsroom.sources["lab"])
+    assert not second.not_modified and len(second.new_leads) == 1
+
+
+def test_unreadable_answer_is_recorded_on_the_source(
+    ingestor: Ingestor, database: Database, newsroom: Newsroom, web: FakeWeb
+) -> None:
+    web.routes["https://hacker-news.firebaseio.com/v0/topstories.json"] = {"file": "orbit.html"}
+    with pytest.raises(FetchError, match="unreadable"):
+        ingestor.ingest_source(newsroom.id, newsroom.sources["hn"])
+    (state,) = rows(
+        database, newsroom.id, "select * from source_fetch_state where newsroom_id = %s"
+    )
+    assert state["consecutive_failures"] == 1 and state["last_error"]
+
+
+def test_request_redirected_out_of_its_section_is_not_vouched_for(
+    ingestor: Ingestor, database: Database, newsroom: Newsroom, web: FakeWeb
+) -> None:
+    run = agent_run(database, newsroom)
+    ingestor.ingest_source(newsroom.id, newsroom.sources["lab"])
+    web.routes["https://openai.com/index/moved/"] = {
+        "status": 301,
+        "headers": {"Location": "https://unknown.example/report"},
+    }
+    lead, created = ingestor.request_source(newsroom.id, run, "https://openai.com/index/moved/")
+    assert created and lead["tier"] == 3
+    (stored,) = rows(
+        database,
+        newsroom.id,
+        "select * from leads where newsroom_id = %s and requested_by_run is not null",
+    )
+    assert stored["source_id"] is None
+
+
+def test_request_cap_counts_every_fetch(
+    ingestor: Ingestor, database: Database, newsroom: Newsroom
+) -> None:
+    run = agent_run(database, newsroom)
+    ingestor.ingest_source(newsroom.id, newsroom.sources["lab"])
+    ingestor.max_requests_per_run = 1
+    # A copy of a stored lead: no new lead, but the page was fetched, so it counts.
+    _lead, created = ingestor.request_source(
+        newsroom.id, run, "https://huggingface.co/blog/orbit-repost"
+    )
+    assert not created
+    with pytest.raises(CapReached):
+        ingestor.request_source(newsroom.id, run, "https://unknown.example/report")

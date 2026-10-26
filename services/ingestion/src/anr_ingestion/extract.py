@@ -1,5 +1,6 @@
 """Readable text and metadata from a fetched page (trafilatura), and the item's language."""
 
+import codecs
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -62,8 +63,27 @@ def detect_language(text: str) -> str:
     return str(code)
 
 
-def extract_page(content: bytes, url: str) -> Page:
-    html = content.decode("utf-8", "replace")
+_CHARSET = re.compile(rb"""charset\s*=\s*["']?([A-Za-z0-9._:-]+)""", re.IGNORECASE)
+
+
+def decode_html(content: bytes, content_type: str = "") -> str:
+    """The page as text, in the charset its Content-Type or <meta charset> declares (else UTF-8)."""
+    for declared in (
+        _CHARSET.search(content_type.encode("latin-1", "replace")),
+        _CHARSET.search(content[:4096]),
+    ):
+        if declared:
+            try:
+                return content.decode(
+                    codecs.lookup(declared.group(1).decode("ascii")).name, "replace"
+                )
+            except LookupError:
+                continue
+    return content.decode("utf-8", "replace")
+
+
+def extract_page(content: bytes, url: str, content_type: str = "") -> Page:
+    html = decode_html(content, content_type)
     doc = trafilatura.bare_extraction(
         html, url=url, with_metadata=True, include_comments=False, include_tables=False
     )

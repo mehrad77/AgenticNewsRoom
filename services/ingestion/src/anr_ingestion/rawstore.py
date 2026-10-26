@@ -3,6 +3,7 @@ ANR runs on the laptop (D53). Keys are content-addressed, so storing the same by
 no-op and a key always names exactly one snapshot (D55)."""
 
 import hashlib
+import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
@@ -31,7 +32,8 @@ class LocalRawStore:
         if not path.exists():
             path.parent.mkdir(parents=True, exist_ok=True)
             # Write then rename, so a crash never leaves a truncated snapshot under the key.
-            tmp = path.with_suffix(".tmp")
+            # A temp name per writer: two threads storing the same bytes never share one.
+            tmp = path.with_name(f"{path.name}.{uuid.uuid4().hex}.tmp")
             tmp.write_bytes(data)
             tmp.replace(path)
         return key

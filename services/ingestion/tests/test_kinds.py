@@ -98,3 +98,13 @@ def test_extract_page() -> None:
 
 def test_html_to_text() -> None:
     assert html_to_text("<p>One.</p><p>Two <b>bold</b>.</p>") == "One.\n\nTwo bold."
+
+
+def test_extract_page_reads_the_declared_charset() -> None:
+    html = "<html><body><article><p>{}</p></article></body></html>".format(
+        "Café crème, naïve résumé. " * 20
+    ).encode("windows-1252")
+    page = extract_page(html, "https://x.example/", "text/html; charset=windows-1252")
+    assert page.text is not None and "Café crème" in page.text
+    meta = b'<meta charset="windows-1252">' + html
+    assert "naïve" in (extract_page(meta, "https://x.example/").text or "")

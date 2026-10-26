@@ -5,7 +5,7 @@ Network work happens outside transactions; each item is stored in its own short 
 so one bad item never undoes the run, and a crash mid-run loses only the item in flight.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from enum import StrEnum
 from typing import Any
@@ -43,12 +43,16 @@ from anr_ingestion.tier import PaperRules, is_high, paper_tier
 
 MAX_NEW_LEADS = 50
 """New leads per scheduled run: a source's first fetch never floods the pool or its host."""
+UNVOUCHED_TIER = 3
+"""An agent-requested page no source vouches for (D61)."""
 MAX_REQUESTS_PER_RUN = 5
 """Leads one agent run may have ingestion fetch for it (D61)."""
 RETIER_DAYS = 30
 SEMANTIC_SCHOLAR_HOST = "api.semanticscholar.org"
 HOST_DELAYS = {"export.arxiv.org": 3.0}
 """Seconds between requests where a source's terms ask for more than the default second."""
+RUN_ERRORS = (FetchError, ValueError, KeyError, TypeError)
+"""A failed fetch, or what a malformed answer raises (bad JSON, a missing field, an unknown API)."""
 
 
 class NotFound(LookupError):
@@ -98,6 +102,9 @@ class Origin:
     paper_rules: PaperRules | None = None
     categories: frozenset[str] = frozenset()
     requested_by_run: str | None = None
+    vouched_section: str | None = None
+    """For an agent's request: the section its source vouches for. A page that redirects out of
+    it is stored as an unknown site's (tier 3, no source): D61."""
 
 
 def refuse_unless_fetchable(src: store.Source) -> None:
@@ -147,10 +154,10 @@ class Ingestor:
                 ),
                 None,
             )
-        api = api_kind(src.url) if src.kind == "api" else None
-        url = arxiv_query_url(src.url) if api == "arxiv" else src.url
         report = Report(source_id=src.id)
         try:
+            api = api_kind(src.url) if src.kind == "api" else None
+            url = arxiv_query_url(src.url) if api == "arxiv" else src.url
             # An API source's own requests answer to its API terms (read before terms_checked),
             # not robots.txt, which speaks to crawlers; arXiv's API host disallows every
             # crawler (D64). Pages are always fetched under robots.txt.
@@ -160,43 +167,55 @@ class Ingestor:
                 last_modified=state.last_modified,
                 robots=src.kind != "api",
             )
-        except FetchError as error:
+            complete = True
+            if fetched.status == 304:
+                report.not_modified = True
+            else:
+                listing = self._listing(newsroom_id, src, api, fetched, report)
+                origin = Origin(
+                    source_id=src.id,
+                    tier=src.tier,
+                    language=listing.language,
+                    paper_rules=PaperRules.from_policy(policy),
+                    categories=query_categories(src.url),
+                )
+                for candidate in listing.candidates:
+                    if len(report.new_leads) >= self.max_new_leads:
+                        complete = False
+                        break
+                    try:
+                        outcome, lead_id = self.store_item(newsroom_id, origin, candidate)
+                    except RUN_ERRORS as error:
+                        report.errors.append((candidate.uri, str(error)))
+                        # A gone page (4xx) stays gone; anything else is tried again next run.
+                        status = error.status if isinstance(error, FetchError) else None
+                        if status is None or not 400 <= status < 500:
+                            complete = False
+                        continue
+                    report.count(outcome, lead_id)
+                if api == "arxiv" and enrichment is not None:
+                    try:
+                        report.retiered = self._retier(newsroom_id, src, enrichment, origin)
+                    except RUN_ERRORS as error:
+                        report.errors.append((enrichment.url, str(error)))
+        except RUN_ERRORS as error:
+            # A failing fetch or an answer we cannot read is recorded on the source, then retried.
             with with_newsroom(self.pool, newsroom_id) as conn:
-                store.record_fetch(conn, src, status=error.status, error=str(error))
-            raise
-        if fetched.status == 304:
-            report.not_modified = True
-        else:
-            listing = self._listing(newsroom_id, src, api, fetched, report)
-            origin = Origin(
-                source_id=src.id,
-                tier=src.tier,
-                language=listing.language,
-                paper_rules=PaperRules.from_policy(policy),
-                categories=query_categories(src.url),
-            )
-            for candidate in listing.candidates:
-                if len(report.new_leads) >= self.max_new_leads:
-                    break
-                try:
-                    outcome, lead_id = self.store_item(newsroom_id, origin, candidate)
-                except FetchError as error:
-                    report.errors.append((candidate.uri, str(error)))
-                    continue
-                report.count(outcome, lead_id)
-            if api == "arxiv" and enrichment is not None:
-                try:
-                    report.retiered = self._retier(newsroom_id, src, enrichment, origin)
-                except FetchError as error:
-                    report.errors.append((enrichment.url, str(error)))
+                status = error.status if isinstance(error, FetchError) else None
+                store.record_fetch(conn, src, status=status, error=str(error))
+            if isinstance(error, FetchError):
+                raise
+            raise FetchError(f"{src.url}: unreadable answer: {error!r}") from error
         with with_newsroom(self.pool, newsroom_id) as conn:
+            # Validators are kept only when every listed item was handled: after the cap or an
+            # item's error, the next run fetches the listing in full and takes the rest.
             store.record_fetch(
                 conn,
                 src,
                 status=fetched.status,
                 error=None,
-                etag=fetched.etag,
-                last_modified=fetched.last_modified,
+                etag=fetched.etag if complete else None,
+                last_modified=fetched.last_modified if complete else None,
             )
         return report
 
@@ -243,6 +262,8 @@ class Ingestor:
         lead = self._build_lead(origin, candidate, listed_uri)
         if lead is None:
             return Outcome.DROPPED, None
+        if lead.source_id != origin.source_id:
+            origin = replace(origin, source_id=None, tier=UNVOUCHED_TIER)
 
         with with_newsroom(self.pool, newsroom_id) as conn:
             # After a redirect or a rel=canonical the page may turn out to be a known one.
@@ -302,8 +323,12 @@ class Ingestor:
             raw_key = self.raw_store.put(
                 page_response.content, page_response.content_type or "text/html"
             )
-            page = extract_page(page_response.content, page_response.url)
+            page = extract_page(
+                page_response.content, page_response.url, page_response.content_type
+            )
             uri = canonical_url(page_response.url)
+            if origin.vouched_section and section(page_response.url) != origin.vouched_section:
+                origin = replace(origin, source_id=None, tier=UNVOUCHED_TIER)
             if page.canonical:
                 declared = canonical_url(urljoin(page_response.url, page.canonical))
                 # A page may only name a canonical on its own site, or it could claim another's.
@@ -376,10 +401,6 @@ class Ingestor:
             existing = store.lead_by_uri(conn, uri)
             if existing:
                 return self._lead(conn, existing), False
-            if store.requests_by_run(conn, run_id) >= self.max_requests_per_run:
-                raise CapReached(
-                    f"agent run {run_id} already requested {self.max_requests_per_run} sources"
-                )
             site = registrable_domain(url)
             on_site = [
                 s
@@ -396,13 +417,24 @@ class Ingestor:
                 and wanted in {section(s.url), *store.sections(conn, s.id)}
             ]
         source_id: str | None = None
-        tier = 3  # Not vouched for: an injected page cannot promote itself.
+        tier = UNVOUCHED_TIER  # Not vouched for: an injected page cannot promote itself.
         if vouching:
             best = min(vouching, key=lambda s: s.tier)
             source_id, tier = best.id, best.tier
         elif any(s.terms_checked is None for s in on_site):
             raise Refused(f"{site} is a source whose terms nobody has checked yet")
-        origin = Origin(source_id=source_id, tier=tier, requested_by_run=run_id)
+        with with_newsroom(self.pool, newsroom_id) as conn:
+            # Every fetch counts, whatever it turns out to be (a copy, no text): D61.
+            if not store.claim_request(conn, newsroom_id, run_id, uri, self.max_requests_per_run):
+                raise CapReached(
+                    f"agent run {run_id} already requested {self.max_requests_per_run} sources"
+                )
+        origin = Origin(
+            source_id=source_id,
+            tier=tier,
+            requested_by_run=run_id,
+            vouched_section=wanted if vouching else None,
+        )
         outcome, lead_id = self.store_item(newsroom_id, origin, Candidate(uri=url, fetch_page=True))
         if lead_id is None:
             raise FetchError(f"{url}: no readable text")

@@ -24,6 +24,8 @@ import httpx
 MAX_REDIRECTS = 5
 REDIRECTS = frozenset({301, 302, 303, 307, 308})
 ROBOTS_TOKEN = "ANR-Ingestion"
+ROBOTS_RETRY_SECONDS = 300.0
+"""How long an unreachable robots.txt (timeout, 5xx) keeps a host off before it is asked again."""
 
 
 class FetchError(Exception):
@@ -179,7 +181,7 @@ class Fetcher:
         self._sleep = sleep
         self._lock = threading.Lock()
         self._next_at: dict[str, float] = {}
-        self._robots: dict[str, tuple[float, RobotFileParser]] = {}
+        self._robots: dict[str, tuple[float, float, RobotFileParser]] = {}
 
     def close(self) -> None:
         self._client.close()
@@ -240,12 +242,14 @@ class Fetcher:
         parts = urlsplit(url)
         origin = f"{parts.scheme}://{parts.netloc}"
         cached = self._robots.get(origin)
-        if cached is None or self._clock() - cached[0] > self.robots_ttl:
-            cached = (self._clock(), self._load_robots(origin))
+        if cached is None or self._clock() - cached[0] > cached[1]:
+            parser, ttl = self._load_robots(origin)
+            cached = (self._clock(), ttl, parser)
             self._robots[origin] = cached
-        return cached[1].can_fetch(ROBOTS_TOKEN, url)
+        return cached[2].can_fetch(ROBOTS_TOKEN, url)
 
-    def _load_robots(self, origin: str) -> RobotFileParser:
+    def _load_robots(self, origin: str) -> tuple[RobotFileParser, float]:
+        """The host's rules and how long to keep them."""
         parser = RobotFileParser()
         try:
             fetched = self.get(f"{origin}/robots.txt", robots=False)
@@ -253,9 +257,10 @@ class Fetcher:
             raise
         except FetchError as error:
             # No robots.txt (4xx): no rules. Unreachable or failing (5xx): assume everything is off.
+            # An unreachable one is asked again soon, so one network blip never blocks a day.
             unavailable = error.status is not None and 400 <= error.status < 500
             parser.parse([] if unavailable else ["User-agent: *", "Disallow: /"])
-            return parser
+            return parser, self.robots_ttl if unavailable else ROBOTS_RETRY_SECONDS
         parser.parse(fetched.content.decode("utf-8", "replace").splitlines())
         # A declared Crawl-delay becomes this host's minimum gap between requests.
         declared = parser.crawl_delay(ROBOTS_TOKEN)
@@ -264,7 +269,7 @@ class Fetcher:
             with self._lock:
                 current = self.host_delays.get(host, self.min_delay)
                 self.host_delays[host] = max(current, float(declared))
-        return parser
+        return parser, self.robots_ttl
 
     def _wait(self, host: str) -> None:
         """Reserves this host's next slot, then sleeps until it comes."""

@@ -220,11 +220,20 @@ def agent_run_exists(conn: Conn, run_id: str) -> bool:
     return conn.execute("select 1 from agent_runs where id = %s", (run_id,)).fetchone() is not None
 
 
-def requests_by_run(conn: Conn, run_id: str) -> int:
+def claim_request(conn: Conn, newsroom_id: str, run_id: str, uri: str, cap: int) -> bool:
+    """Logs one fetch for an agent run, unless the run already has `cap` (D61). Requests for one
+    run are serialised by a transaction lock, so two at once can't both take the last slot."""
+    conn.execute("select pg_advisory_xact_lock(hashtextextended(%s, 0))", (run_id,))
     row = conn.execute(
-        "select count(*) as n from leads where requested_by_run = %s", (run_id,)
+        "select count(*) as n from source_requests where agent_run_id = %s", (run_id,)
     ).fetchone()
-    return int(row["n"]) if row else 0
+    if row and int(row["n"]) >= cap:
+        return False
+    conn.execute(
+        "insert into source_requests (newsroom_id, agent_run_id, uri) values (%s, %s, %s)",
+        (newsroom_id, run_id, uri),
+    )
+    return True
 
 
 def sections(conn: Conn, source_id: str) -> set[str]:
