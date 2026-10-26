@@ -82,4 +82,31 @@ describe("validateConfig", () => {
     expect(errors).toContain("newsrooms/ai has no policy.yaml");
     expect(errors).toContain("newsrooms/ai has no sources.yaml");
   });
+
+  it("rejects a source interval cron cannot repeat evenly", () => {
+    const config = loadConfig(root);
+    const ai = config.newsrooms.find((n) => n.slug === "ai");
+    if (!ai) throw new Error("ai newsroom missing");
+    const [first] = ai.sources as { id: string; every: string }[];
+    if (!first) throw new Error("no sources");
+    first.every = "45m";
+    expect(validateConfig(config)).toContain(
+      `newsrooms/ai/sources.yaml source ${first.id}: interval 45m must divide an hour (m) or a day (h), or be 1d`,
+    );
+  });
+
+  it("rejects an assignment time and a timezone pg-boss cannot schedule", () => {
+    const config = loadConfig(root);
+    const ai = config.newsrooms.find((n) => n.slug === "ai");
+    if (!ai) throw new Error("ai newsroom missing");
+    (ai.series["daily-newsletter"] as { assignment_at: string }).assignment_at = "24:30";
+    (ai.newsroom as { timezone: string }).timezone = "Europe/Istambul";
+    const errors = validateConfig(config);
+    expect(errors).toContain(
+      "newsrooms/ai/series/daily-newsletter.yaml assignment_at: time 24:30 must be 00:00 to 23:59",
+    );
+    expect(errors).toContain(
+      "newsrooms/ai/newsroom.yaml timezone Europe/Istambul is not an IANA timezone",
+    );
+  });
 });

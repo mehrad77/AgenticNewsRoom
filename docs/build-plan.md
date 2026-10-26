@@ -1,6 +1,6 @@
 # Build plan
 
-The six milestones from the [technical design](technical-design.md#build-order), broken into tasks an agent or a person can take one at a time. A milestone starts only after the previous gate passes. Tick a task in the same pull request that finishes it.
+The seven milestones from the [technical design](technical-design.md#build-order), broken into tasks an agent or a person can take one at a time. A milestone starts only after the previous gate passes. Tick a task in the same pull request that finishes it.
 
 Each task is done when its code is merged with tests, `pnpm check` passes, and the docs still describe the system.
 
@@ -16,20 +16,20 @@ Each task is done when its code is merged with tests, `pnpm check` passes, and t
 
 ## 1. Foundation
 
-Gate: **config loads, and a backup restores onto a fresh VM.**
+Gate: **config loads, and a backup restores into a fresh database.** Locally, until milestone 7 (D53).
 
-- [ ] Database roles for production (`anr_migrator`, `anr_app`, `anr_system`) created from environment passwords.
-- [ ] Migrations for the data model in `technical-design.md#data-model`, every tenant table with forced RLS (`add-migration` skill).
-- [ ] `anr.normalize_text()` SQL function, tested against `packages/schemas/fixtures/normalization.json`.
-- [ ] CI check: every table with a `newsroom_id` column has RLS enabled, forced, and a policy.
-- [ ] RLS integration tests: `anr_app` cannot read or write another newsroom's rows; a pooled connection does not leak `anr.newsroom_id`.
-- [ ] Config sync (`packages/config`): upsert newsrooms, beats, sources and series with stable ids, soft-delete removed items, reconcile pg-boss schedules in each newsroom's timezone. Runs at deploy under `anr_system`.
-- [ ] pg-boss schema installed; worker skeletons subscribe to their queues.
-- [ ] Platform key: encrypt and decrypt channel credentials (AES-256-GCM) with tests.
-- [ ] Audit log table and a helper every approval and edit goes through.
-- [ ] pgBackRest to R2 with continuous WAL archiving; a restore drill script.
-- [ ] Production deploy: VM provisioned, Compose `prod` profile, Caddy wildcard certificate, Cloudflare DNS.
-- [ ] Gate: restore the latest backup onto a fresh VM and run `pnpm config:check` plus config sync against it.
+- [x] Database roles for production (`anr_migrator`, `anr_app`, `anr_system`) created from environment passwords.
+- [x] Migrations for the data model in `technical-design.md#data-model`, every tenant table with forced RLS (`add-migration` skill).
+- [x] `anr.normalize_text()` SQL function, tested against `packages/schemas/fixtures/normalization.json`.
+- [x] CI check: every table with a `newsroom_id` column has RLS enabled, forced, and a policy.
+- [x] RLS integration tests: `anr_app` cannot read or write another newsroom's rows; a pooled connection does not leak `anr.newsroom_id`.
+- [x] Config sync (`packages/config`): upsert newsrooms, beats, sources and series with stable ids, soft-delete removed items, reconcile pg-boss schedules in each newsroom's timezone. Runs at deploy under `anr_system`.
+- [x] pg-boss schema installed; worker skeletons subscribe to their queues.
+- [x] Platform key: encrypt and decrypt channel credentials (AES-256-GCM) with tests.
+- [x] Audit log table and a helper every approval and edit goes through.
+- [x] pgBackRest with continuous WAL archiving and a restore drill, rehearsed locally against an S3 stand-in (`infra/backup/drill-local.sh`).
+- [x] Compose `prod` profile: migrations and config sync before the apps; `infra/deploy.sh` refuses unsafe settings.
+- [x] Gate: `infra/backup/drill-local.sh` backs up, loses the database, restores it into an empty volume and runs the tenancy check, `pnpm config:check` and config sync against it.
 
 ## 2. Ingestion
 
@@ -101,3 +101,12 @@ Gate: **v1 done: Kültür starts with no new code.**
 - [ ] Measures view in the desk: hold rate, sample misses, corrections per 100 publications, editor minutes per week, cost per publication, audience per language.
 - [ ] Complete Kültür's `sources.yaml`: Turkish music press, label release feeds, venue calendars, festival line-ups, each with a verified URL and `terms_checked`.
 - [ ] Gate: Kültür goes live from its config folder, a DNS record and channels set up in the desk, with no code change.
+
+## 7. Deploy
+
+Gate: **a backup restores onto a fresh machine.** Starts after milestone 6 (D53).
+
+- [ ] Decide how the laptop is reached from the internet and where its backups go (issue #2).
+- [ ] Backups off the laptop with continuous WAL archiving (`infra/backup/backup.sh`, cron in `infra/AGENTS.md`).
+- [ ] Production `.env` (`infra/deploy.sh --check`) and the Compose `prod` profile running on the laptop, with TLS for the root domain and every newsroom subdomain.
+- [ ] Gate: restore the latest backup onto a fresh machine and run `pnpm config:check` plus config sync against it (`infra/backup/restore-drill.sh`).

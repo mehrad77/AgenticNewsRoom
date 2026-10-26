@@ -1,0 +1,20 @@
+# Local restore drill only (drill-local.sh): an S3-compatible server with TLS stands in for R2.
+services:
+  s3:
+    # Pinned by digest: the image publishes no version tags we rely on.
+    image: adobe/s3mock@sha256:ab01a6946750f451ca215a47e91030695b260e4003b8a5a6201d25029b8fca92
+    environment:
+      COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: anr-drill
+
+  postgres:
+    depends_on: [s3]
+    environment:
+      PGBACKREST_REPO1_S3_BUCKET: anr-drill
+      PGBACKREST_REPO1_S3_ENDPOINT: s3
+      PGBACKREST_REPO1_STORAGE_PORT: "9191"
+      # The stand-in's certificate is self-signed; R2's is verified.
+      PGBACKREST_REPO1_STORAGE_VERIFY_TLS: "n"
+      PGBACKREST_REPO1_S3_REGION: us-east-1
+      PGBACKREST_REPO1_S3_KEY: drill
+      PGBACKREST_REPO1_S3_KEY_SECRET: drill
+      PGBACKREST_REPO1_CIPHER_PASS: drill-passphrase

@@ -4,18 +4,25 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./testing": "./src/testing.ts"
   },
   "scripts": {
     "migrate": "dbmate --env-file ../../.env --env DATABASE_MIGRATION_URL --migrations-dir migrations --no-dump-schema up",
     "migrate:new": "dbmate --migrations-dir migrations new",
     "typecheck": "tsc -p .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "migrate:test": "node scripts/migrate-test.ts",
+    "pgboss:migration": "node scripts/pgboss-migration.ts",
+    "tenancy:check": "node src/tenancy-cli.ts"
   },
   "dependencies": {
-    "pg": "8.23.1"
+    "@anr/core": "workspace:*",
+    "pg": "8.23.1",
+    "pg-boss": "12.38.0"
   },
   "devDependencies": {
+    "@anr/schemas": "workspace:*",
     "@types/node": "24.19.2",
     "@types/pg": "8.23.1",
     "dbmate": "2.37.0",

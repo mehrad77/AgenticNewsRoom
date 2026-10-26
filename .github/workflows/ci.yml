@@ -25,4 +25,9 @@ jobs:
           python-version-file: .python-version
       - run: pnpm install --frozen-lockfile
       - run: uv sync --frozen
+      # Database tests (RLS, tenancy check, normalize_text, config sync) run against Postgres
+      # with the dev roles from .env.example.
+      - run: cp .env.example .env
+      - run: pnpm db:up
+      - run: pnpm db:migrate
       - run: pnpm check

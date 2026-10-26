@@ -23,6 +23,9 @@ importers:
       '@anr/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@anr/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@anr/schemas':
         specifier: workspace:*
         version: link:../../packages/schemas
@@ -82,6 +85,9 @@ importers:
       '@anr/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@anr/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       liquidjs:
         specifier: 10.30.0
         version: 10.30.0
@@ -129,6 +135,12 @@ importers:
 
   packages/config:
     dependencies:
+      '@anr/core':
+        specifier: workspace:*
+        version: link:../core
+      '@anr/db':
+        specifier: workspace:*
+        version: link:../db
       '@anr/schemas':
         specifier: workspace:*
         version: link:../schemas
@@ -138,6 +150,12 @@ importers:
       ajv-formats:
         specifier: 3.0.1
         version: 3.0.1(ajv@8.20.0)
+      pg:
+        specifier: 8.23.1
+        version: 8.23.1
+      pg-boss:
+        specifier: 12.38.0
+        version: 12.38.0(@opentelemetry/api@1.10.0)
       yaml:
         specifier: 2.9.1
         version: 2.9.1
@@ -145,6 +163,9 @@ importers:
       '@types/node':
         specifier: 24.19.2
         version: 24.19.2
+      '@types/pg':
+        specifier: 8.23.1
+        version: 8.23.1
       typescript:
         specifier: 5.9.3
         version: 5.9.3
@@ -166,10 +187,19 @@ importers:
 
   packages/db:
     dependencies:
+      '@anr/core':
+        specifier: workspace:*
+        version: link:../core
       pg:
         specifier: 8.23.1
         version: 8.23.1
+      pg-boss:
+        specifier: 12.38.0
+        version: 12.38.0(@opentelemetry/api@1.10.0)
     devDependencies:
+      '@anr/schemas':
+        specifier: workspace:*
+        version: link:../schemas
       '@types/node':
         specifier: 24.19.2
         version: 24.19.2

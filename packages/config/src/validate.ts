@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import addFormatsModule from "ajv-formats";
 import type { RawConfig } from "./load.ts";
+import { cronDaily, cronEvery } from "./schedules.ts";
 
 const require = createRequire(import.meta.url);
 const schemaPath = (name: string) => require.resolve(`@anr/schemas/json/${name}.schema.json`);
@@ -92,15 +93,33 @@ export function validateConfig(config: RawConfig): string[] {
     check(v.sources, n.sources, `${at}/sources.yaml`);
     if (!okNewsroom) continue;
 
-    const newsroom = n.newsroom as { slug: string; languages: string[]; subdomain: string };
+    const newsroom = n.newsroom as {
+      slug: string;
+      languages: string[];
+      subdomain: string;
+      timezone: string;
+    };
     if (newsroom.slug !== n.slug) errors.push(`${at}/newsroom.yaml slug must equal folder name`);
+    try {
+      new Intl.DateTimeFormat("en", { timeZone: newsroom.timezone });
+    } catch {
+      errors.push(`${at}/newsroom.yaml timezone ${newsroom.timezone} is not an IANA timezone`);
+    }
     const other = subdomains.get(newsroom.subdomain);
     if (other) errors.push(`${at} reuses subdomain of newsrooms/${other}`);
     subdomains.set(newsroom.subdomain, n.slug);
 
-    const sourceIds = (Array.isArray(n.sources) ? n.sources : []).map((s: { id: string }) => s.id);
+    const sources = (Array.isArray(n.sources) ? n.sources : []) as { id: string; every: string }[];
+    const sourceIds = sources.map((s) => s.id);
     if (new Set(sourceIds).size !== sourceIds.length)
       errors.push(`${at}/sources.yaml has duplicate ids`);
+    for (const s of sources) {
+      try {
+        cronEvery(s.every);
+      } catch (error) {
+        errors.push(`${at}/sources.yaml source ${s.id}: ${(error as Error).message}`);
+      }
+    }
 
     if (okPolicy) {
       const beats = (n.policy as { beats: Record<string, { media_topics: string[] }> }).beats;
@@ -126,7 +145,15 @@ export function validateConfig(config: RawConfig): string[] {
         segments?: { kind: string; from: string }[];
         hosts?: Record<string, Record<string, string>>;
         narrator?: Record<string, string>;
+        assignment_at?: string;
       };
+      if (series.assignment_at !== undefined) {
+        try {
+          cronDaily(series.assignment_at);
+        } catch (error) {
+          errors.push(`${where} assignment_at: ${(error as Error).message}`);
+        }
+      }
       if (!config.formats.includes(series.format))
         errors.push(`${where} uses unknown format ${series.format}`);
       for (const l of series.languages) {

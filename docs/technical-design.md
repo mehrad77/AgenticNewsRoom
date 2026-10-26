@@ -2,17 +2,17 @@
 
 Oct 26, 2026 · Mehrad Rousta
 
-ANR v1 runs on one VM: Postgres holds every newsroom's data and the job queue, TypeScript runs the API, sites, publisher and agents, and Python runs ingestion and the verifier. Agents run as LangGraph.js graphs that can read stored sources and submit drafts, and nothing else; where each piece stands lives in Postgres, never in a graph.
+ANR v1 runs on one server, the operator's laptop: Postgres holds every newsroom's data and the job queue, TypeScript runs the API, sites, publisher and agents, and Python runs ingestion and the verifier. Agents run as LangGraph.js graphs that can read stored sources and submit drafts, and nothing else; where each piece stands lives in Postgres, never in a graph.
 
 ## Stack
 
 | Layer                   | Choice                                                                                                                             | Why                                                                                                                                                              |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Host                    | One Hetzner Cloud VM (4 dedicated vCPU, 16 GB RAM, CCX23 class), Docker Compose, Caddy for TLS and wildcard subdomains             | Cheapest; v1 is one operator and a few newsrooms                                                                                                                 |
+| Host                    | The operator's laptop, Docker Compose, Caddy for TLS and wildcard subdomains                                                       | No hosting cost; v1 is one operator and a few newsrooms                                                                                                          |
 | DNS and TLS             | Cloudflare DNS for the root domain; Caddy (custom build with the Cloudflare DNS module) issues one wildcard certificate via DNS-01 | Newsrooms are added without touching TLS                                                                                                                         |
 | Database                | Postgres 17, row-level security on `newsroom_id`                                                                                   | Tenancy enforced by the database, not by each query                                                                                                              |
 | Migrations              | Plain SQL applied with dbmate                                                                                                      | Language-neutral, and row-level-security policies are SQL anyway                                                                                                 |
-| Jobs                    | pg-boss on the same Postgres                                                                                                       | Cron, retries and singleton keys with nothing new to run                                                                                                         |
+| Jobs                    | pg-boss on the same Postgres; its schema installed by a migration                                                                  | Cron, retries and singleton keys with nothing new to run                                                                                                         |
 | API                     | TypeScript, Hono on Node, OpenAPI contract written first                                                                           | Same tools as the current API                                                                                                                                    |
 | Sites and editor's desk | Astro, server-rendered on Node; one app routes by host, and text direction follows each page's language                            | Reader sites read Postgres live, so publishing needs no rebuild                                                                                                  |
 | Desk sign-in            | Cloudflare Access in front of `desk.$ANR_ROOT_DOMAIN`; the app verifies the Access JWT and maps the email to a membership          | No passwords or sign-in code in ANR                                                                                                                              |
@@ -22,7 +22,7 @@ ANR v1 runs on one VM: Postgres holds every newsroom's data and the job queue, T
 | Verifier                | Python service: the code checks, such as quote matching and source independence                                                    | Text matching and NLP libraries                                                                                                                                  |
 | Templates               | LiquidJS, one template per format and channel kind                                                                                 | Logic-less, safe to keep in config                                                                                                                               |
 | Audio                   | Inside the publisher worker: ffmpeg, and Gemini TTS with one job per segment                                                       | The current podcast pipeline, ported                                                                                                                             |
-| Media and backups       | Cloudflare R2 (S3-compatible object storage) off the VM                                                                            | Audio, raw source snapshots, and Postgres backups (continuous WAL archive with pgBackRest), so losing the VM loses nothing; no egress fees for podcast downloads |
+| Media and backups       | Cloudflare R2 (S3-compatible object storage) off the server                                                                           | Audio, raw source snapshots, and Postgres backups (continuous WAL archive with pgBackRest), so losing the server loses nothing; no egress fees for podcast downloads |
 | Shared schemas          | JSON Schema as the source; zod and pydantic generated from it                                                                      | Format schemas are read by both languages                                                                                                                        |
 | Repo                    | One monorepo: pnpm workspaces and Turborepo for TypeScript, a uv workspace for Python                                              | One `pnpm check` covers both languages                                                                                                                           |
 
@@ -34,7 +34,7 @@ The Python services expose internal HTTP endpoints; TypeScript jobs call them, s
 flowchart TB
   SRC["Sources<br/><small>feeds, APIs, sites</small>"]:::ext
   MOD["Model APIs<br/><small>Gemini, behind the router</small>"]:::ext
-  subgraph VM["One VM · Docker Compose"]
+  subgraph VM["One server · Docker Compose"]
     ING["Ingestion · Python<br/><small>fetch, dedupe, tier, store</small>"]
     AG["Agents worker<br/><small>LangGraph.js graphs</small>"]
     VER["Verifier · Python<br/><small>code checks on drafts</small>"]
@@ -65,7 +65,7 @@ Services never call each other's data directly: each reads and writes Postgres, 
 
 ## Data model
 
-Every tenant row carries `newsroom_id`, enforced by row-level security (see Tenancy). The entities follow the charter's vocabulary; Check, Post, Media, User and Membership, Agent run, Audit log and the audience counters are added here.
+Every tenant row carries `newsroom_id`, enforced by row-level security (see Tenancy), and references other tenant rows through composite foreign keys on `(newsroom_id, id)`, so no row can point into another newsroom. The entities follow the charter's vocabulary; Check, Post, Media, User and Membership, Agent run, Audit log and the audience counters are added here. Tables are named in the plural (`publications`, `checks`). A lead's stored text and the audit log cannot be changed once written; triggers refuse it.
 
 | Entity                            | Key fields                                                                                | Notes                                                                                                          |
 | --------------------------------- | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
@@ -216,11 +216,16 @@ config/
 
 - **Domains.** Every newsroom site is served at `<subdomain>.$ANR_ROOT_DOMAIN`, its primary language at `/` and other languages at `/<language>`. The editor's desk is at `desk.$ANR_ROOT_DOMAIN`.
 - **Channels.** Channels are data, not config or environment. The Editor-in-Chief adds a site, Telegram channel or podcast feed in the editor's desk, per language. Credentials such as bot tokens are encrypted in Postgres with one platform key. A series names channel kinds and languages; the publisher looks up the matching channels at send time.
-- **Environment.** The only secrets in the environment are the platform key, the database URL, object storage keys, the model API keys, and the Cloudflare DNS token Caddy uses for the wildcard certificate. `.env.example` lists them.
+- **Environment.** The only secrets in the environment are the platform key, the Postgres passwords (superuser and the three roles), object storage keys, the backup encryption passphrase, the model API keys, and the Cloudflare DNS token Caddy uses for the wildcard certificate. Database URLs are built from the passwords. `.env.example` lists them.
 - **People.** Editors sign in to the desk through Cloudflare Access; the app verifies the Access JWT on every request and maps the email to a membership. Each membership gives a role in one newsroom, and every approval and edit is written to the audit log. `newsroom.yaml` names the publicly accountable Editor-in-Chief and corrections owner, shown on the newsroom's corrections page.
 - **Loading.** Config is validated in CI and synced to Postgres at deploy, with stable ids; removed items are soft-deleted, and pg-boss schedules are reconciled in each newsroom's timezone.
-- **Isolation.** Each transaction sets the current newsroom with a transaction-local setting, so a pooled connection never carries it to the next request. A migration role owns the tables; the app role is under forced row-level security, with check policies on writes. Jobs that span newsrooms, such as config sync and the publisher's sweep, run under a separate system role. CI fails if a tenant table has no policy.
+- **Isolation.** Each transaction sets the current newsroom with a transaction-local setting, so a pooled connection never carries it to the next request; a query with no newsroom set fails rather than returning rows. A migration role owns the tables and is under forced row-level security too; the app role is under forced row-level security, with check policies on writes. Jobs that span newsrooms, such as config sync and the publisher's sweep, run under a separate system role. CI fails if a tenant table has no policy.
+- **Credentials.** A channel's credentials are sealed in the app with envelope encryption: a random data key per credential under AES-256-GCM, wrapped by the platform key and bound to the channel's newsroom and id.
 - **Overrides.** A newsroom can override a format's templates or guide in its own folder, but not its schema or its checks.
+
+## Deploy and backups
+
+`infra/deploy.sh` checks the production `.env`, builds the images, applies the role passwords, checks that WAL reaches R2, and starts the Compose `prod` profile: migrations (as the migration role), then config sync (as the system role, after the tenancy check), then the apps. pgBackRest archives WAL to R2 at least every 5 minutes, takes a weekly full and a daily differential backup, keeps four full backups and encrypts them with a passphrase held outside the server. A restore goes into an empty volume and runs with archiving off; `infra/backup/restore-drill.sh` restores the latest backup onto a fresh machine and loads config into it, and `infra/backup/drill-local.sh` rehearses the whole cycle locally. Until milestone 6 is done, ANR runs only locally and nothing is deployed (D53).
 
 ## AI disclosure
 
@@ -279,13 +284,15 @@ flowchart TB
   M4["4. Publishing<br/><small>Publisher, reader site, Telegram, editor's desk<br/>with sign-in and channels, disclosure labels</small>"]
   M5["5. Planning and podcasts<br/><small>Planner agent, cycle themes, weekly picks,<br/>audio pipeline, podcast RSS, C2PA signing</small>"]
   M6["6. Safeguards and the second newsroom<br/><small>Challenges and corrections, the 10% audit sample;<br/>the second newsroom added as config</small>"]
-  G1{{"Config loads, and a backup restores onto a fresh VM"}}
+  G1{{"Config loads, and a backup restores into a fresh database"}}
   G2{{"The AI newsroom's sources fill the lead pool"}}
   G3{{"A daily brief is drafted, then passes or is held with reasons"}}
   G4{{"Daily news publishes end to end on its own"}}
   G5{{"One editorial cycle runs from plan to published pieces"}}
+  M7["7. Deploy<br/><small>The laptop as the server, reachable from the internet;<br/>backups off it</small>"]
   G6{{"v1 done: the second newsroom starts with no new code"}}
-  M1 --> G1 --> M2 --> G2 --> M3 --> G3 --> M4 --> G4 --> M5 --> G5 --> M6 --> G6
+  G7{{"A backup restores onto a fresh machine"}}
+  M1 --> G1 --> M2 --> G2 --> M3 --> G3 --> M4 --> G4 --> M5 --> G5 --> M6 --> G6 --> M7 --> G7
 ```
 
 Each milestone ships something that runs, and the next one starts only after its gate passes. Milestones are gated, not dated. The task list for each milestone is in the [build plan](build-plan.md).

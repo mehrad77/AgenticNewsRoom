@@ -35,3 +35,37 @@ export const PUBLICATION_STATUSES = [
   "corrected",
 ] as const;
 export type PublicationStatus = (typeof PUBLICATION_STATUSES)[number];
+
+export const SOURCE_KINDS = ["rss", "api", "site"] as const;
+export type SourceKind = (typeof SOURCE_KINDS)[number];
+
+export const MEMBERSHIP_ROLES = ["editor-in-chief", "editor"] as const;
+export type MembershipRole = (typeof MEMBERSHIP_ROLES)[number];
+
+/** Who acted, in the audit log: a person at the desk, an agent role, or code. */
+export const ACTOR_KINDS = ["person", "agent", "code"] as const;
+export type ActorKind = (typeof ACTOR_KINDS)[number];
+
+export const CHANNEL_STATUSES = ["active", "disabled"] as const;
+export type ChannelStatus = (typeof CHANNEL_STATUSES)[number];
+
+export const EDITORIAL_CYCLE_STATUSES = ["proposed", "approved", "declined"] as const;
+export type EditorialCycleStatus = (typeof EDITORIAL_CYCLE_STATUSES)[number];
+
+/** The four layers of the verifier gate (docs/technical-design.md#verifier-gate). */
+export const CHECK_KINDS = ["code", "fact-check", "item-match", "policy"] as const;
+export type CheckKind = (typeof CHECK_KINDS)[number];
+
+/** Anything but `pass` holds the publication for an editor. */
+export const CHECK_RESULTS = ["pass", "fail", "partial", "error", "timed-out"] as const;
+export type CheckResult = (typeof CHECK_RESULTS)[number];
+
+/** A post row is written before the send; `unknown` results are held, never resent. */
+export const POST_STATUSES = ["pending", "sent", "unknown"] as const;
+export type PostStatus = (typeof POST_STATUSES)[number];
+
+export const CHALLENGE_OUTCOMES = ["upheld", "rejected"] as const;
+export type ChallengeOutcome = (typeof CHALLENGE_OUTCOMES)[number];
+
+export const AGENT_RUN_OUTCOMES = ["submitted", "invalid", "error", "timed-out"] as const;
+export type AgentRunOutcome = (typeof AGENT_RUN_OUTCOMES)[number];
