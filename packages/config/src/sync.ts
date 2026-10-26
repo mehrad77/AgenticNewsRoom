@@ -178,11 +178,13 @@ async function syncNewsroom(
 
   for (const [slug, beat] of Object.entries(beats)) {
     const { rows } = await client.query<Row>(
-      `insert into beats (newsroom_id, slug, status, media_topics) values ($1, $2, $3, $4)
+      `insert into beats (newsroom_id, slug, status, media_topics, description)
+       values ($1, $2, $3, $4, $5)
        on conflict (newsroom_id, slug) do update set status = excluded.status,
-         media_topics = excluded.media_topics, updated_at = now(), removed_at = null
+         media_topics = excluded.media_topics, description = excluded.description,
+         updated_at = now(), removed_at = null
        ${RETURNING}`,
-      [newsroomId, slug, beat.status, beat.media_topics],
+      [newsroomId, slug, beat.status, beat.media_topics, beat.description ?? null],
     );
     tally(report.beats, rows[0]);
   }

@@ -62,11 +62,19 @@ function text(message: BaseMessage): string {
     .join("");
 }
 
-export function summariserGraph(model: BaseChatModel, beats: SummariserBeat[]) {
+/** Awaited before every model call, e.g. a throttle. */
+export type BeforeCall = () => Promise<void>;
+
+export function summariserGraph(
+  model: BaseChatModel,
+  beats: SummariserBeat[],
+  beforeCall: BeforeCall = async () => {},
+) {
   const slugs = beats.map((b) => b.slug);
   return new StateGraph(State)
     .addNode("summarise", async (state) => {
       const ask = state.attempts === 0 ? [] : [new HumanMessage(retryPrompt(state.errors))];
+      await beforeCall();
       const reply = await model.invoke([...state.messages, ...ask]);
       const usage = reply instanceof AIMessage ? reply.usage_metadata : undefined;
       return {
@@ -100,8 +108,9 @@ export async function summarise(
   model: BaseChatModel,
   lead: SummariserLead,
   beats: SummariserBeat[],
+  beforeCall?: BeforeCall,
 ): Promise<SummariserOutcome> {
-  const final = await summariserGraph(model, beats).invoke({
+  const final = await summariserGraph(model, beats, beforeCall).invoke({
     messages: [new HumanMessage(summariserPrompt(lead, beats))],
   });
   return {

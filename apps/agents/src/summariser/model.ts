@@ -8,5 +8,6 @@ export function chatModel(choice: ModelChoice, env = process.env): BaseChatModel
     throw new Error(`no chat model for provider ${choice.provider}`);
   const apiKey = env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY is not set; summaries wait until it is (.env)");
-  return new ChatGoogleGenerativeAI({ model: choice.model, apiKey, temperature: 0 });
+  // maxRetries 0: LangChain would otherwise retry a 429 itself, hiding it from the throttle.
+  return new ChatGoogleGenerativeAI({ model: choice.model, apiKey, temperature: 0, maxRetries: 0 });
 }

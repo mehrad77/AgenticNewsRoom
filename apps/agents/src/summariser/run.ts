@@ -7,7 +7,8 @@ import { type Client, type Pool, withNewsroom } from "@anr/db";
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import type { PgBoss } from "pg-boss";
 import type { ModelChoice, ModelRouter } from "../router.ts";
-import { summarise } from "./graph.ts";
+import { rateLimitDelayMs, type Throttle } from "../throttle.ts";
+import { type BeforeCall, summarise } from "./graph.ts";
 import { PROMPT_VERSION, type SummariserBeat } from "./prompt.ts";
 
 const mediaTopics = fileURLToPath(
@@ -75,6 +76,7 @@ export async function runSummariser(
   pool: Pool,
   makeModel: ModelFactory,
   job: AgentRunJob,
+  beforeCall?: BeforeCall,
 ): Promise<string | null> {
   const loaded = await withNewsroom(pool, job.newsroomId, async (client) => {
     const run = (
@@ -90,18 +92,21 @@ export async function runSummariser(
         [run.lead_id],
       )
     ).rows[0];
-    const { rows: beats } = await client.query<{ slug: string; media_topics: string[] }>(
-      "select slug, media_topics from beats where removed_at is null order by slug",
-    );
+    const { rows: beats } = await client.query<{
+      slug: string;
+      description: string | null;
+      media_topics: string[];
+    }>("select slug, description, media_topics from beats where removed_at is null order by slug");
     return lead ? { run, lead, beats } : null;
   });
   if (!loaded) return null;
   const beats: SummariserBeat[] = loaded.beats.map((b) => ({
     slug: b.slug,
+    description: b.description,
     topics: b.media_topics.map(topicLabel),
   }));
   const model = makeModel({ provider: loaded.run.provider, model: loaded.run.model });
-  const outcome = await summarise(model, loaded.lead, beats);
+  const outcome = await summarise(model, loaded.lead, beats, beforeCall);
 
   return withNewsroom(pool, job.newsroomId, async (client) => {
     if (outcome.result) {
@@ -169,4 +174,46 @@ export async function resumeSummaries(
     }
   }
   return resumed;
+}
+
+/** Longer than this until the next slot, and a job is re-queued instead of waiting in-process. */
+const MAX_IN_PROCESS_WAIT_MS = 30_000;
+
+export interface SummariserHandlerDeps {
+  pool: Pool;
+  boss: Pick<PgBoss, "send">;
+  makeModel: ModelFactory;
+  throttle: Throttle;
+  log?: (line: string) => void;
+}
+
+/**
+ * The agent-run handler for summariser runs, paced by the throttle. A rate-limit answer never
+ * uses up a pg-boss retry: the job is queued again for after the provider's delay, and the
+ * throttle pauses every other call meanwhile.
+ */
+export function summariserHandler(deps: SummariserHandlerDeps) {
+  const log = deps.log ?? console.log;
+  const later = async (job: AgentRunJob, ms: number) => {
+    await deps.boss.send(QUEUES.agentRun, job, { startAfter: Math.ceil(ms / 1000) });
+  };
+  return async (job: AgentRunJob): Promise<void> => {
+    const wait = deps.throttle.delayMs();
+    if (wait > MAX_IN_PROCESS_WAIT_MS) {
+      await later(job, wait);
+      return;
+    }
+    try {
+      const outcome = await runSummariser(deps.pool, deps.makeModel, job, () =>
+        deps.throttle.wait(),
+      );
+      if (outcome) log(`[agents] summariser run ${job.agentRunId}: ${outcome}`);
+    } catch (error) {
+      const delay = rateLimitDelayMs(error);
+      if (delay === null) throw error;
+      deps.throttle.pauseFor(delay);
+      await later(job, delay);
+      log(`[agents] model rate limit: run ${job.agentRunId} waits ${Math.ceil(delay / 1000)} s`);
+    }
+  };
 }

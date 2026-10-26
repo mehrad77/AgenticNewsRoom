@@ -3,7 +3,8 @@ import { createTestNewsroom, testPools } from "@anr/db/testing";
 import { FakeListChatModel } from "@langchain/core/utils/testing";
 import { afterAll, describe, expect, it } from "vitest";
 import { ModelRouter } from "../router.ts";
-import { enqueueSummaries, resumeSummaries, runSummariser } from "./run.ts";
+import { Throttle } from "../throttle.ts";
+import { enqueueSummaries, resumeSummaries, runSummariser, summariserHandler } from "./run.ts";
 
 const pools = testPools();
 afterAll(() => pools.end());
@@ -84,7 +85,7 @@ describe("summariser runs", () => {
     expect(run.rows[0]).toEqual({
       role: "summariser",
       model: "flash-lite-test",
-      prompt_version: "summariser-1",
+      prompt_version: "summariser-2",
       outcome: "submitted",
       done: true,
     });
@@ -180,5 +181,57 @@ describe("summariser queueing with real pg-boss", () => {
     expect(again).toHaveLength(1);
     const runs = await pools.system.query("select id from agent_runs where lead_id = $1", [leadId]);
     expect(runs.rowCount).toBe(1);
+  });
+});
+
+describe("summariserHandler", () => {
+  it("re-queues a rate-limited run for later instead of failing it", async () => {
+    const { newsroomId, leadId } = await setup();
+    const [runId] = await enqueueSummaries(
+      pools.app,
+      { send: async () => "x" } as never,
+      router,
+      newsroomId,
+      [leadId],
+    );
+    const job = { newsroomId, agentRunId: runId ?? "" };
+    const sent: { data: unknown; options: unknown }[] = [];
+    const boss = {
+      send: async (_q: string, data: object, options?: object) => {
+        sent.push({ data, options });
+        return "x";
+      },
+    };
+    let now = 0;
+    const throttle = new Throttle(
+      6000,
+      () => now,
+      async (ms) => {
+        now += ms;
+      },
+    );
+    const limited = {
+      invoke: async () => {
+        throw Object.assign(new Error("429 Too Many Requests"), {
+          errorDetails: [{ retryDelay: "40s" }],
+        });
+      },
+    };
+    const handle = summariserHandler({
+      pool: pools.app,
+      boss: boss as never,
+      makeModel: () => limited as never,
+      throttle,
+      log: () => {},
+    });
+    await handle(job); // completes, so pg-boss spends no retry on it
+    expect(sent).toEqual([{ data: job, options: { startAfter: 40 } }]);
+    const { rows } = await pools.system.query("select outcome from agent_runs where id = $1", [
+      runId,
+    ]);
+    expect(rows[0]).toEqual({ outcome: null });
+    // While paused, the next job is queued for later without calling the model.
+    await handle(job);
+    expect(sent[1]).toEqual({ data: job, options: { startAfter: 40 } });
   });
 });

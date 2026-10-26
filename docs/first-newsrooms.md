@@ -96,7 +96,7 @@ auto_publish: [newsletter-issue]
     url: "https://export.arxiv.org/api/query?search_query=cat:cs.AI+OR+cat:cs.CL+OR+cat:cs.LG&sortBy=submittedDate",
     publisher: arXiv,
     tier: 2,
-    every: 2h,
+    every: 6h,
   }
 - {
     id: openai-news,

@@ -6,7 +6,8 @@ import { handleIngestSource, ingestionClient } from "./ingest.ts";
 import { registerJobs } from "./jobs.ts";
 import { ModelRouter } from "./router.ts";
 import { chatModel } from "./summariser/model.ts";
-import { enqueueSummaries, resumeSummaries, runSummariser } from "./summariser/run.ts";
+import { enqueueSummaries, resumeSummaries, summariserHandler } from "./summariser/run.ts";
+import { Throttle } from "./throttle.ts";
 
 const router = ModelRouter.fromFile(
   fileURLToPath(new URL("../../../config/models.yaml", import.meta.url)),
@@ -32,10 +33,12 @@ await registerJobs(boss, {
   },
   // Only the summariser has a graph so far; other roles arrive with milestones 3 and 5.
   ...(canSummarise && {
-    "agent-run": async (job) => {
-      const outcome = await runSummariser(pool, chatModel, job);
-      if (outcome) console.log(`[agents] summariser run ${job.agentRunId}: ${outcome}`);
-    },
+    "agent-run": summariserHandler({
+      pool,
+      boss,
+      makeModel: chatModel,
+      throttle: Throttle.perMinute(Number(process.env.ANR_SUMMARISER_RPM ?? 10)),
+    }),
   }),
 });
 if (canSummarise) {

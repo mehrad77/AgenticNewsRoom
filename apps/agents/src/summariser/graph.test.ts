@@ -4,8 +4,16 @@ import { parseAnswer, summarise } from "./graph.ts";
 import { summariserPrompt } from "./prompt.ts";
 
 const beats = [
-  { slug: "labs", topics: ["artificial intelligence"] },
-  { slug: "research", topics: ["artificial intelligence", "scientific research"] },
+  {
+    slug: "labs",
+    description: "What AI labs announce and ship",
+    topics: ["artificial intelligence"],
+  },
+  {
+    slug: "research",
+    description: null,
+    topics: ["artificial intelligence", "scientific research"],
+  },
 ];
 const lead = { headline: "Orbit", language: "en", body: "Example Lab released Orbit, a model." };
 const slugs = beats.map((b) => b.slug);
@@ -62,7 +70,10 @@ describe("summariser graph", () => {
 describe("prompt", () => {
   it("lists the beats with their Media Topic labels and stays small", () => {
     const prompt = summariserPrompt(lead, beats);
-    expect(prompt).toContain("- research: artificial intelligence; scientific research");
+    expect(prompt).toContain(
+      "- labs: What AI labs announce and ship (topics: artificial intelligence)",
+    );
+    expect(prompt).toContain("- research: (topics: artificial intelligence; scientific research)");
     expect(new TextEncoder().encode(prompt).length).toBeLessThan(5 * 1024);
   });
 });

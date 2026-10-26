@@ -26,6 +26,10 @@ class Beats(BaseModel):
         description="IPTC Media Topic qcodes (packages/schemas/iptc/mediatopic.json); not retired.",
         min_length=1,
     )
+    description: constr(min_length=1, max_length=200) | None = Field(
+        None,
+        description="What the beat covers, in one line; the summariser reads it to place leads in beats.",
+    )
 
 
 class Sources(BaseModel):

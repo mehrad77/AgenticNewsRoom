@@ -135,13 +135,14 @@
 # against all of them (D59); separate sources per category would make tiers depend on which ran
 # first. Terms: https://info.arxiv.org/help/api/tou.html (one request every 3 seconds). The API
 # host's robots.txt disallows all crawlers; API calls follow the API terms instead (D64).
+# Every 6 hours, at most 50 new papers a run: at most 200 summaries a day from arXiv.
 - {
     id: arxiv,
     kind: api,
     url: "https://export.arxiv.org/api/query?search_query=cat:cs.AI+OR+cat:cs.CL+OR+cat:cs.LG&sortBy=submittedDate",
     publisher: arXiv,
     tier: 2,
-    every: 2h,
+    every: 6h,
   }
 
 # Hacker News: metadata only, tier 3 (D60). Terms: https://github.com/HackerNews/API and

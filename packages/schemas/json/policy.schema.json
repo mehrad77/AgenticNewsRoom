@@ -28,6 +28,12 @@
               "type": "string",
               "pattern": "^medtop:[0-9]{8}$"
             }
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "What the beat covers, in one line; the summariser reads it to place leads in beats."
           }
         }
       }
