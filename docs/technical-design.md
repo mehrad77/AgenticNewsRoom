@@ -2,13 +2,13 @@
 
 Oct 26, 2026 · Mehrad Rousta
 
-ANR v1 runs on one VM: Postgres holds every newsroom's data and the job queue, TypeScript runs the API, sites, publisher and agents, and Python runs ingestion and the verifier. Agents run as LangGraph.js graphs that can read stored sources and submit drafts, and nothing else; where each piece stands lives in Postgres, never in a graph.
+ANR v1 runs on one server, the operator's laptop: Postgres holds every newsroom's data and the job queue, TypeScript runs the API, sites, publisher and agents, and Python runs ingestion and the verifier. Agents run as LangGraph.js graphs that can read stored sources and submit drafts, and nothing else; where each piece stands lives in Postgres, never in a graph.
 
 ## Stack
 
 | Layer                   | Choice                                                                                                                             | Why                                                                                                                                                              |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Host                    | One Hetzner Cloud VM (4 dedicated vCPU, 16 GB RAM, CCX23 class), Docker Compose, Caddy for TLS and wildcard subdomains             | Cheapest; v1 is one operator and a few newsrooms                                                                                                                 |
+| Host                    | The operator's laptop, Docker Compose, Caddy for TLS and wildcard subdomains                                                       | No hosting cost; v1 is one operator and a few newsrooms                                                                                                          |
 | DNS and TLS             | Cloudflare DNS for the root domain; Caddy (custom build with the Cloudflare DNS module) issues one wildcard certificate via DNS-01 | Newsrooms are added without touching TLS                                                                                                                         |
 | Database                | Postgres 17, row-level security on `newsroom_id`                                                                                   | Tenancy enforced by the database, not by each query                                                                                                              |
 | Migrations              | Plain SQL applied with dbmate                                                                                                      | Language-neutral, and row-level-security policies are SQL anyway                                                                                                 |
@@ -22,7 +22,7 @@ ANR v1 runs on one VM: Postgres holds every newsroom's data and the job queue, T
 | Verifier                | Python service: the code checks, such as quote matching and source independence                                                    | Text matching and NLP libraries                                                                                                                                  |
 | Templates               | LiquidJS, one template per format and channel kind                                                                                 | Logic-less, safe to keep in config                                                                                                                               |
 | Audio                   | Inside the publisher worker: ffmpeg, and Gemini TTS with one job per segment                                                       | The current podcast pipeline, ported                                                                                                                             |
-| Media and backups       | Cloudflare R2 (S3-compatible object storage) off the VM                                                                            | Audio, raw source snapshots, and Postgres backups (continuous WAL archive with pgBackRest), so losing the VM loses nothing; no egress fees for podcast downloads |
+| Media and backups       | Cloudflare R2 (S3-compatible object storage) off the server                                                                           | Audio, raw source snapshots, and Postgres backups (continuous WAL archive with pgBackRest), so losing the server loses nothing; no egress fees for podcast downloads |
 | Shared schemas          | JSON Schema as the source; zod and pydantic generated from it                                                                      | Format schemas are read by both languages                                                                                                                        |
 | Repo                    | One monorepo: pnpm workspaces and Turborepo for TypeScript, a uv workspace for Python                                              | One `pnpm check` covers both languages                                                                                                                           |
 
@@ -34,7 +34,7 @@ The Python services expose internal HTTP endpoints; TypeScript jobs call them, s
 flowchart TB
   SRC["Sources<br/><small>feeds, APIs, sites</small>"]:::ext
   MOD["Model APIs<br/><small>Gemini, behind the router</small>"]:::ext
-  subgraph VM["One VM · Docker Compose"]
+  subgraph VM["One server · Docker Compose"]
     ING["Ingestion · Python<br/><small>fetch, dedupe, tier, store</small>"]
     AG["Agents worker<br/><small>LangGraph.js graphs</small>"]
     VER["Verifier · Python<br/><small>code checks on drafts</small>"]
@@ -225,7 +225,7 @@ config/
 
 ## Deploy and backups
 
-`infra/deploy.sh` checks the production `.env`, builds the images, applies the role passwords, checks that WAL reaches R2, and starts the Compose `prod` profile: migrations (as the migration role), then config sync (as the system role, after the tenancy check), then the apps. pgBackRest archives WAL to R2 at least every 5 minutes, takes a weekly full and a daily differential backup, keeps four full backups and encrypts them with a passphrase held outside the VM. A restore goes into an empty volume and runs with archiving off; `infra/backup/restore-drill.sh` restores the latest backup onto a fresh VM and loads config into it.
+`infra/deploy.sh` checks the production `.env`, builds the images, applies the role passwords, checks that WAL reaches R2, and starts the Compose `prod` profile: migrations (as the migration role), then config sync (as the system role, after the tenancy check), then the apps. pgBackRest archives WAL to R2 at least every 5 minutes, takes a weekly full and a daily differential backup, keeps four full backups and encrypts them with a passphrase held outside the server. A restore goes into an empty volume and runs with archiving off; `infra/backup/restore-drill.sh` restores the latest backup onto a fresh machine and loads config into it, and `infra/backup/drill-local.sh` rehearses the whole cycle locally. Until milestone 6 is done, ANR runs only locally and nothing is deployed (D53).
 
 ## AI disclosure
 
@@ -284,13 +284,15 @@ flowchart TB
   M4["4. Publishing<br/><small>Publisher, reader site, Telegram, editor's desk<br/>with sign-in and channels, disclosure labels</small>"]
   M5["5. Planning and podcasts<br/><small>Planner agent, cycle themes, weekly picks,<br/>audio pipeline, podcast RSS, C2PA signing</small>"]
   M6["6. Safeguards and the second newsroom<br/><small>Challenges and corrections, the 10% audit sample;<br/>the second newsroom added as config</small>"]
-  G1{{"Config loads, and a backup restores onto a fresh VM"}}
+  G1{{"Config loads, and a backup restores into a fresh database"}}
   G2{{"The AI newsroom's sources fill the lead pool"}}
   G3{{"A daily brief is drafted, then passes or is held with reasons"}}
   G4{{"Daily news publishes end to end on its own"}}
   G5{{"One editorial cycle runs from plan to published pieces"}}
+  M7["7. Deploy<br/><small>The laptop as the server, reachable from the internet;<br/>backups off it</small>"]
   G6{{"v1 done: the second newsroom starts with no new code"}}
-  M1 --> G1 --> M2 --> G2 --> M3 --> G3 --> M4 --> G4 --> M5 --> G5 --> M6 --> G6
+  G7{{"A backup restores onto a fresh machine"}}
+  M1 --> G1 --> M2 --> G2 --> M3 --> G3 --> M4 --> G4 --> M5 --> G5 --> M6 --> G6 --> M7 --> G7
 ```
 
 Each milestone ships something that runs, and the next one starts only after its gate passes. Milestones are gated, not dated. The task list for each milestone is in the [build plan](build-plan.md).

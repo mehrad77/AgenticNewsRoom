@@ -46,7 +46,7 @@ psql_super -c "insert into users (email) values ('$marker')"
 infra/backup/backup.sh check
 infra/backup/backup.sh info
 
-step "3. lose the database; restore and load config as on a fresh VM"
+step "3. lose the database; restore and load config as on a fresh machine"
 docker compose rm -sf postgres
 docker volume rm "${COMPOSE_PROJECT_NAME}_pgdata"
 # As in production, where .env turns archiving on: the restore must keep it off regardless.

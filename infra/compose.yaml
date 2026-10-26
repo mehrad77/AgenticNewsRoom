@@ -1,5 +1,5 @@
 # Dev: `pnpm db:up` starts Postgres only; run the apps with `pnpm dev`.
-# Production (one VM): `infra/deploy.sh`, which checks .env and then runs
+# Production (one server): `infra/deploy.sh`, which checks .env and then runs
 # `docker compose --env-file .env -f infra/compose.yaml --profile prod up`. The one-shot `migrate`
 # and `config-sync` jobs finish before any app starts.
 name: anr
@@ -59,7 +59,7 @@ services:
       - archive_command=pgbackrest archive-push %p
       - -c
       - archive_timeout=300
-    # Loopback only: never reachable from outside the VM.
+    # Loopback only: never reachable from outside the server.
     ports: ["127.0.0.1:${ANR_PG_PORT:-5432}:5432"]
     restart: unless-stopped
     volumes:

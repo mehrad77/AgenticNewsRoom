@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploys the production stack on the VM, from the repo root: checks .env, builds, applies role
+# Deploys the production stack on the server, from the repo root: checks .env, builds, applies role
 # passwords, checks backups, then starts everything (migrate and config-sync finish first).
 #   infra/deploy.sh --check    only check .env
 set -euo pipefail

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The milestone 1 gate, on a fresh VM with the repo, Docker and the production .env: restore the
+# Milestone 7's gate, on a fresh machine with the repo, Docker and the production .env: restore the
 # latest backup from R2, then run the tenancy check, config:check and config sync against it.
 # Nothing is started besides Postgres, so nothing publishes from the restored copy.
 source "$(dirname "$0")/lib.sh"

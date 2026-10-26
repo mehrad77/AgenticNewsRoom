@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Restores the latest backup (and all archived WAL) into an empty Postgres volume, starts it
-# with WAL archiving off, and waits until recovery has finished. Run on a fresh VM, from the
+# with WAL archiving off, and waits until recovery has finished. Run on a fresh machine, from the
 # repo root, with the production .env (the same role passwords, R2 keys and backup passphrase).
 #   infra/backup/restore.sh                       latest state
 #   ANR_RESTORE_TARGET="2026-11-02 09:00:00+03" infra/backup/restore.sh   point in time

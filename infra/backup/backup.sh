@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Backups with pgBackRest, run on the VM from the repo root (cron, see infra/AGENTS.md).
+# Backups with pgBackRest, run on the server from the repo root (cron, see infra/AGENTS.md).
 #   infra/backup/backup.sh init         once: create the stanza in the bucket and check archiving
 #   infra/backup/backup.sh full|diff|incr
 #   infra/backup/backup.sh check        WAL archiving works (alert if this fails: WAL piles up)
