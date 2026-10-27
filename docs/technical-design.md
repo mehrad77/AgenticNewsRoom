@@ -57,6 +57,7 @@ flowchart TB
   PUB --> R2
   API <--> PG
   WEB --> API
+  PG -- published pieces --> WEB
   PEOPLE <--> WEB
   classDef ext stroke-dasharray: 4 4
 ```
@@ -114,6 +115,7 @@ stateDiagram-v2
   WithEditor --> Scheduled: approves
   WithEditor --> Assigned: returns to the desk
   Scheduled --> Published: slot reached
+  Scheduled --> WithEditor: a send that may have gone out, a refusal, a restore
   Published --> Corrected: challenge upheld
 ```
 
@@ -175,14 +177,15 @@ The gate runs in four layers, and two of them use a model. Facts are checked onc
 3. **Item matcher (agents worker).** For every rendition in every language, a cheap model checks that each item says no more than the claims it lists. This catches drift between languages.
 4. **Policy (code).** Any failed, partial, errored or timed-out check holds the publication for an editor, and so does any check it needs that never ran. Themed publications, restricted beats and formats outside `auto_publish` always go to an editor. Daily news with every check passed is scheduled to publish.
 
-After publishing, code picks a 10% random sample of auto-published publications for an editor to review. Each miss an editor finds becomes a new code check or a policy rule.
+After publishing, code picks a 10% random sample of auto-published publications for an editor to review (D94). Each miss an editor finds is recorded with what should have been caught, and becomes a new code check or a policy rule. An editor approves a held publication (it is scheduled) or returns it to the desk for a new draft (D96).
 
 ## Publishing
 
 The publisher is a TypeScript worker. When an approved publication's slot comes up, it renders the publication and sends it to each of its channels, then records the post. No agent is involved.
 
-- **Rendering.** Each format has one Liquid template per channel, filled from the rendition's structured body. Templates own the channel's limits, such as Telegram's 4,096-character cap and how a long post splits.
-- **Idempotent send.** Before calling a channel, the publisher writes a Post row keyed on publication, channel and part. After the call it stores the channel's message id. A retry that finds a stored id skips the send. A send whose result is unknown is held for a human rather than sent twice. After a database restore, every slot already past due is held too, so nothing goes out again.
+- **Rendering.** Each format has one Liquid template per channel, filled from the rendition's structured body. Templates mark where a long post may split (blank lines); `@anr/render` splits to the channel's limit, such as Telegram's 4,096 characters, with the disclosure label on every message (D88).
+- **Idempotent send.** Before calling a channel, the publisher writes a Post row keyed on publication, channel and part, with the text of that part, and marks the moment it starts the call. After the call it stores the channel's message id. A retry that finds a stored id skips the send. A send whose result is unknown, or one interrupted mid-call, is held for a human rather than sent twice; a refusal is retried only when it is a rate limit or an unreachable channel (D89). The site goes live last. After a database restore (`restores`, written by `infra/backup/restore.sh`), every slot already past due is held too, so nothing goes out again (D90). A channel kind a series names but the newsroom has not set up is skipped with a notice (D91).
+- **Reader site.** The web app reads published and corrected publications from Postgres as the app role. A piece's page is `/<series>/<slot date>` under its language (D92), its body is the format's `site` template, and its ninjs twin is the page URL plus `.json`. Site search ranks pieces by trigram word similarity over `anr.normalize_text()` of their text. Page views are counted per publication and day, with no cookie and nothing stored about the reader.
 - **Channels in v1.**
   - Site: the piece's status becomes published, and the server-rendered site shows it at once.
   - Telegram: the Bot API, for newsrooms that have a Telegram channel.
@@ -228,9 +231,9 @@ config/
 - **Domains.** Every newsroom site is served at `<subdomain>.$ANR_ROOT_DOMAIN`, its primary language at `/` and other languages at `/<language>`. The editor's desk is at `desk.$ANR_ROOT_DOMAIN`.
 - **Channels.** Channels are data, not config or environment. The Editor-in-Chief adds a site, Telegram channel or podcast feed in the editor's desk, per language. Credentials such as bot tokens are encrypted in Postgres with one platform key. A series names channel kinds and languages; the publisher looks up the matching channels at send time.
 - **Environment.** The only secrets in the environment are the platform key, the Postgres passwords (superuser and the three roles), object storage keys, the backup encryption passphrase, the model API keys, and the Cloudflare DNS token Caddy uses for the wildcard certificate. Database URLs are built from the passwords. `.env.example` lists them.
-- **People.** Editors sign in to the desk through Cloudflare Access; the app verifies the Access JWT on every request and maps the email to a membership. Each membership gives a role in one newsroom, and every approval and edit is written to the audit log. `newsroom.yaml` names the publicly accountable Editor-in-Chief and corrections owner, shown on the newsroom's corrections page.
+- **People.** Editors sign in to the desk through Cloudflare Access; the API verifies the Access JWT on every request and maps the email to a membership (D95); the operator grants the first one with `desk:grant`. Each membership gives a role in one newsroom, and every approval and edit is written to the audit log. `newsroom.yaml` names the publicly accountable Editor-in-Chief and corrections owner, shown on the newsroom's corrections page.
 - **Loading.** Config is validated in CI and synced to Postgres at deploy, with stable ids; removed items are soft-deleted, and pg-boss schedules are reconciled in each newsroom's timezone.
-- **Isolation.** Each transaction sets the current newsroom with a transaction-local setting, so a pooled connection never carries it to the next request; a query with no newsroom set fails rather than returning rows. A migration role owns the tables and is under forced row-level security too; the app role is under forced row-level security, with check policies on writes. Jobs that span newsrooms, such as config sync and the publisher's sweep, run under a separate system role. CI fails if a tenant table has no policy.
+- **Isolation.** Each transaction sets the current newsroom with a transaction-local setting, so a pooled connection never carries it to the next request; a query with no newsroom set fails rather than returning rows. A migration role owns the tables and is under forced row-level security too; the app role is under forced row-level security, with check policies on writes. Config sync, which spans newsrooms, and the operator's `desk:grant`, which adds the first membership before anyone can sign in, run under a separate system role; the gate's and the publisher's sweeps list newsrooms and work inside each one's setting as the app role (D93). CI fails if a tenant table has no policy.
 - **Credentials.** A channel's credentials are sealed in the app with envelope encryption: a random data key per credential under AES-256-GCM, wrapped by the platform key and bound to the channel's newsroom and id.
 - **Overrides.** A newsroom can override a format's templates or guide in its own folder, but not its schema or its checks.
 

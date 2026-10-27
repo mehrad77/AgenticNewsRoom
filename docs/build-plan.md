@@ -66,15 +66,15 @@ Gate: **a daily brief is drafted, then passes or is held with reasons.**
 
 Gate: **daily news publishes end to end on its own.**
 
-- [ ] Publisher sweep: approved and scheduled publications whose slot has come.
-- [ ] Idempotent send with Post rows; unknown results held; past-due slots held after a restore.
-- [ ] Telegram channel via the Bot API, with message splitting at 4,096 characters.
-- [ ] Reader site: publication pages per language, `lang`/`dir` per page, disclosure label, schema.org JSON-LD with IPTC digital source type, Media Topics and genre, AI policy and corrections pages.
-- [ ] ninjs 3.2 twin of every published publication at its page URL plus `.json`, with subjects, genres, digital source type and trust indicators; tests validate it against `packages/schemas/iptc/ninjs-schema_3.2.json`.
-- [ ] Site search over normalised text.
-- [ ] Editor's desk behind Cloudflare Access: JWT verification, memberships, review queue with holds and their reasons, approve or return, channel management with encrypted credentials.
-- [ ] 10% random review sample of auto-published publications, with a "miss" action that files a new check or policy rule.
-- [ ] Audience counters: cookieless page views; daily Telegram subscriber snapshots.
+- [x] Publisher sweep: approved and scheduled publications whose slot has come.
+- [x] Idempotent send with Post rows; unknown results held; past-due slots held after a restore.
+- [x] Telegram channel via the Bot API, with message splitting at 4,096 characters.
+- [x] Reader site: publication pages per language, `lang`/`dir` per page, disclosure label, schema.org JSON-LD with IPTC digital source type, Media Topics and genre, AI policy and corrections pages.
+- [x] ninjs 3.2 twin of every published publication at its page URL plus `.json`, with subjects, genres, digital source type and trust indicators; tests validate it against `packages/schemas/iptc/ninjs-schema_3.2.json`.
+- [x] Site search over normalised text.
+- [x] Editor's desk behind Cloudflare Access: JWT verification, memberships, review queue with holds and their reasons, approve or return, channel management with encrypted credentials.
+- [ ] 10% random review sample of auto-published publications, with a "miss" action that files a new check or policy rule. *Sample, review and recorded misses done (D94); filing a check or rule from a miss is not.*
+- [x] Audience counters: cookieless page views; daily Telegram subscriber snapshots.
 - [ ] Gate: a week of daily newsletters publishes to the site and Telegram with no manual step.
 
 ## 5. Planning and podcasts
