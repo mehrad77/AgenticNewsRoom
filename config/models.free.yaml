@@ -69,7 +69,7 @@ models:
     provider: openrouter
     model: nvidia/nemotron-3-ultra-550b-a55b:free
     family: nemotron-3-ultra-550b
-    tools: true
+    tools: false # models:probe 2026-10-27: no tool calls through OpenRouter's free endpoint
     price: { in: 0, out: 0 }
   openrouter-gemma:
     provider: openrouter
@@ -103,20 +103,17 @@ roles:
     - nvidia-glm
     - groq-gpt-oss-120b
     - mistral-medium
-    - openrouter-nemotron-ultra
   desk:
     default:
       - gemini-flash
       - groq-gpt-oss-120b
       - mistral-medium
-      - openrouter-nemotron-ultra
       - nvidia-glm
     by_format:
       newsletter-issue:
         - gemini-flash
         - groq-gpt-oss-120b
         - mistral-medium
-        - openrouter-nemotron-ultra
   renderer: [gemini-flash, groq-gpt-oss-120b, mistral-small, groq-qwen]
   # The router drops every family that wrote the story, then tries the rest in order.
   fact-checker:
@@ -124,7 +121,6 @@ roles:
     - nvidia-glm
     - mistral-medium
     - gemini-flash
-    - openrouter-nemotron-ultra
   item-matcher: [groq-gpt-oss-120b, gemini-flash, mistral-small, groq-qwen]
   summariser:
     - gemini-flash-lite

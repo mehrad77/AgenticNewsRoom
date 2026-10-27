@@ -114,6 +114,9 @@ export class ModelGateway {
             this.#limits.pause(entry, failure.retryAfterMs ?? UNAVAILABLE_COOLDOWN_MS);
             this.#log(`${id} unavailable: ${failure.message}`);
             break;
+          case "too-large":
+            this.#log(`${id} cannot take a request this large: ${failure.message}`);
+            break;
           case "gone":
             this.#limits.disable(entry, failure.message);
             this.#log(`${id} (${entry.model}) is gone; fix the models file: ${failure.message}`);

@@ -162,6 +162,17 @@ describe("ModelGateway", () => {
     expect(res.attempts.map((a) => a.outcome)).toEqual(["unavailable", "unavailable", "ok"]);
   });
 
+  it("passes a request too large for one model to the next, with no cooldown", async () => {
+    const tooLarge = httpError(413, {}, "Request too large for model: tokens per minute (TPM)");
+    const { gateway, calls } = setup({ "a-big": [tooLarge] });
+    const res = await gateway.chat({ chain, messages });
+    expect(res.catalogId).toBe("b-big");
+    expect(res.attempts.map((a) => a.outcome)).toEqual(["too-large", "ok"]);
+    // A smaller request still goes to the first model at once.
+    expect((await gateway.chat({ chain, messages })).catalogId).toBe("a-big");
+    expect(calls).toEqual(["a-big", "b-big", "a-big"]);
+  });
+
   it("fails at once on a bad key instead of hiding it behind the next model", async () => {
     const { gateway, calls } = setup({ "a-big": [httpError(401)] });
     await expect(gateway.chat({ chain, messages })).rejects.toBeInstanceOf(ModelCallFailed);

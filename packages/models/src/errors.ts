@@ -3,9 +3,11 @@
  * - rate-limited: cool this model down and try the next one;
  * - unavailable: a short cooldown, then the next one;
  * - gone: the model was retired or renamed; skip it until restart;
+ * - too-large: the request exceeds this model's limits (413, a free tier's tokens per minute);
+ *   try the next one, with no cooldown, since smaller requests still fit;
  * - fatal: a bad key or a bad request; stop, because the next model would hide a real bug.
  */
-export type FailureKind = "rate-limited" | "unavailable" | "gone" | "fatal";
+export type FailureKind = "rate-limited" | "unavailable" | "gone" | "too-large" | "fatal";
 
 export interface Failure {
   kind: FailureKind;
@@ -97,6 +99,7 @@ export function classify(error: unknown, now = Date.now()): Failure {
   if (status === 404 || ((status === 400 || status === undefined) && retired)) {
     return { kind: "gone", message };
   }
+  if (status === 413) return { kind: "too-large", message };
   if (status !== undefined) {
     if (status === 408 || status === 409 || status === 425 || status >= 500) {
       return { kind: "unavailable", retryAfterMs, message };
