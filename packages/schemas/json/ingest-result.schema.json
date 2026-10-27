@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anr.local/schemas/ingest-result.schema.json",
+  "title": "IngestResult",
+  "description": "What one ingest run did. New leads need a summary; everything else is counted.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "source_id",
+    "not_modified",
+    "new_leads",
+    "sightings",
+    "known",
+    "dropped",
+    "retiered",
+    "errors"
+  ],
+  "properties": {
+    "source_id": { "type": "string", "format": "uuid" },
+    "not_modified": {
+      "type": "boolean",
+      "description": "The source answered 304: nothing new since the last fetch."
+    },
+    "new_leads": { "type": "array", "items": { "type": "string", "format": "uuid" } },
+    "sightings": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Copies joined to an existing lead (same text or near-duplicate)."
+    },
+    "known": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Items whose canonical URL was already in the lead pool."
+    },
+    "dropped": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Items refused by the paper tier rules (flagged) or with no text."
+    },
+    "retiered": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Stored papers raised to tier 1 from enrichment."
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["url", "error"],
+        "properties": { "url": { "type": "string" }, "error": { "type": "string" } }
+      }
+    }
+  }
+}

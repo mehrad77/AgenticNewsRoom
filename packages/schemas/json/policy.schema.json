@@ -28,6 +28,12 @@
               "type": "string",
               "pattern": "^medtop:[0-9]{8}$"
             }
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "What the beat covers, in one line; the summariser reads it to place leads in beats."
           }
         }
       }
@@ -46,6 +52,17 @@
         }
       }
     },
+    "leads": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_age_days": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Scheduled runs store no item older than this by its newest date, and no undated item."
+        }
+      }
+    },
     "papers": {
       "type": "object",
       "additionalProperties": false,
@@ -59,6 +76,20 @@
         },
         "newsletter_min": {
           "enum": ["high", "medium", "low"]
+        },
+        "high_venues": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Venues whose papers are high (tier 1), matched case-insensitively against the venue Semantic Scholar reports, never the authors' own comment."
+        },
+        "high_citations": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Citations, as Semantic Scholar counts them, that make a paper high (tier 1)."
         }
       }
     },

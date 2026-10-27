@@ -1,14 +1,26 @@
 # Each beat: its status, and the IPTC Media Topics that classify it
 # (codes in packages/schemas/iptc/mediatopic.json; publications carry their beat's topics).
 beats:
-  # rock, indie, pop, electronic, punk, other genres
-  music: { status: open, media_topics: [medtop:20000018] } # music
-  visual-art: { status: open, media_topics: [medtop:20000031] } # visual arts
-  audio-art: { status: open, media_topics: [medtop:20000002] } # arts and entertainment
-  # artists' political statements, court cases, bans
-  politics: { status: restricted, media_topics: [medtop:20000588, medtop:20001132] } # censorship and freedom of speech, cultural policy
-  # relationships, health, rumours
-  private-life: { status: banned, media_topics: [medtop:20000505, medtop:20001300] } # celebrity, privacy
+  music:
+    status: open
+    media_topics: [medtop:20000018] # music
+    description: Music and musicians - rock, indie, pop, electronic, punk and other genres; releases, tours, scenes
+  visual-art:
+    status: open
+    media_topics: [medtop:20000031] # visual arts
+    description: Visual art and artists - exhibitions, works, galleries
+  audio-art:
+    status: open
+    media_topics: [medtop:20000002] # arts and entertainment
+    description: Sound and audio art beyond music releases - installations, sound pieces, audio works
+  politics:
+    status: restricted
+    media_topics: [medtop:20000588, medtop:20001132] # censorship and freedom of speech, cultural policy
+    description: Artists' political statements, court cases, bans, censorship and cultural policy
+  private-life:
+    status: banned
+    media_topics: [medtop:20000505, medtop:20001300] # celebrity, privacy
+    description: Artists' relationships, health and rumours
 sources:
   min_independent: 2
   tier1_alone: true # the artist's or label's own statement

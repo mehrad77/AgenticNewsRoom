@@ -56,6 +56,13 @@ export class ModelRouter {
     return model.family;
   }
 
+  /** Provider and model name of a catalog model, for the Agent run row. */
+  describe(id: string): { provider: string; model: string } {
+    const model = this.config.models[id];
+    if (!model) throw new Error(`unknown model ${id}`);
+    return { provider: model.provider, model: model.model };
+  }
+
   tts(): string {
     return this.config.tts;
   }

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+  <title>AI Digest</title>
+  <id>https://huggingface.co/blog</id>
+  <updated>2026-10-21T10:00:00Z</updated>
+  <entry>
+    <title>Example Lab introduces Orbit</title>
+    <link href="https://huggingface.co/blog/orbit-repost"/>
+    <id>https://huggingface.co/blog/orbit-repost</id>
+    <updated>2026-10-21T10:00:00Z</updated>
+    <author><name>Digest Desk</name></author>
+    <summary>A repost of the Orbit announcement.</summary>
+  </entry>
+  <entry>
+    <title>Orbit safety, as listed by the lab</title>
+    <link href="https://openai.com/index/orbit-safety/"/>
+    <id>https://openai.com/index/orbit-safety/</id>
+    <updated>2026-10-21T11:00:00Z</updated>
+    <summary>The lab's safety post.</summary>
+  </entry>
+</feed>

@@ -1,7 +1,7 @@
 [project]
 name = "anr-schemas"
 version = "0.0.0"
-description = "Pydantic models generated from ANR's JSON Schemas. Do not edit generated modules."
+description = "Pydantic models generated from ANR's JSON Schemas, and the shared text normaliser."
 requires-python = ">=3.13"
 dependencies = ["pydantic>=2.14"]
 

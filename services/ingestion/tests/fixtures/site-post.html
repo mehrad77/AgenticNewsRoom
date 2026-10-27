@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="en-GB">
+<head><title>Comparing long-context models</title>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "WebPage"}, {"@type": "BlogPosting", "headline": "Comparing long-context models"}]}</script>
+</head>
+<body><article><h1>Comparing long-context models</h1>
+<p>Long context windows are only useful if a model can find what it needs inside them. We compared three recent models on a set of tasks where the answer depends on a single sentence placed somewhere in a very long document, and on tasks where the answer needs facts from several places at once.</p>
+<p>All three models did well when the key sentence was near the start or the end of the document. In the middle of the document their accuracy fell, by different amounts, and the gap grew with document length. Tasks that combine several facts were harder for every model we tried.</p>
+<p>We are publishing the tasks and the scoring code so that others can repeat the comparison on new models as they appear.</p>
+</article></body></html>

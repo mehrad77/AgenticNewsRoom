@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anr.local/schemas/ingest-run.schema.json",
+  "title": "IngestRun",
+  "description": "POST /ingest on the ingestion service: fetch one source into the lead pool (the ingest-source job).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["newsroom_id", "source_id"],
+  "properties": {
+    "newsroom_id": { "type": "string", "format": "uuid" },
+    "source_id": { "type": "string", "format": "uuid" }
+  }
+}

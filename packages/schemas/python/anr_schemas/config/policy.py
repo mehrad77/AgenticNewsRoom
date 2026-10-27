@@ -26,6 +26,10 @@ class Beats(BaseModel):
         description="IPTC Media Topic qcodes (packages/schemas/iptc/mediatopic.json); not retired.",
         min_length=1,
     )
+    description: constr(min_length=1, max_length=200) | None = Field(
+        None,
+        description="What the beat covers, in one line; the summariser reads it to place leads in beats.",
+    )
 
 
 class Sources(BaseModel):
@@ -34,6 +38,16 @@ class Sources(BaseModel):
     )
     min_independent: conint(ge=2)
     tier1_alone: bool
+
+
+class Leads(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    max_age_days: conint(ge=1) | None = Field(
+        None,
+        description="Scheduled runs store no item older than this by its newest date, and no undated item.",
+    )
 
 
 class Tier(Enum):
@@ -49,12 +63,24 @@ class NewsletterMin(Enum):
     low = "low"
 
 
+class HighVenue(RootModel[constr(min_length=1)]):
+    root: constr(min_length=1)
+
+
 class Papers(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
     tiers: list[Tier]
     newsletter_min: NewsletterMin
+    high_venues: list[HighVenue] | None = Field(
+        None,
+        description="Venues whose papers are high (tier 1), matched case-insensitively against the venue Semantic Scholar reports, never the authors' own comment.",
+    )
+    high_citations: conint(ge=1) | None = Field(
+        None,
+        description="Citations, as Semantic Scholar counts them, that make a paper high (tier 1).",
+    )
 
 
 class Opinion(Enum):
@@ -72,6 +98,7 @@ class PolicyConfig(BaseModel):
         min_length=1,
     )
     sources: Sources
+    leads: Leads | None = None
     papers: Papers | None = None
     auto_publish: list[str] = Field(
         ...,

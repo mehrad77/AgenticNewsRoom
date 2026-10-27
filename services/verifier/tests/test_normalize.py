@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from anr_verifier.normalize import normalize_text
+from anr_schemas.text import normalize_text
 
 FIXTURE = Path(__file__).parents[3] / "packages/schemas/fixtures/normalization.json"
 CASES = json.loads(FIXTURE.read_text(encoding="utf-8"))["cases"]

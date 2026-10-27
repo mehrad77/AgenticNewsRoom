@@ -16,6 +16,7 @@ dev = [
   "mypy>=2.4",
   "datamodel-code-generator>=0.86",
   "httpx2>=2.16",
+  "boto3-stubs[s3]>=1.43.118",
 ]
 
 [tool.ruff]
@@ -32,3 +33,8 @@ python_version = "3.13"
 
 [tool.ruff.lint.isort]
 known-first-party = ["anr_ingestion", "anr_verifier", "anr_schemas"]
+
+# Libraries without type information; their values are Any at the boundary and checked there.
+[[tool.mypy.overrides]]
+module = ["feedparser", "py3langid", "lxml", "lxml.*"]
+ignore_missing_imports = true

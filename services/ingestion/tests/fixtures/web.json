@@ -1,0 +1,102 @@
+{
+  "https://openai.com/robots.txt": {
+    "file": "robots-allow.txt"
+  },
+  "https://openai.com/news/rss.xml": {
+    "file": "lab-feed.xml",
+    "headers": {
+      "ETag": "\"feed-v1\"",
+      "Content-Type": "application/rss+xml"
+    }
+  },
+  "https://openai.com/index/introducing-orbit/?utm_source=rss&utm_medium=feed": {
+    "status": 301,
+    "headers": {
+      "Location": "https://openai.com/index/introducing-orbit/"
+    }
+  },
+  "https://openai.com/index/introducing-orbit/": {
+    "file": "orbit.html",
+    "headers": {
+      "Content-Type": "text/html"
+    }
+  },
+  "https://openai.com/index/orbit-safety/": {
+    "file": "orbit-safety.html",
+    "headers": {
+      "Content-Type": "text/html"
+    }
+  },
+  "https://openai.com/index/gone/": {
+    "status": 404
+  },
+  "https://huggingface.co/robots.txt": {
+    "status": 404
+  },
+  "https://huggingface.co/blog/feed.xml": {
+    "file": "aggregator-feed.xml"
+  },
+  "https://huggingface.co/blog/orbit-repost": {
+    "file": "orbit-syndicated.html",
+    "headers": {
+      "Content-Type": "text/html"
+    }
+  },
+  "https://export.arxiv.org/robots.txt": {
+    "file": "robots-arxiv-api.txt"
+  },
+  "https://export.arxiv.org/api/query?search_query=cat%3Acs.AI&sortBy=submittedDate&sortOrder=descending&max_results=100": {
+    "file": "arxiv.xml"
+  },
+  "https://api.semanticscholar.org/graph/v1/paper/batch?fields=venue,publicationVenue,citationCount": {
+    "file": "s2-batch.json"
+  },
+  "https://hacker-news.firebaseio.com/robots.txt": {
+    "file": "robots-arxiv-api.txt"
+  },
+  "https://hacker-news.firebaseio.com/v0/topstories.json": {
+    "file": "hn-top.json"
+  },
+  "https://hacker-news.firebaseio.com/v0/item/41000001.json": {
+    "file": "hn-41000001.json"
+  },
+  "https://hacker-news.firebaseio.com/v0/item/41000002.json": {
+    "file": "hn-41000002.json"
+  },
+  "https://hacker-news.firebaseio.com/v0/item/41000003.json": {
+    "file": "hn-41000003.json"
+  },
+  "https://www.anthropic.com/robots.txt": {
+    "file": "robots-allow.txt"
+  },
+  "https://www.anthropic.com/news": {
+    "file": "site-listing.html"
+  },
+  "https://www.anthropic.com/news/claude-orbit-comparison": {
+    "file": "site-post.html"
+  },
+  "https://blocked.example/robots.txt": {
+    "file": "robots-deny.txt"
+  },
+  "https://blocked.example/page": {
+    "file": "site-post.html"
+  },
+  "https://unknown.example/robots.txt": {
+    "status": 404
+  },
+  "https://unknown.example/report": {
+    "file": "unknown-report.html"
+  },
+  "https://openai.com/index/orbit-pricing/": {
+    "file": "openai-new.html"
+  },
+  "https://www.anthropic.com/community/someones-page": {
+    "file": "unknown-report.html"
+  },
+  "https://www.anthropic.com/news/announcements": {
+    "file": "site-category.html",
+    "headers": {
+      "Content-Type": "text/html"
+    }
+  }
+}

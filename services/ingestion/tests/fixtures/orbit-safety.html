@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en">
+<head><title>Safety evaluations for Orbit</title></head>
+<body>
+  <article>
+    <h1>Safety evaluations for Orbit</h1>
+    <p>Before releasing Orbit we ran it through the same safety evaluations as our larger models, with extra tests for the risks that come with very long inputs. A long document can hide instructions that try to steer the model, so we built a set of ten thousand documents with buried instructions and measured how often Orbit followed them instead of the user.</p>
+    <p>Orbit followed a buried instruction in two percent of cases, down from nine percent for the previous model. We also checked whether it would reveal personal data found deep inside a document when asked unrelated questions, and whether it summarised documents faithfully when they contained false claims. Outside red teams spent six weeks with the model before release.</p>
+    <p>The full results, including the cases where Orbit still fails, are in the system card. We will keep running these evaluations after release and publish an update if the results change.</p>
+  </article>
+</body>
+</html>

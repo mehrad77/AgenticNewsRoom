@@ -1,13 +1,12 @@
-# Sources start without terms_checked, so ingestion does not schedule them until a person
-# has read each source's terms and set the date. Milestone 2 completes this list.
-- {
-    id: arxiv-cs-ai,
-    kind: api,
-    url: "https://export.arxiv.org/api/query?search_query=cat:cs.AI&sortBy=submittedDate",
-    publisher: arXiv,
-    tier: 2,
-    every: 6h,
-  }
+# The AI newsroom's sources. Each URL was checked on 2026-10-26 (it answers, and robots.txt lets
+# ANR-Ingestion fetch it). None is fetched until a person has read its terms (link above each
+# entry) and set `terms_checked` to that date (D17); `terms_note` records anything worth keeping.
+# Terms read 2026-10-27. Not approved, so never scheduled: meta-ai-blog, xai-news, cohere-blog
+# (their terms ban automated access or the page blocks scripts) and qwen-blog (feed dead since 2025-09).
+#
+# Lab blogs are tier 1: a lab's own post is a primary source for what the lab says it did.
+
+# Terms: https://openai.com/policies/terms-of-use/ (answers 403 to scripts; open it in a browser)
 - {
     id: openai-news,
     kind: rss,
@@ -15,7 +14,21 @@
     publisher: OpenAI,
     tier: 1,
     every: 1h,
+    terms_checked: 2026-10-27,
+    terms_note: "ToU 2026-01-01 bans programmatic extraction; the feed is an offered channel.",
   }
+# Terms: https://www.anthropic.com/legal (no feed: the news listing page is read for post links)
+- {
+    id: anthropic-news,
+    kind: site,
+    url: "https://www.anthropic.com/news",
+    publisher: Anthropic,
+    tier: 1,
+    every: 2h,
+    terms_checked: 2026-10-27,
+    terms_note: "Consumer Terms 2025-10-08 ban scraping Services incl. websites; scope over /news unclear. EIC approved.",
+  }
+# Terms (all Google sites): https://policies.google.com/terms
 - {
     id: google-deepmind-blog,
     kind: rss,
@@ -23,23 +36,146 @@
     publisher: Google DeepMind,
     tier: 1,
     every: 1h,
+    terms_checked: 2026-10-27,
+    terms_note: "Google ToS 2026-07-30: automated access allowed when robots.txt is obeyed; robots allows /.",
   }
 - {
     id: google-ai-blog,
     kind: rss,
-    url: "https://blog.google/technology/ai/rss/",
+    url: "https://blog.google/innovation-and-ai/technology/ai/rss/",
     publisher: Google,
     tier: 1,
     every: 1h,
+    terms_checked: 2026-10-27,
+    terms_note: "Google ToS 2026-07-30: robots-based rule; robots allows the feed and posts. Feed has some non-AI posts.",
   }
+- {
+    id: google-research-blog,
+    kind: rss,
+    url: "https://research.google/blog/rss/",
+    publisher: Google Research,
+    tier: 1,
+    every: 2h,
+    terms_checked: 2026-10-27,
+    terms_note: "Google ToS 2026-07-30: robots-based rule; robots allows /.",
+  }
+# Terms: https://www.facebook.com/terms.php (Meta's site terms; legal index https://www.meta.com/legal/). No feed.
+- {
+    id: meta-ai-blog,
+    kind: site,
+    url: "https://ai.meta.com/blog/",
+    publisher: Meta,
+    tier: 1,
+    every: 2h,
+  }
+# Terms: https://www.microsoft.com/en-us/legal/terms-of-use (answers 403 to scripts)
+- {
+    id: microsoft-research-blog,
+    kind: rss,
+    url: "https://www.microsoft.com/en-us/research/feed/",
+    publisher: Microsoft Research,
+    tier: 1,
+    every: 2h,
+    terms_checked: 2026-10-27,
+    terms_note: "MS ToU 2022-02-07: personal, non-commercial; the feed is an intended channel. Recheck if monetised.",
+  }
+# Terms: https://mistral.ai/terms
+- {
+    id: mistral-news,
+    kind: rss,
+    url: "https://mistral.ai/news/rss",
+    publisher: Mistral AI,
+    tier: 1,
+    every: 2h,
+    terms_checked: 2026-10-27,
+    terms_note: "Mistral ROW Terms 2026-10-12 (f): no extraction beyond permitted means; the RSS feed is offered.",
+  }
+# Terms: https://huggingface.co/terms-of-service. Tier 2: the feed also carries community posts;
+# a lab's own copy of one raises its lead to tier 1 (D67).
 - {
     id: huggingface-blog,
     kind: rss,
     url: "https://huggingface.co/blog/feed.xml",
     publisher: Hugging Face,
-    tier: 1,
+    tier: 2,
     every: 1h,
+    terms_checked: 2026-10-27,
+    terms_note: "HF ToS 2022-09-15: no bot ban found. Feed mixes community posts (/blog/<ns>/<slug>), so tier 2.",
   }
+# Terms: https://www.nvidia.com/en-us/about-nvidia/terms-of-service/
+- {
+    id: nvidia-developer-blog,
+    kind: rss,
+    url: "https://developer.nvidia.com/blog/feed",
+    publisher: NVIDIA,
+    tier: 1,
+    every: 2h,
+    terms_checked: 2026-10-27,
+    terms_note: "NVIDIA ToS 3.2(f) bans robots on material not made available; the feed is. Non-commercial.",
+  }
+# Terms: https://aws.amazon.com/terms/
+- {
+    id: aws-machine-learning-blog,
+    kind: rss,
+    url: "https://aws.amazon.com/blogs/machine-learning/feed/",
+    publisher: Amazon Web Services,
+    tier: 1,
+    every: 2h,
+    terms_checked: 2026-10-27,
+    terms_note: "AWS Site Terms 2025-06-04 ban robots and data mining, personal use; the feed is intended. Recheck.",
+  }
+# Terms: https://www.apple.com/legal/internet-services/terms/site.html. Feed only: the terms ban
+# robots on the site, so each item's title and abstract from the feed are the lead (D70).
+- {
+    id: apple-machine-learning,
+    kind: rss,
+    url: "https://machinelearning.apple.com/rss.xml",
+    publisher: Apple,
+    tier: 1,
+    every: 6h,
+    pages: false,
+    terms_checked: 2026-10-27,
+    terms_note: "Apple Site Terms 2009-11-20 ban robots, no feed exception; EIC approved feed-only (pages: false).",
+  }
+# Terms: GitHub Pages, https://docs.github.com/en/site-policy/github-terms/github-terms-of-service
+- {
+    id: qwen-blog,
+    kind: rss,
+    url: "https://qwenlm.github.io/blog/index.xml",
+    publisher: Alibaba Qwen,
+    tier: 1,
+    every: 6h,
+  }
+# Terms: https://x.ai/legal/terms-of-service (answers 403 to scripts). No feed.
+- { id: xai-news, kind: site, url: "https://x.ai/news", publisher: xAI, tier: 1, every: 2h }
+# Terms: https://cohere.com/terms-of-use. No feed.
+- {
+    id: cohere-blog,
+    kind: site,
+    url: "https://cohere.com/blog",
+    publisher: Cohere,
+    tier: 1,
+    every: 6h,
+  }
+
+# arXiv: one query over all the newsroom's categories, so a paper's primary category is judged
+# against all of them (D59); separate sources per category would make tiers depend on which ran
+# first. Terms: https://info.arxiv.org/help/api/tou.html (one request every 3 seconds). The API
+# host's robots.txt disallows all crawlers; API calls follow the API terms instead (D64).
+# Every 6 hours, at most 50 new papers a run: at most 200 summaries a day from arXiv.
+- {
+    id: arxiv,
+    kind: api,
+    url: "https://export.arxiv.org/api/query?search_query=cat:cs.AI+OR+cat:cs.CL+OR+cat:cs.LG&sortBy=submittedDate",
+    publisher: arXiv,
+    tier: 2,
+    every: 6h,
+    terms_checked: 2026-10-27,
+    terms_note: "arXiv API ToU: 1 request per 3 s on one connection; metadata and abstracts CC0; never serve e-prints.",
+  }
+
+# Hacker News: metadata only, tier 3 (D60). Terms: https://github.com/HackerNews/API and
+# https://www.ycombinator.com/legal/
 - {
     id: hn-front,
     kind: api,
@@ -47,7 +183,12 @@
     publisher: Hacker News,
     tier: 3,
     every: 2h,
+    terms_checked: 2026-10-27,
+    terms_note: "HN Firebase API is the sanctioned route; YC ToU bans site scraping. Metadata only, story URLs not fetched.",
   }
+
+# Enrichment only, never leads: venues and citations for the paper tier rules (D59).
+# Terms: https://www.semanticscholar.org/product/api/license
 - {
     id: semantic-scholar,
     kind: api,
@@ -56,4 +197,6 @@
     tier: 2,
     every: 24h,
     use: enrichment,
+    terms_checked: 2026-10-27,
+    terms_note: "S2 API License: credit Semantic Scholar where its data is used; data CC BY-NC / ODC-BY; back off on 429.",
   }
