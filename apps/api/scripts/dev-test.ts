@@ -23,6 +23,8 @@ spawn("node", ["--watch", "src/server.ts"], {
     ...process.env,
     DATABASE_URL,
     PORT: process.env.API_TEST_PORT ?? "8788",
+    // The preview's links point at the test web server.
+    WEB_PORT: process.env.WEB_TEST_PORT ?? "4410",
     ANR_ROOT_DOMAIN: "localhost",
     CF_ACCESS_TEAM_DOMAIN: "",
     CF_ACCESS_AUD: "",

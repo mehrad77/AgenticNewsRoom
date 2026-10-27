@@ -7,14 +7,15 @@ type Actor = { kind: "person"; userId: string };
 
 const SAMPLE = `
   select s.id, s.publication_id as publication, p.title, p.language, s.sampled_at, s.outcome,
-         s.note, s.reviewed_at
+         s.note, s.reviewed_at, s.issue_url, s.filed_at
   from sample_reviews s join publications p on p.id = s.publication_id`;
 
 const iso = (d: Date | null) => d?.toISOString() ?? null;
-const sample = (r: { sampled_at: Date; reviewed_at: Date | null }) => ({
+const sample = (r: { sampled_at: Date; reviewed_at: Date | null; filed_at: Date | null }) => ({
   ...r,
   sampled_at: r.sampled_at.toISOString(),
   reviewed_at: iso(r.reviewed_at),
+  filed_at: iso(r.filed_at),
 });
 
 export async function listSamples(client: Client) {
@@ -50,6 +51,27 @@ export async function reviewSample(
     note: text,
     reviewed_by: actor.userId,
     reviewed_at: new Date(),
+  });
+  const { rows: out } = await client.query(`${SAMPLE} where s.id = $1`, [id]);
+  return sample(out[0]);
+}
+
+/**
+ * Records the issue a miss was filed as (D102). Checks are code and policy rules are config, so
+ * both change through the repository; the issue is where that change starts and links back here.
+ */
+export async function fileIssue(client: Client, actor: Actor, id: string, url: string) {
+  if (!/^https:\/\/\S+$/.test(url) || url.length > 500)
+    throw new DeskError(400, "the issue's https URL");
+  const { rows } = await client.query<{ outcome: string | null }>(
+    "select outcome from sample_reviews where id = $1 for update",
+    [id],
+  );
+  if (!rows[0]) throw new DeskError(404, "no such sample");
+  if (rows[0].outcome !== "miss") throw new DeskError(409, "only a miss is filed");
+  await auditedUpdate(client, actor, "file-issue", "sample_reviews", id, {
+    issue_url: url,
+    filed_at: new Date(),
   });
   const { rows: out } = await client.query(`${SAMPLE} where s.id = $1`, [id]);
   return sample(out[0]);

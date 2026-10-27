@@ -1,13 +1,15 @@
 // Channels are data, not config (invariant 7): the Editor-in-Chief adds them here. Credentials are
 // sealed with the platform key before they reach Postgres and are never read back out.
-import { CHANNEL_KINDS, LANGUAGES } from "@anr/core";
+import { CHANNEL_KINDS, type ChannelCheckJob, LANGUAGES, QUEUES } from "@anr/core";
 import {
   auditedUpdate,
   type Client,
+  onClient,
   type PlatformKey,
   recordAudit,
   sealCredentials,
 } from "@anr/db";
+import type { PgBoss } from "pg-boss";
 import { DeskError } from "./errors.ts";
 
 type Actor = { kind: "person"; userId: string };
@@ -19,16 +21,23 @@ interface Row {
   external_id: string | null;
   status: string;
   has_credentials: boolean;
+  checked_at: Date | string | null;
+  check_result: unknown;
 }
 
-const COLUMNS =
-  "id, kind, language, external_id, status, credentials is not null as has_credentials";
+const COLUMNS = `id, kind, language, external_id, status, credentials is not null as has_credentials,
+  checked_at, check_result`;
+
+const out = (r: Row): Row => ({
+  ...r,
+  checked_at: r.checked_at instanceof Date ? r.checked_at.toISOString() : r.checked_at,
+});
 
 export async function listChannels(client: Client): Promise<Row[]> {
   const { rows } = await client.query<Row>(
     `select ${COLUMNS} from channels order by kind, language, created_at`,
   );
-  return rows;
+  return rows.map(out);
 }
 
 export interface NewChannel {
@@ -89,10 +98,7 @@ export async function addChannel(
       credentials: Object.keys(secrets).length > 0 ? "[redacted]" : null,
     },
   });
-  const { rows: added } = await client.query<Row>(`select ${COLUMNS} from channels where id = $1`, [
-    row.id,
-  ]);
-  return added[0] as Row;
+  return channel(client, row.id);
 }
 
 export async function setChannelStatus(
@@ -116,9 +122,64 @@ export async function setChannelStatus(
       updated_at: new Date(),
     },
   );
-  const { rows: changed } = await client.query<Row>(
-    `select ${COLUMNS} from channels where id = $1`,
+  return channel(client, id);
+}
+
+async function channel(client: Client, id: string): Promise<Row> {
+  const { rows } = await client.query<Row>(`select ${COLUMNS} from channels where id = $1`, [id]);
+  if (!rows[0]) throw new DeskError(404, "no such channel");
+  return out(rows[0]);
+}
+
+/** Asks the publisher to check the channel (D101); only it talks to channels. */
+export async function requestCheck(client: Client, boss: Pick<PgBoss, "send">, id: string) {
+  const { rows } = await client.query<{ newsroom_id: string }>(
+    "select newsroom_id from channels where id = $1",
     [id],
   );
-  return changed[0] as Row;
+  if (!rows[0]) throw new DeskError(404, "no such channel");
+  const job: ChannelCheckJob = { newsroomId: rows[0].newsroom_id, channelId: id };
+  await boss.send(QUEUES.channelCheck, job, { db: onClient(client) });
+  return { id, status: "check-queued" };
+}
+
+/**
+ * Replaces every credential of a channel, such as a revoked bot token, sealed to the same
+ * newsroom and channel, then asks the publisher to check it (D101). The old ones are gone.
+ */
+export async function replaceCredentials(
+  client: Client,
+  actor: Actor,
+  platform: PlatformKey,
+  boss: Pick<PgBoss, "send">,
+  id: string,
+  credentials: Record<string, string>,
+): Promise<Row> {
+  const current = await channel(client, id);
+  const secrets = Object.fromEntries(
+    Object.entries(credentials)
+      .map(([k, v]) => [k, v.trim()])
+      .filter(([, v]) => v),
+  );
+  if (current.kind === "telegram" && !secrets.bot_token)
+    throw new DeskError(400, "a Telegram channel needs its bot token");
+  if (Object.keys(secrets).length === 0) throw new DeskError(400, "no credentials given");
+  const { rows } = await client.query<{ newsroom_id: string }>(
+    "select newsroom_id from channels where id = $1",
+    [id],
+  );
+  const sealed = sealCredentials(
+    secrets,
+    { newsroomId: rows[0]?.newsroom_id ?? "", channelId: id },
+    platform,
+  );
+  // auditedUpdate redacts the credentials column: the log says they changed, never to what.
+  await auditedUpdate(client, actor, "replace-credentials", "channels", id, {
+    credentials: sealed,
+    checked_at: null,
+    check_result: null,
+    updated_at: new Date(),
+  });
+  await requestCheck(client, boss, id);
+  return channel(client, id);
 }

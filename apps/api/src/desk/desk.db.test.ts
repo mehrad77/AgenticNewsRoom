@@ -16,6 +16,7 @@ const app = createApp({
   boss: boss as never,
   platform,
   verify: async () => signedIn,
+  site: { rootDomain: "example.test" },
 });
 
 const one = async (sql: string, params: unknown[]) =>
@@ -193,7 +194,10 @@ describe("review queue and decisions", () => {
       "select actor_kind, action from audit_log where entity_id = $1 order by at",
       [held],
     );
-    expect(rows).toEqual([{ actor_kind: "person", action: "approve" }]);
+    expect(rows).toEqual([
+      { actor_kind: "person", action: "open" },
+      { actor_kind: "person", action: "approve" },
+    ]);
     expect((await call(at(`/publications/${held}/approve`), { method: "POST" })).status).toBe(409);
   });
 

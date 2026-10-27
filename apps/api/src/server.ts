@@ -5,7 +5,7 @@ import { accessVerifier } from "./desk/access.ts";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error("DATABASE_URL is not set");
-// Only sends jobs (a returned assignment's re-draft); it works no queue.
+// Only sends jobs (a returned assignment's re-draft, a channel check); it works no queue.
 const boss = createBoss(connectionString, "api", { supervise: false, schedule: false });
 await boss.start();
 
@@ -19,6 +19,10 @@ const app = createApp({
     rootDomain: process.env.ANR_ROOT_DOMAIN ?? "localhost",
     devEmail: process.env.ANR_DESK_DEV_EMAIL || undefined,
   }),
+  site: {
+    rootDomain: process.env.ANR_ROOT_DOMAIN ?? "localhost",
+    devPort: Number(process.env.WEB_PORT ?? 4321),
+  },
 });
 
 const port = Number(process.env.PORT ?? 8787);

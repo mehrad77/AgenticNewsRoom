@@ -19,12 +19,15 @@
   "dependencies": {
     "@anr/core": "workspace:*",
     "@anr/db": "workspace:*",
+    "@anr/render": "workspace:*",
+    "@anr/schemas": "workspace:*",
     "@hono/node-server": "2.1.5",
     "hono": "4.13.14",
     "jose": "6.2.12",
     "pg-boss": "12.38.0"
   },
   "devDependencies": {
+    "@anr/publisher": "workspace:*",
     "@redocly/cli": "2.71.0",
     "@types/node": "24.19.2",
     "openapi-typescript": "7.13.0",

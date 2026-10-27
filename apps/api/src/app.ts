@@ -1,13 +1,33 @@
 import type { MembershipRole } from "@anr/core";
 import { type Client, type PlatformKey, type Pool, withNewsroom } from "@anr/db";
+import { createRenderer } from "@anr/render";
 import { type Context, Hono } from "hono";
 import type { PgBoss } from "pg-boss";
 import { ACCESS_HEADER, type VerifyAccess } from "./desk/access.ts";
-import { addChannel, listChannels, setChannelStatus } from "./desk/channels.ts";
+import { budget } from "./desk/budget.ts";
+import {
+  addChannel,
+  listChannels,
+  replaceCredentials,
+  requestCheck,
+  setChannelStatus,
+} from "./desk/channels.ts";
 import { DeskError } from "./desk/errors.ts";
-import { listNotices, listSamples, readNotice, reviewSample } from "./desk/followups.ts";
+import { fileIssue, listNotices, listSamples, readNotice, reviewSample } from "./desk/followups.ts";
+import { measures } from "./desk/measures.ts";
 import { type DeskPerson, deskPerson } from "./desk/people.ts";
-import { approve, deskPublication, resolvePost, returnToDesk, reviewQueue } from "./desk/review.ts";
+import { type PreviewSite, previewPublication } from "./desk/preview.ts";
+import {
+  approve,
+  deskPublication,
+  editPublication,
+  pullBack,
+  resolvePost,
+  returnToDesk,
+  reviewQueue,
+  schedule,
+} from "./desk/review.ts";
+import { sourceHealth } from "./desk/sources.ts";
 import type { components } from "./generated/api.ts";
 
 type Health = components["schemas"]["Health"];
@@ -17,6 +37,9 @@ export interface DeskDeps {
   boss: Pick<PgBoss, "send">;
   platform: PlatformKey;
   verify: VerifyAccess;
+  /** Where the newsroom sites are, for the preview's links (as the publisher has them). */
+  site: PreviewSite;
+  renderer?: ReturnType<typeof createRenderer>;
 }
 
 type Env = { Variables: { person: DeskPerson } };
@@ -32,6 +55,24 @@ async function body(c: Context): Promise<Record<string, unknown>> {
 
 const text = (v: unknown, max: number): string | undefined =>
   typeof v === "string" && v.length <= max ? v : undefined;
+
+/** An object of short strings, such as channel credentials. */
+function secrets(v: unknown): Record<string, string> | undefined {
+  if (typeof v !== "object" || v === null || Array.isArray(v)) return undefined;
+  return Object.values(v).every((x) => text(x, 500) !== undefined)
+    ? (v as Record<string, string>)
+    : undefined;
+}
+
+/** A whole-number query parameter within bounds, or its default. */
+function count(c: Context, name: string, fallback: number, max: number): number {
+  const raw = c.req.query(name);
+  if (raw === undefined) return fallback;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1 || n > max)
+    throw new DeskError(400, `${name} is a whole number from 1 to ${max}`);
+  return n;
+}
 
 function id(c: Context, name: string): string {
   const value = c.req.param(name) ?? "";
@@ -51,7 +92,8 @@ export function createApp(deps?: DeskDeps) {
   });
 
   if (!deps) return app;
-  const { pool, boss, platform, verify } = deps;
+  const { pool, boss, platform, verify, site } = deps;
+  const renderer = deps.renderer ?? createRenderer();
 
   // Every desk request: a verified Access JWT whose email is a user (D95).
   app.use("/desk/*", async (c, next) => {
@@ -89,8 +131,44 @@ export function createApp(deps?: DeskDeps) {
   const base = "/desk/newsrooms/:newsroom";
   app.get(`${base}/queue`, async (c) => c.json(await inNewsroom(c, (db) => reviewQueue(db))));
   app.get(`${base}/publications/:publication`, async (c) =>
-    c.json(await inNewsroom(c, (db) => deskPublication(db, id(c, "publication")))),
+    c.json(await inNewsroom(c, (db, actor) => deskPublication(db, actor, id(c, "publication")))),
   );
+  app.get(`${base}/publications/:publication/preview`, async (c) =>
+    c.json(
+      await inNewsroom(c, (db) => previewPublication(db, renderer, site, id(c, "publication"))),
+    ),
+  );
+  app.post(`${base}/publications/:publication/edit`, async (c) => {
+    const changes = (await body(c)).changes;
+    if (
+      !Array.isArray(changes) ||
+      changes.length === 0 ||
+      changes.length > 200 ||
+      !changes.every(
+        (x) =>
+          typeof x === "object" &&
+          x !== null &&
+          text((x as Record<string, unknown>).pointer, 500) !== undefined &&
+          text((x as Record<string, unknown>).text, 20000) !== undefined,
+      )
+    )
+      throw new DeskError(400, "changes is a list of {pointer, text}");
+    const list = changes as { pointer: string; text: string }[];
+    return c.json(
+      await inNewsroom(c, (db, actor) => editPublication(db, actor, id(c, "publication"), list)),
+    );
+  });
+  app.post(`${base}/publications/:publication/pull-back`, async (c) => {
+    const note = text((await body(c)).note, 2000)?.trim();
+    if (!note) throw new DeskError(400, "say why it is pulled back");
+    return c.json(
+      await inNewsroom(c, (db, actor) => pullBack(db, actor, id(c, "publication"), note)),
+    );
+  });
+  app.get(`${base}/schedule`, async (c) => {
+    const days = count(c, "days", 7, 31);
+    return c.json(await inNewsroom(c, (db) => schedule(db, days)));
+  });
   app.post(`${base}/publications/:publication/approve`, async (c) =>
     c.json(await inNewsroom(c, (db, actor) => approve(db, actor, id(c, "publication")))),
   );
@@ -117,20 +195,14 @@ export function createApp(deps?: DeskDeps) {
   app.get(`${base}/channels`, async (c) => c.json(await inNewsroom(c, (db) => listChannels(db))));
   app.post(`${base}/channels`, async (c) => {
     const b = await body(c);
-    const credentials = b.credentials;
-    if (
-      credentials !== undefined &&
-      (typeof credentials !== "object" ||
-        credentials === null ||
-        Array.isArray(credentials) ||
-        !Object.values(credentials).every((v) => text(v, 500) !== undefined))
-    )
+    const credentials = secrets(b.credentials);
+    if (b.credentials !== undefined && !credentials)
       throw new DeskError(400, "credentials must be an object of short strings");
     const input = {
       kind: String(b.kind ?? ""),
       language: String(b.language ?? ""),
       external_id: text(b.external_id, 200),
-      credentials: credentials as Record<string, string> | undefined,
+      credentials,
     };
     return c.json(
       await inNewsroom(c, (db, actor) => addChannel(db, actor, platform, input), chief),
@@ -148,6 +220,21 @@ export function createApp(deps?: DeskDeps) {
     );
   });
 
+  app.post(`${base}/channels/:channel/credentials`, async (c) => {
+    const credentials = secrets((await body(c)).credentials);
+    if (!credentials) throw new DeskError(400, "credentials must be an object of short strings");
+    return c.json(
+      await inNewsroom(
+        c,
+        (db, actor) => replaceCredentials(db, actor, platform, boss, id(c, "channel"), credentials),
+        chief,
+      ),
+    );
+  });
+  app.post(`${base}/channels/:channel/check`, async (c) =>
+    c.json(await inNewsroom(c, (db) => requestCheck(db, boss, id(c, "channel")), chief)),
+  );
+
   app.get(`${base}/samples`, async (c) => c.json(await inNewsroom(c, (db) => listSamples(db))));
   app.post(`${base}/samples/:sample/review`, async (c) => {
     const b = await body(c);
@@ -156,6 +243,16 @@ export function createApp(deps?: DeskDeps) {
     return c.json(
       await inNewsroom(c, (db, actor) => reviewSample(db, actor, id(c, "sample"), outcome, note)),
     );
+  });
+  app.post(`${base}/samples/:sample/issue`, async (c) => {
+    const url = text((await body(c)).url, 500)?.trim() ?? "";
+    return c.json(await inNewsroom(c, (db, actor) => fileIssue(db, actor, id(c, "sample"), url)));
+  });
+  app.get(`${base}/budget`, async (c) => c.json(await inNewsroom(c, (db) => budget(db))));
+  app.get(`${base}/sources`, async (c) => c.json(await inNewsroom(c, (db) => sourceHealth(db))));
+  app.get(`${base}/measures`, async (c) => {
+    const weeks = count(c, "weeks", 8, 26);
+    return c.json(await inNewsroom(c, (db) => measures(db, weeks)));
   });
   app.get(`${base}/notices`, async (c) => c.json(await inNewsroom(c, (db) => listNotices(db))));
   app.post(`${base}/notices/:notice/read`, async (c) =>

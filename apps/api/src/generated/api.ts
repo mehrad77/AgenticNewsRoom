@@ -266,6 +266,212 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/desk/newsrooms/{newsroom}/publications/{publication}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                publication: components["parameters"]["Publication"];
+            };
+            cookie?: never;
+        };
+        /** What would be sent now - every channel's parts and the site page - from the same renderer and context as the publisher */
+        get: operations["previewPublication"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/publications/{publication}/edit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                publication: components["parameters"]["Publication"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Change text of a held publication; its label then says a person edited it */
+        post: operations["editPublication"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/publications/{publication}/pull-back": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                publication: components["parameters"]["Publication"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Hold a scheduled publication before its slot; it returns to the review queue */
+        post: operations["pullBackPublication"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        /** Publications whose slot is in the next days, in any status before published */
+        get: operations["getSchedule"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/channels/{channel}/credentials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                channel: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Replace a channel's credentials (Editor-in-Chief); sealed, never returned, then checked */
+        post: operations["replaceChannelCredentials"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/channels/{channel}/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                channel: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ask the publisher whether the channel can be posted to (Editor-in-Chief); nothing is sent */
+        post: operations["checkChannel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/samples/{sample}/issue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                sample: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record the issue a sample miss was filed as */
+        post: operations["fileSampleIssue"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/budget": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        /** This month's model spend against the newsroom's budget */
+        get: operations["getBudget"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        /** Each source's last fetch, failures and recent leads */
+        get: operations["listSourceHealth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/measures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        /** The charter's measures, week by week */
+        get: operations["getMeasures"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -363,6 +569,10 @@ export interface components {
             claims: components["schemas"]["Claim"][];
             checks: components["schemas"]["Check"][];
             posts: components["schemas"]["Post"][];
+            /** @description The agent runs behind the publication's assignment and stories. */
+            runs: components["schemas"]["AgentRun"][];
+            /** @description The runs' summed cost. */
+            cost_usd: number;
         };
         ReturnRequest: {
             /** @description What the desk should change; kept in the audit log. */
@@ -384,6 +594,10 @@ export interface components {
             /** @enum {string} */
             status: "active" | "disabled";
             has_credentials: boolean;
+            /** Format: date-time */
+            checked_at?: string | null;
+            /** @description What the channel said at its last check, null before one. */
+            check_result?: null | components["schemas"]["ChannelCheck"];
         };
         NewChannel: {
             /** @enum {string} */
@@ -414,6 +628,9 @@ export interface components {
             note?: string | null;
             /** Format: date-time */
             reviewed_at?: string | null;
+            issue_url?: string | null;
+            /** Format: date-time */
+            filed_at?: string | null;
         };
         SampleReviewRequest: {
             /** @enum {string} */
@@ -432,6 +649,151 @@ export interface components {
             created_at: string;
             /** Format: date-time */
             read_at?: string | null;
+        };
+        AgentRun: {
+            /** Format: uuid */
+            id: string;
+            role: string;
+            provider: string;
+            model: string;
+            outcome: string | null;
+            cost_usd: number | null;
+            tokens_in?: number | null;
+            tokens_out?: number | null;
+            /** Format: date-time */
+            started_at: string;
+        };
+        Preview: {
+            /** @description The disclosure label every part must carry. */
+            label: string;
+            edited: boolean;
+            site: {
+                url: string;
+                /** @description The site template's output, as the page body shows it. */
+                html: string;
+            };
+            channels: {
+                kind: string;
+                /** @description Whether the newsroom has an active channel of this kind and language. */
+                configured: boolean;
+                parts: string[];
+                /** @description Why it cannot be rendered; the publisher would hold it. */
+                error?: string;
+            }[];
+        };
+        EditRequest: {
+            changes: {
+                /** @description A JSON pointer to a text field of the first rendition, such as /items/0/body. */
+                pointer: string;
+                text: string;
+            }[];
+        };
+        PullBackRequest: {
+            /** @description Why; shown in the review queue. */
+            note: string;
+        };
+        ScheduleItem: {
+            /** Format: uuid */
+            id: string;
+            series: string;
+            /** Format: date-time */
+            slot: string;
+            language: components["schemas"]["Language"];
+            /** @enum {string} */
+            status: "assigned" | "drafted" | "with-editor" | "scheduled";
+            title: string | null;
+        };
+        CredentialsRequest: {
+            /** @description The channel's new secrets, replacing all of the old ones. */
+            credentials: {
+                [key: string]: string;
+            };
+        };
+        ChannelCheck: {
+            ok: boolean;
+            problem?: string;
+            detail?: {
+                [key: string]: string | boolean | null;
+            };
+        };
+        IssueRequest: {
+            url: string;
+        };
+        Budget: {
+            /** @description YYYY-MM in the newsroom's timezone. */
+            month: string;
+            monthly_usd: number;
+            check_reserve_usd: number;
+            /** @description Where writing roles stop; checks may spend the reserve. */
+            writing_limit_usd: number;
+            spent_usd: number;
+            by_role: {
+                role: string;
+                runs: number;
+                cost_usd: number;
+            }[];
+            /** @description This month's latest runs. */
+            runs: components["schemas"]["AgentRun"][];
+        };
+        SourceHealth: {
+            /** Format: uuid */
+            id: string;
+            slug: string;
+            kind: string;
+            url: string;
+            publisher?: string | null;
+            tier: number;
+            use: string;
+            /** Format: date */
+            terms_checked: string | null;
+            /** Format: date-time */
+            last_fetched_at?: string | null;
+            last_status?: number | null;
+            last_error?: string | null;
+            consecutive_failures: number;
+            /** @description Leads first seen from this source in the last 7 days. */
+            leads_7d: number;
+        };
+        MeasureWeek: {
+            /**
+             * Format: date
+             * @description The week's Monday, in the newsroom's timezone.
+             */
+            week: string;
+            published: number;
+            /** @description Publications in the week's slots that left the gate. */
+            gated: number;
+            held: number;
+            hold_rate: number | null;
+            samples_reviewed: number;
+            sample_misses: number;
+            corrections: number;
+            corrections_per_100: number | null;
+            editor_minutes: number;
+            cost_usd: number;
+            cost_per_publication: number | null;
+            /** @description By language. */
+            page_views: {
+                [key: string]: number;
+            };
+            /** @description By language. */
+            downloads: {
+                [key: string]: number;
+            };
+        };
+        Measures: {
+            /** @description Newest week first. */
+            weeks: components["schemas"]["MeasureWeek"][];
+            /** @description Each active Telegram channel's latest subscriber count. */
+            subscribers: {
+                /** Format: uuid */
+                channel: string;
+                language: components["schemas"]["Language"];
+                external_id?: string | null;
+                subscribers: number;
+                /** Format: date */
+                day: string;
+            }[];
         };
     };
     responses: {
@@ -874,6 +1236,297 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    previewPublication: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                publication: components["parameters"]["Publication"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The preview. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Preview"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    editPublication: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                publication: components["parameters"]["Publication"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EditRequest"];
+            };
+        };
+        responses: {
+            /** @description Edited. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    pullBackPublication: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                publication: components["parameters"]["Publication"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PullBackRequest"];
+            };
+        };
+        responses: {
+            /** @description Held. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getSchedule: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Upcoming slots, soonest first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleItem"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    replaceChannelCredentials: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                channel: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CredentialsRequest"];
+            };
+        };
+        responses: {
+            /** @description Replaced. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Channel"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    checkChannel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                channel: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Queued; the result appears on the channel. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusResult"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    fileSampleIssue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                sample: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IssueRequest"];
+            };
+        };
+        responses: {
+            /** @description Filed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Sample"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getBudget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The budget. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Budget"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    listSourceHealth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sources, failing first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceHealth"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getMeasures: {
+        parameters: {
+            query?: {
+                weeks?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The measures. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Measures"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
 }
