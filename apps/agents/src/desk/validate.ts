@@ -57,6 +57,7 @@ export interface ValidationContext {
   leads: ReadonlyMap<string, CitableLead>;
   /** For a renderer: the story's claim ids and the first rendition's items. */
   storyClaimIds?: readonly string[];
+  firstItems?: readonly DraftItem[];
 }
 
 /**
@@ -178,6 +179,7 @@ export function validateDraft(value: unknown, ctx: ValidationContext): Draft | s
   } else {
     if (draft.story) errors.push("story: a rendition of an existing story carries no story");
     claimIds = ctx.storyClaimIds ?? [];
+    if (ctx.firstItems) errors.push(...sameItems(draft.rendition.items, ctx.firstItems));
   }
 
   for (const [i, item] of draft.rendition.items.entries()) {
@@ -190,6 +192,30 @@ export function validateDraft(value: unknown, ctx: ValidationContext): Draft | s
     }
   }
   return errors.length > 0 ? errors : draft;
+}
+
+/** A rendition in another language keeps the first one's items: same order, kinds, claims, leads. */
+function sameItems(items: readonly DraftItem[], first: readonly DraftItem[]): string[] {
+  if (items.length !== first.length) {
+    return [`rendition.items: ${items.length} items; the first rendition has ${first.length}`];
+  }
+  const errors: string[] = [];
+  const same = (a: readonly string[], b: readonly string[]) =>
+    a.length === b.length && [...a].sort().join() === [...b].sort().join();
+  for (const [i, item] of items.entries()) {
+    const original = first[i];
+    if (!original) continue;
+    if (item.kind !== original.kind) {
+      errors.push(`rendition.items.${i}: kind must be "${original.kind}"`);
+    }
+    if (item.lead_id !== original.lead_id) {
+      errors.push(`rendition.items.${i}: lead_id must be ${original.lead_id ?? "absent"}`);
+    }
+    if (!same(item.claim_ids, original.claim_ids)) {
+      errors.push(`rendition.items.${i}: claim_ids must be ${original.claim_ids.join(", ")}`);
+    }
+  }
+  return errors;
 }
 
 /** Normalised text for quote matching, without the database: the twin of the verifier's (D79). */

@@ -43,8 +43,8 @@ interface DeskInput {
   leadIds: string[];
 }
 
-/** Errors that end the run with a hold; anything else is retried by pg-boss. */
-function runFailure(error: unknown): { name: string; message: string } | null {
+/** Errors that end a desk or renderer run with a hold; anything else is retried by pg-boss. */
+export function runFailure(error: unknown): { name: string; message: string } | null {
   if (error instanceof TokenCapReached) return { name: "token-cap", message: error.message };
   if (error instanceof ToolLoopExceeded) return { name: "tool-loop", message: error.message };
   if (error instanceof ModelCallFailed) return { name: "model-error", message: error.message };
@@ -147,10 +147,11 @@ export async function runDesk(deps: RoleDeps, job: AgentRunJob): Promise<string 
         return null;
       }
       const pubs = await assignmentPublications(client, loaded.assignmentId);
+      // A model that failed is not the draft's fault (policy.ts).
       await holdPublications(
         client,
         pubs.map((p) => p.id),
-        { name, result: "fail", detail },
+        { name, result: outcome === "error" ? "error" : "fail", detail },
       );
       await noticeBudget(client, await budgetState(client));
       return outcome;
@@ -178,9 +179,7 @@ export async function runDesk(deps: RoleDeps, job: AgentRunJob): Promise<string 
     const failure = runFailure(error);
     if (!failure) {
       // Retried (pg-boss, or re-queued after a rate limit): what this attempt spent still counts.
-      await withNewsroom(deps.pool, job.newsroomId, (c) =>
-        recordUsage(c, job.agentRunId, model.meter),
-      );
+      await keepUsage();
       throw error;
     }
     return hold(failure.name, "error", { error: failure.message });
@@ -203,6 +202,18 @@ export async function runDesk(deps: RoleDeps, job: AgentRunJob): Promise<string 
       return storyId ?? "";
     }),
   );
-  const storyId = String(await submit.invoke({ draft: outcome.draft }));
-  return storyId ? "submitted" : null;
+  try {
+    const storyId = String(await submit.invoke({ draft: outcome.draft }));
+    return storyId ? "submitted" : null;
+  } catch (error) {
+    // The submit rolled back with the run's usage; the retry must still count it.
+    await keepUsage();
+    throw error;
+  }
+
+  async function keepUsage() {
+    await withNewsroom(deps.pool, job.newsroomId, (c) =>
+      recordUsage(c, job.agentRunId, model.meter),
+    );
+  }
 }

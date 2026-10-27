@@ -4,16 +4,15 @@
 // arrive with milestone 5.
 import type { AgentRunJob } from "@anr/core";
 import { withNewsroom } from "@anr/db";
-import { AllModelsExhausted, ModelCallFailed } from "@anr/models";
 import { type BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { budgetState, mayStart, noticeBudget } from "../budget.ts";
 import { formatMeta } from "../context.ts";
-import { converse, ToolLoopExceeded, textOf } from "../converse.ts";
+import { converse, textOf } from "../converse.ts";
 import { MAX_SUBMITS } from "../desk/graph.ts";
-import type { RoleDeps } from "../desk/run.ts";
+import { type RoleDeps, runFailure } from "../desk/run.ts";
 import { gateWhenRendered, submitRendition } from "../desk/submit.ts";
 import { type Draft, parseJson, validateDraft } from "../desk/validate.ts";
-import { newMeter, TokenCapReached } from "../model.ts";
+import { newMeter } from "../model.ts";
 import { assemblePrompt, readGuides } from "../prompts/assemble.ts";
 import { RENDERER_ROLE, retryPrompt } from "../prompts/roles.ts";
 import { finishRun, holdPublications, recordUsage } from "../runs.ts";
@@ -105,25 +104,20 @@ export async function runRenderer(deps: RoleDeps, job: AgentRunJob): Promise<str
               beats: [],
               leads: new Map(),
               storyClaimIds: loaded.claims.map((c) => c.ref),
+              firstItems: loaded.first.items,
             });
       if (Array.isArray(result)) errors = result;
       else draft = result;
     }
   } catch (error) {
-    const known =
-      error instanceof TokenCapReached ||
-      error instanceof ToolLoopExceeded ||
-      error instanceof ModelCallFailed ||
-      (error instanceof AllModelsExhausted && !error.transient);
-    if (!known) {
+    const failure = runFailure(error);
+    if (!failure) {
       // Retried: what this attempt spent still counts (D76).
-      await withNewsroom(deps.pool, job.newsroomId, (c) =>
-        recordUsage(c, job.agentRunId, model.meter),
-      );
+      await keepUsage();
       throw error;
     }
-    errors = [(error as Error).message];
-    return fail("error", "model-error");
+    errors = [failure.message];
+    return fail("error", failure.name);
   }
   if (!draft) return fail("invalid", "renderer-invalid");
 
@@ -143,7 +137,19 @@ export async function runRenderer(deps: RoleDeps, job: AgentRunJob): Promise<str
       return id ?? "";
     }),
   );
-  return String(await submit.invoke({ draft })) ? "submitted" : null;
+  try {
+    return String(await submit.invoke({ draft })) ? "submitted" : null;
+  } catch (error) {
+    // The submit rolled back with the run's usage; the retry must still count it.
+    await keepUsage();
+    throw error;
+  }
+
+  async function keepUsage() {
+    await withNewsroom(deps.pool, job.newsroomId, (c) =>
+      recordUsage(c, job.agentRunId, model.meter),
+    );
+  }
 
   async function fail(outcome: "invalid" | "error", name: string) {
     return withNewsroom(deps.pool, job.newsroomId, async (client) => {
@@ -156,7 +162,9 @@ export async function runRenderer(deps: RoleDeps, job: AgentRunJob): Promise<str
       ) {
         return null;
       }
-      await holdLanguage(client, loaded as RendererInput, { name, result: "fail", detail });
+      // A model that failed is not the draft's fault (policy.ts).
+      const result = outcome === "error" ? "error" : "fail";
+      await holdLanguage(client, loaded as RendererInput, { name, result, detail });
       // The story's other languages go on to the gate.
       await gateWhenRendered(client, deps.boss, (loaded as RendererInput).storyId);
       return outcome;

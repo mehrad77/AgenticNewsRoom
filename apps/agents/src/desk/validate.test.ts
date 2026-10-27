@@ -139,6 +139,33 @@ describe("submit validation (D77)", () => {
     );
   });
 
+  it("keeps a renderer's items to the first rendition's kinds, leads and claims", () => {
+    const article = (lead_id: string) => ({
+      kind: "article",
+      title: "t",
+      lead_id,
+      reason: "r",
+      claim_ids: ["c1"],
+    });
+    const firstItems = [news(["c1"]), article(LEAD)];
+    const renderer = {
+      ...ctx,
+      language: "en",
+      needsStory: false,
+      storyClaimIds: ["c1", "c2"],
+      firstItems,
+    };
+    const rendition = (items: object[]) => ({ rendition: { language: "en", title: "t", items } });
+    expect(validateDraft(rendition(firstItems), renderer)).toMatchObject({ rendition: {} });
+    expect(validateDraft(rendition([news(["c1"])]), renderer)).toEqual([
+      "rendition.items: 1 items; the first rendition has 2",
+    ]);
+    expect(validateDraft(rendition([news(["c2"]), article(OTHER)]), renderer)).toEqual([
+      "rendition.items.0: claim_ids must be c1",
+      `rendition.items.1: lead_id must be ${LEAD}`,
+    ]);
+  });
+
   it("finds the JSON object in a model's answer", () => {
     expect(parseJson('Here it is:\n```json\n{"a": 1}\n```')).toEqual({ a: 1 });
     expect(parseJson("no json")).toBe("the answer has no JSON object");

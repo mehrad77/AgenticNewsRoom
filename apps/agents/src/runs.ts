@@ -130,7 +130,8 @@ export interface HoldReason {
 
 /**
  * Holds publications for an editor (invariant 5): a policy Check with the reason on each, and
- * status with-editor, written to the audit log. A publication past drafting keeps its status.
+ * status with-editor, written to the audit log. A publication past the editor keeps its status
+ * and gets no hold reason, since nothing holds it.
  */
 export async function holdPublications(
   client: Client,
@@ -138,17 +139,19 @@ export async function holdPublications(
   reason: HoldReason,
 ): Promise<void> {
   for (const id of publicationIds) {
-    await client.query(
-      `insert into checks (newsroom_id, publication_id, kind, name, result, detail)
-       values (anr.current_newsroom_id(), $1, 'policy', $2, $3, $4)`,
-      [id, reason.name, reason.result, JSON.stringify(reason.detail ?? null)],
-    );
     // Locked and read now: a gate or an editor may have moved it since the caller looked.
     const { rows } = await client.query<{ status: string }>(
       "select status from publications where id = $1 for update",
       [id],
     );
-    if (rows[0] && ["assigned", "drafted"].includes(rows[0].status)) {
+    const status = rows[0]?.status;
+    if (!status || !["assigned", "drafted", "with-editor"].includes(status)) continue;
+    await client.query(
+      `insert into checks (newsroom_id, publication_id, kind, name, result, detail)
+       values (anr.current_newsroom_id(), $1, 'policy', $2, $3, $4)`,
+      [id, reason.name, reason.result, JSON.stringify(reason.detail ?? null)],
+    );
+    if (status !== "with-editor") {
       await auditedUpdate(client, { kind: "code", name: "gate" }, "hold", "publications", id, {
         status: "with-editor",
         updated_at: new Date(),

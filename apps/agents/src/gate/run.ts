@@ -248,9 +248,10 @@ export async function runGate(deps: GateDeps, job: GateJob): Promise<string> {
   if (!story) return "no story";
   if (!story.publications.some((p) => p.status === "drafted")) return "nothing to gate";
 
-  // 1. Code checks: the verifier stores them all in one transaction, or none.
+  // 1. Code checks: the verifier stores them all in one transaction, or none. A stored verifier
+  // error already holds, so a retried job does not ask again.
   let checks = await inStory((c) => storyChecks(c, job.storyId));
-  if (!checks.some((c) => c.kind === "code" && c.name === "schema")) {
+  if (!checks.some((c) => c.kind === "code" && ["schema", "verifier"].includes(c.name))) {
     const outcome = await deps.verifier.verify(job.newsroomId, job.storyId);
     if (!outcome.ok) {
       await inStory(async (c) => {
@@ -348,6 +349,8 @@ export async function runGate(deps: GateDeps, job: GateJob): Promise<string> {
       );
       if (now[0]?.status !== "drafted") continue;
       const rendition = story.renditions.find((r) => r.id === p.rendition_id);
+      // Re-drafted from a later story (D87): that story's gate decides it.
+      if (p.rendition_id && !rendition) continue;
       const decision = decide({
         renditionId: rendition?.id ?? null,
         items: rendition ? itemPaths(rendition.body).map(([path]) => path) : [],
