@@ -104,7 +104,7 @@ export function deskApi(base: string, token: string | null, fetchFn: typeof fetc
         route.kind === "publication" ? `/${route.newsroom}/p/${route.id}` : `/${route.newsroom}`;
       switch (action) {
         case "approve":
-          await call(`${base}/publications/${id}/approve`, {});
+          await call(`${base}/publications/${id}/approve`, { version: field("version") ?? "" });
           return `/${route.newsroom}`;
         case "return":
           await call(`${base}/publications/${id}/return`, { note: field("note") ?? "" });
@@ -116,7 +116,10 @@ export function deskApi(base: string, token: string | null, fetchFn: typeof fetc
           });
           return here;
         case "edit":
-          await call(`${base}/publications/${id}/edit`, { changes: editedFields(form) });
+          await call(`${base}/publications/${id}/edit`, {
+            version: field("version") ?? "",
+            changes: editedFields(form),
+          });
           return here;
         case "pull-back":
           await call(`${base}/publications/${id}/pull-back`, { note: field("note") ?? "" });
@@ -205,6 +208,10 @@ export function issueLink(base: string, newsroom: string, sample: Sample): strin
   url.searchParams.set("body", body);
   return url.toString();
 }
+
+/** A link only for http(s) addresses: stored URLs come from feeds and editors (no `javascript:`). */
+export const safeHref = (url: string | null | undefined) =>
+  url && /^https?:\/\//i.test(url) ? url : undefined;
 
 /** A timestamp as the desk shows it, always in UTC. */
 export const when = (iso: string | null | undefined) =>

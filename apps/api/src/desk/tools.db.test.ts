@@ -121,9 +121,21 @@ const call = async (
 };
 const at = (rest: string) => `/desk/newsrooms/${slug}${rest}`;
 
+/** The version the desk page shows for a publication. */
+const version = async (id: string) =>
+  (
+    await pools.system.query<{ v: string }>(
+      "select updated_at::text as v from publications where id = $1",
+      [id],
+    )
+  ).rows[0]?.v as string;
+
 /** Approves through the desk, then publishes with a fake Telegram; returns what it sent. */
 async function approveAndPublish(id: string) {
-  expect((await call(at(`/publications/${id}/approve`), { method: "POST" })).status).toBe(200);
+  const approved = await call(at(`/publications/${id}/approve`), {
+    body: { version: await version(id) },
+  });
+  expect(approved.status).toBe(200);
   const texts: string[] = [];
   const adapter: ChannelAdapter = {
     send: async (_t, text) => (texts.push(text), String(texts.length)),
@@ -163,8 +175,8 @@ describe("editing a held publication", () => {
   it("changes only text, keeps the format's schema, and is what goes out", async () => {
     const { id, renditionId } = await issue();
     const before = (await call(at(`/publications/${id}/preview`))).json;
-    const edit = (changes: unknown, as = editor) =>
-      call(at(`/publications/${id}/edit`), { body: { changes }, as });
+    const edit = async (changes: unknown, as = editor) =>
+      call(at(`/publications/${id}/edit`), { body: { version: await version(id), changes }, as });
     expect((await edit([{ pointer: "/items/0/claim_ids/0", text: "c9" }])).status).toBe(400);
     expect((await edit([{ pointer: "/items/7/body", text: "x" }])).status).toBe(400);
     const empty = await edit([{ pointer: "/title", text: "" }]);
@@ -199,12 +211,52 @@ describe("editing a held publication", () => {
        values ($1, $2, $3, 1, $4, 'x', 'sent')`,
       [newsroomId, id, telegramId, `k-${id}`],
     );
-    const change = { changes: [{ pointer: "/title", text: "New" }] };
-    expect((await call(at(`/publications/${id}/edit`), { body: change })).status).toBe(409);
-    const scheduled = await issue("scheduled");
-    expect((await call(at(`/publications/${scheduled.id}/edit`), { body: change })).status).toBe(
+    const change = async (p: string) => ({
+      version: await version(p),
+      changes: [{ pointer: "/title", text: "New" }],
+    });
+    expect((await call(at(`/publications/${id}/edit`), { body: await change(id) })).status).toBe(
       409,
     );
+    const scheduled = await issue("scheduled");
+    expect(
+      (await call(at(`/publications/${scheduled.id}/edit`), { body: await change(scheduled.id) }))
+        .status,
+    ).toBe(409);
+    // Pulled back mid-send: a part whose call started may still go out with the old text.
+    const inFlight = await issue();
+    await pools.system.query(
+      `insert into posts (newsroom_id, publication_id, channel_id, part, idempotency_key, body, status, attempted_at)
+       values ($1, $2, $3, 1, $4, 'x', 'pending', now())`,
+      [newsroomId, inFlight.id, telegramId, `k-${inFlight.id}`],
+    );
+    const page = await call(at(`/publications/${inFlight.id}`));
+    expect(page.json.editable).toBe(false);
+    expect(
+      (await call(at(`/publications/${inFlight.id}/edit`), { body: await change(inFlight.id) }))
+        .status,
+    ).toBe(409);
+  });
+
+  it("refuses an approval or edit of text the editor did not see", async () => {
+    const { id } = await issue();
+    const seen = (await call(at(`/publications/${id}`), { as: editor })).json.version;
+    const edited = await call(at(`/publications/${id}/edit`), {
+      body: { version: seen, changes: [{ pointer: "/title", text: "Chief's title" }] },
+    });
+    expect(edited.status).toBe(200);
+    const stale = await call(at(`/publications/${id}/approve`), {
+      body: { version: seen },
+      as: editor,
+    });
+    expect(stale.status).toBe(409);
+    expect(stale.json.error).toMatch(/changed since you opened it/);
+    const again = await call(at(`/publications/${id}/edit`), {
+      body: { version: seen, changes: [{ pointer: "/title", text: "Mine" }] },
+      as: editor,
+    });
+    expect(again.status).toBe(409);
+    expect((await call(at(`/publications/${id}/approve`), { body: {} })).status).toBe(400);
   });
 });
 

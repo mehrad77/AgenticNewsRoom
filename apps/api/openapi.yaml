@@ -91,6 +91,12 @@ paths:
       summary: Approve a held publication; it goes out at its slot, or at once if that has passed
       tags: [desk]
       security: [{ cfAccess: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApproveRequest"
       responses:
         "200":
           description: Scheduled.
@@ -782,13 +788,33 @@ components:
       type: object
       additionalProperties: false
       required:
-        [id, series, slot, language, status, rendition, claims, checks, posts, runs, cost_usd]
+        [
+          id,
+          series,
+          slot,
+          language,
+          status,
+          version,
+          editable,
+          rendition,
+          claims,
+          checks,
+          posts,
+          runs,
+          cost_usd,
+        ]
       properties:
         id: { type: string, format: uuid }
         series: { type: string }
         slot: { type: string, format: date-time }
         language: { $ref: "#/components/schemas/Language" }
         status: { type: string }
+        version:
+          type: string
+          description: Changes whenever the publication does; approve and edit send it back and are refused if it moved.
+        editable:
+          type: boolean
+          description: Held, with text, and no part sent or in flight.
         rendition:
           type: [object, "null"]
           description: The rendition body as the desk or renderer submitted it.
@@ -806,6 +832,12 @@ components:
           description: The agent runs behind the publication's assignment and stories.
           items: { $ref: "#/components/schemas/AgentRun" }
         cost_usd: { type: number, description: The runs' summed cost. }
+    ApproveRequest:
+      type: object
+      additionalProperties: false
+      required: [version]
+      properties:
+        version: { type: string, maxLength: 100, description: The version the editor saw. }
     ReturnRequest:
       type: object
       additionalProperties: false
@@ -934,6 +966,7 @@ components:
                 type: string,
                 description: "The site template's output, as the page body shows it.",
               }
+            error: { type: string, description: Why the site page cannot be rendered. }
         channels:
           type: array
           items:
@@ -956,8 +989,9 @@ components:
     EditRequest:
       type: object
       additionalProperties: false
-      required: [changes]
+      required: [version, changes]
       properties:
+        version: { type: string, maxLength: 100, description: The version the editor saw. }
         changes:
           type: array
           minItems: 1

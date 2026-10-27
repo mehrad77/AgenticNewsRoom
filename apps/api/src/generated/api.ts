@@ -564,6 +564,10 @@ export interface components {
             slot: string;
             language: components["schemas"]["Language"];
             status: string;
+            /** @description Changes whenever the publication does; approve and edit send it back and are refused if it moved. */
+            version: string;
+            /** @description Held, with text, and no part sent or in flight. */
+            editable: boolean;
             /** @description The rendition body as the desk or renderer submitted it. */
             rendition: Record<string, never> | null;
             claims: components["schemas"]["Claim"][];
@@ -573,6 +577,10 @@ export interface components {
             runs: components["schemas"]["AgentRun"][];
             /** @description The runs' summed cost. */
             cost_usd: number;
+        };
+        ApproveRequest: {
+            /** @description The version the editor saw. */
+            version: string;
         };
         ReturnRequest: {
             /** @description What the desk should change; kept in the audit log. */
@@ -671,6 +679,8 @@ export interface components {
                 url: string;
                 /** @description The site template's output, as the page body shows it. */
                 html: string;
+                /** @description Why the site page cannot be rendered. */
+                error?: string;
             };
             channels: {
                 kind: string;
@@ -682,6 +692,8 @@ export interface components {
             }[];
         };
         EditRequest: {
+            /** @description The version the editor saw. */
+            version: string;
             changes: {
                 /** @description A JSON pointer to a text field of the first rendition, such as /items/0/body. */
                 pointer: string;
@@ -958,7 +970,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApproveRequest"];
+            };
+        };
         responses: {
             /** @description Scheduled. */
             200: {

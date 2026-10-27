@@ -43,5 +43,7 @@ describe("withText", () => {
     );
     expect(() => withText(body, [{ pointer: "/items/9/body", text: "y" }])).toThrow();
     expect(() => withText(body, [{ pointer: "/language", text: "fa" }])).toThrow();
+    const script = { items: [{ host: "Sara", text: "Hi", claim_ids: [] }] };
+    expect(textFields(script).map((f) => f.pointer)).toEqual(["/items/0/text"]);
   });
 });

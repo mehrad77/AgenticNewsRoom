@@ -35,6 +35,9 @@ const check = (k: CheckRow) => ({ ...k, at: k.at.toISOString() });
 /** Within this many minutes of their last open, a person's re-open is not recorded again. */
 export const OPEN_DEDUPE_MINUTES = 10;
 
+/** Parts that went out, or may have: a pending part with an attempt started is in flight (D89). */
+const OUT_OR_IN_FLIGHT = `status in ('sent', 'unknown') or (status = 'pending' and attempted_at is not null)`;
+
 /** Held publications, oldest slot first, each with every check that did not pass. */
 export async function reviewQueue(client: Client) {
   const { rows } = await client.query<{
@@ -80,9 +83,14 @@ export async function deskPublication(client: Client, actor: Actor, id: string) 
     rendition: Record<string, unknown> | null;
     story_id: string | null;
     assignment_id: string | null;
+    version: string;
+    editable: boolean;
   }>(
     `select p.id, s.slug as series, p.slot, p.language, p.status, r.body as rendition, r.story_id,
-            p.assignment_id
+            p.assignment_id, p.updated_at::text as version,
+            p.status = 'with-editor' and r.id is not null and not exists (
+              select 1 from posts x where x.publication_id = p.id and (${OUT_OR_IN_FLIGHT})
+            ) as editable
      from publications p
      join series s on s.id = p.series_id
      left join publication_renditions pr on pr.publication_id = p.id and pr.position = 1
@@ -144,14 +152,24 @@ async function recordOpen(client: Client, actor: Actor, id: string) {
     await recordAudit(client, { actor, action: "open", entity: "publications", entityId: id });
 }
 
-async function heldPublication(client: Client, id: string) {
-  const { rows } = await client.query<{ status: string; assignment_id: string | null }>(
-    "select status, assignment_id from publications where id = $1 for update",
+/**
+ * A held publication, locked. With `version` (the `version` the desk page showed), it must not have
+ * changed since: an approval or edit covers only the text the editor saw (D98).
+ */
+async function heldPublication(client: Client, id: string, version?: string) {
+  const { rows } = await client.query<{
+    status: string;
+    assignment_id: string | null;
+    version: string;
+  }>(
+    "select status, assignment_id, updated_at::text as version from publications where id = $1 for update",
     [id],
   );
   const p = rows[0];
   if (!p) throw new DeskError(404, "no such publication");
   if (p.status !== "with-editor") throw new DeskError(409, `the publication is ${p.status}`);
+  if (version !== undefined && version !== p.version)
+    throw new DeskError(409, "it changed since you opened it: reload the page and look again");
   return p;
 }
 
@@ -159,8 +177,8 @@ async function heldPublication(client: Client, id: string) {
  * Approves a held publication: it is scheduled, and the publisher sends it at its slot, or at
  * once if the slot has passed. A post whose result is unknown must be resolved first.
  */
-export async function approve(client: Client, actor: Actor, id: string) {
-  await heldPublication(client, id);
+export async function approve(client: Client, actor: Actor, id: string, version: string) {
+  await heldPublication(client, id, version);
   const { rows } = await client.query<{ n: number }>(
     "select count(*)::int as n from posts where publication_id = $1 and status = 'unknown'",
     [id],
@@ -202,7 +220,8 @@ export async function returnToDesk(
     action: "return",
     entity: "assignments",
     entityId: p.assignment_id,
-    after: { note, publications: rows.map((r) => r.id) },
+    // `publication`: the one the editor decided on, for editor minutes (D99).
+    after: { note, publication: id, publications: rows.map((r) => r.id) },
   });
   const { rows: n } = await client.query<{ id: string }>("select anr.current_newsroom_id() as id");
   const job: RedraftJob = { newsroomId: n[0]?.id ?? "", assignmentId: p.assignment_id };
@@ -246,11 +265,12 @@ export async function editPublication(
   client: Client,
   actor: Actor,
   id: string,
+  version: string,
   changes: TextField[],
 ) {
-  await heldPublication(client, id);
+  await heldPublication(client, id, version);
   const { rows: out } = await client.query<{ n: number }>(
-    "select count(*)::int as n from posts where publication_id = $1 and status in ('sent', 'unknown')",
+    `select count(*)::int as n from posts where publication_id = $1 and (${OUT_OR_IN_FLIGHT})`,
     [id],
   );
   if ((out[0]?.n ?? 0) > 0)

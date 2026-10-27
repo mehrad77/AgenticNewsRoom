@@ -1,8 +1,11 @@
 // The text of a rendition body a person may change: every string leaf except the structure that
 // ties it to claims and leads. The desk's edit form and the API's edit check read this one list.
 
-/** Keys whose values are structure, never reader-facing text. */
-const STRUCTURE = new Set(["kind", "claim_ids", "lead_id", "id", "language"]);
+/**
+ * Keys whose values are structure, never reader-facing text: `host` and `speaker` name a series
+ * host (or the narrator), whose voice the audio pipeline looks up.
+ */
+const STRUCTURE = new Set(["kind", "claim_ids", "lead_id", "id", "language", "host", "speaker"]);
 
 export interface TextField {
   /** A JSON pointer (RFC 6901) into the body, such as `/items/0/body`. */

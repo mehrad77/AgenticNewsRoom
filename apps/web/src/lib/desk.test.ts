@@ -59,6 +59,7 @@ describe("the edit form", () => {
     const form = new FormData();
     form.set("action", "edit");
     form.set("id", "p1");
+    form.set("version", "v1");
     for (const f of fields) form.set(f.name, f.text.replace("\n", "\r\n"));
     form.set("text:/title", "Tonight");
     const calls: unknown[] = [];
@@ -69,6 +70,7 @@ describe("the edit form", () => {
     const route = { kind: "publication", newsroom: "ai", id: "p1" } as const;
     expect(await deskApi("http://api.test", null, fetchFn).act(route, form)).toBe("/ai/p/p1");
     expect(calls[0]).toEqual({
+      version: "v1",
       changes: [
         { pointer: "/title", text: "Tonight" },
         { pointer: "/items/0/headline", text: "A" },

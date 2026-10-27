@@ -1,5 +1,5 @@
 ---
-import { issueLink, type Sample, when } from "../../lib/desk.ts";
+import { issueLink, type Sample, safeHref, when } from "../../lib/desk.ts";
 
 interface Props {
   newsroom: string;
@@ -24,7 +24,7 @@ const { newsroom, samples, issuesUrl } = Astro.props;
       </form>
     )}
     {s.outcome === "miss" && (s.issue_url ? (
-      <p>Filed as <a href={s.issue_url} rel="noreferrer">{s.issue_url}</a> · {when(s.filed_at)}</p>
+      <p>Filed as <a href={safeHref(s.issue_url)} rel="noreferrer">{s.issue_url}</a> · {when(s.filed_at)}</p>
     ) : (
       <form method="post">
         <p><a class="button" href={issueLink(issuesUrl, newsroom, s)} target="_blank" rel="noreferrer">File an issue</a> then paste its address here:</p>

@@ -17,6 +17,18 @@ const HELD = `exists (
         select c.id from claims c join renditions r on r.story_id = c.story_id
         join publication_renditions pr on pr.rendition_id = r.id where pr.publication_id = p.id)))`;
 
+/**
+ * A person's decisions on held publications: each approval, and each return once (it is recorded on
+ * the assignment with the publication decided on, as well as on every language's publication).
+ */
+const DECISIONS = `(
+  select actor_user_id, at, entity_id as publication from audit_log
+  where entity = 'publications' and actor_kind = 'person' and action = 'approve'
+  union all
+  select actor_user_id, at, (after->>'publication')::uuid from audit_log
+  where entity = 'assignments' and actor_kind = 'person' and action = 'return'
+    and after ? 'publication')`;
+
 const BY_LANGUAGE = (table: string) => `(
   select coalesce(jsonb_object_agg(language, n), '{}') from (
     select p.language, sum(v.count)::int as n from ${table} v
@@ -52,14 +64,13 @@ export async function measures(client: Client, weeks: number) {
        (select count(*)::int from corrections c where ${IN_WEEK("c.created_at")}) as corrections,
        (select coalesce(sum(r.cost_usd), 0) from agent_runs r where ${IN_WEEK("r.started_at")}) as cost_usd,
        (select coalesce(sum(extract(epoch from d.at - o.first) / 60), 0)
-        from audit_log d
+        from ${DECISIONS} d
         cross join lateral (
           select min(o.at) as first from audit_log o
-          where o.entity = 'publications' and o.entity_id = d.entity_id and o.action = 'open'
+          where o.entity = 'publications' and o.entity_id = d.publication and o.action = 'open'
             and o.actor_user_id = d.actor_user_id
             and o.at <= d.at and o.at > d.at - make_interval(mins => $2)) o
-        where d.entity = 'publications' and d.actor_kind = 'person'
-          and d.action in ('approve', 'return') and ${IN_WEEK("d.at")}) as editor_minutes,
+        where ${IN_WEEK("d.at")}) as editor_minutes,
        ${BY_LANGUAGE("page_views")} as page_views,
        ${BY_LANGUAGE("downloads")} as downloads
      from w

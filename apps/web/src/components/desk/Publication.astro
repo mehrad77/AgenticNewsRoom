@@ -1,5 +1,13 @@
 ---
-import { type DeskPublication, detail, editForm, type Preview, usd, when } from "../../lib/desk.ts";
+import {
+  type DeskPublication,
+  detail,
+  editForm,
+  type Preview,
+  safeHref,
+  usd,
+  when,
+} from "../../lib/desk.ts";
 import Holds from "./Holds.astro";
 
 interface Props {
@@ -11,9 +19,9 @@ const { newsroom, publication: p, preview } = Astro.props;
 const rendition = p.rendition as { title?: unknown; items?: Record<string, unknown>[] } | null;
 const held = p.status === "with-editor";
 const unknown = p.posts.some((x) => x.status === "unknown");
-// Once a part went out, or may have, the text is fixed (D97).
-const editable = held && rendition !== null && !p.posts.some((x) => x.status === "sent" || x.status === "unknown");
-const fields = editable ? editForm(rendition) : [];
+// Once a part went out, or may have, the text is fixed (D97); the API says which.
+const fields = p.editable ? editForm(rendition) : [];
+const problems = preview ? [...preview.channels.filter((c) => c.error).map((c) => c.kind), ...(preview.site.error ? ["site"] : [])] : [];
 ---
 <h1>{String(rendition?.title ?? "(untitled)")}</h1>
 <p class="meta">{p.series} · {p.language} · {when(p.slot)} · <strong>{p.status}</strong></p>
@@ -23,9 +31,13 @@ const fields = editable ? editForm(rendition) : [];
     <h2>Decide</h2>
     {unknown ? (
       <p><strong>Settle every post with an unknown result (below) before approving.</strong></p>
+    ) : !preview ? (
+      <p><strong>There is no preview, so it cannot be approved here.</strong></p>
     ) : (
       <form method="post">
         <input type="hidden" name="action" value="approve" /><input type="hidden" name="id" value={p.id} />
+        <input type="hidden" name="version" value={p.version} />
+        {problems.length > 0 && <p role="alert">It would be held again: {problems.join(", ")} cannot be rendered.</p>}
         <button class="primary">Approve: send what the preview shows</button>
       </form>
     )}
@@ -59,17 +71,22 @@ const fields = editable ? editForm(rendition) : [];
     <div class="channel">
       <h3>site</h3>
       <p class="meta">{preview.site.url}</p>
-      <iframe class="site" title="Site page preview" sandbox="" srcdoc={preview.site.html}></iframe>
+      {preview.site.error ? (
+        <p role="alert"><strong>It would be held: {preview.site.error}</strong></p>
+      ) : (
+        <iframe class="site" title="Site page preview" sandbox="" srcdoc={preview.site.html}></iframe>
+      )}
     </div>
   </section>
 )}
 
-{editable && (
+{p.editable && (
   <section>
     <h2>Edit the text</h2>
     <p>Only words change; the items, their claims and sources stay. Once saved, the label reads that a person edited it.</p>
     <form method="post" class="edit">
       <input type="hidden" name="action" value="edit" /><input type="hidden" name="id" value={p.id} />
+      <input type="hidden" name="version" value={p.version} />
       {fields.map((f) => (
         <label>{f.label}
           {f.long ? <textarea name={f.name} rows="4">{f.text}</textarea> : <input name={f.name} value={f.text} />}
@@ -83,7 +100,7 @@ const fields = editable ? editForm(rendition) : [];
 <h2>Claims</h2>
 <ul>{p.claims.map((c) => (
   <li><strong>{c.ref}</strong> ({c.kind}) {c.text}
-    {c.quoted_passage && <blockquote>{c.quoted_passage} {c.lead && <a href={c.lead} rel="noreferrer">source</a>}</blockquote>}
+    {c.quoted_passage && <blockquote>{c.quoted_passage} {safeHref(c.lead) && <a href={safeHref(c.lead)} rel="noreferrer">source</a>}</blockquote>}
   </li>
 ))}</ul>
 

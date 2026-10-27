@@ -134,6 +134,13 @@ const call = async (
   return { status: res.status, json: (await res.json()) as any };
 };
 const at = (rest: string) => `/desk/newsrooms/${slug}${rest}`;
+const version = async (id: string) =>
+  (
+    await pools.system.query<{ v: string }>(
+      "select updated_at::text as v from publications where id = $1",
+      [id],
+    )
+  ).rows[0]?.v as string;
 
 describe("desk sign-in and memberships", () => {
   it("refuses anyone not signed in, or signed in without a user", async () => {
@@ -178,7 +185,10 @@ describe("review queue and decisions", () => {
   });
 
   it("will not approve while a post's result is unknown", async () => {
-    const r = await call(at(`/publications/${held}/approve`), { method: "POST", as: editor });
+    const r = await call(at(`/publications/${held}/approve`), {
+      body: { version: await version(held) },
+      as: editor,
+    });
     expect(r.status).toBe(409);
   });
 
@@ -188,7 +198,10 @@ describe("review queue and decisions", () => {
       as: editor,
     });
     expect(resolved.json).toEqual({ id: unknownPost, status: "sent" });
-    const ok = await call(at(`/publications/${held}/approve`), { method: "POST", as: editor });
+    const ok = await call(at(`/publications/${held}/approve`), {
+      body: { version: await version(held) },
+      as: editor,
+    });
     expect(ok.json).toEqual({ id: held, status: "scheduled" });
     const { rows } = await pools.system.query(
       "select actor_kind, action from audit_log where entity_id = $1 order by at",
@@ -198,7 +211,10 @@ describe("review queue and decisions", () => {
       { actor_kind: "person", action: "open" },
       { actor_kind: "person", action: "approve" },
     ]);
-    expect((await call(at(`/publications/${held}/approve`), { method: "POST" })).status).toBe(409);
+    expect(
+      (await call(at(`/publications/${held}/approve`), { body: { version: await version(held) } }))
+        .status,
+    ).toBe(409);
   });
 
   it("returns an assignment to the desk with a note and queues the re-draft", async () => {

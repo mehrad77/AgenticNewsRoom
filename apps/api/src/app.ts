@@ -139,7 +139,10 @@ export function createApp(deps?: DeskDeps) {
     ),
   );
   app.post(`${base}/publications/:publication/edit`, async (c) => {
-    const changes = (await body(c)).changes;
+    const b = await body(c);
+    const changes = b.changes;
+    const version = text(b.version, 100);
+    if (!version) throw new DeskError(400, "version: the one the page showed");
     if (
       !Array.isArray(changes) ||
       changes.length === 0 ||
@@ -155,7 +158,9 @@ export function createApp(deps?: DeskDeps) {
       throw new DeskError(400, "changes is a list of {pointer, text}");
     const list = changes as { pointer: string; text: string }[];
     return c.json(
-      await inNewsroom(c, (db, actor) => editPublication(db, actor, id(c, "publication"), list)),
+      await inNewsroom(c, (db, actor) =>
+        editPublication(db, actor, id(c, "publication"), version, list),
+      ),
     );
   });
   app.post(`${base}/publications/:publication/pull-back`, async (c) => {
@@ -169,9 +174,13 @@ export function createApp(deps?: DeskDeps) {
     const days = count(c, "days", 7, 31);
     return c.json(await inNewsroom(c, (db) => schedule(db, days)));
   });
-  app.post(`${base}/publications/:publication/approve`, async (c) =>
-    c.json(await inNewsroom(c, (db, actor) => approve(db, actor, id(c, "publication")))),
-  );
+  app.post(`${base}/publications/:publication/approve`, async (c) => {
+    const version = text((await body(c)).version, 100);
+    if (!version) throw new DeskError(400, "version: the one the page showed");
+    return c.json(
+      await inNewsroom(c, (db, actor) => approve(db, actor, id(c, "publication"), version)),
+    );
+  });
   app.post(`${base}/publications/:publication/return`, async (c) => {
     const note = text((await body(c)).note, 2000)?.trim();
     if (!note) throw new DeskError(400, "say what the desk should change");

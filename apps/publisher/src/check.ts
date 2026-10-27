@@ -20,7 +20,12 @@ export async function checkChannel(
   if (!channel) return null;
   let result: ChannelCheck;
   const adapter = deps.adapters[channel.kind];
-  if (!adapter?.check) result = { ok: true, detail: { note: "nothing to check for this kind" } };
+  // The site needs nothing; a kind the publisher cannot send to is held at its slot.
+  if (channel.kind === "site") result = { ok: true, detail: { note: "nothing to check" } };
+  else if (!adapter)
+    result = { ok: false, problem: `the publisher cannot send to ${channel.kind} yet` };
+  else if (!adapter.check)
+    result = { ok: true, detail: { note: "nothing to check for this kind" } };
   else {
     try {
       const credentials = channel.credentials

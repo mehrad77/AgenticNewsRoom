@@ -426,6 +426,19 @@ describe("a channel check", () => {
     });
     expect(fake.calls()).toBe(0);
   });
+
+  it("says a kind the publisher cannot send to cannot be posted to", async () => {
+    const { newsroomId } = await scheduled({ telegram: false });
+    const { rows } = await pools.system.query<{ id: string }>(
+      "insert into channels (newsroom_id, kind, language) values ($1, 'podcast-rss', 'en') returning id",
+      [newsroomId],
+    );
+    const result = await checkChannel(deps(fakeTelegram().adapter), {
+      newsroomId,
+      channelId: rows[0]?.id as string,
+    });
+    expect(result).toEqual({ ok: false, problem: "the publisher cannot send to podcast-rss yet" });
+  });
 });
 
 describe("an unexpected publisher error", () => {

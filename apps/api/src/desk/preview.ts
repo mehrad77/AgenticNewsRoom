@@ -80,14 +80,12 @@ export async function previewPublication(
       channels.push({ kind, configured, parts: [], error: (e as Error).message });
     }
   }
-  const html = await renderer.render(p.format, "site", p.language, context);
-  return {
-    label,
-    edited,
-    site: {
-      url: pageUrl(site, p.language, publicationPath(p.series_slug, p.slot, p.timezone)),
-      html,
-    },
-    channels,
-  };
+  const url = pageUrl(site, p.language, publicationPath(p.series_slug, p.slot, p.timezone));
+  let page: { url: string; html: string; error?: string };
+  try {
+    page = { url, html: await renderer.render(p.format, "site", p.language, context) };
+  } catch (e) {
+    page = { url, html: "", error: (e as Error).message };
+  }
+  return { label, edited, site: page, channels };
 }
