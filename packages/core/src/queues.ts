@@ -11,8 +11,12 @@ export const QUEUES = {
   agentRun: "agent-run",
   /** Agents worker: the verifier gate for one story, from code checks to policy (D80). */
   gate: "gate",
+  /** Agents worker: a new desk run for an assignment an editor returned to the desk (D96). */
+  redraft: "redraft",
   /** Publisher: approved and scheduled publications whose slot has come, every minute. */
   publishSweep: "publish-sweep",
+  /** Publisher: once a day, each Telegram channel's subscriber count (audience per language). */
+  channelStats: "channel-stats",
 } as const;
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
 
@@ -54,6 +58,10 @@ export interface AssignJob {
 export interface AgentRunJob {
   newsroomId: string;
   agentRunId: string;
+}
+export interface RedraftJob {
+  newsroomId: string;
+  assignmentId: string;
 }
 export interface GateJob {
   newsroomId: string;

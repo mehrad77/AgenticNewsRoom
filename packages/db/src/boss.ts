@@ -1,4 +1,5 @@
 import { type ConstructorOptions, PgBoss } from "pg-boss";
+import type { Client } from "./index.ts";
 
 export const PGBOSS_SCHEMA = "pgboss";
 
@@ -25,3 +26,8 @@ export function createBoss(
   boss.on("error", (error) => console.error(`[${applicationName}] pg-boss:`, error));
   return boss;
 }
+
+/** pg-boss runs its statements on this client, so a job commits with the rows that need it. */
+export const onClient = (client: Client) => ({
+  executeSql: (text: string, values?: unknown[]) => client.query(text, values),
+});

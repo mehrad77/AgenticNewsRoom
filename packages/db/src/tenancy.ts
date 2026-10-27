@@ -7,6 +7,7 @@ export const PLATFORM_TABLES: Readonly<Record<string, string>> = {
   formats: "shared by every newsroom (config/formats)",
   users: "a person can belong to several newsrooms; memberships are per newsroom",
   schema_migrations: "dbmate's record of applied migrations",
+  restores: "a database restore is platform-wide; the publisher holds past-due slots after one",
 };
 
 const TENANT_FUNCTION = "anr.current_newsroom_id()";

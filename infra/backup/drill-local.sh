@@ -56,5 +56,8 @@ step "4. the write made after the backup"
 [[ "$(psql_super -c "select count(*) from users where email = '$marker'")" == 1 ]] ||
   { echo "the write made after the backup is missing: WAL was not replayed" >&2; exit 1; }
 echo "✓ it came back through WAL replay"
+[[ "$(psql_super -c "select count(*) from restores")" -ge 1 ]] ||
+  { echo "the restore was not recorded: the publisher would not hold past-due slots" >&2; exit 1; }
+echo "✓ the restore is recorded, so past-due slots are held (D90)"
 echo
 echo "✓ drill passed: backup, WAL archive and restore work, and config loads into the restored database"

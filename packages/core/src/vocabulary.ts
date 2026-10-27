@@ -60,8 +60,11 @@ export type CheckKind = (typeof CHECK_KINDS)[number];
 export const CHECK_RESULTS = ["pass", "fail", "partial", "error", "timed-out"] as const;
 export type CheckResult = (typeof CHECK_RESULTS)[number];
 
-/** A post row is written before the send; `unknown` results are held, never resent. */
-export const POST_STATUSES = ["pending", "sent", "unknown"] as const;
+/**
+ * A post row is written before the send; `unknown` results are held, never resent. `failed`: the
+ * channel refused it, so nothing went out (D89).
+ */
+export const POST_STATUSES = ["pending", "sent", "unknown", "failed"] as const;
 export type PostStatus = (typeof POST_STATUSES)[number];
 
 export const CHALLENGE_OUTCOMES = ["upheld", "rejected"] as const;
@@ -72,5 +75,9 @@ export const AGENT_RUN_OUTCOMES = ["submitted", "invalid", "error", "timed-out",
 export type AgentRunOutcome = (typeof AGENT_RUN_OUTCOMES)[number];
 
 /** Messages from code to a newsroom's Editor-in-Chief, shown in the editor's desk. */
-export const NOTICE_KINDS = ["budget-warning", "budget-cap", "no-leads"] as const;
+export const NOTICE_KINDS = ["budget-warning", "budget-cap", "no-leads", "no-channel"] as const;
 export type NoticeKind = (typeof NOTICE_KINDS)[number];
+
+/** An editor's verdict on a sampled auto-published publication (D94). */
+export const SAMPLE_OUTCOMES = ["ok", "miss"] as const;
+export type SampleOutcome = (typeof SAMPLE_OUTCOMES)[number];

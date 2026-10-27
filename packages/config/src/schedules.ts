@@ -17,6 +17,7 @@ export const SCHEDULED_QUEUES: readonly QueueName[] = [
   QUEUES.ingestSource,
   QUEUES.assign,
   QUEUES.publishSweep,
+  QUEUES.channelStats,
 ];
 
 /**
@@ -103,6 +104,15 @@ export function platformSchedules(): DesiredSchedule[] {
       tz: "UTC",
       data: {},
       missed: "skip",
+    },
+    // A snapshot per channel and day; a day the laptop slept through is taken when it wakes.
+    {
+      queue: QUEUES.channelStats,
+      key: "platform",
+      cron: "0 0 * * *",
+      tz: "UTC",
+      data: {},
+      missed: "once",
     },
   ];
 }
