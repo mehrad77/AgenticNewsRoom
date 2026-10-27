@@ -7,17 +7,39 @@
   "additionalProperties": false,
   "required": ["providers", "models", "roles", "tts"],
   "$defs": {
-    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9.-]*$" },
-    "envVar": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9.-]*$"
+    },
+    "envVar": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]*$"
+    },
     "limits": {
       "type": "object",
       "description": "Published free-tier limits; calls stop before reaching them. Omit what the provider does not publish.",
       "additionalProperties": false,
       "properties": {
-        "rpm": { "type": "integer", "minimum": 1, "description": "Requests per minute." },
-        "rpd": { "type": "integer", "minimum": 1, "description": "Requests per day." },
-        "tpm": { "type": "integer", "minimum": 1, "description": "Tokens per minute." },
-        "tpd": { "type": "integer", "minimum": 1, "description": "Tokens per day." }
+        "rpm": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Requests per minute."
+        },
+        "rpd": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Requests per day."
+        },
+        "tpm": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Tokens per minute."
+        },
+        "tpd": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Tokens per day."
+        }
       }
     },
     "chain": {
@@ -25,19 +47,33 @@
       "description": "Catalog ids, tried in order.",
       "minItems": 1,
       "uniqueItems": true,
-      "items": { "$ref": "#/$defs/id" }
+      "items": {
+        "$ref": "#/$defs/id"
+      }
     },
     "googleProvider": {
       "type": "object",
       "additionalProperties": false,
       "required": ["kind", "key_env"],
       "properties": {
-        "kind": { "const": "google" },
-        "key_env": { "$ref": "#/$defs/envVar" },
-        "limits": { "$ref": "#/$defs/limits" },
+        "kind": {
+          "const": "google"
+        },
+        "key_env": {
+          "$ref": "#/$defs/envVar"
+        },
+        "limits": {
+          "$ref": "#/$defs/limits"
+        },
         "shared_quota": {
           "type": "boolean",
           "description": "The quota belongs to the account, not each model: a 429 on one model cools down every model of the provider."
+        },
+        "timeout_s": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 1800,
+          "description": "Seconds one call may take (default 120); local models on a laptop are slower."
         }
       }
     },
@@ -45,20 +81,35 @@
       "type": "object",
       "description": "Any OpenAI-compatible chat completions API.",
       "additionalProperties": false,
-      "required": ["kind", "base_url", "key_env"],
+      "required": ["kind", "base_url"],
       "properties": {
-        "kind": { "const": "openai" },
+        "kind": {
+          "const": "openai"
+        },
         "base_url": {
           "type": "string",
-          "pattern": "^https://",
-          "description": "May contain {account}, filled from account_env."
+          "pattern": "^(https://|http://(127\\.0\\.0\\.1|localhost)(:[0-9]+)?(/|$))",
+          "description": "https, or plain http to this machine only (a local server such as LM Studio). May contain {account}, filled from account_env."
         },
-        "key_env": { "$ref": "#/$defs/envVar" },
-        "account_env": { "$ref": "#/$defs/envVar" },
-        "limits": { "$ref": "#/$defs/limits" },
+        "key_env": {
+          "$ref": "#/$defs/envVar",
+          "description": "Omitted for a local server that needs no key."
+        },
+        "account_env": {
+          "$ref": "#/$defs/envVar"
+        },
+        "limits": {
+          "$ref": "#/$defs/limits"
+        },
         "shared_quota": {
           "type": "boolean",
           "description": "The quota belongs to the account, not each model: a 429 on one model cools down every model of the provider."
+        },
+        "timeout_s": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 1800,
+          "description": "Seconds one call may take (default 120); local models on a laptop are slower."
         }
       }
     },
@@ -67,8 +118,14 @@
       "additionalProperties": false,
       "required": ["provider", "model", "family", "tools"],
       "properties": {
-        "provider": { "$ref": "#/$defs/id" },
-        "model": { "type": "string", "minLength": 1, "description": "The provider's model id." },
+        "provider": {
+          "$ref": "#/$defs/id"
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The provider's model id."
+        },
         "family": {
           "$ref": "#/$defs/id",
           "description": "The weights, whoever serves them. The fact-checker never shares a family with the writer."
@@ -77,15 +134,23 @@
           "type": "boolean",
           "description": "Supports tool calling (every agent role needs it)."
         },
-        "limits": { "$ref": "#/$defs/limits" },
+        "limits": {
+          "$ref": "#/$defs/limits"
+        },
         "price": {
           "type": "object",
           "description": "USD per million tokens; omitted means unknown and cost is not recorded.",
           "additionalProperties": false,
           "required": ["in", "out"],
           "properties": {
-            "in": { "type": "number", "minimum": 0 },
-            "out": { "type": "number", "minimum": 0 }
+            "in": {
+              "type": "number",
+              "minimum": 0
+            },
+            "out": {
+              "type": "number",
+              "minimum": 0
+            }
           }
         }
       }
@@ -95,41 +160,72 @@
     "providers": {
       "type": "object",
       "minProperties": 1,
-      "propertyNames": { "$ref": "#/$defs/id" },
+      "propertyNames": {
+        "$ref": "#/$defs/id"
+      },
       "additionalProperties": {
-        "anyOf": [{ "$ref": "#/$defs/googleProvider" }, { "$ref": "#/$defs/openaiProvider" }]
+        "anyOf": [
+          {
+            "$ref": "#/$defs/googleProvider"
+          },
+          {
+            "$ref": "#/$defs/openaiProvider"
+          }
+        ]
       }
     },
     "models": {
       "type": "object",
       "minProperties": 1,
-      "propertyNames": { "$ref": "#/$defs/id" },
-      "additionalProperties": { "$ref": "#/$defs/model" }
+      "propertyNames": {
+        "$ref": "#/$defs/id"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/model"
+      }
     },
     "roles": {
       "type": "object",
       "additionalProperties": false,
       "required": ["planner", "desk", "renderer", "fact-checker", "item-matcher", "summariser"],
       "properties": {
-        "planner": { "$ref": "#/$defs/chain" },
+        "planner": {
+          "$ref": "#/$defs/chain"
+        },
         "desk": {
           "type": "object",
           "additionalProperties": false,
           "required": ["default"],
           "properties": {
-            "default": { "$ref": "#/$defs/chain" },
-            "by_format": { "type": "object", "additionalProperties": { "$ref": "#/$defs/chain" } }
+            "default": {
+              "$ref": "#/$defs/chain"
+            },
+            "by_format": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/chain"
+              }
+            }
           }
         },
-        "renderer": { "$ref": "#/$defs/chain" },
+        "renderer": {
+          "$ref": "#/$defs/chain"
+        },
         "fact-checker": {
           "$ref": "#/$defs/chain",
           "description": "The router drops every family that wrote the story; at least two families."
         },
-        "item-matcher": { "$ref": "#/$defs/chain" },
-        "summariser": { "$ref": "#/$defs/chain" }
+        "item-matcher": {
+          "$ref": "#/$defs/chain"
+        },
+        "summariser": {
+          "$ref": "#/$defs/chain"
+        }
       }
     },
-    "tts": { "$ref": "#/$defs/id", "description": "Catalog id of the text-to-speech model." }
+    "tts": {
+      "$ref": "#/$defs/id",
+      "description": "Catalog id of the text-to-speech model."
+    }
   }
 }

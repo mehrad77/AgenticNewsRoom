@@ -39,6 +39,10 @@ class GoogleProvider(BaseModel):
         None,
         description="The quota belongs to the account, not each model: a 429 on one model cools down every model of the provider.",
     )
+    timeout_s: conint(ge=10, le=1800) | None = Field(
+        None,
+        description="Seconds one call may take (default 120); local models on a laptop are slower.",
+    )
 
 
 class OpenaiProvider(BaseModel):
@@ -46,15 +50,22 @@ class OpenaiProvider(BaseModel):
         extra="forbid",
     )
     kind: Literal["openai"]
-    base_url: constr(pattern=r"^https://") = Field(
-        ..., description="May contain {account}, filled from account_env."
+    base_url: constr(pattern=r"^(https://|http://(127\.0\.0\.1|localhost)(:[0-9]+)?(/|$))") = Field(
+        ...,
+        description="https, or plain http to this machine only (a local server such as LM Studio). May contain {account}, filled from account_env.",
     )
-    key_env: EnvVar
+    key_env: EnvVar | None = Field(
+        None, description="Omitted for a local server that needs no key."
+    )
     account_env: EnvVar | None = None
     limits: Limits | None = None
     shared_quota: bool | None = Field(
         None,
         description="The quota belongs to the account, not each model: a 429 on one model cools down every model of the provider.",
+    )
+    timeout_s: conint(ge=10, le=1800) | None = Field(
+        None,
+        description="Seconds one call may take (default 120); local models on a laptop are slower.",
     )
 
 

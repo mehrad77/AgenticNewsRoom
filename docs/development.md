@@ -84,3 +84,15 @@ Free tiers change often; the probe, not memory, decides which models stay in the
 | OpenRouter | [openrouter.ai](https://openrouter.ai) → **Settings → Keys** → **Create Key**. Under **Settings → Privacy**, allow the providers of free models, or most `:free` models refuse. | `OPENROUTER_API_KEY` | 20 requests/min and 50/day per account; 1,000/day after a one-time $10 credit |
 | Mistral | [console.mistral.ai](https://console.mistral.ai) → verify a phone number → **Subscriptions → Experiment for free** → **API Keys** (the key is shown once). One free plan per phone number. | `MISTRAL_API_KEY` | Unpublished; see the admin panel |
 | NVIDIA NIM | [build.nvidia.com](https://build.nvidia.com) → sign in → open any model → **Get API Key** (`nvapi-…`) | `NVIDIA_API_KEY` | For prototyping; about 40 requests/min, shown in the top bar |
+| LM Studio (local) | Install [LM Studio](https://lmstudio.ai), download the models in `models.free.yaml`'s `lmstudio` entries, start its server on port 1234 | None | No limits; nothing leaves the laptop. Speed is the laptop's |
+
+### Local models (LM Studio)
+
+The free profile tries local models first (D84), sized for a 36 GB laptop: `google/gemma-4-12b` writes, `openai/gpt-oss-20b` checks. Load both with a context window the desk prompt fits in; LM Studio's on-demand loading uses its default window, and a request that does not fit moves on to the next model:
+
+```bash
+curl -s -X POST http://127.0.0.1:1234/api/v1/models/load -H 'content-type: application/json' -d '{"model": "google/gemma-4-12b", "context_length": 65536}'
+curl -s -X POST http://127.0.0.1:1234/api/v1/models/load -H 'content-type: application/json' -d '{"model": "openai/gpt-oss-20b", "context_length": 65536}'
+```
+
+A local call may take up to 10 minutes (`timeout_s: 600`). A model LM Studio unloads under memory pressure counts as down, so the chain moves on. Keep LM Studio's MCP servers out of this: agents get only ANR's four tools (invariant 2), and the OpenAI-compatible endpoint ANR calls adds none.

@@ -66,6 +66,17 @@ describe("validateConfig", () => {
     expect(errors).toContain("models.free.yaml model orphan: unknown provider nowhere");
   });
 
+  it("keeps local servers out of the production models file (D84)", () => {
+    const config = loadConfig(root);
+    const prod = config.models["models.yaml"] as ModelsSchema;
+    prod.providers.local = { kind: "openai", base_url: "http://127.0.0.1:1234/v1" };
+    const errors = validateConfig(config);
+    expect(errors).toContain(
+      "models.yaml provider local: a local server belongs in a development profile",
+    );
+    expect(errors).toContain("models.yaml provider local: needs key_env");
+  });
+
   it("requires a price on every model a role or TTS uses (D82)", () => {
     const config = loadConfig(root);
     const m = freeModels(config);

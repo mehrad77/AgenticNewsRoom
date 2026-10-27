@@ -41,6 +41,13 @@ function modelsProblems(m: ModelsSchema, file: string, formats: string[]): strin
     if (p.kind === "openai" && p.base_url.includes("{account}") && !p.account_env) {
       errors.push(`${file} provider ${id}: base_url has {account} but no account_env`);
     }
+    // A local server (plain http, no key) is for development profiles only (D84).
+    if (file === "models.yaml" && p.kind === "openai" && !p.base_url.startsWith("https://")) {
+      errors.push(`${file} provider ${id}: a local server belongs in a development profile`);
+    }
+    if (file === "models.yaml" && !p.key_env) {
+      errors.push(`${file} provider ${id}: needs key_env`);
+    }
   }
   for (const [id, model] of Object.entries(m.models)) {
     if (!m.providers[model.provider]) {

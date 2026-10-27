@@ -2,7 +2,14 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { AIMessage } from "@langchain/core/messages";
 import { describe, expect, it } from "vitest";
-import { buildCatalog, loadModelsConfig, missingKeys, modelsFile } from "./catalog.ts";
+import {
+  buildCatalog,
+  DEFAULT_TIMEOUT_MS,
+  loadModelsConfig,
+  missingKeys,
+  modelsFile,
+  NO_KEY,
+} from "./catalog.ts";
 import { probe } from "./probe.ts";
 
 const configDir = fileURLToPath(new URL("../../../config", import.meta.url));
@@ -12,6 +19,25 @@ describe("catalog", () => {
     expect(modelsFile(configDir, "")).toBe(join(configDir, "models.yaml"));
     expect(modelsFile(configDir, "free")).toBe(join(configDir, "models.free.yaml"));
     expect(() => modelsFile(configDir, "../x")).toThrow();
+  });
+
+  it("needs no key for a local server, and takes its longer deadline", () => {
+    const config = loadModelsConfig(modelsFile(configDir, "free"));
+    config.providers.local = {
+      kind: "openai",
+      base_url: "http://127.0.0.1:1234/v1",
+      timeout_s: 600,
+    };
+    config.models["local-gemma"] = {
+      provider: "local",
+      model: "google/gemma-4-31b",
+      family: "gemma-4-31b",
+      tools: true,
+    };
+    const catalog = buildCatalog(config, {});
+    const local = catalog.entries.get("local-gemma");
+    expect(local).toMatchObject({ apiKey: NO_KEY, missingEnv: [], timeoutMs: 600_000 });
+    expect(catalog.entries.get("gemini-flash")?.timeoutMs).toBe(DEFAULT_TIMEOUT_MS);
   });
 
   it("fills the Cloudflare account into its URL and names missing env vars", () => {
