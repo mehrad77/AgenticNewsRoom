@@ -1,6 +1,6 @@
 import { AIMessage } from "@langchain/core/messages";
 import { describe, expect, it } from "vitest";
-import type { ChatClient } from "./adapters.ts";
+import type { ChatClient, InvokeOptions } from "./adapters.ts";
 import { buildCatalog, type ModelsConfig } from "./catalog.ts";
 import { AllModelsExhausted, ModelCallFailed } from "./errors.ts";
 import { ModelGateway } from "./gateway.ts";
@@ -51,9 +51,11 @@ function setup(script: Record<string, (Error | "ok")[]>) {
   let now = Date.parse("2026-10-27T12:00:00Z");
   const calls: string[] = [];
   const logs: string[] = [];
+  const options: InvokeOptions[] = [];
   const client = (id: string): ChatClient => ({
-    async invoke() {
+    async invoke(_messages, opts) {
       calls.push(id);
+      options.push(opts);
       const next = script[id]?.shift() ?? "ok";
       if (next instanceof Error) throw next;
       return new AIMessage({
@@ -67,7 +69,7 @@ function setup(script: Record<string, (Error | "ok")[]>) {
     now: () => now,
     log: (line) => logs.push(line),
   });
-  return { gateway, calls, logs, advance: (ms: number) => (now += ms) };
+  return { gateway, calls, logs, options, advance: (ms: number) => (now += ms) };
 }
 
 describe("ModelGateway", () => {
@@ -245,5 +247,34 @@ describe("ModelGateway", () => {
     const { gateway } = setup({});
     expect((await gateway.chat({ chain, messages, sticky: "b-big" })).catalogId).toBe("b-big");
     expect((await gateway.chat({ chain, messages, sticky: "a-small" })).catalogId).toBe("a-big");
+  });
+
+  it("passes tool choice to the model", async () => {
+    const { gateway, options } = setup({});
+    await gateway.chat({ chain, messages, tools: [], toolChoice: "any" });
+    expect(options[0]?.toolChoice).toBe("any");
+  });
+
+  it("reads an epoch-seconds x-ratelimit-reset as a time, not a wait", async () => {
+    const resetAt = Date.parse("2026-10-27T12:00:45Z") / 1000;
+    const { gateway, advance } = setup({
+      "a-big": [httpError(429, { "x-ratelimit-reset": String(resetAt) })],
+    });
+    await gateway.chat({ chain, messages });
+    advance(46_000);
+    expect((await gateway.chat({ chain, messages })).catalogId).toBe("a-big");
+  });
+
+  it("says whether an exhausted chain may answer later", async () => {
+    const limited = await setup({ "a-big": [httpError(429)], "b-big": [httpError(404)] })
+      .gateway.chat({ chain, messages })
+      .catch((e) => e);
+    expect(limited.transient).toBe(true);
+    const { gateway, advance } = setup({ "a-big": [httpError(404)], "b-big": [httpError(404)] });
+    await gateway.chat({ chain: [...chain, "c-big"], messages }).catch(() => {});
+    advance(60_000);
+    const gone = await gateway.chat({ chain: [...chain, "c-big"], messages }).catch((e) => e);
+    expect(gone).toBeInstanceOf(AllModelsExhausted);
+    expect(gone.transient).toBe(false);
   });
 });

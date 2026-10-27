@@ -22,15 +22,22 @@ const TIMEOUT_MS = 120_000;
 
 /**
  * LangChain chat models with their own retries and timeouts off: the gateway decides what a failure means.
+ * Temperature 0: agents answer to a schema and should answer the same way twice.
  * OpenAI-compatible providers use Chat Completions only, so no built-in (web) tools exist.
  */
 export const langchainClient: ClientFactory = (entry) => {
   const model: BaseChatModel =
     entry.kind === "google"
-      ? new ChatGoogleGenerativeAI({ model: entry.model, apiKey: entry.apiKey, maxRetries: 0 })
+      ? new ChatGoogleGenerativeAI({
+          model: entry.model,
+          apiKey: entry.apiKey,
+          temperature: 0,
+          maxRetries: 0,
+        })
       : new ChatOpenAICompletions({
           model: entry.model,
           apiKey: entry.apiKey,
+          temperature: 0,
           maxRetries: 0,
           configuration: { baseURL: entry.baseUrl },
         });
@@ -52,6 +59,7 @@ async function withTimeout<T>(
   call: (signal: AbortSignal) => Promise<T>,
   caller?: AbortSignal,
 ): Promise<T> {
+  caller?.throwIfAborted();
   const controller = new AbortController();
   const onAbort = () => controller.abort(caller?.reason);
   caller?.addEventListener("abort", onAbort, { once: true });

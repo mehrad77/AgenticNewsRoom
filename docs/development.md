@@ -72,7 +72,7 @@ Dev ports: web 4321 (override with `WEB_PORT`), api 8787, ingestion 8101, verifi
 
 ## Free models
 
-Development needs no paid model. Set `ANR_MODELS=free` in `.env` and the agents use `config/models.free.yaml`: each role tries a chain of free-tier models and falls through to the next when one is rate-limited, down or retired (D56). A provider without a key is skipped, so start with any of them; more keys mean fewer exhausted chains. Then run `pnpm models:probe free`: `✓` works, `·` is rate-limited, down or has no key, `✗` means the models file needs a change (the model is gone, refuses tool calls, or the key is wrong).
+Development needs no paid model. Set `ANR_MODELS=free` in `.env` and the agents use `config/models.free.yaml`: each role tries a chain of free-tier models and falls through to the next when one is rate-limited, down or retired (D72). A provider without a key is skipped, so start with any of them; more keys mean fewer exhausted chains. Then run `pnpm models:probe free`: `✓` works, `·` is rate-limited, down or has no key, `✗` means the models file needs a change (the model is gone, refuses tool calls, or the key is wrong).
 
 Free tiers change often; the probe, not memory, decides which models stay in the file. Gemini outside the EEA, UK and Switzerland, and Mistral's free plan, may use prompts for training: use public text only. Production never uses this file; `infra/deploy.sh` refuses `ANR_MODELS=free`.
 

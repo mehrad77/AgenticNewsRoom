@@ -34,7 +34,7 @@ const CHANNEL_TEMPLATE: Record<string, string> = {
   "podcast-rss": "podcast-rss.liquid",
 };
 
-/** Cross-references in a models file that JSON Schema cannot express (D22, D55). */
+/** Cross-references in a models file that JSON Schema cannot express (D22, D71). */
 function modelsProblems(m: ModelsSchema, file: string, formats: string[]): string[] {
   const errors: string[] = [];
   for (const [id, p] of Object.entries(m.providers)) {
@@ -64,7 +64,7 @@ function modelsProblems(m: ModelsSchema, file: string, formats: string[]): strin
     }
   }
   if (!m.models[m.tts]) errors.push(`${file} tts: unknown model ${m.tts}`);
-  const families = new Set(m.roles["fact-checker"].map((id) => m.models[id]?.family));
+  const families = new Set(m.roles["fact-checker"].flatMap((id) => m.models[id]?.family ?? []));
   if (families.size < 2) {
     errors.push(`${file} fact-checker needs models from at least two families`);
   }

@@ -1,6 +1,6 @@
 # @anr/models
 
-Calls models for the agents (D56). The router in `apps/agents/src/router.ts` decides which chain a role gets; this package calls the chain and reports which model answered.
+Calls models for the agents (D72). The router in `apps/agents/src/router.ts` decides which chain a role gets; this package calls the chain and reports which model answered.
 
 - `catalog.ts`: loads `config/models.yaml`, or `models.<profile>.yaml` for `ANR_MODELS=<profile>`, and resolves keys from the env vars the file names. A model without its key is skipped, not an error.
 - `gateway.ts`: `ModelGateway.chat({ chain, messages, tools, sticky })` tries the chain in order. Rate limits, outages and retired models fall through to the next model; a bad key or a bad request throws `ModelCallFailed`; an exhausted chain throws `AllModelsExhausted`. Rate-limit state is in memory, per process.

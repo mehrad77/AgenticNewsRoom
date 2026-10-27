@@ -1,4 +1,4 @@
-# Providers, a model catalog, and per role an ordered chain of catalog ids (D23, D56).
+# Providers, a model catalog, and per role an ordered chain of catalog ids (D23, D72).
 # Agents name a role, never a model; apps/agents/src/router.ts picks the chain and @anr/models
 # calls it, falling through the chain when a model is rate-limited or gone.
 # ANR_MODELS=free selects models.free.yaml instead (development only).

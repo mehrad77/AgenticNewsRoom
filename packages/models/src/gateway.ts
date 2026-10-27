@@ -75,6 +75,7 @@ export class ModelGateway {
       try {
         const message = await this.#client(entry).invoke(req.messages, {
           tools: req.tools,
+          toolChoice: req.toolChoice,
           signal: req.signal,
         });
         const usage = {

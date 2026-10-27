@@ -238,9 +238,14 @@ export function summariserHandler(deps: SummariserHandlerDeps) {
       );
       if (outcome) log(`[agents] summariser run ${job.agentRunId}: ${outcome}`);
     } catch (error) {
-      // The whole chain rate-limited or down: wait, as a rate-limit answer does.
+      // The whole chain rate-limited or down: wait, as a rate-limit answer does. A chain of
+      // only retired or keyless models fails instead, so the job uses its retries and ends.
       const delay =
-        error instanceof AllModelsExhausted ? EXHAUSTED_DELAY_MS : rateLimitDelayMs(error);
+        error instanceof AllModelsExhausted
+          ? error.transient
+            ? EXHAUSTED_DELAY_MS
+            : null
+          : rateLimitDelayMs(error);
       if (delay === null) throw error;
       deps.throttle.pauseFor(delay);
       await later(job, delay);

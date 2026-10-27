@@ -34,6 +34,19 @@ export class AllModelsExhausted extends Error {
     this.name = "AllModelsExhausted";
     this.attempts = attempts;
   }
+
+  /**
+   * True when some model may answer later (rate-limited, down, or over a limit); false when
+   * every model is gone or has no key, so waiting would loop forever.
+   */
+  get transient(): boolean {
+    return this.attempts.some(
+      (a) =>
+        a.outcome === "rate-limited" ||
+        a.outcome === "unavailable" ||
+        (a.outcome === "skipped" && !/^(no |disabled: )/.test(a.detail ?? "")),
+    );
+  }
 }
 
 /** A failure that falling back would hide: a bad key, a bad request, a bug. */
@@ -154,7 +167,10 @@ function retryAfter(e: ErrorLike, now: number): number | undefined {
     if (ms !== undefined) waits.push(ms);
   }
   const reset = Number(header(headers, "x-ratelimit-reset"));
-  if (Number.isFinite(reset) && reset > 0) waits.push(reset > 1e12 ? reset - now : reset * 1000);
+  // OpenRouter sends epoch ms; others send epoch seconds or seconds to wait.
+  if (Number.isFinite(reset) && reset > 0) {
+    waits.push(reset > 1e12 ? reset - now : reset > 1e9 ? reset * 1000 - now : reset * 1000);
+  }
   if (Array.isArray(e.errorDetails)) {
     for (const d of e.errorDetails as { retryDelay?: unknown }[]) {
       const ms = typeof d?.retryDelay === "string" ? parseDuration(d.retryDelay) : undefined;

@@ -1,4 +1,4 @@
-// The summariser's model: the gateway called through the role's chain (D56). Keys come only from
+// The summariser's model: the gateway called through the role's chain (D72). Keys come only from
 // the environment (D47); the gateway skips models without one.
 
 import type { ModelGateway } from "@anr/models";

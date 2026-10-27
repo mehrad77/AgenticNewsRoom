@@ -1,4 +1,4 @@
-# Free tiers for development (D56). Selected with ANR_MODELS=free; infra/deploy.sh refuses it.
+# Free tiers for development (D72). Selected with ANR_MODELS=free; infra/deploy.sh refuses it.
 # Free tiers change often: `pnpm models:probe` checks every entry below against its provider.
 # Gemini (outside the EEA, UK and Switzerland) and Mistral's free plan may train on prompts.
 # Keys: docs/development.md#free-models. A provider without a key is skipped.
