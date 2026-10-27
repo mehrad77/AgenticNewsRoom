@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { QUEUES } from "@anr/core";
+import { withNewsroom } from "@anr/db";
 import { createTestNewsroom, testPools } from "@anr/db/testing";
 import { AIMessage } from "@langchain/core/messages";
 import type { PgBoss } from "pg-boss";
@@ -12,6 +13,7 @@ import { assignDaily } from "../assign.ts";
 import { type ChatLike, meteredChat } from "../model.ts";
 import { runRenderer } from "../renderer/run.ts";
 import { ModelRouter } from "../router.ts";
+import { createRun } from "../runs.ts";
 import { type RoleDeps, runDesk } from "./run.ts";
 
 const pools = testPools();
@@ -287,6 +289,79 @@ describe("daily assignment and the desk (D81, D77)", () => {
       "submitted",
     );
     expect(t.sent.filter((s) => s.queue === QUEUES.gate)).toHaveLength(1);
+  });
+
+  it("re-drafts a publication returned to the desk, keeping the last story (D87)", async () => {
+    const t = await setup();
+    await pools.system.query("update series set languages = '{fa}' where id = $1", [t.seriesId]);
+    const assigned = await assignDaily(
+      pools.app,
+      t.boss,
+      router,
+      { newsroomId: t.newsroomId, seriesId: t.seriesId },
+      NOW,
+    );
+    if (assigned.kind !== "assigned") throw new Error("not assigned");
+    t.answers.push("{}", "{}", valid(t.ids.best, "fa"));
+    expect(await runDesk(t.deps, { newsroomId: t.newsroomId, agentRunId: assigned.runId })).toBe(
+      "submitted",
+    );
+    const links = async () =>
+      (
+        await pools.system.query<{ story_id: string; status: string }>(
+          `select r.story_id, p.status from publications p
+           join publication_renditions pr on pr.publication_id = p.id
+           join renditions r on r.id = pr.rendition_id
+           where p.assignment_id = $1 order by pr.position`,
+          [assigned.assignmentId],
+        )
+      ).rows;
+    const [first] = await links();
+
+    // Held, then returned to the desk by an editor: a new desk run writes a new story.
+    await pools.system.query(
+      "update publications set status = 'with-editor' where assignment_id = $1",
+      [assigned.assignmentId],
+    );
+    const desk = () =>
+      withNewsroom(pools.app, t.newsroomId, (c) =>
+        createRun(c, t.boss, {
+          role: "desk",
+          provider: "gemini",
+          model: "writer-model",
+          promptVersion: "desk",
+          input: `${assigned.assignmentId}:again`,
+          assignmentId: assigned.assignmentId,
+        }),
+      );
+    // While it waits for its editor, a stray draft does not replace its text.
+    const stray = await desk();
+    t.answers.push("{}", "{}", valid(t.ids.best, "fa"));
+    await expect(runDesk(t.deps, { newsroomId: t.newsroomId, agentRunId: stray })).rejects.toThrow(
+      /publication_renditions_pkey/,
+    );
+    expect((await links()).map((l) => l.story_id)).toEqual([first?.story_id]);
+
+    await pools.system.query(
+      "update publications set status = 'assigned' where assignment_id = $1",
+      [assigned.assignmentId],
+    );
+    t.answers.length = 0;
+    t.answers.push("{}", "{}", valid(t.ids.best, "fa"));
+    expect(await runDesk(t.deps, { newsroomId: t.newsroomId, agentRunId: await desk() })).toBe(
+      "submitted",
+    );
+    const after = await links();
+    expect(after).toHaveLength(1);
+    expect(after[0]?.status).toBe("drafted");
+    expect(after[0]?.story_id).not.toBe(first?.story_id);
+    const { rows: stories } = await pools.system.query(
+      "select id from stories where assignment_id = $1",
+      [assigned.assignmentId],
+    );
+    expect(stories).toHaveLength(2);
+    const gates = t.sent.filter((s) => s.queue === QUEUES.gate);
+    expect(gates.map((g) => g.data.storyId)).toEqual([first?.story_id, after[0]?.story_id]);
   });
 
   it("holds the assignment with the errors after a second invalid draft", async () => {

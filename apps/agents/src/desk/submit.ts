@@ -37,6 +37,15 @@ async function storeRendition(
   );
   const publication = pubs[0];
   if (!publication) throw new Error(`no ${rendition.language} publication for the assignment`);
+  if (publication.status === "assigned") {
+    // A publication returned to the desk drops the links to its last story's renditions; that
+    // story, its renditions and checks stay, and the audit log keeps the status changes (D87).
+    await client.query("delete from publication_renditions where publication_id = $1", [
+      publication.id,
+    ]);
+  }
+  // Past assigned, a publication keeps the text it has: a second draft of it fails here on the
+  // key, so it never replaces text the gate checked or an editor saw.
   await client.query(
     `insert into publication_renditions (newsroom_id, publication_id, position, rendition_id)
      values (anr.current_newsroom_id(), $1, 1, $2)`,
