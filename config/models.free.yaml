@@ -102,10 +102,9 @@ models:
     tools: true
     price: { in: 0, out: 0 }
 
-  # Sized for a 36 GB laptop (models:probe and timing runs, 2026-10-27): the writer and the
-  # checker side by side in about 19 GB. Gemma 4 31B and 26B-A4B do not fit beside a checker;
-  # Qwen 3.5 9B thinks too long to answer in time. A weak draft is held; a weak checker would
-  # wave one through, so the checker gets the larger model.
+  # Sized for a 36 GB laptop (timing runs, 2026-10-27): gpt-oss-20b writes, Gemma 4 12B checks
+  # one claim at a time. Gemma 12B could not produce the desk's claims; Qwen 3.8 27B and Gemma 4
+  # 31B do not fit beside a checker (swapping, then a backend crash); Qwen 3.5 9B thinks too long.
   lmstudio-gemma-12b:
     provider: lmstudio
     model: google/gemma-4-12b
@@ -130,30 +129,37 @@ roles:
     - mistral-medium
   desk:
     default:
-      - lmstudio-gemma-12b
+      - lmstudio-gpt-oss-20b
       - gemini-flash
       - groq-gpt-oss-120b
       - mistral-medium
       - nvidia-glm
     by_format:
       newsletter-issue:
-        - lmstudio-gemma-12b
+        - lmstudio-gpt-oss-20b
         - gemini-flash
         - groq-gpt-oss-120b
         - mistral-medium
   # The desk's first model, so a story has one writer family for the fact-checker to avoid.
-  renderer: [lmstudio-gemma-12b, gemini-flash, groq-gpt-oss-120b, mistral-small, groq-qwen]
+  renderer: [lmstudio-gpt-oss-20b, gemini-flash, groq-gpt-oss-120b, mistral-small, groq-qwen]
   # The router drops every family that wrote the story, then tries the rest in order.
   fact-checker:
+    - lmstudio-gemma-12b
     - lmstudio-gpt-oss-20b
     - groq-gpt-oss-120b
     - nvidia-glm
     - mistral-medium
     - gemini-flash
-  item-matcher: [lmstudio-gpt-oss-20b, groq-gpt-oss-120b, gemini-flash, mistral-small, groq-qwen]
+  item-matcher:
+    - lmstudio-gemma-12b
+    - lmstudio-gpt-oss-20b
+    - groq-gpt-oss-120b
+    - gemini-flash
+    - mistral-small
+    - groq-qwen
   summariser:
     - gemini-flash-lite
-    - lmstudio-gemma-12b
+    - lmstudio-gpt-oss-20b
     - groq-gpt-oss-20b
     - groq-qwen
     - mistral-small

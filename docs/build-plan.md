@@ -60,7 +60,7 @@ Gate: **a daily brief is drafted, then passes or is held with reasons.**
 - [x] Item matcher graph: each rendition item against its claims.
 - [x] Policy layer: holds, themed and restricted routing, daily news scheduling; every result stored as a Check.
 - [x] Daily assignment job at 16:00 from the last 24 hours of leads, ranked by tier.
-- [ ] Gate: a daily newsletter issue is drafted in fa and en and either passes or is held with stored reasons.
+- [x] Gate: a daily newsletter issue is drafted in fa and en and either passes or is held with stored reasons.
 
 ## 4. Publishing
 

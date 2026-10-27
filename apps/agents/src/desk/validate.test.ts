@@ -52,7 +52,7 @@ const news = (claim_ids: string[]) => ({
   body: "متن",
   claim_ids,
 });
-const draft = (claims: object[], items = [news(["c1"])]) => ({
+const draft = (claims: object[], items: object[] = [news(["c1"])]) => ({
   story: { summary: "s", beat: "labs", claims },
   rendition: { language: "fa", title: "خبرنامه", items },
 });
@@ -68,6 +68,19 @@ const claim = (over: object = {}) => ({
 describe("submit validation (D77)", () => {
   it("accepts a draft whose claims quote their leads, after normalising whitespace", () => {
     expect(validateDraft(draft([claim()]), ctx)).toMatchObject({ story: { beat: "labs" } });
+  });
+
+  it("lifts a rendition written inside the story to the top level", () => {
+    const { story, rendition } = draft([claim()]);
+    const nested = { story: { ...story, rendition } };
+    expect(validateDraft(nested, ctx)).toMatchObject({ story: { beat: "labs" }, rendition });
+  });
+
+  it("names a missing item kind instead of the union's message", () => {
+    const { kind: _, ...noKind } = news(["c1"]);
+    expect(validateDraft(draft([claim()], [noKind]), ctx)).toContain(
+      'rendition.items.0: "kind" is missing',
+    );
   });
 
   it("returns schema errors with their paths", () => {
@@ -129,6 +142,12 @@ describe("submit validation (D77)", () => {
   it("finds the JSON object in a model's answer", () => {
     expect(parseJson('Here it is:\n```json\n{"a": 1}\n```')).toEqual({ a: 1 });
     expect(parseJson("no json")).toBe("the answer has no JSON object");
+  });
+
+  it("closes brackets left open at the end, and repairs nothing else", () => {
+    expect(parseJson('{"a": {"b": [{"c": "x}"}]}')).toEqual({ a: { b: [{ c: "x}" }] } });
+    expect(parseJson('{"a": [1, 2}')).toMatch(/does not parse/);
+    expect(parseJson('{"a": "b" "c": 1}')).toMatch(/does not parse/);
   });
 
   it.each(vectors.cases)("normalises like the SQL function and the verifier: $name", (c) => {

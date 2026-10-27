@@ -22,7 +22,7 @@ export const DESK_CLAIMS = `Step 3, claims. List the claims behind every item, t
 Answer one JSON object with exactly two top-level keys, "story" and "rendition"; the rendition sits beside the story, not inside it:
 {
   "story": {"summary": "...", "beat": "<slug>", "claims": [{"id": "c1", "kind": "fact" | "quote" | "opinion", "text": "...", "lead_id": "...", "quoted_passage": "<exact text from the lead>", "also": [{"lead_id": "...", "quoted_passage": "..."}]}]},
-  "rendition": <the draft, each item with "claim_ids": ["c1", ...]>
+  "rendition": {"language": "...", "title": "...", "items": [<the draft's items, each with "claim_ids": ["c1", ...]>]}
 }
 "also" is optional; leave it out when the first lead is tier 1.`;
 
@@ -32,7 +32,7 @@ Rules:
 - Write every item of the given rendition in the target language, same order, same kinds, same claim_ids, same lead_ids.
 - Say no more than the claims each item lists. Names, numbers and dates stay exactly as in the claims.
 - Follow the format guide and the target language's style guide.
-- Answer with one JSON object only: {"rendition": {"language": "...", "title": "...", "items": [...]}}`;
+- Answer with one JSON object only: {"rendition": {"language": "...", "title": "...", "items": [{"kind": "<the item's kind, copied>", "headline": "...", "body": "...", "claim_ids": ["c1", ...]}, ...]}}, each item keeping every field its original has.`;
 
 export const FACT_CHECKER_ROLE = `You check one claim against one passage from a stored source. You see nothing else.
 

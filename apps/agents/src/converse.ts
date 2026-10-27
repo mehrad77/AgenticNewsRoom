@@ -29,7 +29,11 @@ export async function converse(
   const turn: BaseMessage[] = [new HumanMessage(ask)];
   const options = tools.length > 0 ? { tools: [...tools] } : undefined;
   for (let round = 0; ; round++) {
-    const reply = await model.invoke([...history, ...turn], options);
+    // Told to answer: the tools are no longer offered, so an answer is all the model can give.
+    const reply = await model.invoke(
+      [...history, ...turn],
+      round > MAX_TOOL_ROUNDS ? undefined : options,
+    );
     turn.push(reply);
     const calls = reply instanceof AIMessage ? (reply.tool_calls ?? []) : [];
     if (calls.length === 0) return turn;

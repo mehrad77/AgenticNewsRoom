@@ -59,16 +59,60 @@ export interface ValidationContext {
   storyClaimIds?: readonly string[];
 }
 
-/** The first JSON object in a model's answer (models wrap JSON in prose or code fences). */
+/**
+ * The first JSON object in a model's answer (models wrap JSON in prose or code fences). Brackets
+ * left open at the very end are closed: small models drop the last brace of a long object, and a
+ * retry at temperature 0 repeats the slip. Nothing else is repaired.
+ */
 export function parseJson(text: string): unknown | string {
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
   if (start < 0 || end <= start) return "the answer has no JSON object";
+  const json = text.slice(start, end + 1);
   try {
-    return JSON.parse(text.slice(start, end + 1));
+    return JSON.parse(json);
   } catch (error) {
+    const closed = closeOpenBrackets(json);
+    if (closed !== undefined) {
+      try {
+        return JSON.parse(closed);
+      } catch {}
+    }
     return `the JSON does not parse: ${(error as Error).message}`;
   }
+}
+
+/** The text with its unclosed objects and arrays closed, or undefined if it ends mid-string or mismatched. */
+function closeOpenBrackets(json: string): string | undefined {
+  const open: string[] = [];
+  let inString = false;
+  let escaped = false;
+  for (const ch of json) {
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+    } else if (ch === '"') inString = true;
+    else if (ch === "{") open.push("}");
+    else if (ch === "[") open.push("]");
+    else if (ch === "}" || ch === "]") {
+      if (open.pop() !== ch) return undefined;
+    }
+  }
+  if (inString || open.length === 0) return undefined;
+  return json + open.reverse().join("");
+}
+
+/**
+ * Moves a rendition written inside the story to the top level, where it belongs. Models of two
+ * families wrote it there on every try; the move changes no content, and every check still runs.
+ */
+function liftRendition(value: unknown): unknown {
+  if (typeof value !== "object" || value === null || "rendition" in value) return value;
+  const { story } = value as { story?: unknown };
+  if (typeof story !== "object" || story === null || !("rendition" in story)) return value;
+  const { rendition, ...rest } = story as { rendition: unknown };
+  return { ...value, story: rest, rendition };
 }
 
 /** A minimum a passage must have to prove anything: not a word picked out of the text. */
@@ -77,11 +121,24 @@ export const MIN_PASSAGE_CHARS = 20;
 export function validateDraft(value: unknown, ctx: ValidationContext): Draft | string[] {
   const schema = DRAFT_SCHEMAS[ctx.format];
   if (!schema) return [`unknown format ${ctx.format}`];
-  const parsed = schema.safeParse(value);
+  const lifted = liftRendition(value);
+  const parsed = schema.safeParse(lifted);
   if (!parsed.success) {
-    return parsed.error.issues
-      .slice(0, 20)
-      .map((i) => `${i.path.join(".") || "draft"}: ${i.message}`);
+    return parsed.error.issues.slice(0, 20).map((i) => {
+      const at = i.path.join(".") || "draft";
+      // An item matches one schema per kind; without a kind the union's own message names none.
+      const item = i.path.reduce<unknown>(
+        (v, k) => (v as Record<PropertyKey, unknown>)?.[k],
+        lifted,
+      );
+      if (
+        at.startsWith("rendition.items.") &&
+        i.path.length === 3 &&
+        !(item as { kind?: unknown })?.kind
+      )
+        return `${at}: "kind" is missing`;
+      return `${at}: ${i.message}`;
+    });
   }
   const draft = parsed.data as Draft;
   const errors: string[] = [];
@@ -141,6 +198,7 @@ export function quoteKey(text: string, language?: string): string {
     .replace(/[يى]/g, "ی")
     .replace(/ك/g, "ک")
     .replace(/‌/g, "")
+    .replace(/[\u2010\u2011\u2212]/g, "-")
     .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
     .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660));
   if (language === "tr") mapped = mapped.replace(/I/g, "ı").replace(/İ/g, "i");

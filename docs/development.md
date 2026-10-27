@@ -88,7 +88,7 @@ Free tiers change often; the probe, not memory, decides which models stay in the
 
 ### Local models (LM Studio)
 
-The free profile tries local models first (D84), sized for a 36 GB laptop: `google/gemma-4-12b` writes, `openai/gpt-oss-20b` checks. Load both with a context window the desk prompt fits in; LM Studio's on-demand loading uses its default window, and a request that does not fit moves on to the next model:
+The free profile tries local models first (D84), sized for a 36 GB laptop: `openai/gpt-oss-20b` writes, `google/gemma-4-12b` checks. Load both with a context window the desk prompt fits in; LM Studio's on-demand loading uses its default window, and a request that does not fit moves on to the next model:
 
 ```bash
 curl -s -X POST http://127.0.0.1:1234/api/v1/models/load -H 'content-type: application/json' -d '{"model": "google/gemma-4-12b", "context_length": 65536}'
