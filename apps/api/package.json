@@ -3,17 +3,26 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "exports": {
+    "./types": "./src/generated/api.ts"
+  },
   "scripts": {
     "dev": "node --env-file-if-exists=../../.env --watch src/server.ts",
     "start": "node --env-file-if-exists=../../.env src/server.ts",
     "gen": "openapi-typescript openapi.yaml -o src/generated/api.ts",
     "lint": "redocly lint openapi.yaml",
     "typecheck": "tsc -p .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "desk:grant": "node scripts/grant.ts",
+    "dev:test": "node scripts/dev-test.ts"
   },
   "dependencies": {
+    "@anr/core": "workspace:*",
+    "@anr/db": "workspace:*",
     "@hono/node-server": "2.1.5",
-    "hono": "4.13.14"
+    "hono": "4.13.14",
+    "jose": "6.2.12",
+    "pg-boss": "12.38.0"
   },
   "devDependencies": {
     "@redocly/cli": "2.71.0",

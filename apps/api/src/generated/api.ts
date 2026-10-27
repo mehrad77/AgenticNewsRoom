@@ -21,6 +21,251 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/desk/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The signed-in person and the newsrooms they belong to */
+        get: operations["getDeskMe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        /** Publications held for an editor, with the reasons they are held */
+        get: operations["getReviewQueue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/publications/{publication}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                publication: components["parameters"]["Publication"];
+            };
+            cookie?: never;
+        };
+        /** One publication with its text, claims, checks and posts */
+        get: operations["getDeskPublication"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/publications/{publication}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                publication: components["parameters"]["Publication"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve a held publication; it goes out at its slot, or at once if that has passed */
+        post: operations["approvePublication"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/publications/{publication}/return": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                publication: components["parameters"]["Publication"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Return a held publication's assignment to the desk for a new draft */
+        post: operations["returnPublication"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/posts/{post}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                post: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Say whether a post with an unknown result went out */
+        post: operations["resolvePost"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        /** The newsroom's channels; credentials are never returned */
+        get: operations["listChannels"];
+        put?: never;
+        /** Add a channel (Editor-in-Chief); its credentials are sealed with the platform key */
+        post: operations["addChannel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/channels/{channel}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                channel: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Turn a channel on or off (Editor-in-Chief) */
+        post: operations["setChannelStatus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/samples": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        /** Auto-published publications sampled for review, unreviewed first */
+        get: operations["listSamples"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/samples/{sample}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                sample: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record a sampled publication as fine, or as a miss the gate should have caught */
+        post: operations["reviewSample"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/notices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        /** Messages from code to the Editor-in-Chief, unread first */
+        get: operations["listNotices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/notices/{notice}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                notice: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark a notice read */
+        post: operations["readNotice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -31,9 +276,216 @@ export interface components {
             /** @constant */
             service: "api";
         };
+        Error: {
+            error: string;
+        };
+        StatusResult: {
+            /** Format: uuid */
+            id: string;
+            status: string;
+        };
+        /** @enum {string} */
+        Language: "fa" | "en" | "tr";
+        /** @enum {string} */
+        Role: "editor-in-chief" | "editor";
+        DeskMe: {
+            email: string;
+            memberships: {
+                /** @description The newsroom's slug. */
+                newsroom: string;
+                name: {
+                    [key: string]: string;
+                };
+                role: components["schemas"]["Role"];
+            }[];
+        };
+        Check: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "code" | "fact-check" | "item-match" | "policy";
+            name: string;
+            /** @enum {string} */
+            result: "pass" | "fail" | "partial" | "error" | "timed-out";
+            /** @description The claim's ref, such as c1, if any. */
+            claim?: string | null;
+            item?: string | null;
+            detail?: unknown;
+            /** Format: date-time */
+            at: string;
+        };
+        QueueItem: {
+            /** Format: uuid */
+            id: string;
+            series: string;
+            /** Format: date-time */
+            slot: string;
+            language: components["schemas"]["Language"];
+            title: string | null;
+            /** @description Every check that did not pass, oldest first. */
+            holds: components["schemas"]["Check"][];
+            unknown_posts: number;
+        };
+        Post: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            channel: string;
+            kind: string;
+            part: number;
+            /** @enum {string} */
+            status: "pending" | "sent" | "unknown" | "failed";
+            external_id?: string | null;
+            body: string;
+            error?: unknown;
+            /** Format: date-time */
+            sent_at?: string | null;
+        };
+        Claim: {
+            ref: string;
+            /** @enum {string} */
+            kind: "fact" | "quote" | "opinion";
+            text: string;
+            /** @description The cited lead's URL. */
+            lead?: string | null;
+            quoted_passage?: string | null;
+        };
+        DeskPublication: {
+            /** Format: uuid */
+            id: string;
+            series: string;
+            /** Format: date-time */
+            slot: string;
+            language: components["schemas"]["Language"];
+            status: string;
+            /** @description The rendition body as the desk or renderer submitted it. */
+            rendition: Record<string, never> | null;
+            claims: components["schemas"]["Claim"][];
+            checks: components["schemas"]["Check"][];
+            posts: components["schemas"]["Post"][];
+        };
+        ReturnRequest: {
+            /** @description What the desk should change; kept in the audit log. */
+            note: string;
+        };
+        ResolvePostRequest: {
+            /** @description True if the message is on the channel (it is recorded as sent); false to send it again. */
+            went_out: boolean;
+            /** @description The channel's id for the message, when it went out and is known. */
+            external_id?: string;
+        };
+        Channel: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "site" | "telegram" | "podcast-rss";
+            language: components["schemas"]["Language"];
+            external_id?: string | null;
+            /** @enum {string} */
+            status: "active" | "disabled";
+            has_credentials: boolean;
+        };
+        NewChannel: {
+            /** @enum {string} */
+            kind: "site" | "telegram" | "podcast-rss";
+            language: components["schemas"]["Language"];
+            /** @description The channel's own id, such as a Telegram chat id or @username. */
+            external_id?: string;
+            /** @description Secrets such as `bot_token`; sealed before they reach Postgres, never returned. */
+            credentials?: {
+                [key: string]: string;
+            };
+        };
+        ChannelStatusRequest: {
+            /** @enum {string} */
+            status: "active" | "disabled";
+        };
+        Sample: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            publication: string;
+            title: string | null;
+            language: components["schemas"]["Language"];
+            /** Format: date-time */
+            sampled_at: string;
+            /** @enum {string|null} */
+            outcome?: "ok" | "miss" | null;
+            note?: string | null;
+            /** Format: date-time */
+            reviewed_at?: string | null;
+        };
+        SampleReviewRequest: {
+            /** @enum {string} */
+            outcome: "ok" | "miss";
+            /** @description What the gate should have caught, to become a new check or policy rule; required for a miss. */
+            note?: string;
+        };
+        Notice: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "budget-warning" | "budget-cap" | "no-leads" | "no-channel";
+            key: string;
+            detail: unknown;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            read_at?: string | null;
+        };
     };
-    responses: never;
-    parameters: never;
+    responses: {
+        /** @description The request body is not valid. */
+        BadRequest: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description No valid Cloudflare Access JWT, or no user for its email. */
+        Unauthorized: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description No membership in this newsroom, or a role that cannot do this. */
+        Forbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Nothing with that id in this newsroom. */
+        NotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description The row is not in a state that allows this. */
+        Conflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+    };
+    parameters: {
+        /** @description The newsroom's slug. */
+        Newsroom: string;
+        Publication: string;
+    };
     requestBodies: never;
     headers: never;
     pathItems: never;
@@ -58,6 +510,370 @@ export interface operations {
                     "application/json": components["schemas"]["Health"];
                 };
             };
+        };
+    };
+    getDeskMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The person and their memberships. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeskMe"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getReviewQueue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The review queue, oldest slot first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueueItem"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getDeskPublication: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                publication: components["parameters"]["Publication"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The publication. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeskPublication"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    approvePublication: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                publication: components["parameters"]["Publication"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scheduled. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusResult"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    returnPublication: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                publication: components["parameters"]["Publication"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReturnRequest"];
+            };
+        };
+        responses: {
+            /** @description Back with the desk. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    resolvePost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                post: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolvePostRequest"];
+            };
+        };
+        responses: {
+            /** @description Resolved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listChannels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Channels. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Channel"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    addChannel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewChannel"];
+            };
+        };
+        responses: {
+            /** @description Added. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Channel"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    setChannelStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                channel: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChannelStatusRequest"];
+            };
+        };
+        responses: {
+            /** @description Changed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Channel"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listSamples: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Samples. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Sample"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    reviewSample: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                sample: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SampleReviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Reviewed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Sample"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listNotices: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Notices. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notice"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    readNotice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                notice: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Marked. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusResult"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
 }
