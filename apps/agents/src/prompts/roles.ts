@@ -19,7 +19,11 @@ export const DESK_DRAFT = (language: string) =>
 Answer JSON: {"language": "${language}", "title": "...", "items": [ news: {"kind": "news", "headline": "...", "body": "..."}, article: {"kind": "article", "title": "...", "lead_id": "...", "reason": "<one line>"} ]}`;
 
 export const DESK_CLAIMS = `Step 3, claims. List the claims behind every item, then give the final draft with each item's claim_ids. Every item lists at least one claim.
-Answer JSON: {"story": {"summary": "...", "beat": "<slug>", "claims": [{"id": "c1", "kind": "fact" | "quote" | "opinion", "text": "...", "lead_id": "...", "quoted_passage": "<exact text from the lead>", "also": [{"lead_id": "...", "quoted_passage": "..."}]}]}, "rendition": <the draft, each item with "claim_ids": ["c1", ...]>}
+Answer one JSON object with exactly two top-level keys, "story" and "rendition"; the rendition sits beside the story, not inside it:
+{
+  "story": {"summary": "...", "beat": "<slug>", "claims": [{"id": "c1", "kind": "fact" | "quote" | "opinion", "text": "...", "lead_id": "...", "quoted_passage": "<exact text from the lead>", "also": [{"lead_id": "...", "quoted_passage": "..."}]}]},
+  "rendition": <the draft, each item with "claim_ids": ["c1", ...]>
+}
 "also" is optional; leave it out when the first lead is tier 1.`;
 
 export const RENDERER_ROLE = `You are the renderer of a newsroom: you write an existing story in another language. You do no research and add nothing.
