@@ -3,8 +3,8 @@ info:
   title: ANR API
   version: 0.0.0
   description: >-
-    Reads and writes for people: the editor's desk and reader sites. Contract-first: change this
-    file, run `pnpm gen`, then implement. Agents never call this API.
+    Reads and writes for people at the editor's desk (reader sites read Postgres directly). Contract-first:
+    change this file, run `pnpm gen`, then implement. Agents never call this API.
   license:
     name: Proprietary
     identifier: LicenseRef-Proprietary
@@ -24,10 +24,665 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Health"
+  /desk/me:
+    get:
+      operationId: getDeskMe
+      summary: The signed-in person and the newsrooms they belong to
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      responses:
+        "200":
+          description: The person and their memberships.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeskMe"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /desk/newsrooms/{newsroom}/queue:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+    get:
+      operationId: getReviewQueue
+      summary: Publications held for an editor, with the reasons they are held
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      responses:
+        "200":
+          description: The review queue, oldest slot first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/QueueItem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /desk/newsrooms/{newsroom}/publications/{publication}:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+      - $ref: "#/components/parameters/Publication"
+    get:
+      operationId: getDeskPublication
+      summary: One publication with its text, claims, checks and posts
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      responses:
+        "200":
+          description: The publication.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeskPublication"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /desk/newsrooms/{newsroom}/publications/{publication}/approve:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+      - $ref: "#/components/parameters/Publication"
+    post:
+      operationId: approvePublication
+      summary: Approve a held publication; it goes out at its slot, or at once if that has passed
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApproveRequest"
+      responses:
+        "200":
+          description: Scheduled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /desk/newsrooms/{newsroom}/publications/{publication}/return:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+      - $ref: "#/components/parameters/Publication"
+    post:
+      operationId: returnPublication
+      summary: Return a held publication's assignment to the desk for a new draft
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReturnRequest"
+      responses:
+        "200":
+          description: Back with the desk.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /desk/newsrooms/{newsroom}/posts/{post}/resolve:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+      - name: post
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: resolvePost
+      summary: Say whether a post with an unknown result went out
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResolvePostRequest"
+      responses:
+        "200":
+          description: Resolved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /desk/newsrooms/{newsroom}/channels:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+    get:
+      operationId: listChannels
+      summary: The newsroom's channels; credentials are never returned
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      responses:
+        "200":
+          description: Channels.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Channel"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: addChannel
+      summary: Add a channel (Editor-in-Chief); its credentials are sealed with the platform key
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewChannel"
+      responses:
+        "201":
+          description: Added.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Channel"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /desk/newsrooms/{newsroom}/channels/{channel}/status:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+      - name: channel
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: setChannelStatus
+      summary: Turn a channel on or off (Editor-in-Chief)
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChannelStatusRequest"
+      responses:
+        "200":
+          description: Changed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Channel"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /desk/newsrooms/{newsroom}/samples:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+    get:
+      operationId: listSamples
+      summary: Auto-published publications sampled for review, unreviewed first
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      responses:
+        "200":
+          description: Samples.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Sample"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /desk/newsrooms/{newsroom}/samples/{sample}/review:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+      - name: sample
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: reviewSample
+      summary: Record a sampled publication as fine, or as a miss the gate should have caught
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SampleReviewRequest"
+      responses:
+        "200":
+          description: Reviewed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sample"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /desk/newsrooms/{newsroom}/notices:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+    get:
+      operationId: listNotices
+      summary: Messages from code to the Editor-in-Chief, unread first
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      responses:
+        "200":
+          description: Notices.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notice"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /desk/newsrooms/{newsroom}/notices/{notice}/read:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+      - name: notice
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: readNotice
+      summary: Mark a notice read
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      responses:
+        "200":
+          description: Marked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /desk/newsrooms/{newsroom}/publications/{publication}/preview:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+      - $ref: "#/components/parameters/Publication"
+    get:
+      operationId: previewPublication
+      summary: What would be sent now - every channel's parts and the site page - from the same renderer and context as the publisher
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      responses:
+        "200":
+          description: The preview.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Preview"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /desk/newsrooms/{newsroom}/publications/{publication}/edit:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+      - $ref: "#/components/parameters/Publication"
+    post:
+      operationId: editPublication
+      summary: Change text of a held publication; its label then says a person edited it
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EditRequest"
+      responses:
+        "200":
+          description: Edited.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /desk/newsrooms/{newsroom}/publications/{publication}/pull-back:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+      - $ref: "#/components/parameters/Publication"
+    post:
+      operationId: pullBackPublication
+      summary: Hold a scheduled publication before its slot; it returns to the review queue
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PullBackRequest"
+      responses:
+        "200":
+          description: Held.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /desk/newsrooms/{newsroom}/schedule:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+    get:
+      operationId: getSchedule
+      summary: Publications whose slot is in the next days, in any status before published
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      parameters:
+        - name: days
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 31, default: 7 }
+      responses:
+        "200":
+          description: Upcoming slots, soonest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ScheduleItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /desk/newsrooms/{newsroom}/channels/{channel}/credentials:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+      - name: channel
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: replaceChannelCredentials
+      summary: Replace a channel's credentials (Editor-in-Chief); sealed, never returned, then checked
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CredentialsRequest"
+      responses:
+        "200":
+          description: Replaced.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Channel"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /desk/newsrooms/{newsroom}/channels/{channel}/check:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+      - name: channel
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: checkChannel
+      summary: Ask the publisher whether the channel can be posted to (Editor-in-Chief); nothing is sent
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      responses:
+        "200":
+          description: Queued; the result appears on the channel.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /desk/newsrooms/{newsroom}/samples/{sample}/issue:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+      - name: sample
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: fileSampleIssue
+      summary: Record the issue a sample miss was filed as
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IssueRequest"
+      responses:
+        "200":
+          description: Filed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sample"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /desk/newsrooms/{newsroom}/budget:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+    get:
+      operationId: getBudget
+      summary: This month's model spend against the newsroom's budget
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      responses:
+        "200":
+          description: The budget.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Budget"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /desk/newsrooms/{newsroom}/sources:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+    get:
+      operationId: listSourceHealth
+      summary: Each source's last fetch, failures and recent leads
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      responses:
+        "200":
+          description: Sources, failing first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SourceHealth"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /desk/newsrooms/{newsroom}/measures:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+    get:
+      operationId: getMeasures
+      summary: The charter's measures, week by week
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      parameters:
+        - name: weeks
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 26, default: 8 }
+      responses:
+        "200":
+          description: The measures.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Measures"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
 tags:
   - name: ops
     description: Operational endpoints.
+  - name: desk
+    description: >-
+      The editor's desk, behind Cloudflare Access. Every request carries the Access JWT; the API
+      verifies it, maps its email to a user and checks a membership in the newsroom named in the
+      path. Every approval and edit is written to the audit log.
 components:
+  securitySchemes:
+    cfAccess:
+      type: apiKey
+      in: header
+      name: Cf-Access-Jwt-Assertion
+      description: The Cloudflare Access JWT, verified against the team's signing keys and audience.
+  parameters:
+    Newsroom:
+      name: newsroom
+      in: path
+      required: true
+      description: The newsroom's slug.
+      schema: { type: string, pattern: "^[a-z][a-z0-9-]*$" }
+    Publication:
+      name: publication
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    BadRequest:
+      description: The request body is not valid.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: No valid Cloudflare Access JWT, or no user for its email.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: No membership in this newsroom, or a role that cannot do this.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Nothing with that id in this newsroom.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: The row is not in a state that allows this.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
   schemas:
     Health:
       type: object
@@ -40,3 +695,471 @@ components:
         service:
           type: string
           const: api
+    Error:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error: { type: string }
+    StatusResult:
+      type: object
+      additionalProperties: false
+      required: [id, status]
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string }
+    Language:
+      type: string
+      enum: [fa, en, tr]
+    Role:
+      type: string
+      enum: [editor-in-chief, editor]
+    DeskMe:
+      type: object
+      additionalProperties: false
+      required: [email, memberships]
+      properties:
+        email: { type: string }
+        memberships:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [newsroom, name, role]
+            properties:
+              newsroom: { type: string, description: The newsroom's slug. }
+              name:
+                type: object
+                additionalProperties: { type: string }
+              role: { $ref: "#/components/schemas/Role" }
+    Check:
+      type: object
+      additionalProperties: false
+      required: [id, kind, name, result, at]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [code, fact-check, item-match, policy] }
+        name: { type: string }
+        result: { type: string, enum: [pass, fail, partial, error, timed-out] }
+        claim: { type: [string, "null"], description: "The claim's ref, such as c1, if any." }
+        item: { type: [string, "null"] }
+        detail: {}
+        at: { type: string, format: date-time }
+    QueueItem:
+      type: object
+      additionalProperties: false
+      required: [id, series, slot, language, title, holds, unknown_posts]
+      properties:
+        id: { type: string, format: uuid }
+        series: { type: string }
+        slot: { type: string, format: date-time }
+        language: { $ref: "#/components/schemas/Language" }
+        title: { type: [string, "null"] }
+        holds:
+          type: array
+          description: Every check that did not pass, oldest first.
+          items: { $ref: "#/components/schemas/Check" }
+        unknown_posts: { type: integer, minimum: 0 }
+    Post:
+      type: object
+      additionalProperties: false
+      required: [id, channel, kind, part, status, body]
+      properties:
+        id: { type: string, format: uuid }
+        channel: { type: string, format: uuid }
+        kind: { type: string }
+        part: { type: integer, minimum: 1 }
+        status: { type: string, enum: [pending, sent, unknown, failed] }
+        external_id: { type: [string, "null"] }
+        body: { type: string }
+        error: {}
+        sent_at: { type: [string, "null"], format: date-time }
+    Claim:
+      type: object
+      additionalProperties: false
+      required: [ref, kind, text]
+      properties:
+        ref: { type: string }
+        kind: { type: string, enum: [fact, quote, opinion] }
+        text: { type: string }
+        lead: { type: [string, "null"], description: The cited lead's URL. }
+        quoted_passage: { type: [string, "null"] }
+    DeskPublication:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          series,
+          slot,
+          language,
+          status,
+          version,
+          editable,
+          rendition,
+          claims,
+          checks,
+          posts,
+          runs,
+          cost_usd,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        series: { type: string }
+        slot: { type: string, format: date-time }
+        language: { $ref: "#/components/schemas/Language" }
+        status: { type: string }
+        version:
+          type: string
+          description: Changes whenever the publication does; approve and edit send it back and are refused if it moved.
+        editable:
+          type: boolean
+          description: Held, with text, and no part sent or in flight.
+        rendition:
+          type: [object, "null"]
+          description: The rendition body as the desk or renderer submitted it.
+        claims:
+          type: array
+          items: { $ref: "#/components/schemas/Claim" }
+        checks:
+          type: array
+          items: { $ref: "#/components/schemas/Check" }
+        posts:
+          type: array
+          items: { $ref: "#/components/schemas/Post" }
+        runs:
+          type: array
+          description: The agent runs behind the publication's assignment and stories.
+          items: { $ref: "#/components/schemas/AgentRun" }
+        cost_usd: { type: number, description: The runs' summed cost. }
+    ApproveRequest:
+      type: object
+      additionalProperties: false
+      required: [version]
+      properties:
+        version: { type: string, maxLength: 100, description: The version the editor saw. }
+    ReturnRequest:
+      type: object
+      additionalProperties: false
+      required: [note]
+      properties:
+        note:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: What the desk should change; kept in the audit log.
+    ResolvePostRequest:
+      type: object
+      additionalProperties: false
+      required: [went_out]
+      properties:
+        went_out:
+          type: boolean
+          description: True if the message is on the channel (it is recorded as sent); false to send it again.
+        external_id:
+          type: string
+          maxLength: 200
+          description: The channel's id for the message, when it went out and is known.
+    Channel:
+      type: object
+      additionalProperties: false
+      required: [id, kind, language, status, has_credentials]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [site, telegram, podcast-rss] }
+        language: { $ref: "#/components/schemas/Language" }
+        external_id: { type: [string, "null"] }
+        status: { type: string, enum: [active, disabled] }
+        has_credentials: { type: boolean }
+        checked_at: { type: [string, "null"], format: date-time }
+        check_result:
+          description: What the channel said at its last check, null before one.
+          oneOf:
+            - type: "null"
+            - $ref: "#/components/schemas/ChannelCheck"
+    NewChannel:
+      type: object
+      additionalProperties: false
+      required: [kind, language]
+      properties:
+        kind: { type: string, enum: [site, telegram, podcast-rss] }
+        language: { $ref: "#/components/schemas/Language" }
+        external_id:
+          type: string
+          maxLength: 200
+          description: The channel's own id, such as a Telegram chat id or @username.
+        credentials:
+          type: object
+          additionalProperties: { type: string, maxLength: 500 }
+          description: Secrets such as `bot_token`; sealed before they reach Postgres, never returned.
+    ChannelStatusRequest:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: { type: string, enum: [active, disabled] }
+    Sample:
+      type: object
+      additionalProperties: false
+      required: [id, publication, title, language, sampled_at]
+      properties:
+        id: { type: string, format: uuid }
+        publication: { type: string, format: uuid }
+        title: { type: [string, "null"] }
+        language: { $ref: "#/components/schemas/Language" }
+        sampled_at: { type: string, format: date-time }
+        outcome: { type: [string, "null"], enum: [ok, miss, null] }
+        note: { type: [string, "null"] }
+        reviewed_at: { type: [string, "null"], format: date-time }
+        issue_url: { type: [string, "null"] }
+        filed_at: { type: [string, "null"], format: date-time }
+    SampleReviewRequest:
+      type: object
+      additionalProperties: false
+      required: [outcome]
+      properties:
+        outcome: { type: string, enum: [ok, miss] }
+        note:
+          type: string
+          maxLength: 2000
+          description: What the gate should have caught, to become a new check or policy rule; required for a miss.
+    Notice:
+      type: object
+      additionalProperties: false
+      required: [id, kind, key, detail, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [budget-warning, budget-cap, no-leads, no-channel] }
+        key: { type: string }
+        detail: {}
+        created_at: { type: string, format: date-time }
+        read_at: { type: [string, "null"], format: date-time }
+    AgentRun:
+      type: object
+      additionalProperties: false
+      required: [id, role, provider, model, outcome, cost_usd, started_at]
+      properties:
+        id: { type: string, format: uuid }
+        role: { type: string }
+        provider: { type: string }
+        model: { type: string }
+        outcome: { type: [string, "null"] }
+        cost_usd: { type: [number, "null"] }
+        tokens_in: { type: [integer, "null"] }
+        tokens_out: { type: [integer, "null"] }
+        started_at: { type: string, format: date-time }
+    Preview:
+      type: object
+      additionalProperties: false
+      required: [label, edited, site, channels]
+      properties:
+        label: { type: string, description: The disclosure label every part must carry. }
+        edited: { type: boolean }
+        site:
+          type: object
+          additionalProperties: false
+          required: [url, html]
+          properties:
+            url: { type: string }
+            html:
+              {
+                type: string,
+                description: "The site template's output, as the page body shows it.",
+              }
+            error: { type: string, description: Why the site page cannot be rendered. }
+        channels:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [kind, configured, parts]
+            properties:
+              kind: { type: string }
+              configured:
+                {
+                  type: boolean,
+                  description: Whether the newsroom has an active channel of this kind and language.,
+                }
+              parts: { type: array, items: { type: string } }
+              error:
+                {
+                  type: string,
+                  description: Why it cannot be rendered; the publisher would hold it.,
+                }
+    EditRequest:
+      type: object
+      additionalProperties: false
+      required: [version, changes]
+      properties:
+        version: { type: string, maxLength: 100, description: The version the editor saw. }
+        changes:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items:
+            type: object
+            additionalProperties: false
+            required: [pointer, text]
+            properties:
+              pointer:
+                type: string
+                description: A JSON pointer to a text field of the first rendition, such as /items/0/body.
+              text: { type: string, maxLength: 20000 }
+    PullBackRequest:
+      type: object
+      additionalProperties: false
+      required: [note]
+      properties:
+        note:
+          {
+            type: string,
+            minLength: 1,
+            maxLength: 2000,
+            description: Why; shown in the review queue.,
+          }
+    ScheduleItem:
+      type: object
+      additionalProperties: false
+      required: [id, series, slot, language, status, title]
+      properties:
+        id: { type: string, format: uuid }
+        series: { type: string }
+        slot: { type: string, format: date-time }
+        language: { $ref: "#/components/schemas/Language" }
+        status: { type: string, enum: [assigned, drafted, with-editor, scheduled] }
+        title: { type: [string, "null"] }
+    CredentialsRequest:
+      type: object
+      additionalProperties: false
+      required: [credentials]
+      properties:
+        credentials:
+          type: object
+          additionalProperties: { type: string, maxLength: 500 }
+          description: The channel's new secrets, replacing all of the old ones.
+    ChannelCheck:
+      type: object
+      additionalProperties: false
+      required: [ok]
+      properties:
+        ok: { type: boolean }
+        problem: { type: string }
+        detail:
+          type: object
+          additionalProperties: { type: [string, boolean, "null"] }
+    IssueRequest:
+      type: object
+      additionalProperties: false
+      required: [url]
+      properties:
+        url: { type: string, pattern: "^https://", maxLength: 500 }
+    Budget:
+      type: object
+      additionalProperties: false
+      required: [month, monthly_usd, check_reserve_usd, writing_limit_usd, spent_usd, by_role, runs]
+      properties:
+        month: { type: string, description: "YYYY-MM in the newsroom's timezone." }
+        monthly_usd: { type: number }
+        check_reserve_usd: { type: number }
+        writing_limit_usd:
+          { type: number, description: Where writing roles stop; checks may spend the reserve. }
+        spent_usd: { type: number }
+        by_role:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [role, runs, cost_usd]
+            properties:
+              role: { type: string }
+              runs: { type: integer }
+              cost_usd: { type: number }
+        runs:
+          type: array
+          description: This month's latest runs.
+          items: { $ref: "#/components/schemas/AgentRun" }
+    SourceHealth:
+      type: object
+      additionalProperties: false
+      required: [id, slug, kind, url, tier, use, terms_checked, consecutive_failures, leads_7d]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        kind: { type: string }
+        url: { type: string }
+        publisher: { type: [string, "null"] }
+        tier: { type: integer }
+        use: { type: string }
+        terms_checked: { type: [string, "null"], format: date }
+        last_fetched_at: { type: [string, "null"], format: date-time }
+        last_status: { type: [integer, "null"] }
+        last_error: { type: [string, "null"] }
+        consecutive_failures: { type: integer }
+        leads_7d:
+          { type: integer, description: Leads first seen from this source in the last 7 days. }
+    MeasureWeek:
+      type: object
+      additionalProperties: false
+      required:
+        - week
+        - published
+        - gated
+        - held
+        - hold_rate
+        - samples_reviewed
+        - sample_misses
+        - corrections
+        - corrections_per_100
+        - editor_minutes
+        - cost_usd
+        - cost_per_publication
+        - page_views
+        - downloads
+      properties:
+        week:
+          {
+            type: string,
+            format: date,
+            description: "The week's Monday, in the newsroom's timezone.",
+          }
+        published: { type: integer }
+        gated: { type: integer, description: Publications in the week's slots that left the gate. }
+        held: { type: integer }
+        hold_rate: { type: [number, "null"] }
+        samples_reviewed: { type: integer }
+        sample_misses: { type: integer }
+        corrections: { type: integer }
+        corrections_per_100: { type: [number, "null"] }
+        editor_minutes: { type: number }
+        cost_usd: { type: number }
+        cost_per_publication: { type: [number, "null"] }
+        page_views:
+          type: object
+          additionalProperties: { type: integer }
+          description: By language.
+        downloads:
+          type: object
+          additionalProperties: { type: integer }
+          description: By language.
+    Measures:
+      type: object
+      additionalProperties: false
+      required: [weeks, subscribers]
+      properties:
+        weeks:
+          type: array
+          description: Newest week first.
+          items: { $ref: "#/components/schemas/MeasureWeek" }
+        subscribers:
+          type: array
+          description: Each active Telegram channel's latest subscriber count.
+          items:
+            type: object
+            additionalProperties: false
+            required: [channel, language, subscribers, day]
+            properties:
+              channel: { type: string, format: uuid }
+              language: { $ref: "#/components/schemas/Language" }
+              external_id: { type: [string, "null"] }
+              subscribers: { type: integer }
+              day: { type: string, format: date }

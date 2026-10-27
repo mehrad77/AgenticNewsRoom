@@ -10,7 +10,7 @@ ANR (Agentic News Room): a platform for running publications where humans set th
 
 | Path                 | What                                                                        | Language         |
 | -------------------- | --------------------------------------------------------------------------- | ---------------- |
-| `apps/api`           | Hono API for people (desk, sites); contract-first `openapi.yaml`            | TS               |
+| `apps/api`           | Hono API for people (the editor's desk); contract-first `openapi.yaml`      | TS               |
 | `apps/web`           | Astro SSR: every newsroom's reader site + the editor's desk, routed by host | TS               |
 | `apps/agents`        | LangGraph.js agents worker + model router                                   | TS               |
 | `apps/publisher`     | Renders, sends to channels, records posts; podcast audio                    | TS               |

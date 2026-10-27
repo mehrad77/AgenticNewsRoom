@@ -39,7 +39,8 @@ export async function withNewsroom<T>(
 }
 
 export { type Actor, type AuditEntry, auditedUpdate, recordAudit } from "./audit.ts";
-export { createBoss, PGBOSS_SCHEMA } from "./boss.ts";
+export { createBoss, onClient, PGBOSS_SCHEMA } from "./boss.ts";
+export { type Budget, type BudgetState, budgetState, writingLimit } from "./budget.ts";
 export {
   type CredentialOwner,
   openCredentials,

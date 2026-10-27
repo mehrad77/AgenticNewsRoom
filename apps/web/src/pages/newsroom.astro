@@ -1,10 +1,112 @@
 ---
+// Every page of a newsroom site; src/lib/page.ts decides what it shows.
 import Base from "../layouts/Base.astro";
+import { directionOf } from "@anr/core";
+import { db } from "../lib/db.ts";
+import { scriptJson } from "../lib/metadata.ts";
+import { loadPage } from "../lib/page.ts";
 
 const site = Astro.locals.site;
-if (site.kind !== "newsroom") return Astro.redirect("/");
-const title = site.newsroom.name[site.language] ?? site.newsroom.slug;
+if (site.kind !== "newsroom") return new Response("Unknown site", { status: 404 });
+const rootDomain = process.env.ANR_ROOT_DOMAIN ?? "localhost";
+const page = await loadPage(
+  { pool: db(), rootDomain, devPort: rootDomain === "localhost" ? Number(Astro.url.port) || undefined : undefined },
+  {
+    subdomain: site.newsroom.subdomain,
+    language: site.language,
+    path: site.path,
+    query: Astro.url.searchParams,
+    userAgent: Astro.request.headers.get("user-agent"),
+  },
+);
+if (page.kind === "unknown") return new Response("Unknown site", { status: 404 });
+if (page.kind === "ninjs")
+  return new Response(JSON.stringify(page.json, null, 2), {
+    headers: { "content-type": "application/json; charset=utf-8" },
+  });
+if (page.kind === "not-found") Astro.response.status = 404;
+const name = page.newsroom.name[page.language] ?? page.newsroom.slug;
+const w = page.words;
+const date = (d: Date) =>
+  new Intl.DateTimeFormat(page.language, { dateStyle: "long", timeZone: page.newsroom.timezone }).format(d);
 ---
-<Base title={title} language={site.language} direction={site.direction}>
-  <h1>{title}</h1>
+<Base title={page.title} language={page.language} direction={directionOf(page.language)}>
+  <Fragment slot="head">
+    {page.kind === "publication" && (
+      <>
+        <link rel="canonical" href={page.jsonLd.url as string} />
+        <link rel="alternate" type="application/json" href={page.ninjsUrl} />
+        <meta name="iptc:digitalSourceType" content={page.digitalSourceType} />
+        <script type="application/ld+json" set:html={scriptJson(page.jsonLd)} />
+      </>
+    )}
+  </Fragment>
+  <header>
+    <strong><a href={page.links.home}>{name}</a></strong>
+    <form action={page.links.search} method="get" role="search">
+      <input type="search" name="q" placeholder={w.searchPlaceholder} value={page.kind === "search" ? page.query : ""} />
+    </form>
+    {page.languages.length > 1 && (
+      <nav>
+        {page.languages.filter((l) => l.language !== page.language).map((l) => (
+          <a href={l.url} hreflang={l.language} lang={l.language}>{l.language}</a>
+        ))}
+      </nav>
+    )}
+  </header>
+  <main>
+    {page.kind === "publication" && (
+      <>
+        {page.publication.status === "corrected" && <p><a href={page.links.corrections}>{w.corrected}</a></p>}
+        <p><time datetime={page.publication.publishedAt.toISOString()}>{date(page.publication.publishedAt)}</time></p>
+        <Fragment set:html={page.bodyHtml} />
+        {page.publication.corrections.map((c) => (
+          <aside id={c.id}><strong>{w.corrected}</strong> ({date(c.publishedAt)}): {c.notice}</aside>
+        ))}
+      </>
+    )}
+    {(page.kind === "home" || page.kind === "search") && (
+      <>
+        <h1>{page.kind === "home" ? w.latest : w.search}</h1>
+        {page.pieces.length === 0 ? (
+          <p>{page.kind === "home" ? w.nothingYet : page.query ? w.noResults : ""}</p>
+        ) : (
+          <ul>
+            {page.pieces.map((p) => (
+              <li><a href={page.url(p.path)}>{p.title ?? p.path}</a> · <time datetime={p.publishedAt.toISOString()}>{date(p.publishedAt)}</time></li>
+            ))}
+          </ul>
+        )}
+      </>
+    )}
+    {page.kind === "ai-policy" && (
+      <>
+        <h1>{w.aiPolicy}</h1>
+        {w.aiPolicyBody({ newsroom: name, editor: page.newsroom.editorInChief }).map((s) => (
+          <section id={s.id}>
+            <h2>{s.heading}</h2>
+            <p>{s.text}</p>
+          </section>
+        ))}
+      </>
+    )}
+    {page.kind === "corrections" && (
+      <>
+        <h1>{w.corrections}</h1>
+        <p>{w.correctionsBody({ owner: page.newsroom.correctionsOwner })}</p>
+        {page.corrections.length === 0 ? <p>{w.correctionsNone}</p> : (
+          <ul>
+            {page.corrections.map((c) => (
+              <li id={c.id}><a href={page.url(c.path)}>{c.title ?? c.path}</a> ({date(c.published_at)}): {c.notice}</li>
+            ))}
+          </ul>
+        )}
+      </>
+    )}
+    {page.kind === "not-found" && <h1>{w.notFound}</h1>}
+  </main>
+  <footer>
+    <a href={page.links.aiPolicy}>{w.aiPolicy}</a>
+    <a href={page.links.corrections}>{w.corrections}</a>
+  </footer>
 </Base>

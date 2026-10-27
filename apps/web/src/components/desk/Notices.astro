@@ -1,0 +1,15 @@
+---
+import { detail, type Notice, when } from "../../lib/desk.ts";
+
+interface Props {
+  notices: Notice[];
+}
+const { notices } = Astro.props;
+---
+<h1>Notices</h1>
+{notices.length === 0 && <p>No notices.</p>}
+<ul>{notices.map((x) => (
+  <li class={x.read_at ? "read" : ""}>{x.kind} · {x.key} · {when(x.created_at)} <small>{detail(x.detail)}</small>
+    {!x.read_at && <form method="post" class="inline"><input type="hidden" name="action" value="read-notice" /><input type="hidden" name="id" value={x.id} /><button>Mark read</button></form>}
+  </li>
+))}</ul>

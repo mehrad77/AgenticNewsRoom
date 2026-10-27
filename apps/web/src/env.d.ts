@@ -2,5 +2,6 @@
 declare namespace App {
   interface Locals {
     site: import("./lib/site.ts").Site;
+    path: string;
   }
 }

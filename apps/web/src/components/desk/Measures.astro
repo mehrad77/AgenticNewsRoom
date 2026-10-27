@@ -1,0 +1,35 @@
+---
+import { type Measures, percent, usd } from "../../lib/desk.ts";
+
+interface Props {
+  measures: Measures;
+}
+const { measures: m } = Astro.props;
+const languages = [...new Set(m.weeks.flatMap((w) => [...Object.keys(w.page_views), ...Object.keys(w.downloads)]))].sort();
+---
+<h1>Measures</h1>
+<p>The charter's measures by week (Monday, newsroom time). Hold rate counts publications the gate held, not those an editor pulled back; editor minutes run from opening a held publication to deciding on it.</p>
+<div class="scroll"><table>
+  <thead><tr>
+    <th>Week</th><th>Published</th><th>Hold rate</th><th>Sample misses</th><th>Corrections / 100</th><th>Editor minutes</th><th>Cost / publication</th>
+    {languages.map((l) => <th>Views {l}</th>)}
+    {languages.map((l) => <th>Downloads {l}</th>)}
+  </tr></thead>
+  <tbody>{m.weeks.map((w) => (
+    <tr>
+      <td>{w.week}</td>
+      <td>{w.published}</td>
+      <td>{percent(w.hold_rate)} <small>{w.held}/{w.gated}</small></td>
+      <td>{w.sample_misses} <small>of {w.samples_reviewed}</small></td>
+      <td>{w.corrections_per_100 === null ? "–" : w.corrections_per_100.toFixed(1)}</td>
+      <td>{w.editor_minutes}</td>
+      <td>{usd(w.cost_per_publication)} <small>{usd(w.cost_usd)} in all</small></td>
+      {languages.map((l) => <td>{w.page_views[l] ?? 0}</td>)}
+      {languages.map((l) => <td>{w.downloads[l] ?? 0}</td>)}
+    </tr>
+  ))}</tbody>
+</table></div>
+<h2>Telegram subscribers</h2>
+{m.subscribers.length === 0 ? <p>No counts yet; they are taken once a day.</p> : (
+  <ul>{m.subscribers.map((s) => <li>{s.language} · {s.external_id}: <strong>{s.subscribers}</strong> <small>on {s.day}</small></li>)}</ul>
+)}

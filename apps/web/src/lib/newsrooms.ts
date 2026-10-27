@@ -1,17 +1,29 @@
-import { resolve } from "node:path";
-import { loadConfig, validateConfig } from "@anr/config";
+import type { Language } from "@anr/core";
+import type { Pool } from "@anr/db";
 import type { SiteNewsroom } from "./site.ts";
 
-// Resolved from the working directory (apps/web), not this module, so it survives bundling.
-// Milestone 1 replaces this with the synced Newsroom rows in Postgres.
-const configRoot = process.env.ANR_CONFIG_DIR ?? resolve(process.cwd(), "../../config");
-
-const config = loadConfig(configRoot);
-const problems = validateConfig(config);
-// Fail at startup with the reasons, never route on config that does not match its schema.
-if (problems.length > 0)
-  throw new Error(`invalid config in ${configRoot}:\n${problems.join("\n")}`);
-
-export const newsrooms: SiteNewsroom[] = config.newsrooms.map((n) => n.newsroom as SiteNewsroom);
-
 export const rootDomain = process.env.ANR_ROOT_DOMAIN ?? "localhost";
+
+/** How long the host allow-list is reused before Postgres is asked again. */
+const TTL_MS = 30_000;
+let cached: { at: number; newsrooms: Promise<SiteNewsroom[]> } | undefined;
+
+/** The synced newsrooms, which are the sites this app serves (config sync writes them). */
+export function siteNewsrooms(pool: Pool, now = Date.now()): Promise<SiteNewsroom[]> {
+  if (!cached || now - cached.at > TTL_MS) {
+    const newsrooms = pool
+      .query<{
+        slug: string;
+        subdomain: string;
+        languages: Language[];
+        name: Partial<Record<Language, string>>;
+      }>("select slug, subdomain, languages, name from newsrooms where removed_at is null")
+      .then((r) => r.rows);
+    // A failed read is not cached, so the next request asks again.
+    newsrooms.catch(() => {
+      cached = undefined;
+    });
+    cached = { at: now, newsrooms };
+  }
+  return cached.newsrooms;
+}

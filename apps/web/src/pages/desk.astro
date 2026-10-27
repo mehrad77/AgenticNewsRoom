@@ -1,6 +1,153 @@
 ---
+// The editor's desk: routed by src/lib/desk.ts, each page a component in src/components/desk, all
+// thin clients of the API.
+import Budget from "../components/desk/Budget.astro";
+import Channels from "../components/desk/Channels.astro";
+import Measures from "../components/desk/Measures.astro";
+import Notices from "../components/desk/Notices.astro";
+import Publication from "../components/desk/Publication.astro";
+import Queue from "../components/desk/Queue.astro";
+import Samples from "../components/desk/Samples.astro";
+import Schedule from "../components/desk/Schedule.astro";
+import Sources from "../components/desk/Sources.astro";
 import Base from "../layouts/Base.astro";
+import { DeskApiError, deskApi, deskRoute } from "../lib/desk.ts";
+
+const route = deskRoute(Astro.locals.path);
+const api = deskApi(
+  process.env.ANR_API_URL ?? "http://127.0.0.1:8787",
+  Astro.request.headers.get("cf-access-jwt-assertion"),
+);
+const issuesUrl = process.env.ANR_ISSUES_URL || "https://github.com/mehrad77/AgenticNewsRoom/issues/new";
+
+let error: string | undefined;
+if (Astro.request.method === "POST") {
+  try {
+    return Astro.redirect(await api.act(route, await Astro.request.formData()), 303);
+  } catch (e) {
+    if (!(e instanceof DeskApiError)) throw e;
+    error = e.message;
+    Astro.response.status = e.status;
+  }
+}
+
+let me;
+try {
+  me = await api.me();
+} catch (e) {
+  if (!(e instanceof DeskApiError)) throw e;
+  Astro.response.status = e.status;
+  error = e.status === 401 ? "Sign in through Cloudflare Access." : e.message;
+}
+const load = async <T,>(fn: () => Promise<T>): Promise<T | undefined> => {
+  if (!me) return undefined;
+  try {
+    return await fn();
+  } catch (e) {
+    if (!(e instanceof DeskApiError)) throw e;
+    Astro.response.status = e.status;
+    error ??= e.message;
+    return undefined;
+  }
+};
+const r = route;
+const n = "newsroom" in r ? r.newsroom : undefined;
+const queue = r.kind === "queue" ? await load(() => api.queue(r.newsroom)) : undefined;
+const publication = r.kind === "publication" ? await load(() => api.publication(r.newsroom, r.id)) : undefined;
+// A preview needs text; a publication still being written has none yet.
+const preview = r.kind === "publication" && publication?.rendition ? await load(() => api.preview(r.newsroom, r.id)) : undefined;
+const channels = r.kind === "channels" ? await load(() => api.channels(r.newsroom)) : undefined;
+const samples = r.kind === "samples" ? await load(() => api.samples(r.newsroom)) : undefined;
+const notices = r.kind === "notices" ? await load(() => api.notices(r.newsroom)) : undefined;
+const schedule = r.kind === "schedule" ? await load(() => api.schedule(r.newsroom)) : undefined;
+const budget = r.kind === "budget" ? await load(() => api.budget(r.newsroom)) : undefined;
+const sources = r.kind === "sources" ? await load(() => api.sources(r.newsroom)) : undefined;
+const measures = r.kind === "measures" ? await load(() => api.measures(r.newsroom)) : undefined;
+const role = me?.memberships.find((m) => m.newsroom === n)?.role;
+if (r.kind === "not-found") Astro.response.status = 404;
+const nav = [
+  ["", "Queue"],
+  ["/schedule", "Upcoming"],
+  ["/samples", "Sample"],
+  ["/notices", "Notices"],
+  ["/measures", "Measures"],
+  ["/budget", "Budget"],
+  ["/sources", "Sources"],
+  ["/channels", "Channels"],
+] as const;
 ---
-<Base title="ANR editor's desk" language="en" direction="ltr">
-  <h1>Editor's desk</h1>
+<Base title={n ? `${n} · Editor's desk` : "Editor's desk"} language="en" direction="ltr" class="desk">
+  <header>
+    <strong><a href="/">Editor's desk</a></strong>
+    {n && <nav>{nav.map(([path, label]) => <a href={`/${n}${path}`} aria-current={Astro.locals.path === `/${n}${path}` ? "page" : undefined}>{label}</a>)}</nav>}
+    {me && <small>{me.email}</small>}
+  </header>
+  <main>
+    {error && <p role="alert"><strong>{error}</strong></p>}
+    {r.kind === "home" && me && (
+      <>
+        <h1>Your newsrooms</h1>
+        {me.memberships.length === 0 ? <p>You have no membership yet.</p> : (
+          <ul>{me.memberships.map((m) => <li><a href={`/${m.newsroom}`}>{m.name.en ?? m.newsroom}</a> ({m.role})</li>)}</ul>
+        )}
+      </>
+    )}
+    {n && queue && <Queue newsroom={n} queue={queue} />}
+    {n && publication && <Publication newsroom={n} publication={publication} preview={preview} />}
+    {n && schedule && <Schedule newsroom={n} items={schedule} />}
+    {channels && <Channels channels={channels} chief={role === "editor-in-chief"} />}
+    {n && samples && <Samples newsroom={n} samples={samples} issuesUrl={issuesUrl} />}
+    {notices && <Notices notices={notices} />}
+    {budget && <Budget budget={budget} />}
+    {sources && <Sources sources={sources} />}
+    {measures && <Measures measures={measures} />}
+    {r.kind === "not-found" && <h1>Not found</h1>}
+  </main>
 </Base>
+
+<style is:global>
+  /* The desk only: reader sites share Base.astro and keep its styles. Works from 320px up. */
+  body.desk { max-width: 64rem; padding: 0.75rem; }
+  .desk header nav { display: flex; flex-wrap: wrap; gap: 0.25rem 0.75rem; }
+  .desk header nav a[aria-current="page"] { font-weight: 700; }
+  .desk h1 { font-size: 1.5rem; line-height: 1.25; overflow-wrap: anywhere; }
+  .desk h2 { font-size: 1.15rem; overflow-wrap: anywhere; }
+  .desk .meta, .desk small { color: #555; }
+  .desk .card { border: 1px solid #ddd; border-radius: 8px; padding: 0.75rem; margin: 0 0 1rem; }
+  .desk .card h2 { margin-top: 0; }
+  .desk form { display: flex; flex-direction: column; gap: 0.5rem; margin: 0.5rem 0; }
+  .desk form.inline { display: inline-flex; margin: 0 0 0 0.5rem; }
+  .desk label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.9rem; }
+  .desk label.inline { flex-direction: row; align-items: center; }
+  .desk input:not([type="radio"]), .desk select, .desk textarea {
+    width: 100%; box-sizing: border-box; font: inherit; padding: 0.5rem; min-height: 44px;
+  }
+  .desk button, .desk .button {
+    min-height: 44px; padding: 0.5rem 1rem; font: inherit; cursor: pointer; align-self: flex-start;
+    border: 1px solid #888; border-radius: 6px; background: #f4f4f4; color: inherit; text-decoration: none;
+    display: inline-flex; align-items: center;
+  }
+  .desk button.primary { background: #1a5d2e; color: #fff; border-color: #1a5d2e; }
+  .desk .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: flex-end; }
+  .desk .actions form { margin: 0; }
+  .desk pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #f7f7f7; padding: 0.5rem; border-radius: 4px; max-height: 24rem; overflow: auto; }
+  .desk figure { margin: 0 0 1rem; }
+  .desk figcaption { font-size: 0.85rem; color: #555; }
+  .desk iframe.site { width: 100%; height: 28rem; border: 1px solid #ccc; border-radius: 4px; background: #fff; }
+  .desk .scroll { overflow-x: auto; }
+  .desk td:first-child { white-space: nowrap; }
+  .desk table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+  .desk th, .desk td { border-bottom: 1px solid #eee; padding: 0.35rem 0.5rem; text-align: start; vertical-align: top; }
+  .desk .fail { color: #8a1c1c; }
+  .desk .pass { color: #1a5d2e; }
+  .desk .checks { padding-inline-start: 1.25rem; }
+  .desk .label { font-size: 0.85rem; padding: 0.1rem 0.4rem; border: 1px solid #888; border-radius: 4px; }
+  .desk blockquote { margin: 0.5rem 0; padding-inline-start: 0.75rem; border-inline-start: 3px solid #ccc; }
+  .desk meter { width: 100%; height: 1.25rem; }
+  .desk li.read { color: #777; }
+  @media (max-width: 40rem) {
+    body.desk { padding: 0.5rem; }
+    .desk header { gap: 0.5rem; }
+    .desk button, .desk .button { align-self: stretch; justify-content: center; }
+  }
+</style>

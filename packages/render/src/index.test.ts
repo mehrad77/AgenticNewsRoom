@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createRenderer } from "./index.ts";
+import { CHANNEL_LIMITS, createRenderer, splitParts, visibleLength } from "./index.ts";
 
 const renderer = createRenderer();
 const rendition = {
@@ -52,5 +52,71 @@ describe("channel templates", () => {
     });
     expect(out).not.toContain("<script>");
     expect(out).toContain("&lt;script&gt;");
+  });
+});
+
+describe("splitting a post to a channel's limit", () => {
+  it("counts visible text: tags dropped, entities decoded, emoji as two units", () => {
+    expect(visibleLength("<b>a&amp;b</b> &lt;i&gt;")).toBe(7);
+    expect(visibleLength("🎙x")).toBe(3);
+  });
+
+  it("packs blocks greedily and ends every part with the label block", () => {
+    const parts = splitParts("<b>T</b>\n\nblock one\n\n \nblock two\n\nAI-made · u", "AI-made", 30);
+    expect(parts).toEqual(["<b>T</b>\n\nblock one\n\nAI-made · u", "block two\n\nAI-made · u"]);
+    for (const p of parts) expect(visibleLength(p)).toBeLessThanOrEqual(30);
+  });
+
+  it("refuses a block that cannot fit", () => {
+    expect(() => splitParts(`${"x".repeat(50)}\n\nAI-made`, "AI-made", 30)).toThrow(/cannot fit/);
+  });
+
+  it("takes only the lines from the label onwards as the footer", () => {
+    const parts = splitParts("<b>T</b>\n\nnotes one\nnotes two\nAI-made · u", "AI-made", 4096);
+    expect(parts).toEqual(["<b>T</b>\n\nnotes one\nnotes two\n\nAI-made · u"]);
+    const split = splitParts("aaaa\n\nnotes\nAI-made", "AI-made", 14);
+    expect(split).toEqual(["aaaa\n\nAI-made", "notes\n\nAI-made"]);
+  });
+
+  it("refuses a post without the label, a footer over the limit, or a broken tag", () => {
+    expect(() => splitParts("a\n\nb", "AI-made", 4096)).toThrow(/label is missing/);
+    expect(() => splitParts(`AI-made ${"x".repeat(40)}`, "AI-made", 30)).toThrow(/footer/);
+    // A blank line inside agent text in a tag: the split cuts the tag apart.
+    expect(() => splitParts("<b>title\n\nrest</b>\n\nL", "L", 9)).toThrow(/unbalanced/);
+  });
+
+  it("keeps a short post whole", () => {
+    expect(splitParts("a\n\nAI-made", "AI-made", 4096)).toEqual(["a\n\nAI-made"]);
+  });
+
+  it("splits a long Telegram issue with the label on every message", async () => {
+    const items = Array.from({ length: 12 }, (_, i) => ({
+      kind: "news",
+      headline: `خبر ${i}`,
+      body: "متن خبر. ".repeat(60),
+      claim_ids: ["c1"],
+    }));
+    const label = await renderer.disclosureLabel("fa");
+    const parts = await renderer.renderParts("newsletter-issue", "telegram", "fa", {
+      rendition: { title: "امروز", items },
+      edited: false,
+      site_url: "https://ai.example.test/",
+    });
+    expect(parts.length).toBeGreaterThan(1);
+    for (const p of parts) {
+      expect(visibleLength(p)).toBeLessThanOrEqual(CHANNEL_LIMITS.telegram ?? 0);
+      expect(p).toContain(label);
+    }
+    expect(parts.join("")).toContain("خبر 11");
+  });
+
+  it("gives other channels one part", async () => {
+    const parts = await renderer.renderParts("newsletter-issue", "site", "en", {
+      rendition,
+      edited: false,
+      ai_policy_url: "/ai-policy",
+      leads: {},
+    });
+    expect(parts).toHaveLength(1);
   });
 });

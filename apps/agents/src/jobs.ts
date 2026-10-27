@@ -5,6 +5,7 @@ import {
   type IngestSourceJob,
   QUEUES,
   type QueueName,
+  type RedraftJob,
 } from "@anr/core";
 import type { PgBoss } from "pg-boss";
 
@@ -14,6 +15,7 @@ export const AGENTS_QUEUES: readonly QueueName[] = [
   QUEUES.assign,
   QUEUES.agentRun,
   QUEUES.gate,
+  QUEUES.redraft,
 ];
 
 /**
@@ -25,9 +27,10 @@ export interface JobHandlers {
   assign?: (job: AssignJob) => Promise<void>;
   "agent-run"?: (job: AgentRunJob) => Promise<void>;
   gate?: (job: GateJob) => Promise<void>;
+  redraft?: (job: RedraftJob) => Promise<void>;
 }
 
-type Job = IngestSourceJob | AssignJob | AgentRunJob | GateJob;
+type Job = IngestSourceJob | AssignJob | AgentRunJob | GateJob | RedraftJob;
 
 export async function registerJobs(
   boss: Pick<PgBoss, "work">,

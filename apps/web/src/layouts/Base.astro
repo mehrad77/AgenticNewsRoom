@@ -5,8 +5,10 @@ interface Props {
   title: string;
   language: Language;
   direction: Direction;
+  /** A class on <body>, for pages with their own styles (the desk). */
+  class?: string;
 }
-const { title, language, direction } = Astro.props;
+const { title, language, direction, class: bodyClass } = Astro.props;
 ---
 <!doctype html>
 <html lang={language} dir={direction}>
@@ -14,8 +16,16 @@ const { title, language, direction } = Astro.props;
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
+    <slot name="head" />
+    <style is:global>
+      body { font-family: system-ui, sans-serif; max-width: 42rem; margin: 0 auto; padding: 1rem; line-height: 1.6; }
+      header, footer { display: flex; gap: 1rem; flex-wrap: wrap; align-items: baseline; }
+      header { border-bottom: 1px solid #ccc; margin-bottom: 1rem; }
+      footer { border-top: 1px solid #ccc; margin-top: 2rem; font-size: 0.9rem; }
+      .anr-disclosure { font-size: 0.85rem; padding: 0.2rem 0.5rem; border: 1px solid #888; border-radius: 4px; display: inline-block; }
+    </style>
   </head>
-  <body>
+  <body class={bodyClass}>
     <slot />
   </body>
 </html>

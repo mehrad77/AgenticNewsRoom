@@ -26,6 +26,8 @@ echo "replaying WAL…"
 for _ in $(seq 1 120); do
   if [[ "$(psql_super -c 'select pg_is_in_recovery()' 2>/dev/null)" == "f" ]]; then
     assert_archive_off
+    # The publisher holds every slot already past due at this moment (D90).
+    psql_super -d anr -c "insert into restores (note) values ('restore.sh')" >/dev/null
     echo "restored: $(psql_super -d anr -c "select count(*) || ' newsrooms' from newsrooms"), WAL archiving off"
     exit 0
   fi

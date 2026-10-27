@@ -3,6 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "exports": {
+    "./publish": "./src/publish.ts"
+  },
   "scripts": {
     "dev": "node --env-file-if-exists=../../.env --watch src/worker.ts",
     "start": "node --env-file-if-exists=../../.env src/worker.ts",

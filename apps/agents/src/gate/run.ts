@@ -268,7 +268,8 @@ export async function runGate(deps: GateDeps, job: GateJob): Promise<string> {
     }
   }
 
-  // 2. Disclosure: every channel template the series uses for the language shows the label.
+  // 2. Disclosure: every message of every channel the series uses for the language shows the
+  // label, split exactly as the publisher sends it (D79, D88). A post that cannot split errors.
   if (!checks.some((c) => c.name === "disclosure")) {
     await inStory(async (c) => {
       for (const r of story.renditions) {
@@ -279,14 +280,14 @@ export async function runGate(deps: GateDeps, job: GateJob): Promise<string> {
           const label = await deps.renderer.disclosureLabel(r.language);
           const missing: string[] = [];
           for (const kind of kinds) {
-            const out = await deps.renderer.render(story.format, kind, r.language, {
+            const parts = await deps.renderer.renderParts(story.format, kind, r.language, {
               rendition: r.body,
               edited: false,
               site_url: "https://example.invalid/",
               ai_policy_url: "/ai-policy",
               leads: {},
             });
-            if (!out.includes(label)) missing.push(kind);
+            if (!parts.every((p) => p.includes(label))) missing.push(kind);
           }
           const result = kinds.length > 0 && missing.length === 0 ? "pass" : "fail";
           await storeCheck(c, {

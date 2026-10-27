@@ -37,6 +37,8 @@ passphrase="${ANR_BACKUP_PASSPHRASE:-}"
 [[ "${ANR_ROOT_DOMAIN:-}" != localhost ]] || problems+=("ANR_ROOT_DOMAIN is still localhost")
 # Free tiers may train on prompts and have no availability promise (D72).
 [[ "${ANR_MODELS:-}" != free ]] || problems+=("ANR_MODELS=free is for development only")
+# The desk's development sign-in skips Cloudflare Access (D95).
+[[ -z "${ANR_DESK_DEV_EMAIL:-}" ]] || problems+=("ANR_DESK_DEV_EMAIL is for development only")
 if ((${#problems[@]} > 0)); then
   printf 'deploy: %s\n' "${problems[@]}" >&2
   exit 1

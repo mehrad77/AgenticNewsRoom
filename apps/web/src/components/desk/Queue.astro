@@ -1,0 +1,25 @@
+---
+import { type QueueItem, when } from "../../lib/desk.ts";
+import Holds from "./Holds.astro";
+
+interface Props {
+  newsroom: string;
+  queue: QueueItem[];
+}
+const { newsroom, queue } = Astro.props;
+---
+<h1>Review queue</h1>
+{queue.length === 0 ? <p>Nothing is held.</p> : (
+  <>
+    <p>Open a publication to see exactly what would go out, edit it, and decide.</p>
+    {queue.map((p) => (
+      <section class="card">
+        <h2><a href={`/${newsroom}/p/${p.id}`}>{p.title ?? "(untitled)"}</a></h2>
+        <p class="meta">{p.series} · {p.language} · {when(p.slot)}</p>
+        {p.unknown_posts > 0 && <p><strong>{p.unknown_posts} post(s) with an unknown result: open it to settle them.</strong></p>}
+        <Holds checks={p.holds} />
+        <a class="button" href={`/${newsroom}/p/${p.id}`}>Open to decide</a>
+      </section>
+    ))}
+  </>
+)}
