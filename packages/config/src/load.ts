@@ -14,7 +14,8 @@ export interface RawNewsroom {
 
 export interface RawConfig {
   root: string;
-  models: unknown;
+  /** Each models file (models.yaml, models.free.yaml, …), keyed by file name. */
+  models: Record<string, unknown>;
   formats: string[];
   /** Each format's format.yaml, keyed by format; undefined when missing. */
   formatMeta: Record<string, unknown>;
@@ -45,7 +46,12 @@ export function loadConfig(root: string): RawConfig {
   for (const f of formats) formatMeta[f] = readYaml(join(root, "formats", f, "format.yaml"));
   return {
     root,
-    models: readYaml(join(root, "models.yaml")),
+    models: Object.fromEntries(
+      readdirSync(root)
+        .filter((f) => /^models(\.[a-z0-9-]+)?\.yaml$/.test(f))
+        .sort()
+        .map((f) => [f, readYaml(join(root, f))]),
+    ),
     formats,
     formatMeta,
     newsrooms: dirs(newsroomsDir).map((slug) => {

@@ -1,13 +1,31 @@
-// Chat models for the router's choices. Keys come only from the environment (D47).
-import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
-import type { ModelChoice } from "../router.ts";
+// The summariser's model: the gateway called through the role's chain (D72). Keys come only from
+// the environment (D47); the gateway skips models without one.
 
-export function chatModel(choice: ModelChoice, env = process.env): BaseChatModel {
-  if (choice.provider !== "gemini")
-    throw new Error(`no chat model for provider ${choice.provider}`);
-  const apiKey = env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error("GEMINI_API_KEY is not set; summaries wait until it is (.env)");
-  // maxRetries 0: LangChain would otherwise retry a 429 itself, hiding it from the throttle.
-  return new ChatGoogleGenerativeAI({ model: choice.model, apiKey, temperature: 0, maxRetries: 0 });
+import type { ModelGateway } from "@anr/models";
+import type { BaseMessage } from "@langchain/core/messages";
+import type { ChatLike } from "./graph.ts";
+
+export interface RunModel extends ChatLike {
+  /** The model that answered last, for the Agent run row; undefined before the first answer. */
+  answered?(): { provider: string; model: string } | undefined;
+}
+
+export type ModelFactory = (chain: readonly string[]) => RunModel;
+
+export function gatewayModel(
+  gateway: Pick<ModelGateway, "chat">,
+  chain: readonly string[],
+): RunModel {
+  let sticky: string | undefined;
+  let answered: { provider: string; model: string } | undefined;
+  return {
+    async invoke(messages: BaseMessage[]) {
+      const result = await gateway.chat({ chain, messages, sticky });
+      // A run changes model only when forced to (rate limit, outage).
+      sticky = result.catalogId;
+      answered = { provider: result.provider, model: result.model };
+      return result.message;
+    },
+    answered: () => answered,
+  };
 }

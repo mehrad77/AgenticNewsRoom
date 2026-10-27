@@ -1,0 +1,135 @@
+# Free tiers for development (D72). Selected with ANR_MODELS=free; infra/deploy.sh refuses it.
+# Free tiers change often: `pnpm models:probe` checks every entry below against its provider.
+# Gemini (outside the EEA, UK and Switzerland) and Mistral's free plan may train on prompts.
+# Keys: docs/development.md#free-models. A provider without a key is skipped.
+providers:
+  gemini: { kind: google, key_env: GEMINI_API_KEY }
+  groq:
+    kind: openai
+    base_url: https://api.groq.com/openai/v1
+    key_env: GROQ_API_KEY
+  openrouter:
+    kind: openai
+    base_url: https://openrouter.ai/api/v1
+    key_env: OPENROUTER_API_KEY
+    # Per account, not per model; 1,000 a day after a one-time $10 credit.
+    limits: { rpm: 20, rpd: 50 }
+    shared_quota: true
+  mistral:
+    kind: openai
+    base_url: https://api.mistral.ai/v1
+    key_env: MISTRAL_API_KEY
+  nvidia:
+    kind: openai
+    base_url: https://integrate.api.nvidia.com/v1
+    key_env: NVIDIA_API_KEY
+    limits: { rpm: 40 }
+    shared_quota: true
+
+# family: the same weights served by two providers share a family, so the fact-checker skips both.
+models:
+  gemini-flash:
+    provider: gemini
+    model: gemini-3.8-flash
+    family: gemini-3.8-flash
+    tools: true
+    price: { in: 0, out: 0 }
+  gemini-flash-lite:
+    provider: gemini
+    model: gemini-3.5-flash-lite
+    family: gemini-3.5-flash-lite
+    tools: true
+    price: { in: 0, out: 0 }
+  gemini-flash-tts:
+    provider: gemini
+    model: gemini-3.8-flash-tts
+    family: gemini-3.8-flash-tts
+    tools: false
+    price: { in: 0, out: 0 }
+  groq-gpt-oss-120b:
+    provider: groq
+    model: openai/gpt-oss-120b
+    family: gpt-oss-120b
+    tools: true
+    limits: { rpm: 30, rpd: 1000, tpd: 200000 }
+    price: { in: 0, out: 0 }
+  groq-gpt-oss-20b:
+    provider: groq
+    model: openai/gpt-oss-20b
+    family: gpt-oss-20b
+    tools: true
+    price: { in: 0, out: 0 }
+  groq-qwen:
+    provider: groq
+    model: qwen/qwen3.8-27b
+    family: qwen3.8-27b
+    tools: true
+    price: { in: 0, out: 0 }
+  openrouter-nemotron-ultra:
+    provider: openrouter
+    model: nvidia/nemotron-3-ultra-550b-a55b:free
+    family: nemotron-3-ultra-550b
+    tools: true
+    price: { in: 0, out: 0 }
+  openrouter-gemma:
+    provider: openrouter
+    model: google/gemma-4-31b-it:free
+    family: gemma-4-31b
+    tools: true
+    price: { in: 0, out: 0 }
+  mistral-medium:
+    provider: mistral
+    model: mistral-medium-latest
+    family: mistral-medium
+    tools: true
+    price: { in: 0, out: 0 }
+  mistral-small:
+    provider: mistral
+    model: mistral-small-latest
+    family: mistral-small
+    tools: true
+    price: { in: 0, out: 0 }
+  nvidia-glm:
+    provider: nvidia
+    model: z-ai/glm-5.3
+    family: glm-5.3
+    tools: true
+    price: { in: 0, out: 0 }
+
+# Quality first, providers alternating so one exhausted account does not empty a chain.
+roles:
+  planner:
+    - gemini-flash
+    - nvidia-glm
+    - groq-gpt-oss-120b
+    - mistral-medium
+    - openrouter-nemotron-ultra
+  desk:
+    default:
+      - gemini-flash
+      - groq-gpt-oss-120b
+      - mistral-medium
+      - openrouter-nemotron-ultra
+      - nvidia-glm
+    by_format:
+      newsletter-issue:
+        - gemini-flash
+        - groq-gpt-oss-120b
+        - mistral-medium
+        - openrouter-nemotron-ultra
+  renderer: [gemini-flash, groq-gpt-oss-120b, mistral-small, groq-qwen]
+  # The router drops every family that wrote the story, then tries the rest in order.
+  fact-checker:
+    - groq-gpt-oss-120b
+    - nvidia-glm
+    - mistral-medium
+    - gemini-flash
+    - openrouter-nemotron-ultra
+  item-matcher: [groq-gpt-oss-120b, gemini-flash, mistral-small, groq-qwen]
+  summariser:
+    - gemini-flash-lite
+    - groq-gpt-oss-20b
+    - groq-qwen
+    - mistral-small
+    - openrouter-gemma
+tts: gemini-flash-tts

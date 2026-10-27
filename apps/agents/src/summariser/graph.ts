@@ -1,6 +1,5 @@
 // The summariser graph: summarise → validate, with one retry carrying the errors. It never
 // writes; the caller stores a valid result (summary and beats) as the run's submit.
-import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { AIMessage, type BaseMessage, HumanMessage } from "@langchain/core/messages";
 import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
 import { z } from "zod";
@@ -12,6 +11,11 @@ import {
 } from "./prompt.ts";
 
 export const MAX_ATTEMPTS = 2;
+
+/** What the graph needs from a model: a LangChain chat model or the model gateway's adapter. */
+export interface ChatLike {
+  invoke(messages: BaseMessage[]): Promise<BaseMessage>;
+}
 
 export interface SummariserResult {
   summary: string;
@@ -66,7 +70,7 @@ function text(message: BaseMessage): string {
 export type BeforeCall = () => Promise<void>;
 
 export function summariserGraph(
-  model: BaseChatModel,
+  model: ChatLike,
   beats: SummariserBeat[],
   beforeCall: BeforeCall = async () => {},
 ) {
@@ -105,7 +109,7 @@ export interface SummariserOutcome {
 }
 
 export async function summarise(
-  model: BaseChatModel,
+  model: ChatLike,
   lead: SummariserLead,
   beats: SummariserBeat[],
   beforeCall?: BeforeCall,

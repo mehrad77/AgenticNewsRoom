@@ -1,27 +1,58 @@
 import { fileURLToPath } from "node:url";
+import { modelsFile } from "@anr/models";
 import { describe, expect, it } from "vitest";
 import { ModelRouter } from "./router.ts";
 
-const router = ModelRouter.fromFile(
-  fileURLToPath(new URL("../../../config/models.yaml", import.meta.url)),
-);
+const configDir = fileURLToPath(new URL("../../../config", import.meta.url));
+const formats = [undefined, "newsletter-issue", "classic-article"];
 
-describe("ModelRouter", () => {
+for (const profile of ["", "free"]) {
+  const router = ModelRouter.fromFile(modelsFile(configDir, profile));
+
+  describe(`ModelRouter (${profile || "models.yaml"})`, () => {
+    it("never lets a model family that wrote the story check it", () => {
+      for (const format of formats) {
+        // Any model in the desk chain may have answered, after fallbacks.
+        for (const writer of router.resolve("desk", { format })) {
+          const writerFamilies = [router.family(writer)];
+          const checkers = router.resolve("fact-checker", { writerFamilies });
+          expect(checkers.length).toBeGreaterThan(0);
+          for (const c of checkers) expect(router.family(c)).not.toBe(writerFamilies[0]);
+        }
+      }
+    });
+
+    it("refuses a fact-check without the writer's families", () => {
+      expect(() => router.resolve("fact-checker")).toThrow();
+      expect(() => router.resolve("fact-checker", { writerFamilies: [] })).toThrow();
+    });
+
+    it("throws when every fact-checker family wrote the story", () => {
+      const all = router.resolve("fact-checker", { writerFamilies: ["none"] });
+      const writerFamilies = all.map((id) => router.family(id));
+      expect(() => router.resolve("fact-checker", { writerFamilies })).toThrow(
+        /no fact-checker model/,
+      );
+    });
+  });
+}
+
+describe("ModelRouter (models.free.yaml)", () => {
+  const router = ModelRouter.fromFile(modelsFile(configDir, "free"));
+
+  it("drops the writer's family and keeps the rest of the chain", () => {
+    const checkers = router.resolve("fact-checker", { writerFamilies: ["gpt-oss-120b"] });
+    expect(checkers).not.toContain("groq-gpt-oss-120b");
+    expect(checkers.length).toBeGreaterThan(0);
+  });
+});
+
+describe("ModelRouter (models.yaml)", () => {
+  const router = ModelRouter.fromFile(modelsFile(configDir, ""));
+
   it("uses the format override for the desk", () => {
-    const def = router.resolve("desk");
-    const newsletter = router.resolve("desk", { format: "newsletter-issue" });
-    expect(newsletter.model).not.toBe(def.model);
-  });
-
-  it("never lets the writer's model check its own facts", () => {
-    for (const format of [undefined, "newsletter-issue", "classic-article"]) {
-      const writer = router.resolve("desk", { format });
-      const checker = router.resolve("fact-checker", { writerModel: writer.model });
-      expect(checker.model).not.toBe(writer.model);
-    }
-  });
-
-  it("refuses a fact-check without the writer's model", () => {
-    expect(() => router.resolve("fact-checker")).toThrow();
+    expect(router.resolve("desk", { format: "newsletter-issue" })).not.toEqual(
+      router.resolve("desk"),
+    );
   });
 });

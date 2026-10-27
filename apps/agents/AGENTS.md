@@ -5,9 +5,9 @@ The agents worker: LangGraph.js graphs for the planner, desk, renderer, fact-che
 Hard limits (charter; see `docs/technical-design.md#agent-runs`):
 - An agent has exactly four tools: read a lead, search its newsroom's lead pool, request a new source (through ingestion), submit. No web access, no send, no other writes.
 - A graph never waits for a human; approvals, holds and schedules are Postgres rows.
-- Agents name a role; `src/router.ts` picks the model from `config/models.yaml`. The fact-checker's model always differs from the writer's.
+- Agents name a role; `src/router.ts` picks the role's chain from the models file (`ANR_MODELS`), and `@anr/models` calls it. The fact-checker's chain never contains a family that wrote the story.
 - Submits are validated against the format's JSON Schema; one retry with the errors, then the assignment is held.
-- Every model call writes an Agent run row (role, model, prompt version, input hash, tokens, cost).
+- Every model call writes an Agent run row (role, the provider and model that answered, prompt version, input hash, tokens, cost). Pass the run's first answering model as `sticky` to later calls.
 
 Summariser (`src/summariser/`): new leads get an Agent run and an `agent-run` job in one transaction; the graph validates the model's JSON (beats only from the newsroom's slugs) with one retry (D63). Model keys come from the environment (`GEMINI_API_KEY`); without one the worker leaves summariser jobs queued. Calls are paced by `ANR_SUMMARISER_RPM` and a 429 re-queues the job for later (D66); and `resumeSummaries()` re-queues unfinished ones at start and after each ingest run. Tests use `FakeListChatModel`.
 

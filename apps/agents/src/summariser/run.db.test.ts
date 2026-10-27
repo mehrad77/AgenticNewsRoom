@@ -10,20 +10,19 @@ const pools = testPools();
 afterAll(() => pools.end());
 
 const router = new ModelRouter({
-  roles: {
-    planner: { provider: "gemini", model: "p" },
-    desk: { default: { provider: "gemini", model: "d" } },
-    renderer: { provider: "gemini", model: "r" },
-    "fact-checker": {
-      candidates: [
-        { provider: "gemini", model: "a" },
-        { provider: "gemini", model: "b" },
-      ],
-    },
-    "item-matcher": { provider: "gemini", model: "i" },
-    summariser: { provider: "gemini", model: "flash-lite-test" },
+  providers: {},
+  models: {
+    "test-small": { provider: "gemini", model: "flash-lite-test", family: "f", tools: true },
   },
-  tts: { provider: "gemini", model: "t" },
+  roles: {
+    planner: ["test-small"],
+    desk: { default: ["test-small"] },
+    renderer: ["test-small"],
+    "fact-checker": ["test-small"],
+    "item-matcher": ["test-small"],
+    summariser: ["test-small"],
+  },
+  tts: "test-small",
 } as never);
 
 async function setup() {
@@ -64,7 +63,7 @@ describe("summariser runs", () => {
     const model = new FakeListChatModel({
       responses: ['{"summary": "Orbit is out.", "beats": ["labs"]}'],
     });
-    const outcome = await runSummariser(pools.app, () => model, {
+    const outcome = await runSummariser(pools.app, router, () => model, {
       newsroomId,
       agentRunId: runId ?? "",
     });
@@ -91,7 +90,7 @@ describe("summariser runs", () => {
     });
     // A retried job finds the run finished and does nothing.
     expect(
-      await runSummariser(pools.app, () => model, { newsroomId, agentRunId: runId ?? "" }),
+      await runSummariser(pools.app, router, () => model, { newsroomId, agentRunId: runId ?? "" }),
     ).toBeNull();
   });
 
@@ -108,7 +107,7 @@ describe("summariser runs", () => {
       responses: ['{"summary": "x", "beats": ["made-up"]}', "nope"],
     });
     expect(
-      await runSummariser(pools.app, () => model, { newsroomId, agentRunId: runId ?? "" }),
+      await runSummariser(pools.app, router, () => model, { newsroomId, agentRunId: runId ?? "" }),
     ).toBe("invalid");
     const { rows } = await pools.system.query("select summary from leads where id = $1", [leadId]);
     expect(rows[0]).toEqual({ summary: null });
@@ -270,6 +269,7 @@ describe("summariserHandler", () => {
     const handle = summariserHandler({
       pool: pools.app,
       boss: boss as never,
+      router,
       makeModel: () => limited as never,
       throttle,
       log: () => {},

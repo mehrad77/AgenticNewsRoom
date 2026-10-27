@@ -22,7 +22,8 @@
     "db:down": "docker compose --env-file .env -f infra/compose.yaml down",
     "db:migrate": "pnpm --filter @anr/db run migrate && pnpm --filter @anr/db run migrate:test",
     "db:roles": "docker compose --env-file .env -f infra/compose.yaml exec postgres anr-roles",
-    "config:sync": "pnpm --filter @anr/config run sync"
+    "config:sync": "pnpm --filter @anr/config run sync",
+    "models:probe": "pnpm --filter @anr/models run probe"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.3",

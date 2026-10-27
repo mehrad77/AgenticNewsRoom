@@ -1,0 +1,26 @@
+{
+  "name": "@anr/models",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "probe": "node --env-file-if-exists=../../.env src/probe-cli.ts",
+    "typecheck": "tsc -p .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@anr/schemas": "workspace:*",
+    "@langchain/core": "1.3.0",
+    "@langchain/google-genai": "2.3.4",
+    "@langchain/openai": "1.6.2",
+    "yaml": "2.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "typescript": "5.9.3",
+    "vitest": "5.0.5"
+  }
+}

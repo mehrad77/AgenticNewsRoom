@@ -167,7 +167,7 @@ describe("ingest-source, end to end", () => {
 
     const model = new FakeListChatModel({ responses: ['{"summary": "A summary.", "beats": []}'] });
     for (const job of queued)
-      expect(await runSummariser(pools.app, () => model, job)).toBe("submitted");
+      expect(await runSummariser(pools.app, router, () => model, job)).toBe("submitted");
     const { rows: unsummarised } = await pools.system.query(
       "select uri from leads where newsroom_id = $1 and summary is null",
       [newsroomId],

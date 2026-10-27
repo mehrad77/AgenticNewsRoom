@@ -4,11 +4,12 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { type AgentRunJob, QUEUES } from "@anr/core";
 import { type Client, type Pool, withNewsroom } from "@anr/db";
-import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
+import { AllModelsExhausted } from "@anr/models";
 import type { PgBoss } from "pg-boss";
-import type { ModelChoice, ModelRouter } from "../router.ts";
+import type { ModelRouter } from "../router.ts";
 import { rateLimitDelayMs, type Throttle } from "../throttle.ts";
 import { type BeforeCall, summarise } from "./graph.ts";
+import type { ModelFactory } from "./model.ts";
 import { PROMPT_VERSION, type SummariserBeat } from "./prompt.ts";
 
 const mediaTopics = fileURLToPath(
@@ -39,7 +40,10 @@ export async function enqueueSummaries(
   newsroomId: string,
   leadIds: string[],
 ): Promise<string[]> {
-  const choice = router.resolve("summariser");
+  // The row names the first model of the chain; it is updated to the one that answered.
+  const [first] = router.resolve("summariser");
+  if (!first) throw new Error("the summariser chain is empty");
+  const choice = router.describe(first);
   const runIds: string[] = [];
   for (const leadId of leadIds) {
     await withNewsroom(pool, newsroomId, async (client) => {
@@ -71,11 +75,10 @@ interface RunRow {
   lead_id: string | null;
 }
 
-export type ModelFactory = (choice: ModelChoice) => BaseChatModel;
-
 /** The agent-run job for a summariser run. A finished run is never run again (retries). */
 export async function runSummariser(
   pool: Pool,
+  router: ModelRouter,
   makeModel: ModelFactory,
   job: AgentRunJob,
   beforeCall?: BeforeCall,
@@ -107,7 +110,7 @@ export async function runSummariser(
     description: b.description,
     topics: b.media_topics.map(topicLabel),
   }));
-  const model = makeModel({ provider: loaded.run.provider, model: loaded.run.model });
+  const model = makeModel(router.resolve("summariser"));
   const outcome = await summarise(model, loaded.lead, beats, beforeCall);
 
   return withNewsroom(pool, job.newsroomId, async (client) => {
@@ -125,9 +128,17 @@ export async function runSummariser(
     }
     const result = outcome.result ? "submitted" : "invalid";
     await client.query(
-      `update agent_runs set outcome = $1, tokens_in = $2, tokens_out = $3, finished_at = now()
+      `update agent_runs set outcome = $1, tokens_in = $2, tokens_out = $3, finished_at = now(),
+              provider = coalesce($5, provider), model = coalesce($6, model)
        where id = $4`,
-      [result, outcome.tokensIn, outcome.tokensOut, job.agentRunId],
+      [
+        result,
+        outcome.tokensIn,
+        outcome.tokensOut,
+        job.agentRunId,
+        model.answered?.()?.provider ?? null,
+        model.answered?.()?.model ?? null,
+      ],
     );
     return result;
   });
@@ -190,12 +201,16 @@ export async function resumeSummaries(
   return resumed;
 }
 
+/** When every model in the chain is cooling down, the job is tried again after this long. */
+const EXHAUSTED_DELAY_MS = 60_000;
+
 /** Longer than this until the next slot, and a job is re-queued instead of waiting in-process. */
 const MAX_IN_PROCESS_WAIT_MS = 30_000;
 
 export interface SummariserHandlerDeps {
   pool: Pool;
   boss: Pick<PgBoss, "send">;
+  router: ModelRouter;
   makeModel: ModelFactory;
   throttle: Throttle;
   log?: (line: string) => void;
@@ -218,12 +233,19 @@ export function summariserHandler(deps: SummariserHandlerDeps) {
       return;
     }
     try {
-      const outcome = await runSummariser(deps.pool, deps.makeModel, job, () =>
+      const outcome = await runSummariser(deps.pool, deps.router, deps.makeModel, job, () =>
         deps.throttle.wait(),
       );
       if (outcome) log(`[agents] summariser run ${job.agentRunId}: ${outcome}`);
     } catch (error) {
-      const delay = rateLimitDelayMs(error);
+      // The whole chain rate-limited or down: wait, as a rate-limit answer does. A chain of
+      // only retired or keyless models fails instead, so the job uses its retries and ends.
+      const delay =
+        error instanceof AllModelsExhausted
+          ? error.transient
+            ? EXHAUSTED_DELAY_MS
+            : null
+          : rateLimitDelayMs(error);
       if (delay === null) throw error;
       deps.throttle.pauseFor(delay);
       await later(job, delay);
