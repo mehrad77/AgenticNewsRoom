@@ -3,9 +3,12 @@
  * - rate-limited: cool this model down and try the next one;
  * - unavailable: a short cooldown, then the next one;
  * - gone: the model was retired or renamed; skip it until restart;
+ * - too-large: the request exceeds this model's limits (413, a free tier's tokens per minute, or
+ *   a 400 over its context window);
+ *   try the next one, with no cooldown, since smaller requests still fit;
  * - fatal: a bad key or a bad request; stop, because the next model would hide a real bug.
  */
-export type FailureKind = "rate-limited" | "unavailable" | "gone" | "fatal";
+export type FailureKind = "rate-limited" | "unavailable" | "gone" | "too-large" | "fatal";
 
 export interface Failure {
   kind: FailureKind;
@@ -97,8 +100,15 @@ export function classify(error: unknown, now = Date.now()): Failure {
   if (status === 404 || ((status === 400 || status === undefined) && retired)) {
     return { kind: "gone", message };
   }
+  // Too big for this model's limits or context window: another model may take it (D83).
+  const overContext = /context.?(length|window)|maximum context|too many tokens|n_ctx/i.test(
+    message,
+  );
+  if (status === 413 || (status === 400 && overContext)) return { kind: "too-large", message };
+  // A local server that dropped the model (memory pressure) has it back on a later load.
+  const unloaded = /model (is )?(unloaded|not loaded)|no models? loaded/i.test(message);
   if (status !== undefined) {
-    if (status === 408 || status === 409 || status === 425 || status >= 500) {
+    if (status === 408 || status === 409 || status === 425 || status >= 500 || unloaded) {
       return { kind: "unavailable", retryAfterMs, message };
     }
     return { kind: "fatal", message };

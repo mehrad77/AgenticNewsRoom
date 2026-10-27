@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anr.local/schemas/verify-result.schema.json",
+  "title": "VerifyResult",
+  "description": "The code checks the verifier ran and stored for a story. Anything but pass holds the story's publications (invariant 5).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["story_id", "checks"],
+  "properties": {
+    "story_id": { "type": "string", "format": "uuid" },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "result"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "description": "The stored Check row." },
+          "name": { "type": "string", "minLength": 1 },
+          "result": { "enum": ["pass", "fail", "partial", "error", "timed-out"] },
+          "claim_id": { "type": ["string", "null"], "format": "uuid" },
+          "rendition_id": { "type": ["string", "null"], "format": "uuid" },
+          "item": { "type": ["string", "null"] },
+          "detail": {}
+        }
+      }
+    }
+  }
+}

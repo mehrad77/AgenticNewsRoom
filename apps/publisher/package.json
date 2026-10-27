@@ -12,7 +12,7 @@
   "dependencies": {
     "@anr/core": "workspace:*",
     "@anr/db": "workspace:*",
-    "liquidjs": "10.30.0",
+    "@anr/render": "workspace:*",
     "pg-boss": "12.38.0"
   },
   "devDependencies": {

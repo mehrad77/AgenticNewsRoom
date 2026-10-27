@@ -259,6 +259,29 @@ def recent_papers(conn: Conn, source_id: str, days: int) -> list[tuple[str, str,
     return [(str(r["id"]), r["uri"], r["tier"]) for r in rows]
 
 
+def recent_live_papers(conn: Conn, source_id: str, days: int) -> list[tuple[str, str]]:
+    """(lead id, uri) of this source's leads from the last `days` not yet marked withdrawn."""
+    rows = conn.execute(
+        """select id, uri from leads
+           where source_id = %s and withdrawn_at is null
+             and fetched_at > now() - make_interval(days => %s)
+           order by fetched_at""",
+        (source_id, days),
+    ).fetchall()
+    return [(str(r["id"]), r["uri"]) for r in rows]
+
+
+def mark_withdrawn(conn: Conn, lead_id: str, reason: str) -> bool:
+    """Marks a stored lead withdrawn (issue #3, D78): its text stays frozen and claims citing it
+    stay readable, but search and assignments skip it and the verifier fails such claims."""
+    cur = conn.execute(
+        """update leads set withdrawn_at = now(), withdrawn_reason = %s
+           where id = %s and withdrawn_at is null""",
+        (reason, lead_id),
+    )
+    return cur.rowcount == 1
+
+
 def raise_tier(conn: Conn, lead_id: str, tier: int) -> bool:
     """Raises a lead's tier (a lower number); never lowers it."""
     cur = conn.execute(

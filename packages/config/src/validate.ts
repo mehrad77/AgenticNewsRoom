@@ -41,10 +41,20 @@ function modelsProblems(m: ModelsSchema, file: string, formats: string[]): strin
     if (p.kind === "openai" && p.base_url.includes("{account}") && !p.account_env) {
       errors.push(`${file} provider ${id}: base_url has {account} but no account_env`);
     }
+    // A local server (plain http, no key) is for development profiles only (D84).
+    if (file === "models.yaml" && p.kind === "openai" && !p.base_url.startsWith("https://")) {
+      errors.push(`${file} provider ${id}: a local server belongs in a development profile`);
+    }
+    if (file === "models.yaml" && !p.key_env) {
+      errors.push(`${file} provider ${id}: needs key_env`);
+    }
   }
   for (const [id, model] of Object.entries(m.models)) {
     if (!m.providers[model.provider]) {
       errors.push(`${file} model ${id}: unknown provider ${model.provider}`);
+    }
+    if (model.reasoning_effort && m.providers[model.provider]?.kind !== "openai") {
+      errors.push(`${file} model ${id}: reasoning_effort needs an OpenAI-compatible provider`);
     }
     // OpenRouter's :online variants search the web; agents have no web access (invariant 2).
     if (model.model.endsWith(":online")) {
@@ -61,9 +71,12 @@ function modelsProblems(m: ModelsSchema, file: string, formats: string[]): strin
       if (!model) errors.push(`${file} ${role}: unknown model ${id}`);
       // Every agent ends with the submit tool.
       else if (!model.tools) errors.push(`${file} ${role}: ${id} has no tool calling`);
+      // Budgets count spend from prices; an unpriced model would spend unseen (D82).
+      else if (!model.price) errors.push(`${file} ${role}: ${id} has no price`);
     }
   }
   if (!m.models[m.tts]) errors.push(`${file} tts: unknown model ${m.tts}`);
+  else if (!m.models[m.tts]?.price) errors.push(`${file} tts: ${m.tts} has no price`);
   const families = new Set(m.roles["fact-checker"].flatMap((id) => m.models[id]?.family ?? []));
   if (families.size < 2) {
     errors.push(`${file} fact-checker needs models from at least two families`);

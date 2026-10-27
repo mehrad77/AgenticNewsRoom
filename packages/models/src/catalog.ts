@@ -28,7 +28,16 @@ export interface CatalogEntry {
   /** A 429 on this model means the whole provider account is limited. */
   sharedQuota: boolean;
   price?: { in: number; out: number };
+  /** Sent as reasoning_effort (OpenAI-compatible providers only). */
+  reasoningEffort?: "none" | "low" | "medium" | "high";
+  /** How long one call may take before it counts as an outage. */
+  timeoutMs: number;
 }
+
+/** The default deadline of one model call. */
+export const DEFAULT_TIMEOUT_MS = 120_000;
+/** What a keyless local server is sent as its key; OpenAI-compatible clients require one. */
+export const NO_KEY = "none";
 
 export interface Catalog {
   config: ModelsConfig;
@@ -54,7 +63,11 @@ export function buildCatalog(
   for (const [id, m] of Object.entries(config.models)) {
     const p = config.providers[m.provider];
     if (!p) throw new Error(`model ${id}: unknown provider ${m.provider}`);
-    const needed = [p.key_env, ...(p.kind === "openai" && p.account_env ? [p.account_env] : [])];
+    // A local server needs no key (only loopback http is allowed without https).
+    const needed = [
+      ...(p.key_env ? [p.key_env] : []),
+      ...(p.kind === "openai" && p.account_env ? [p.account_env] : []),
+    ];
     const missingEnv = needed.filter((name) => !env[name]);
     const baseUrl =
       p.kind === "openai"
@@ -68,12 +81,14 @@ export function buildCatalog(
       family: m.family,
       tools: m.tools,
       baseUrl,
-      apiKey: missingEnv.length === 0 ? env[p.key_env] : undefined,
+      apiKey: missingEnv.length === 0 ? (p.key_env ? env[p.key_env] : NO_KEY) : undefined,
       missingEnv,
       limits: m.limits,
       providerLimits: p.limits,
       sharedQuota: p.shared_quota ?? false,
       price: m.price,
+      reasoningEffort: m.reasoning_effort,
+      timeoutMs: (p.timeout_s ?? DEFAULT_TIMEOUT_MS / 1000) * 1000,
     });
   }
   return { config, entries };

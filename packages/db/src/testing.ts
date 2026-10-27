@@ -78,13 +78,14 @@ export async function assertTestDatabaseReady(): Promise<void> {
   }
 }
 
-/** Inserts a newsroom with a unique slug (as anr_system) and returns its id. */
+/** Inserts a newsroom with a unique slug and a budget no test reaches (as anr_system); returns its id. */
 export async function createTestNewsroom(system: Pool, prefix = "t"): Promise<string> {
   const slug = `${prefix}-${crypto.randomUUID().slice(0, 8)}`;
   const { rows } = await system.query<{ id: string }>(
     `insert into newsrooms
        (slug, subdomain, name, languages, timezone, editor_in_chief, corrections_owner, planning, policy)
-     values ($1, $1, '{"en": "Test"}', '{en}', 'UTC', 'Editor', 'Editor', '{}', '{}')
+     values ($1, $1, '{"en": "Test"}', '{en}', 'UTC', 'Editor', 'Editor', '{}',
+             '{"budget": {"monthly_usd": 1000, "check_reserve_usd": 0}}')
      returning id`,
     [slug],
   );

@@ -1,4 +1,4 @@
-import { QUEUE_OPTIONS, QUEUES } from "@anr/core";
+import { QUEUE_OPTIONS, QUEUE_POLICIES, QUEUES } from "@anr/core";
 import { PGBOSS_SCHEMA, type Pool } from "@anr/db";
 import type {
   FormatSchema,
@@ -51,11 +51,18 @@ export async function syncConfig(pool: Pool, boss: PgBoss, config: RawConfig): P
   if (errors.length > 0) throw new Error(`config is invalid:\n${errors.join("\n")}`);
 
   // Queues must exist before anything is scheduled on them; creating one is idempotent, so an
-  // existing queue is also updated to the platform's options.
+  // existing queue is also updated to the platform's options. A policy is fixed at creation.
   for (const queue of Object.values(QUEUES)) {
     const options = QUEUE_OPTIONS[queue];
-    await boss.createQueue(queue, options);
+    const policy = QUEUE_POLICIES[queue] ?? "standard";
+    await boss.createQueue(queue, { ...options, policy });
     if (options) await boss.updateQueue(queue, options);
+    const existing = await boss.getQueue(queue);
+    if (existing && existing.policy !== policy) {
+      throw new Error(
+        `queue ${queue} has policy ${existing.policy}, not ${policy}; delete it while it is empty (boss.deleteQueue) and sync again`,
+      );
+    }
   }
 
   const report: SyncReport = {

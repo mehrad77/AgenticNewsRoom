@@ -1,5 +1,5 @@
 import { INGEST_TIMEOUT_SECONDS, type IngestSourceJob } from "@anr/core";
-import { IngestResultSchema } from "@anr/schemas";
+import { IngestResultSchema, SourceRequestResultSchema } from "@anr/schemas";
 
 /** A run of one source can fetch dozens of pages at a polite pace; give it time. */
 const INGEST_TIMEOUT_MS = INGEST_TIMEOUT_SECONDS * 1000;
@@ -10,9 +10,21 @@ export type IngestOutcome =
   /** 404 or 422: unknown ids, or a source that must not be fetched. A person must act; no retry. */
   | { kind: "refused"; status: number; detail: string };
 
+export type SourceRequestOutcome =
+  | { kind: "lead"; result: SourceRequestResultSchema }
+  /** 404 unknown run, 422 never fetched (private address, robots, unchecked terms), 429 the run's cap. */
+  | { kind: "refused"; status: number; detail: string }
+  /** 502 or a network failure: the page could not be fetched now. */
+  | { kind: "failed"; detail: string };
+
 export interface IngestionClient {
   ingest(job: IngestSourceJob): Promise<IngestOutcome>;
+  /** An agent run asks for one page to be fetched and stored (D61); never throws. */
+  requestSource(newsroomId: string, agentRunId: string, url: string): Promise<SourceRequestOutcome>;
 }
+
+/** A source request fetches one page at once; it must not hold a run for long. */
+const REQUEST_TIMEOUT_MS = 60_000;
 
 /**
  * The ingestion service's `POST /ingest` (services/ingestion). The bodies are the JSON Schemas
@@ -37,11 +49,30 @@ export function ingestionClient(baseUrl: string, fetchImpl: typeof fetch = fetch
       }
       return { kind: "done", result: IngestResultSchema.parse(await response.json()) };
     },
+    async requestSource(newsroomId, agentRunId, url) {
+      try {
+        const response = await fetchImpl(new URL("/request-source", baseUrl), {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ newsroom_id: newsroomId, agent_run_id: agentRunId, url }),
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        });
+        if ([404, 422, 429].includes(response.status)) {
+          const body = (await response.json().catch(() => ({}))) as { detail?: unknown };
+          return { kind: "refused", status: response.status, detail: String(body.detail ?? "") };
+        }
+        if (!response.ok)
+          return { kind: "failed", detail: `ingestion answered ${response.status}` };
+        return { kind: "lead", result: SourceRequestResultSchema.parse(await response.json()) };
+      } catch (error) {
+        return { kind: "failed", detail: (error as Error).message };
+      }
+    },
   };
 }
 
 export interface IngestDeps {
-  ingestion: IngestionClient;
+  ingestion: Pick<IngestionClient, "ingest">;
   /** Called with the run's new leads, which still need a summary and beats. */
   onNewLeads(newsroomId: string, leadIds: string[]): Promise<void>;
   log?: (line: string) => void;

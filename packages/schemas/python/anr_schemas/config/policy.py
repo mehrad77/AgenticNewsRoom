@@ -3,7 +3,16 @@
 
 from __future__ import annotations
 from enum import Enum
-from pydantic import BaseModel, ConfigDict, Field, RootModel, conint, constr
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    PositiveFloat,
+    RootModel,
+    confloat,
+    conint,
+    constr,
+)
 
 
 class Status(Enum):
@@ -88,6 +97,14 @@ class Opinion(Enum):
     allowed_marked = "allowed_marked"
 
 
+class Budget(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    monthly_usd: PositiveFloat
+    check_reserve_usd: confloat(ge=0.0)
+
+
 class PolicyConfig(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -105,3 +122,7 @@ class PolicyConfig(BaseModel):
         description="Formats that publish as daily news without an editor when no check holds them.",
     )
     opinion: Opinion | None = "not_allowed"
+    budget: Budget = Field(
+        ...,
+        description="Monthly model spend, in the newsroom's timezone (D76). Editor-in-Chief told at 80%; writing pauses at monthly_usd minus check_reserve_usd; checks may use the rest.",
+    )

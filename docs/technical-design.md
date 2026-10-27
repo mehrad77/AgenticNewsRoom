@@ -75,22 +75,23 @@ Every tenant row carries `newsroom_id`, enforced by row-level security (see Tena
 | Channel                           | kind (site, Telegram, podcast feed), language, external id, encrypted credentials, status | Data, not config: set up in the editor's desk and stored in Postgres                                           |
 | Beat                              | name, status: open, restricted or banned, IPTC Media Topics                               | Restricted beats always go to a human; banned ones are never assigned. The topics classify every lead and publication in the beat |
 | Source                            | kind (RSS, API, site), url, publisher, tier 1–3, fetch interval, terms checked (date)     | Tier 1 = primary: a lab's own post, a filing, an artist's or label's own statement                             |
-| Lead                              | source, canonical url (ninjs `uri`), headline, stored text (`body`), language, byline (`by`), first and version created, content hash, SimHash, raw page key, links, tier, summary, beats, requested by (agent run), fetched at | The lead pool. Claims cite the stored snapshot (text, hash, SimHash and raw page are frozen). A lead an agent requests from an unknown site gets tier 3 |
+| Lead                              | source, canonical url (ninjs `uri`), headline, stored text (`body`), language, byline (`by`), first and version created, content hash, SimHash, raw page key, links, tier, summary, beats, requested by (agent run), fetched at, withdrawn (at, reason) | The lead pool. Claims cite the stored snapshot (text, hash, SimHash and raw page are frozen). A lead an agent requests from an unknown site gets tier 3. A lead later found withdrawn keeps its text and is skipped by search, assignments and the verifier (D78) |
 | Lead sighting                     | lead, uri, source, match (original, same URI, same text, near-duplicate)                  | Every place a lead was seen; a syndicated copy is a sighting, never a second lead or a second independent source |
 | Source fetch state                | source, ETag, Last-Modified, last fetch, status, error, consecutive failures              | Ingestion's own state, apart from the config-synced source row                                               |
 | Source request                    | agent run, uri, requested at                                                              | One fetch an agent run asked ingestion for; the per-run cap counts these (D61)                               |
 | Editorial cycle                   | starts, ends, theme, angle, status                                                        | One approved cycle per newsroom per period; the period comes from `planning` in `newsroom.yaml`                |
 | Pick                              | cycle, series, week, three candidates, chosen, picked by, deadline                        | The weekly choice. With no pick by the deadline, that week's slot is skipped and the editor is told            |
 | Assignment                        | cycle or pick (empty for daily news), series, slot, angle, leads                          | The unit of work an agent receives                                                                             |
-| Story                             | assignment, summary                                                                       | Format- and language-neutral; researched once                                                                  |
-| Claim                             | story, kind (fact, quote or opinion), text, lead, quoted passage                          | Fact-checked once, however many languages the story appears in                                                 |
+| Story                             | assignment, summary, beat                                                                 | Format- and language-neutral; researched once                                                                  |
+| Claim                             | story, ref (c1, c2…), kind (fact, quote or opinion), text, lead, quoted passage; further sources (lead, passage) | Fact-checked once per source, however many languages the story appears in. Written in its lead's language (D77); further sources corroborate it (D74) |
 | Rendition                         | story, format, language, structured body                                                  | Each item in the body lists the claim ids it relies on                                                         |
 | Publication                       | series, slot, language, status, ordered renditions                                        | What goes out in one slot: an article, a newsletter issue or a podcast episode. The lifecycle below runs on it |
 | Check                             | claim or rendition item, kind (code, fact-check, item match), result, detail              | Every check is stored, so a hold always has a reason                                                           |
 | Post                              | publication, channel, part, external id, idempotency key, sent at                         | `part` numbers the messages of a split Telegram post                                                           |
 | Media                             | file, source, IPTC Photo Metadata: creator, credit line, copyright notice, web statement of rights, licensor, digital source type; licence | The publisher refuses media without a licence                                                                  |
 | Challenge, Correction             | publication, reader text, owner, acknowledge by, answer by, outcome                       | A correction links the check it adds                                                                           |
-| Agent run                         | role, model, prompt version, input hash, tokens, cost, outcome                            | Every model call is logged with its cost, TTS included                                                         |
+| Agent run                         | role, model, every family that answered, prompt version, input hash, tokens, cost, outcome, detail | Every model call is logged with its cost, TTS included; tokens and cost are summed over a run's calls. The fact-checker avoids every family of the story's desk and renderer runs |
+| Notice                            | kind (budget warning, budget cap, no leads), key, detail, read at                          | A message from code to the Editor-in-Chief, once per period, shown in the editor's desk                        |
 | Page view, Download, Channel stat | publication or channel, language, day, count                                              | Audience per language (see Measures)                                                                           |
 
 Format and Series are configuration, versioned in the repo. Channels, users and memberships are data, managed in the editor's desk.
@@ -116,7 +117,7 @@ stateDiagram-v2
   Published --> Corrected: challenge upheld
 ```
 
-Each box is a value of a publication's `status`. A publication exists from the moment its assignment is made, so it starts as Assigned. Each arrow is a pg-boss job or an editor's action. An assignment whose agent fails validation twice also goes to an editor.
+Each box is a value of a publication's `status`. A publication exists from the moment its assignment is made, so it starts as Assigned. Each arrow is a pg-boss job or an editor's action. An assignment whose agent fails validation twice also goes to an editor, and so does any publication still Assigned or Drafted 30 minutes before its slot (D80).
 
 ## Ingestion
 
@@ -129,7 +130,7 @@ Each source has its own pg-boss schedule, for example hourly for lab blogs and e
 5. **Store** the lead with its text. The text is frozen: claims quote this snapshot, never the live page.
 6. **Summarise and classify** with the summariser agent: a short summary, and the newsroom beats the lead belongs to. A lead's IPTC subjects are its beats' Media Topics, so classification never invents a code.
 
-When a desk agent requests a source, it runs through the same steps at once, and the agent gets the lead back (D61).
+When a desk agent requests a source, it runs through the same steps at once, and the agent gets the lead back (D61). Each arXiv run also asks arXiv for its record of the source's papers of the last 30 days and marks any it now calls withdrawn (D78).
 
 Every fetch goes through one guarded client (D58): http and https only, every address public and checked at connect time, robots.txt honoured for pages (an API source follows its API terms instead, D64), a polite delay per host, conditional GET. Hacker News items are stored as metadata only (D60). The TypeScript `ingest-source` job and the Python service share one contract, the JSON Schemas `ingest-*` and `source-request*` in `packages/schemas` (D62).
 
@@ -146,31 +147,33 @@ Each agent run is one pg-boss job that runs one LangGraph.js graph and ends with
 | Item matcher | A rendition passes the code checks                                             | One rendition item and the claims it lists                                                   | Compare                                                     | Match, or what the item says beyond its claims                                 | Gemini Flash                                                           |
 | Summariser   | A new lead is stored                                                           | The lead's text                                                                              | One call                                                    | Short summary and the lead's beats                                             | Gemini Flash-Lite                                                      |
 
-**Tools.** An agent can do only four things: read a lead, search its newsroom's lead pool, request a new source (ingestion fetches and stores it, then returns the lead), and submit. Source requests are capped per run, private and internal addresses are refused, and a lead from an unknown site gets tier 3, so an injected page cannot promote itself. It has no web access, no send and no other writes.
+**Tools.** An agent can do only four things: read a lead, search its newsroom's lead pool (trigram word similarity over normalised text, D73), request a new source (ingestion fetches and stores it, then returns the lead), and submit. Source requests are capped per run, private and internal addresses are refused, and a lead from an unknown site gets tier 3, so an injected page cannot promote itself. It has no web access, no send and no other writes. Models are bound to the three research tools; code calls submit once a draft validates, in one transaction with the run's outcome and the jobs that follow.
+
+**Daily news.** At a daily series' `assignment_at` (16:00 for the AI newsletter), code assigns that evening's slot the last 24 hours of summarised leads, best tier first, with one publication per language and a desk run (D81). The desk writes the story and its first rendition in the newsroom's primary language; a renderer run writes each other language from the story's claims (D77); then the gate runs.
 
 **Model router.** Agents name a role, never a model. A router in the agents worker maps each role to an ordered chain of models from the catalog in `config/models.yaml`, and a newsroom can override it. Changing a model or vendor is a config change; the defaults in the table are Gemini. Each catalog model has a `family`, the weights whoever serves them. The fact-checker's chain drops every family that wrote the story, read from the story's desk Agent runs; config validation requires at least two families in it, so the writer never checks its own facts, even when another provider serves the same weights.
 
-**Model gateway.** `@anr/models` calls a chain in order and records which model answered. A rate limit (429, quota), an outage (5xx, timeout) or a retired model moves the call to the next model; a rate-limited model cools down for as long as the provider says (`Retry-After`, `x-ratelimit-reset-*`, Gemini's `RetryInfo`) or backs off from 1 minute to 1 hour (longer than the provider's hint when 429s repeat); a provider whose quota is per account (`shared_quota`) cools down as a whole; every call has a 120-second deadline; and published limits in the catalog stop calls before the provider refuses them. A bad key or a bad request fails at once. When the chain is exhausted the run ends as an error, so the publication is held. A run keeps the model that first answered unless it fails. For development, `ANR_MODELS=free` selects `config/models.free.yaml`: free tiers of Gemini, Groq, OpenRouter, Mistral and NVIDIA NIM; `pnpm models:probe` checks each model with one tool call, and deploy refuses the free profile.
+**Model gateway.** `@anr/models` calls a chain in order and records which model answered. A rate limit (429, quota), an outage (5xx, timeout), a retired model or a request too large for one model (413, D83) moves the call to the next model; a rate-limited model cools down for as long as the provider says (`Retry-After`, `x-ratelimit-reset-*`, Gemini's `RetryInfo`) or backs off from 1 minute to 1 hour (longer than the provider's hint when 429s repeat); a provider whose quota is per account (`shared_quota`) cools down as a whole; every call has a 120-second deadline (a provider's `timeout_s` may extend it) and writes at most 8,192 tokens, with a per-model `reasoning_effort` for OpenAI-compatible providers (D85); and published limits in the catalog stop calls before the provider refuses them. A bad key or a bad request fails at once. When the chain is exhausted the run ends as an error, so the publication is held. A run keeps the model that first answered unless it fails. For development, `ANR_MODELS=free` selects `config/models.free.yaml`: local models served by LM Studio first (D84), then free tiers of Gemini, Groq, OpenRouter, Mistral and NVIDIA NIM; `pnpm models:probe` checks each model with one tool call, and deploy refuses the free profile.
 
-- **Validation.** A submit is checked against the format's JSON Schema. An invalid one goes back to the graph once with the errors; a second failure holds the assignment.
-- **Prompts.** A role prompt from the platform, plus the newsroom's style guide and the format's guide, versioned in config. The target is under 5 KB, against today's 74 KB rulebook.
-- **Budgets.** Each format caps tokens per run; each newsroom has a monthly spend cap. At 80% the Editor-in-Chief is told; at the cap, writing jobs pause while checks keep a reserved budget. TTS and summaries count toward the cap.
+- **Validation.** A submit is checked against the format's JSON Schema, and against what a schema cannot say: cited leads were given or read in the run and are not withdrawn, each passage is in its lead's text, the beat is live, every item lists known claims (D77). An invalid one goes back to the graph once with the errors; a second failure holds the assignment.
+- **Prompts.** A role prompt from the platform, plus the newsroom's style guide (its shared section and the target language's) and the format's guide, versioned in config. At most 5 KB in UTF-8 bytes, against today's 74 KB rulebook; the prompt version is a hash of the assembled text (D75).
+- **Budgets.** Each format caps tokens per run (`run_tokens`); each newsroom has a monthly spend cap with a reserve for checks (`budget` in `policy.yaml`). At 80% the Editor-in-Chief is told; at the cap minus the reserve, writing runs do not start while the fact-checker and item matcher may spend the reserve. TTS and summaries count toward the cap; every model needs a price (D76, D82).
 - **Logging.** Every run is an Agent run row: role, model, prompt version, tokens and cost.
 
 ## Verifier gate
 
-The gate runs in four layers, and two of them use a model. Facts are checked once per story; each language's text is then checked against those facts. Every result is stored as a Check, so a held publication always shows why.
+The gate runs in four layers, and two of them use a model. Facts are checked once per story; each language's text is then checked against those facts. Every result is stored as a Check, so a held publication always shows why. A `gate` job per story runs the layers in order once every language is written, storing each result as it comes, so a retry resumes (D80).
 
 1. **Code checks (Python verifier service).**
    - The draft matches its format schema.
-   - Every claim names a lead in this newsroom, and its quote is found in that lead's stored text. Matching normalises text first: NFKC, zero-width non-joiners, Arabic and Persian ye and kaf, Persian digits, and Turkish case folding. The same rules back the SQL function used by site search, and both are tested against one shared file of test vectors.
-   - Each fact claim has two independent sources, or one tier-1 source, or more if its beat requires it. Independent means different publishers, after deduplication.
-   - No banned beat; a restricted beat is marked for an editor.
-   - Every item of every rendition lists its claim ids, and the numbers, dates and names in the item match those claims.
-   - The AI-disclosure label is present, and the style lint for the rendition's language passes.
-2. **Fact-checker (agents worker).** Each fact claim and its quoted passage go to the fact-checker once, whatever the number of languages. It never sees the draft or the writer's reasoning. It returns supported, partial or unsupported. Quotes are matched by code; opinions are labelled, not fact-checked.
+   - Every claim names a lead in this newsroom, not withdrawn, and its quote (and each further source's) is found in that lead's stored text. Matching normalises text first: NFKC, zero-width non-joiners, Arabic and Persian ye and kaf, Persian digits, hyphen and minus variants (D86), and Turkish case folding, then collapses whitespace. The same rules back the SQL function used by site search, and both are tested against one shared file of test vectors.
+   - Each fact claim has two independent sources, or one tier-1 source. Independent means different publishers, after deduplication, counted over the claim's sources whose passage matched (D74).
+   - No banned beat, in the story or any cited lead, and no cited lead not yet placed in beats; a restricted beat is marked for an editor.
+   - Every item of every rendition lists its claim ids, and the numbers (and so dates) and Latin-script names in the item are in those claims; names in other scripts are the item matcher's (D79).
+   - The AI-disclosure label is present in every channel template's output, rendered with the publisher's own renderer (`@anr/render`); the style lint for the rendition's language and the format's `checks.yaml` rules pass. A rule the verifier does not know is an error.
+2. **Fact-checker (agents worker).** Each fact claim and each of its quoted passages go to the fact-checker once, whatever the number of languages, each in a fresh context. It never sees the draft or the writer's reasoning. It returns supported, partial or unsupported. Quotes are matched by code; opinions are labelled, not fact-checked. The model layers run only when every code check passed.
 3. **Item matcher (agents worker).** For every rendition in every language, a cheap model checks that each item says no more than the claims it lists. This catches drift between languages.
-4. **Policy (code).** Any failed, partial, errored or timed-out check holds the publication for an editor. Themed publications and restricted beats always go to an editor. Daily news with no hold is scheduled to publish.
+4. **Policy (code).** Any failed, partial, errored or timed-out check holds the publication for an editor, and so does any check it needs that never ran. Themed publications, restricted beats and formats outside `auto_publish` always go to an editor. Daily news with every check passed is scheduled to publish.
 
 After publishing, code picks a 10% random sample of auto-published publications for an editor to review. Each miss an editor finds becomes a new code check or a policy rule.
 
@@ -211,12 +214,12 @@ config/
     schema.json              the draft's JSON Schema
     templates/<channel>.liquid   one template per channel kind
     checks.yaml              format-specific code checks
-    format.yaml              IPTC genre and ninjs type
+    format.yaml              IPTC genre, ninjs type, tokens per agent run
     guide.md                 short writing guide for the agent
   formats/_partials/         partials shared by all templates, the disclosure label among them
   newsrooms/<slug>/
     newsroom.yaml            languages, timezone, subdomain, Editor-in-Chief, corrections owner, planning cycle
-    policy.yaml              beats with their status and IPTC Media Topics, source rules, tiers, auto-publish
+    policy.yaml              beats with their status and IPTC Media Topics, source rules, tiers, auto-publish, monthly budget
     sources.yaml             sources with kind, url, publisher, tier, interval and terms checked
     series/<series>.yaml     a named recurring output: format, languages, cadence, hosts, channel kinds
     style.md                 the newsroom's style guide, per language

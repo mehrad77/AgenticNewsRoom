@@ -5,7 +5,7 @@
   "description": "config/newsrooms/<slug>/policy.yaml",
   "type": "object",
   "additionalProperties": false,
-  "required": ["beats", "sources", "auto_publish"],
+  "required": ["beats", "sources", "auto_publish", "budget"],
   "properties": {
     "beats": {
       "type": "object",
@@ -104,6 +104,22 @@
     "opinion": {
       "enum": ["not_allowed", "allowed_marked"],
       "default": "not_allowed"
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["monthly_usd", "check_reserve_usd"],
+      "description": "Monthly model spend, in the newsroom's timezone (D76). Editor-in-Chief told at 80%; writing pauses at monthly_usd minus check_reserve_usd; checks may use the rest.",
+      "properties": {
+        "monthly_usd": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "check_reserve_usd": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
     }
   }
 }

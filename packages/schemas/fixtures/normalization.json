@@ -78,6 +78,12 @@
       "input": "IRMAK",
       "expected": "irmak",
       "language": null
+    },
+    {
+      "name": "hyphen and minus variants to hyphen-minus",
+      "input": "Nemotron‑Personas task‐specific −5",
+      "expected": "nemotron-personas task-specific -5",
+      "language": "en"
     }
   ]
 }

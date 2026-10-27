@@ -98,5 +98,8 @@
     "headers": {
       "Content-Type": "text/html"
     }
+  },
+  "https://export.arxiv.org/api/query?id_list=2610.01234%2C2610.03333&max_results=2": {
+    "file": "arxiv-recheck.xml"
   }
 }

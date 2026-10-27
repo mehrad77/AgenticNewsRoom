@@ -66,6 +66,37 @@ describe("validateConfig", () => {
     expect(errors).toContain("models.free.yaml model orphan: unknown provider nowhere");
   });
 
+  it("keeps local servers out of the production models file (D84)", () => {
+    const config = loadConfig(root);
+    const prod = config.models["models.yaml"] as ModelsSchema;
+    prod.providers.local = { kind: "openai", base_url: "http://127.0.0.1:1234/v1" };
+    const errors = validateConfig(config);
+    expect(errors).toContain(
+      "models.yaml provider local: a local server belongs in a development profile",
+    );
+    expect(errors).toContain("models.yaml provider local: needs key_env");
+  });
+
+  it("sends reasoning_effort only to OpenAI-compatible providers (D85)", () => {
+    const config = loadConfig(root);
+    const m = freeModels(config);
+    if (m.models["gemini-flash"]) m.models["gemini-flash"].reasoning_effort = "none";
+    const errors = validateConfig(config);
+    expect(errors).toContain(
+      "models.free.yaml model gemini-flash: reasoning_effort needs an OpenAI-compatible provider",
+    );
+  });
+
+  it("requires a price on every model a role or TTS uses (D82)", () => {
+    const config = loadConfig(root);
+    const m = freeModels(config);
+    delete m.models["gemini-flash"]?.price;
+    delete m.models[m.tts]?.price;
+    const errors = validateConfig(config);
+    expect(errors).toContain("models.free.yaml planner: gemini-flash has no price");
+    expect(errors).toContain(`models.free.yaml tts: ${m.tts} has no price`);
+  });
+
   it("requires models.yaml and known formats in desk.by_format", () => {
     const config = loadConfig(root);
     freeModels(config).roles.desk.by_format = { "no-such-format": ["gemini-flash"] };
@@ -93,7 +124,11 @@ describe("validateConfig", () => {
 
   it("requires a live IPTC genre per format", () => {
     const config = loadConfig(root);
-    config.formatMeta["classic-article"] = { genre: "genre:Wrapup", ninjs_type: "text" };
+    config.formatMeta["classic-article"] = {
+      genre: "genre:Wrapup",
+      ninjs_type: "text",
+      run_tokens: 200_000,
+    };
     delete config.formatMeta["artist-story"];
     const errors = validateConfig(config);
     expect(errors).toContain(

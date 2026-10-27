@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 from enum import Enum
-from pydantic import BaseModel, ConfigDict, Field, constr
+from pydantic import BaseModel, ConfigDict, Field, conint, constr
 
 
 class NinjsType(Enum):
@@ -20,3 +20,7 @@ class FormatConfig(BaseModel):
         description="IPTC Genre qcode (packages/schemas/iptc/genre.json); not retired. Opinion items add genre:Opinion.",
     )
     ninjs_type: NinjsType = Field(..., description="ninjs `type` of a publication in this format.")
+    run_tokens: conint(ge=1000) = Field(
+        ...,
+        description="Most tokens (input plus output, over all its model calls) one agent run on this format may use; a run that reaches it ends and its publications are held (D76).",
+    )

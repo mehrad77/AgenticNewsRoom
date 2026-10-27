@@ -25,6 +25,12 @@ providers:
     key_env: NVIDIA_API_KEY
     limits: { rpm: 40 }
     shared_quota: true
+  # LM Studio on this machine (D84): no key, no rate limits, nothing leaves the laptop. Set each
+  # model's context length to at least 65,536 in LM Studio; a shorter window passes the request on.
+  lmstudio:
+    kind: openai
+    base_url: http://127.0.0.1:1234/v1
+    timeout_s: 600
 
 # family: the same weights served by two providers share a family, so the fact-checker skips both.
 models:
@@ -69,7 +75,7 @@ models:
     provider: openrouter
     model: nvidia/nemotron-3-ultra-550b-a55b:free
     family: nemotron-3-ultra-550b
-    tools: true
+    tools: false # models:probe 2026-10-27: no tool calls through OpenRouter's free endpoint
     price: { in: 0, out: 0 }
   openrouter-gemma:
     provider: openrouter
@@ -96,38 +102,64 @@ models:
     tools: true
     price: { in: 0, out: 0 }
 
-# Quality first, providers alternating so one exhausted account does not empty a chain.
+  # Sized for a 36 GB laptop (timing runs, 2026-10-27): gpt-oss-20b writes, Gemma 4 12B checks
+  # one claim at a time. Gemma 12B could not produce the desk's claims; Qwen 3.8 27B and Gemma 4
+  # 31B do not fit beside a checker (swapping, then a backend crash); Qwen 3.5 9B thinks too long.
+  lmstudio-gemma-12b:
+    provider: lmstudio
+    model: google/gemma-4-12b
+    family: gemma-4-12b
+    tools: true
+    # Thinking on, it spent 13-18k tokens reasoning per desk call and answered in 3 (D85).
+    reasoning_effort: none
+    price: { in: 0, out: 0 }
+  lmstudio-gpt-oss-20b:
+    provider: lmstudio
+    model: openai/gpt-oss-20b
+    family: gpt-oss-20b
+    tools: true
+    price: { in: 0, out: 0 }
+
+# Local models first (no limits, no overload), then quality first, providers alternating so one exhausted account does not empty a chain.
 roles:
   planner:
     - gemini-flash
     - nvidia-glm
     - groq-gpt-oss-120b
     - mistral-medium
-    - openrouter-nemotron-ultra
   desk:
     default:
+      - lmstudio-gpt-oss-20b
       - gemini-flash
       - groq-gpt-oss-120b
       - mistral-medium
-      - openrouter-nemotron-ultra
       - nvidia-glm
     by_format:
       newsletter-issue:
+        - lmstudio-gpt-oss-20b
         - gemini-flash
         - groq-gpt-oss-120b
         - mistral-medium
-        - openrouter-nemotron-ultra
-  renderer: [gemini-flash, groq-gpt-oss-120b, mistral-small, groq-qwen]
+  # The desk's first model, so a story has one writer family for the fact-checker to avoid.
+  renderer: [lmstudio-gpt-oss-20b, gemini-flash, groq-gpt-oss-120b, mistral-small, groq-qwen]
   # The router drops every family that wrote the story, then tries the rest in order.
   fact-checker:
+    - lmstudio-gemma-12b
+    - lmstudio-gpt-oss-20b
     - groq-gpt-oss-120b
     - nvidia-glm
     - mistral-medium
     - gemini-flash
-    - openrouter-nemotron-ultra
-  item-matcher: [groq-gpt-oss-120b, gemini-flash, mistral-small, groq-qwen]
+  item-matcher:
+    - lmstudio-gemma-12b
+    - lmstudio-gpt-oss-20b
+    - groq-gpt-oss-120b
+    - gemini-flash
+    - mistral-small
+    - groq-qwen
   summariser:
     - gemini-flash-lite
+    - lmstudio-gpt-oss-20b
     - groq-gpt-oss-20b
     - groq-qwen
     - mistral-small
