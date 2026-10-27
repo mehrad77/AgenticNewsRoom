@@ -44,7 +44,10 @@ describe("validateConfig", () => {
     const config = loadConfig(root);
     const m = freeModels(config);
     // The same weights from two providers are one family.
-    m.roles["fact-checker"] = ["groq-gpt-oss-120b", "cloudflare-gpt-oss-120b"];
+    const groq = m.models["groq-gpt-oss-120b"];
+    if (!groq) throw new Error("groq-gpt-oss-120b missing");
+    m.models["other-gpt-oss-120b"] = { ...groq };
+    m.roles["fact-checker"] = ["groq-gpt-oss-120b", "other-gpt-oss-120b"];
     expect(validateConfig(config)).toContain(
       "models.free.yaml fact-checker needs models from at least two families",
     );

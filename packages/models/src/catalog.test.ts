@@ -16,6 +16,19 @@ describe("catalog", () => {
 
   it("fills the Cloudflare account into its URL and names missing env vars", () => {
     const config = loadModelsConfig(modelsFile(configDir, "free"));
+    config.providers.cloudflare = {
+      kind: "openai",
+      base_url: "https://api.cloudflare.com/client/v4/accounts/{account}/ai/v1",
+      account_env: "CLOUDFLARE_ACCOUNT_ID",
+      key_env: "CLOUDFLARE_AI_API_TOKEN",
+    };
+    config.models["cloudflare-qwen"] = {
+      provider: "cloudflare",
+      model: "@cf/qwen/qwen3.8-27b",
+      family: "qwen3.8-27b",
+      tools: true,
+    };
+    config.roles.summariser = [...config.roles.summariser, "cloudflare-qwen"];
     const catalog = buildCatalog(config, { CLOUDFLARE_ACCOUNT_ID: "acc", GEMINI_API_KEY: "g" });
     const cf = catalog.entries.get("cloudflare-qwen");
     expect(cf?.baseUrl).toBe("https://api.cloudflare.com/client/v4/accounts/acc/ai/v1");
