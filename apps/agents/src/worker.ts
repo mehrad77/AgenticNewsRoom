@@ -14,6 +14,7 @@ import { sweepStuck } from "./gate/sweep.ts";
 import { handleIngestSource, ingestionClient } from "./ingest.ts";
 import { registerJobs } from "./jobs.ts";
 import { meteredModel } from "./model.ts";
+import { redraft } from "./redraft.ts";
 import { runRenderer } from "./renderer/run.ts";
 import { ModelRouter } from "./router.ts";
 import { gatewayModel } from "./summariser/model.ts";
@@ -92,6 +93,10 @@ await registerJobs(boss, {
       renderer: run(runRenderer),
     },
   }),
+  redraft: async (job) => {
+    const outcome = await redraft(pool, boss, router, job);
+    console.log(`[agents] redraft ${job.assignmentId}: ${JSON.stringify(outcome)}`);
+  },
   gate: async (job) => {
     await runGate(
       {
