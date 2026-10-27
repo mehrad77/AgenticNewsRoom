@@ -24,6 +24,13 @@ export type ClientFactory = (entry: CatalogEntry) => ChatClient;
  * Temperature 0: agents answer to a schema and should answer the same way twice.
  * OpenAI-compatible providers use Chat Completions only, so no built-in (web) tools exist.
  */
+/**
+ * Most tokens one call may write, thinking included: room for the longest JSON answer (a desk's
+ * claims and rendition) and a model's reasoning, while a model that loops stops in minutes, not
+ * at its timeout or its context's end.
+ */
+export const MAX_OUTPUT_TOKENS = 8_192;
+
 export const langchainClient: ClientFactory = (entry) => {
   const model: BaseChatModel =
     entry.kind === "google"
@@ -32,12 +39,14 @@ export const langchainClient: ClientFactory = (entry) => {
           apiKey: entry.apiKey,
           temperature: 0,
           maxRetries: 0,
+          maxOutputTokens: MAX_OUTPUT_TOKENS,
         })
       : new ChatOpenAICompletions({
           model: entry.model,
           apiKey: entry.apiKey,
           temperature: 0,
           maxRetries: 0,
+          maxTokens: MAX_OUTPUT_TOKENS,
           configuration: { baseURL: entry.baseUrl, ...slowServer(entry.timeoutMs) },
         });
   return {
