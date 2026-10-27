@@ -103,6 +103,11 @@ services:
   web:
     <<: *app
     image: anr-web
+    # Replaces the anchor's environment (a shallow merge), so DATABASE_URL is repeated.
+    environment:
+      DATABASE_URL: postgres://anr_app:${ANR_APP_DB_PASSWORD:-anr_app}@postgres:5432/anr
+      # The desk pages call the API's desk routes (D95).
+      ANR_API_URL: http://api:8787
     build: { context: .., dockerfile: infra/docker/node.Dockerfile, args: { APP: web } }
 
   agents:

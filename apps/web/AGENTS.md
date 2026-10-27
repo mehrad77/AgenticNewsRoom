@@ -1,9 +1,12 @@
 # @anr/web
 
-Astro, server-rendered on Node. One app serves every newsroom's reader site and the editor's desk, routed by host in `src/middleware.ts` (`<subdomain>.$ANR_ROOT_DOMAIN`, `desk.$ANR_ROOT_DOMAIN`). Reader pages read Postgres live, so publishing needs no rebuild.
+Astro, server-rendered on Node. One app serves every newsroom's reader site and the editor's desk, routed by host in `src/middleware.ts` (`<subdomain>.$ANR_ROOT_DOMAIN` for each synced newsroom row, `desk.$ANR_ROOT_DOMAIN`). Reader pages read Postgres live as the app role, so publishing needs no rebuild.
 
 - `<html lang dir>` comes from the page's language, never the newsroom (`directionOf` in `@anr/core`). Primary language at `/`, others at `/<lang>`.
-- Every piece shows the AI-disclosure label and carries IPTC `digitalSourceType` in meta tags and JSON-LD.
+- Reader queries (`src/lib/reader.ts`) show only `published` and `corrected` publications: row-level security separates newsrooms, not drafts.
+- Every piece is its format's `site` template rendered by `@anr/render` (label included), with schema.org JSON-LD and IPTC `digitalSourceType` in a meta tag; its ninjs 3.2 twin is the page URL plus `.json` (`src/lib/metadata.ts`).
+- `@anr/*` packages stay out of the server bundle (`astro.config.mjs`), so `@anr/render` finds `config/formats`.
 - The desk sits behind Cloudflare Access; verify the `Cf-Access-Jwt-Assertion` JWT before serving any desk page.
 - Routing logic lives in `src/lib/` as plain TypeScript with vitest tests; `.astro` files stay thin.
 - Dev: `pnpm --filter @anr/web dev`, then http://ai.localhost:4321/ (fa, rtl) and http://ai.localhost:4321/en (en, ltr).
+- Preview on the test database: `pnpm --filter @anr/web preview:seed` (a `m4preview` newsroom in `anr_test`), then `pnpm --filter @anr/web dev:test` → http://m4preview.localhost:4410/.

@@ -8,17 +8,22 @@
     "build": "astro build",
     "start": "node --env-file-if-exists=../../.env dist/server/entry.mjs",
     "typecheck": "tsc -p .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "dev:test": "node scripts/dev-test.ts",
+    "preview:seed": "node scripts/preview-seed.ts"
   },
   "dependencies": {
-    "@anr/config": "workspace:*",
     "@anr/core": "workspace:*",
-    "@anr/schemas": "workspace:*",
+    "@anr/db": "workspace:*",
+    "@anr/render": "workspace:*",
     "@astrojs/node": "11.1.9",
     "astro": "7.4.2"
   },
   "devDependencies": {
+    "@anr/api": "workspace:*",
     "@types/node": "24.19.2",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
     "typescript": "5.9.3",
     "vitest": "5.0.5"
   }

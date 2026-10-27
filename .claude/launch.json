@@ -8,10 +8,23 @@
       "port": 4321
     },
     {
+      "name": "web-test",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@anr/web", "dev:test"],
+      "port": 4410,
+      "url": "http://m4preview.localhost:4410"
+    },
+    {
       "name": "api",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@anr/api", "dev"],
       "port": 8787
+    },
+    {
+      "name": "api-test",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@anr/api", "dev:test"],
+      "port": 8788
     },
     {
       "name": "schemas",

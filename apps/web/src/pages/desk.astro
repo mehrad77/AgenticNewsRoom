@@ -1,6 +1,176 @@
 ---
+// The editor's desk: every page, routed by src/lib/desk.ts, each a thin client of the API.
 import Base from "../layouts/Base.astro";
+import { DeskApiError, deskApi, deskRoute } from "../lib/desk.ts";
+
+const route = deskRoute(Astro.locals.path);
+const api = deskApi(
+  process.env.ANR_API_URL ?? "http://127.0.0.1:8787",
+  Astro.request.headers.get("cf-access-jwt-assertion"),
+);
+
+let error: string | undefined;
+if (Astro.request.method === "POST") {
+  try {
+    return Astro.redirect(await api.act(route, await Astro.request.formData()), 303);
+  } catch (e) {
+    if (!(e instanceof DeskApiError)) throw e;
+    error = e.message;
+    Astro.response.status = e.status;
+  }
+}
+
+let me;
+try {
+  me = await api.me();
+} catch (e) {
+  if (!(e instanceof DeskApiError)) throw e;
+  Astro.response.status = e.status;
+  error = e.status === 401 ? "Sign in through Cloudflare Access." : e.message;
+}
+const load = async <T,>(fn: () => Promise<T>): Promise<T | undefined> => {
+  try {
+    return await fn();
+  } catch (e) {
+    if (!(e instanceof DeskApiError)) throw e;
+    Astro.response.status = e.status;
+    error ??= e.message;
+    return undefined;
+  }
+};
+const n = "newsroom" in route ? route.newsroom : undefined;
+const queue = me && route.kind === "queue" ? await load(() => api.queue(route.newsroom)) : undefined;
+const publication = me && route.kind === "publication" ? await load(() => api.publication(route.newsroom, route.id)) : undefined;
+const channels = me && route.kind === "channels" ? await load(() => api.channels(route.newsroom)) : undefined;
+const samples = me && route.kind === "samples" ? await load(() => api.samples(route.newsroom)) : undefined;
+const notices = me && route.kind === "notices" ? await load(() => api.notices(route.newsroom)) : undefined;
+const role = me?.memberships.find((m) => m.newsroom === n)?.role;
+if (route.kind === "not-found") Astro.response.status = 404;
+const when = (iso: string) => new Date(iso).toISOString().replace("T", " ").slice(0, 16) + " UTC";
+const json = (v: unknown) => (v === null || v === undefined ? "" : JSON.stringify(v));
 ---
-<Base title="ANR editor's desk" language="en" direction="ltr">
-  <h1>Editor's desk</h1>
+<Base title={n ? `${n} · Editor's desk` : "Editor's desk"} language="en" direction="ltr">
+  <header>
+    <strong><a href="/">Editor's desk</a></strong>
+    {n && (
+      <nav>
+        <a href={`/${n}`}>Review queue</a> · <a href={`/${n}/samples`}>Sample</a> ·
+        <a href={`/${n}/notices`}>Notices</a> · <a href={`/${n}/channels`}>Channels</a>
+      </nav>
+    )}
+    {me && <small>{me.email}</small>}
+  </header>
+  <main>
+    {error && <p role="alert"><strong>{error}</strong></p>}
+    {route.kind === "home" && me && (
+      <>
+        <h1>Your newsrooms</h1>
+        {me.memberships.length === 0 ? <p>You have no membership yet.</p> : (
+          <ul>{me.memberships.map((m) => <li><a href={`/${m.newsroom}`}>{m.name.en ?? m.newsroom}</a> ({m.role})</li>)}</ul>
+        )}
+      </>
+    )}
+    {queue && (
+      <>
+        <h1>Review queue</h1>
+        {queue.length === 0 ? <p>Nothing is held.</p> : queue.map((p) => (
+          <section>
+            <h2><a href={`/${n}/p/${p.id}`}>{p.title ?? "(untitled)"}</a> · {p.series} · {p.language} · {when(p.slot)}</h2>
+            {p.unknown_posts > 0 && <p><strong>{p.unknown_posts} post(s) with an unknown result: open it to settle them.</strong></p>}
+            <ul>{p.holds.map((h) => <li>{h.kind} / {h.name}: <strong>{h.result}</strong>{h.claim && ` (claim ${h.claim})`} {json(h.detail)}</li>)}</ul>
+            <form method="post"><input type="hidden" name="action" value="approve" /><input type="hidden" name="id" value={p.id} /><button>Approve</button></form>
+            <form method="post">
+              <input type="hidden" name="action" value="return" /><input type="hidden" name="id" value={p.id} />
+              <input name="note" required maxlength="2000" placeholder="What should the desk change?" size="50" />
+              <button>Return to the desk</button>
+            </form>
+          </section>
+        ))}
+      </>
+    )}
+    {publication && (
+      <>
+        <h1>{String((publication.rendition as { title?: unknown } | null)?.title ?? "(untitled)")}</h1>
+        <p>{publication.series} · {publication.language} · {when(publication.slot)} · <strong>{publication.status}</strong></p>
+        <h2>Items</h2>
+        <ol>{(((publication.rendition as { items?: Record<string, unknown>[] } | null)?.items) ?? []).map((i) => (
+          <li><strong>{String(i.headline ?? i.title ?? "")}</strong> {String(i.body ?? i.reason ?? "")} <small>{json(i.claim_ids)}</small></li>
+        ))}</ol>
+        <h2>Claims</h2>
+        <ul>{publication.claims.map((c) => <li><strong>{c.ref}</strong> ({c.kind}) {c.text}{c.quoted_passage && <blockquote>{c.quoted_passage} {c.lead && <a href={c.lead} rel="noreferrer">source</a>}</blockquote>}</li>)}</ul>
+        <h2>Checks</h2>
+        <ul>{publication.checks.map((h) => <li>{h.kind} / {h.name}: <strong>{h.result}</strong>{h.claim && ` (claim ${h.claim})`} {json(h.detail)}</li>)}</ul>
+        <h2>Posts</h2>
+        <ul>{publication.posts.map((p) => (
+          <li>{p.kind} part {p.part}: <strong>{p.status}</strong> {p.external_id} {json(p.error)}
+            {p.status === "unknown" && (
+              <form method="post">
+                <input type="hidden" name="action" value="resolve-post" /><input type="hidden" name="id" value={p.id} />
+                Did it reach the channel?
+                <label><input type="radio" name="went_out" value="yes" required /> yes, it is there</label>
+                <input name="external_id" placeholder="message id, if known" />
+                <label><input type="radio" name="went_out" value="no" /> no, send it again</label>
+                <button>Settle</button>
+              </form>
+            )}
+          </li>
+        ))}</ul>
+      </>
+    )}
+    {channels && (
+      <>
+        <h1>Channels</h1>
+        <ul>{channels.map((c) => (
+          <li>{c.kind} · {c.language} · {c.external_id ?? ""} · {c.status}{c.has_credentials ? " · credentials sealed" : ""}
+            {role === "editor-in-chief" && (
+              <form method="post" style="display:inline">
+                <input type="hidden" name="action" value="channel-status" /><input type="hidden" name="id" value={c.id} />
+                <input type="hidden" name="status" value={c.status === "active" ? "disabled" : "active"} />
+                <button>{c.status === "active" ? "Turn off" : "Turn on"}</button>
+              </form>
+            )}
+          </li>
+        ))}</ul>
+        {role === "editor-in-chief" && (
+          <form method="post" autocomplete="off">
+            <h2>Add a channel</h2>
+            <input type="hidden" name="action" value="add-channel" />
+            <select name="kind"><option>telegram</option><option>site</option><option>podcast-rss</option></select>
+            <select name="language"><option>fa</option><option>en</option><option>tr</option></select>
+            <input name="external_id" placeholder="Telegram chat id or @username" />
+            <input name="bot_token" type="password" placeholder="Bot token (sealed, never shown again)" autocomplete="new-password" />
+            <button>Add</button>
+          </form>
+        )}
+      </>
+    )}
+    {samples && (
+      <>
+        <h1>Review sample</h1>
+        <p>A random tenth of what published on its own. A miss says what the gate should have caught.</p>
+        <ul>{samples.map((s) => (
+          <li>{s.title ?? s.publication} · {s.language} · {when(s.sampled_at)} · {s.outcome ?? "not reviewed"} {s.note}
+            {!s.outcome && (
+              <form method="post">
+                <input type="hidden" name="action" value="review-sample" /><input type="hidden" name="id" value={s.id} />
+                <input name="note" maxlength="2000" placeholder="For a miss: what should have been caught" size="50" />
+                <button name="outcome" value="ok">Fine</button> <button name="outcome" value="miss">Miss</button>
+              </form>
+            )}
+          </li>
+        ))}</ul>
+      </>
+    )}
+    {notices && (
+      <>
+        <h1>Notices</h1>
+        <ul>{notices.map((x) => (
+          <li>{x.kind} · {x.key} · {when(x.created_at)} {json(x.detail)}
+            {!x.read_at && <form method="post" style="display:inline"><input type="hidden" name="action" value="read-notice" /><input type="hidden" name="id" value={x.id} /><button>Mark read</button></form>}
+          </li>
+        ))}</ul>
+      </>
+    )}
+    {route.kind === "not-found" && <h1>Not found</h1>}
+  </main>
 </Base>

@@ -7,4 +7,7 @@ export default defineConfig({
   adapter: node({ mode: "standalone" }),
   server: { host: true },
   security: { checkOrigin: true },
+  // Workspace packages run from their own source at runtime, as in every worker: @anr/render finds
+  // config/formats relative to itself, which bundling into dist/ would break.
+  vite: { build: { rollupOptions: { external: [/^@anr\//] } } },
 });
