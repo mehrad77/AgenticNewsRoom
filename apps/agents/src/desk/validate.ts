@@ -60,11 +60,12 @@ export interface ValidationContext {
 }
 
 /**
- * The first JSON object in a model's answer (models wrap JSON in prose or code fences). Brackets
- * left open at the very end are closed: small models drop the last brace of a long object, and a
- * retry at temperature 0 repeats the slip. Nothing else is repaired.
+ * The first JSON object in a model's answer (models wrap JSON in prose or code fences). With
+ * `closeBrackets` (drafts only, D86), brackets left open at the very end are closed: small models
+ * drop the last brace of a long object, and a retry at temperature 0 repeats the slip; the draft is
+ * still validated and checked. A checker's verdict is never repaired: one that does not parse holds.
  */
-export function parseJson(text: string): unknown | string {
+export function parseJson(text: string, { closeBrackets = false } = {}): unknown | string {
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
   if (start < 0 || end <= start) return "the answer has no JSON object";
@@ -72,7 +73,7 @@ export function parseJson(text: string): unknown | string {
   try {
     return JSON.parse(json);
   } catch (error) {
-    const closed = closeOpenBrackets(json);
+    const closed = closeBrackets ? closeOpenBrackets(json) : undefined;
     if (closed !== undefined) {
       try {
         return JSON.parse(closed);

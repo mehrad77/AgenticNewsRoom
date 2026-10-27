@@ -145,9 +145,12 @@ describe("submit validation (D77)", () => {
   });
 
   it("closes brackets left open at the end, and repairs nothing else", () => {
-    expect(parseJson('{"a": {"b": [{"c": "x}"}]}')).toEqual({ a: { b: [{ c: "x}" }] } });
-    expect(parseJson('{"a": [1, 2}')).toMatch(/does not parse/);
-    expect(parseJson('{"a": "b" "c": 1}')).toMatch(/does not parse/);
+    const lenient = { closeBrackets: true };
+    expect(parseJson('{"a": {"b": [{"c": "x}"}]}', lenient)).toEqual({ a: { b: [{ c: "x}" }] } });
+    expect(parseJson('{"a": [1, 2}', lenient)).toMatch(/does not parse/);
+    expect(parseJson('{"a": "b" "c": 1}', lenient)).toMatch(/does not parse/);
+    // A checker's verdict is read strictly: a truncated one holds.
+    expect(parseJson('{"verdict": {"v": "supported"}')).toMatch(/does not parse/);
   });
 
   it.each(vectors.cases)("normalises like the SQL function and the verifier: $name", (c) => {

@@ -94,7 +94,7 @@ export async function runRenderer(deps: RoleDeps, job: AgentRunJob): Promise<str
       const ask = attempt === 0 ? "Write the rendition now." : retryPrompt(errors);
       const turn = await converse(model, messages, ask);
       messages.push(...turn);
-      const parsed = parseJson(textOf(turn.at(-1)));
+      const parsed = parseJson(textOf(turn.at(-1)), { closeBrackets: true });
       const result =
         typeof parsed === "string"
           ? [parsed]

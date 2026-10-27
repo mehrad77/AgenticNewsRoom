@@ -101,7 +101,7 @@ export function deskGraph(deps: DeskGraphDeps) {
       attempts: state.attempts + 1,
     }))
     .addNode("validate", async (state) => {
-      const parsed = parseJson(textOf(state.messages.at(-1)));
+      const parsed = parseJson(textOf(state.messages.at(-1)), { closeBrackets: true });
       if (typeof parsed === "string") return { errors: [parsed] };
       const result = validateDraft(parsed, deps.validation());
       return Array.isArray(result) ? { errors: result } : { errors: [], result };
