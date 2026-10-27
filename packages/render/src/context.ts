@@ -36,14 +36,31 @@ export function channelKinds(channels: Record<string, string[]>, language: Langu
     .map(([kind]) => kind);
 }
 
-export interface ContextInput {
-  rendition: Record<string, unknown>;
-  edited: boolean;
-  site: SiteAddress;
+export interface SitePathInput {
+  publicationId: string;
   language: Language;
   seriesSlug: string;
   slot: Date;
   timezone: string;
+}
+
+/**
+ * The publication's path on its language's site (D92): its series and local date, with a suffix
+ * when another publication of that language already has the path (two slots on one day).
+ */
+export async function sitePath(client: Client, input: SitePathInput): Promise<string> {
+  const path = publicationPath(input.seriesSlug, input.slot, input.timezone);
+  const { rows } = await client.query(
+    "select 1 from publications where language = $1 and path = $2 and id <> $3",
+    [input.language, path, input.publicationId],
+  );
+  return rows.length > 0 ? `${path}-${input.publicationId.slice(0, 8)}` : path;
+}
+
+export interface ContextInput extends SitePathInput {
+  rendition: Record<string, unknown>;
+  edited: boolean;
+  site: SiteAddress;
 }
 
 /** Template context shared by every channel of the publication, the site included. */
@@ -52,7 +69,7 @@ export async function templateContext(client: Client, input: ContextInput) {
     "select id, uri, headline from leads where id = any($1::uuid[])",
     [leadIds(input.rendition)],
   );
-  const path = publicationPath(input.seriesSlug, input.slot, input.timezone);
+  const path = await sitePath(client, input);
   return {
     rendition: input.rendition,
     edited: input.edited,

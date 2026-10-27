@@ -1,7 +1,7 @@
 // Publishes one scheduled publication whose slot has come (docs/technical-design.md#publishing):
 // renders each channel's parts, sends them in order with a Post row per part, then puts the piece
 // on the site. Only code publishes; no model is called here.
-import { type Language, pageUrl, publicationPath, type SiteAddress } from "@anr/core";
+import { type Language, pageUrl, type SiteAddress } from "@anr/core";
 import {
   auditedUpdate,
   type Client,
@@ -10,7 +10,13 @@ import {
   type Pool,
   withNewsroom,
 } from "@anr/db";
-import { channelKinds, type createRenderer, editedByPerson, templateContext } from "@anr/render";
+import {
+  channelKinds,
+  type createRenderer,
+  editedByPerson,
+  sitePath,
+  templateContext,
+} from "@anr/render";
 import { type ChannelAdapter, type ChannelTarget, SendError } from "./channels/types.ts";
 import { holdPublication } from "./hold.ts";
 
@@ -221,6 +227,7 @@ async function prepare(
 
   const edited = await editedByPerson(client, id, base.renditionIds);
   const context = await templateContext(client, {
+    publicationId: id,
     rendition: first.body,
     edited,
     site,
@@ -229,6 +236,7 @@ async function prepare(
     slot: p.slot,
     timezone: p.timezone,
   });
+  const newsroomId = await currentNewsroom(client);
   const targets: Plan["targets"] = [];
   for (const channel of channels) {
     if (!deps.adapters[channel.kind]) return hold("channel-unsupported", { kind: channel.kind });
@@ -237,7 +245,7 @@ async function prepare(
       if (channel.credentials)
         credentials = openCredentials(
           channel.credentials,
-          { newsroomId: await currentNewsroom(client), channelId: channel.id },
+          { newsroomId, channelId: channel.id },
           deps.platform,
         );
     } catch (error) {
@@ -403,12 +411,14 @@ async function finish(deps: PublishDeps, client: Client, plan: Plan, now: Date) 
     [p.id],
   );
   if (rows[0]?.status !== "scheduled") return "not-due" as const;
-  let path = publicationPath(p.series_slug, p.slot, p.timezone);
-  const { rows: taken } = await client.query(
-    "select 1 from publications where language = $1 and path = $2 and id <> $3",
-    [p.language, path, p.id],
-  );
-  if (taken.length > 0) path = `${path}-${p.id.slice(0, 8)}`;
+  // The same path the channel posts link to (templateContext).
+  const path = await sitePath(client, {
+    publicationId: p.id,
+    language: p.language,
+    seriesSlug: p.series_slug,
+    slot: p.slot,
+    timezone: p.timezone,
+  });
   const url = pageUrl(site, p.language, path);
   const { rows: siteChannels } = await client.query<{ id: string }>(
     "select id from channels where kind = 'site' and language = $1 and status = 'active'",

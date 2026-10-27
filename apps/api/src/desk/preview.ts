@@ -1,8 +1,14 @@
 // What a publication would send now: every channel's parts and the site page, from the publisher's
 // own renderer, template context and label check (D98). The desk shows this before an approval.
-import { type Language, pageUrl, publicationPath } from "@anr/core";
+import { type Language, pageUrl } from "@anr/core";
 import type { Client } from "@anr/db";
-import { channelKinds, type createRenderer, editedByPerson, templateContext } from "@anr/render";
+import {
+  channelKinds,
+  type createRenderer,
+  editedByPerson,
+  sitePath,
+  templateContext,
+} from "@anr/render";
 import { DeskError } from "./errors.ts";
 
 export interface PreviewSite {
@@ -52,15 +58,14 @@ export async function previewPublication(
     id,
     renditions.map((r) => r.id),
   );
-  const context = await templateContext(client, {
-    rendition: first.body,
-    edited,
-    site,
+  const where = {
+    publicationId: id,
     language: p.language,
     seriesSlug: p.series_slug,
     slot: p.slot,
     timezone: p.timezone,
-  });
+  };
+  const context = await templateContext(client, { ...where, rendition: first.body, edited, site });
   const label = await renderer.disclosureLabel(p.language, edited);
   const { rows: active } = await client.query<{ kind: string }>(
     "select distinct kind from channels where language = $1 and status = 'active'",
@@ -80,7 +85,7 @@ export async function previewPublication(
       channels.push({ kind, configured, parts: [], error: (e as Error).message });
     }
   }
-  const url = pageUrl(site, p.language, publicationPath(p.series_slug, p.slot, p.timezone));
+  const url = pageUrl(site, p.language, await sitePath(client, where));
   let page: { url: string; html: string; error?: string };
   try {
     page = { url, html: await renderer.render(p.format, "site", p.language, context) };

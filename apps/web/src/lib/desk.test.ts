@@ -64,19 +64,14 @@ describe("the edit form", () => {
     form.set("text:/title", "Tonight");
     const calls: unknown[] = [];
     const fetchFn = (async (_url: string, init: RequestInit) => {
+      // The current text is read first; only fields that differ from it are posted.
+      if (init.method === "GET") return new Response(JSON.stringify({ rendition }));
       calls.push(JSON.parse(String(init.body)));
       return new Response("{}");
     }) as unknown as typeof fetch;
     const route = { kind: "publication", newsroom: "ai", id: "p1" } as const;
     expect(await deskApi("http://api.test", null, fetchFn).act(route, form)).toBe("/ai/p/p1");
-    expect(calls[0]).toEqual({
-      version: "v1",
-      changes: [
-        { pointer: "/title", text: "Tonight" },
-        { pointer: "/items/0/headline", text: "A" },
-        { pointer: "/items/0/body", text: "Line one\nline two" },
-      ],
-    });
+    expect(calls).toEqual([{ version: "v1", changes: [{ pointer: "/title", text: "Tonight" }] }]);
     expect(editedFields(new FormData())).toEqual([]);
   });
 });

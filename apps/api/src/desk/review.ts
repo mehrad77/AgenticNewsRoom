@@ -289,8 +289,11 @@ export async function editPublication(
   } catch (e) {
     throw new DeskError(400, (e as Error).message);
   }
-  const parsed = DRAFT_SCHEMAS[rendition.format]?.safeParse({ rendition: body });
-  if (parsed && !parsed.success) {
+  // Without its format's schema an edit cannot be checked, so it is refused, never let through.
+  const schema = DRAFT_SCHEMAS[rendition.format];
+  if (!schema) throw new DeskError(409, `no draft schema for the ${rendition.format} format`);
+  const parsed = schema.safeParse({ rendition: body });
+  if (!parsed.success) {
     const issue = parsed.error.issues[0];
     throw new DeskError(
       400,

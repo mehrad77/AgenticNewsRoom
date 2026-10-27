@@ -7,6 +7,8 @@ export {
   channelKinds,
   editedByPerson,
   leadIds,
+  type SitePathInput,
+  sitePath,
   templateContext,
 } from "./context.ts";
 

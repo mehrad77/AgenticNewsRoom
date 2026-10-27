@@ -1,7 +1,7 @@
 // The editor's desk pages: a thin client of the API's desk routes. The API verifies the Cloudflare
 // Access JWT and the membership on every call; this module only forwards it (D95).
 import type { components } from "@anr/api/types";
-import { textFields } from "@anr/core";
+import { type TextField, textFields } from "@anr/core";
 
 type S = components["schemas"];
 export type DeskMe = S["DeskMe"];
@@ -115,12 +115,18 @@ export function deskApi(base: string, token: string | null, fetchFn: typeof fetc
             ...(field("external_id") && { external_id: field("external_id") }),
           });
           return here;
-        case "edit":
-          await call(`${base}/publications/${id}/edit`, {
-            version: field("version") ?? "",
-            changes: editedFields(form),
-          });
+        case "edit": {
+          // The form posts every field; only changed ones are sent, so a long script stays
+          // within the API's limit on changes.
+          const current = await call<DeskPublication>(`${base}/publications/${id}`);
+          const changes = changedFields(current.rendition, editedFields(form));
+          if (changes.length > 0)
+            await call(`${base}/publications/${id}/edit`, {
+              version: field("version") ?? "",
+              changes,
+            });
           return here;
+        }
         case "pull-back":
           await call(`${base}/publications/${id}/pull-back`, { note: field("note") ?? "" });
           return `/${route.newsroom}/schedule`;
@@ -177,12 +183,18 @@ export function editForm(rendition: unknown) {
 
 /** Every text field the edit form posted; browsers send textarea line breaks as CRLF. */
 export function editedFields(form: FormData) {
-  const out: { pointer: string; text: string }[] = [];
+  const out: TextField[] = [];
   form.forEach((value, name) => {
     if (name.startsWith(EDIT_PREFIX) && typeof value === "string")
       out.push({ pointer: name.slice(EDIT_PREFIX.length), text: value.replace(/\r\n/g, "\n") });
   });
   return out;
+}
+
+/** The posted fields whose text differs from the rendition's. */
+export function changedFields(rendition: unknown, posted: TextField[]): TextField[] {
+  const before = new Map(textFields(rendition).map((f) => [f.pointer, f.text]));
+  return posted.filter((f) => before.get(f.pointer) !== f.text);
 }
 
 /**
