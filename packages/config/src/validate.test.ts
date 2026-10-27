@@ -66,6 +66,16 @@ describe("validateConfig", () => {
     expect(errors).toContain("models.free.yaml model orphan: unknown provider nowhere");
   });
 
+  it("requires a price on every model a role or TTS uses (D82)", () => {
+    const config = loadConfig(root);
+    const m = freeModels(config);
+    delete m.models["gemini-flash"]?.price;
+    delete m.models[m.tts]?.price;
+    const errors = validateConfig(config);
+    expect(errors).toContain("models.free.yaml planner: gemini-flash has no price");
+    expect(errors).toContain(`models.free.yaml tts: ${m.tts} has no price`);
+  });
+
   it("requires models.yaml and known formats in desk.by_format", () => {
     const config = loadConfig(root);
     freeModels(config).roles.desk.by_format = { "no-such-format": ["gemini-flash"] };
@@ -93,7 +103,11 @@ describe("validateConfig", () => {
 
   it("requires a live IPTC genre per format", () => {
     const config = loadConfig(root);
-    config.formatMeta["classic-article"] = { genre: "genre:Wrapup", ninjs_type: "text" };
+    config.formatMeta["classic-article"] = {
+      genre: "genre:Wrapup",
+      ninjs_type: "text",
+      run_tokens: 200_000,
+    };
     delete config.formatMeta["artist-story"];
     const errors = validateConfig(config);
     expect(errors).toContain(

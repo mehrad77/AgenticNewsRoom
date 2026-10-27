@@ -31,6 +31,26 @@
         "quoted_passage": {
           "type": "string",
           "description": "Exact passage from the lead's stored text."
+        },
+        "also": {
+          "type": "array",
+          "maxItems": 4,
+          "description": "Further leads that support the same claim, each with its own passage; independence is counted over these and lead_id (D74).",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["lead_id", "quoted_passage"],
+            "properties": {
+              "lead_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "quoted_passage": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
         }
       }
     },

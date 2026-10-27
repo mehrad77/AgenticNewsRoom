@@ -67,5 +67,10 @@ export type PostStatus = (typeof POST_STATUSES)[number];
 export const CHALLENGE_OUTCOMES = ["upheld", "rejected"] as const;
 export type ChallengeOutcome = (typeof CHALLENGE_OUTCOMES)[number];
 
-export const AGENT_RUN_OUTCOMES = ["submitted", "invalid", "error", "timed-out"] as const;
+/** `paused`: a writing run that did not start because the newsroom's budget is spent (D76). */
+export const AGENT_RUN_OUTCOMES = ["submitted", "invalid", "error", "timed-out", "paused"] as const;
 export type AgentRunOutcome = (typeof AGENT_RUN_OUTCOMES)[number];
+
+/** Messages from code to a newsroom's Editor-in-Chief, shown in the editor's desk. */
+export const NOTICE_KINDS = ["budget-warning", "budget-cap", "no-leads"] as const;
+export type NoticeKind = (typeof NOTICE_KINDS)[number];

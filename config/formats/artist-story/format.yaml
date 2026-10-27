@@ -1,3 +1,4 @@
 # IPTC description of this format (schema: packages/schemas/json/format.schema.json).
 genre: genre:Profile # Profile: the life and work of one artist
 ninjs_type: text
+run_tokens: 200000 # input + output over all model calls of one agent run (D76)

@@ -18,6 +18,14 @@ class Kind(Enum):
     opinion = "opinion"
 
 
+class AlsoItem(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    lead_id: constr(min_length=1)
+    quoted_passage: constr(min_length=1)
+
+
 class Claim(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -27,6 +35,11 @@ class Claim(BaseModel):
     text: constr(min_length=1)
     lead_id: constr(min_length=1) = Field(..., description="A stored lead in this newsroom.")
     quoted_passage: str = Field(..., description="Exact passage from the lead's stored text.")
+    also: list[AlsoItem] | None = Field(
+        None,
+        description="Further leads that support the same claim, each with its own passage; independence is counted over these and lead_id (D74).",
+        max_length=4,
+    )
 
 
 class ClaimIds(RootModel[list[constr(pattern=r"^c[0-9]+$")]]):

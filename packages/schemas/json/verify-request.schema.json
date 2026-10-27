@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anr.local/schemas/verify-request.schema.json",
+  "title": "VerifyRequest",
+  "description": "POST /verify on the verifier service: run the code checks on one story and its renditions. The verifier reads them from Postgres and stores every result as a Check (D79).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["newsroom_id", "story_id"],
+  "properties": {
+    "newsroom_id": { "type": "string", "format": "uuid" },
+    "story_id": { "type": "string", "format": "uuid" }
+  }
+}

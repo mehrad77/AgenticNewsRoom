@@ -1,6 +1,7 @@
 import {
   type AgentRunJob,
   type AssignJob,
+  type GateJob,
   type IngestSourceJob,
   QUEUES,
   type QueueName,
@@ -12,19 +13,21 @@ export const AGENTS_QUEUES: readonly QueueName[] = [
   QUEUES.ingestSource,
   QUEUES.assign,
   QUEUES.agentRun,
+  QUEUES.gate,
 ];
 
 /**
  * A handler per queue. A queue without one is not worked at all, so its jobs wait in Postgres
- * for a worker that can run them (assign arrives with milestone 3).
+ * for a worker that can run them.
  */
 export interface JobHandlers {
   "ingest-source"?: (job: IngestSourceJob) => Promise<void>;
   assign?: (job: AssignJob) => Promise<void>;
   "agent-run"?: (job: AgentRunJob) => Promise<void>;
+  gate?: (job: GateJob) => Promise<void>;
 }
 
-type Job = IngestSourceJob | AssignJob | AgentRunJob;
+type Job = IngestSourceJob | AssignJob | AgentRunJob | GateJob;
 
 export async function registerJobs(
   boss: Pick<PgBoss, "work">,

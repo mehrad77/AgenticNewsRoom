@@ -129,7 +129,8 @@ export async function runSummariser(
     const result = outcome.result ? "submitted" : "invalid";
     await client.query(
       `update agent_runs set outcome = $1, tokens_in = $2, tokens_out = $3, finished_at = now(),
-              provider = coalesce($5, provider), model = coalesce($6, model)
+              provider = coalesce($5, provider), model = coalesce($6, model),
+              cost_usd = $7, families = coalesce($8, families)
        where id = $4`,
       [
         result,
@@ -138,6 +139,8 @@ export async function runSummariser(
         job.agentRunId,
         model.answered?.()?.provider ?? null,
         model.answered?.()?.model ?? null,
+        model.meter ? model.meter.costUsd : null,
+        model.meter ? [...model.meter.families] : null,
       ],
     );
     return result;

@@ -13,3 +13,5 @@ export * from "./Series.ts";
 export * from "./SourceRequestResult.ts";
 export * from "./SourceRequest.ts";
 export * from "./Sources.ts";
+export * from "./VerifyRequest.ts";
+export * from "./VerifyResult.ts";

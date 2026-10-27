@@ -1,0 +1,80 @@
+// Monthly model spend per newsroom (D76). Writing roles stop at the cap minus the check reserve;
+// checks may spend the reserve, so a draft written before the cap can still be checked. The
+// Editor-in-Chief gets a notice at 80% and at the writing limit, once a month each.
+import type { AgentRole } from "@anr/core";
+import type { Client } from "@anr/db";
+
+/** Roles whose runs the reserve is kept for: the gate's model checks. */
+export const CHECK_ROLES: readonly AgentRole[] = ["fact-checker", "item-matcher"];
+export const WARNING_SHARE = 0.8;
+
+export interface Budget {
+  monthlyUsd: number;
+  checkReserveUsd: number;
+}
+
+export interface BudgetState extends Budget {
+  /** The calendar month in the newsroom's timezone, `YYYY-MM`. */
+  month: string;
+  spentUsd: number;
+}
+
+export type BudgetVerdict = { ok: true } | { ok: false; reason: string };
+
+/** Spend this month, in the newsroom's own timezone, over every Agent run. */
+export async function budgetState(client: Client): Promise<BudgetState> {
+  const { rows } = await client.query<{
+    policy: { budget?: { monthly_usd: number; check_reserve_usd: number } };
+    month: string;
+    spent: string;
+  }>(
+    `select n.policy, to_char(now() at time zone n.timezone, 'YYYY-MM') as month,
+            coalesce((select sum(r.cost_usd) from agent_runs r
+                      where r.started_at >= (date_trunc('month', now() at time zone n.timezone)
+                                             at time zone n.timezone)), 0) as spent
+     from newsrooms n where n.id = anr.current_newsroom_id()`,
+  );
+  const row = rows[0];
+  if (!row) throw new Error("no current newsroom");
+  const budget = row.policy.budget;
+  // Config validation requires a budget; a newsroom synced before it existed writes nothing.
+  return {
+    monthlyUsd: budget?.monthly_usd ?? 0,
+    checkReserveUsd: budget?.check_reserve_usd ?? 0,
+    month: row.month,
+    spentUsd: Number(row.spent),
+  };
+}
+
+export function writingLimit(b: Budget): number {
+  return Math.max(0, b.monthlyUsd - b.checkReserveUsd);
+}
+
+/** Whether a run of this role may start now. A run that has started may finish (its token cap bounds it). */
+export function mayStart(role: AgentRole, s: BudgetState): BudgetVerdict {
+  const limit = CHECK_ROLES.includes(role) ? s.monthlyUsd : writingLimit(s);
+  if (s.spentUsd < limit) return { ok: true };
+  return {
+    ok: false,
+    reason: `the newsroom has spent $${s.spentUsd.toFixed(2)} of its $${limit.toFixed(2)} ${
+      CHECK_ROLES.includes(role) ? "monthly budget" : "writing budget"
+    } for ${s.month}`,
+  };
+}
+
+/** Writes the month's 80% and cap notices once each, when spend has reached them. */
+export async function noticeBudget(client: Client, s: BudgetState): Promise<void> {
+  const detail = { month: s.month, spent_usd: s.spentUsd, monthly_usd: s.monthlyUsd };
+  const notices: string[] = [];
+  if (s.monthlyUsd > 0 && s.spentUsd >= WARNING_SHARE * s.monthlyUsd)
+    notices.push("budget-warning");
+  if (s.spentUsd >= writingLimit(s)) notices.push("budget-cap");
+  for (const kind of notices) {
+    await client.query(
+      `insert into notices (newsroom_id, kind, key, detail)
+       values (anr.current_newsroom_id(), $1, $2, $3)
+       on conflict (newsroom_id, kind, key) do nothing`,
+      [kind, s.month, JSON.stringify(detail)],
+    );
+  }
+}

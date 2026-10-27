@@ -51,3 +51,5 @@ papers:
     - Science
   high_citations: 500
 auto_publish: [newsletter-issue]
+# Model spend per calendar month (D76): writing pauses at monthly_usd - check_reserve_usd.
+budget: { monthly_usd: 30, check_reserve_usd: 3 }

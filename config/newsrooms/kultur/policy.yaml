@@ -26,3 +26,5 @@ sources:
   tier1_alone: true # the artist's or label's own statement
 auto_publish: [] # every piece is themed and waits for an editor
 opinion: allowed_marked # opinion is labelled and never carries a factual claim
+# Model spend per calendar month (D76): writing pauses at monthly_usd - check_reserve_usd.
+budget: { monthly_usd: 30, check_reserve_usd: 3 }
