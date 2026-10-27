@@ -166,7 +166,7 @@ The gate runs in four layers, and two of them use a model. Facts are checked onc
 
 1. **Code checks (Python verifier service).**
    - The draft matches its format schema.
-   - Every claim names a lead in this newsroom, not withdrawn, and its quote (and each further source's) is found in that lead's stored text. Matching normalises text first: NFKC, zero-width non-joiners, Arabic and Persian ye and kaf, Persian digits, and Turkish case folding, then collapses whitespace. The same rules back the SQL function used by site search, and both are tested against one shared file of test vectors.
+   - Every claim names a lead in this newsroom, not withdrawn, and its quote (and each further source's) is found in that lead's stored text. Matching normalises text first: NFKC, zero-width non-joiners, Arabic and Persian ye and kaf, Persian digits, hyphen and minus variants (D86), and Turkish case folding, then collapses whitespace. The same rules back the SQL function used by site search, and both are tested against one shared file of test vectors.
    - Each fact claim has two independent sources, or one tier-1 source. Independent means different publishers, after deduplication, counted over the claim's sources whose passage matched (D74).
    - No banned beat, in the story or any cited lead, and no cited lead not yet placed in beats; a restricted beat is marked for an editor.
    - Every item of every rendition lists its claim ids, and the numbers (and so dates) and Latin-script names in the item are in those claims; names in other scripts are the item matcher's (D79).

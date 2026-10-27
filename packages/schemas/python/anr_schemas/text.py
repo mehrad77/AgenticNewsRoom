@@ -15,6 +15,9 @@ _MAP = str.maketrans(
         "ى": "ی",  # Arabic alef maksura -> Persian ye
         "ك": "ک",  # Arabic kaf -> Persian kaf
         "‌": None,  # zero-width non-joiner
+        "\u2010": "-",  # hyphen (NFKC maps the non-breaking hyphen to it) -> hyphen-minus
+        "\u2011": "-",  # non-breaking hyphen
+        "\u2212": "-",  # minus sign
         **{d: str(i) for i, d in enumerate(_PERSIAN_DIGITS)},
         **{d: str(i) for i, d in enumerate(_ARABIC_INDIC_DIGITS)},
     }
