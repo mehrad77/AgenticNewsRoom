@@ -1,0 +1,32 @@
+---
+import { type Budget, usd, when } from "../../lib/desk.ts";
+
+interface Props {
+  budget: Budget;
+}
+const { budget: b } = Astro.props;
+const share = b.monthly_usd > 0 ? Math.min(1, b.spent_usd / b.monthly_usd) : 0;
+---
+<h1>Budget · {b.month}</h1>
+{b.monthly_usd > 0 ? (
+  <>
+    <p>{usd(b.spent_usd)} spent of {usd(b.monthly_usd)}. Writing stops at {usd(b.writing_limit_usd)}; the remaining {usd(b.check_reserve_usd)} is kept for checks.</p>
+    <meter min="0" max="1" low="0.8" high="0.95" optimum="0" value={share}>{Math.round(share * 100)}%</meter>
+  </>
+) : (
+  <p><strong>No budget is set</strong> in this newsroom's <code>policy.yaml</code>, so no agent may run. {usd(b.spent_usd)} spent this month.</p>
+)}
+<h2>By role</h2>
+<div class="scroll"><table>
+  <thead><tr><th>Role</th><th>Runs</th><th>Cost</th></tr></thead>
+  <tbody>{b.by_role.map((r) => <tr><td>{r.role}</td><td>{r.runs}</td><td>{usd(r.cost_usd)}</td></tr>)}</tbody>
+</table></div>
+<h2>Latest runs</h2>
+{b.runs.length === 0 ? <p>No runs this month.</p> : (
+  <div class="scroll"><table>
+    <thead><tr><th>Started</th><th>Role</th><th>Model</th><th>Outcome</th><th>Tokens</th><th>Cost</th></tr></thead>
+    <tbody>{b.runs.map((r) => (
+      <tr><td>{when(r.started_at)}</td><td>{r.role}</td><td>{r.provider}/{r.model}</td><td>{r.outcome ?? "running"}</td><td>{r.tokens_in ?? 0} / {r.tokens_out ?? 0}</td><td>{usd(r.cost_usd)}</td></tr>
+    ))}</tbody>
+  </table></div>
+)}

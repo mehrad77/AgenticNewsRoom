@@ -1,0 +1,16 @@
+---
+import { type DeskPublication, detail } from "../../lib/desk.ts";
+
+interface Props {
+  checks: DeskPublication["checks"];
+}
+const { checks } = Astro.props;
+---
+<ul class="checks">
+  {checks.map((h) => (
+    <li class={h.result === "pass" ? "pass" : "fail"}>
+      {h.kind} / {h.name}: <strong>{h.result}</strong>{h.claim && ` (claim ${h.claim})`}
+      {h.detail != null && <small> {detail(h.detail)}</small>}
+    </li>
+  ))}
+</ul>

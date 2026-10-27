@@ -1,0 +1,61 @@
+---
+import { type Channel, detail, when } from "../../lib/desk.ts";
+
+interface Props {
+  channels: Channel[];
+  chief: boolean;
+}
+const { channels, chief } = Astro.props;
+---
+<h1>Channels</h1>
+{channels.length === 0 && <p>No channels yet; publications go to the site only.</p>}
+{channels.map((c) => (
+  <section class="card">
+    <h2>{c.kind} · {c.language} {c.external_id && <small>{c.external_id}</small>}</h2>
+    <p class="meta">{c.status}{c.has_credentials ? " · credentials sealed" : ""}</p>
+    {c.check_result ? (
+      <p class={c.check_result.ok ? "pass" : "fail"}>
+        Last check {when(c.checked_at)}: <strong>{c.check_result.ok ? "can post" : c.check_result.problem}</strong>
+        {c.check_result.detail && <small> {detail(c.check_result.detail)}</small>}
+      </p>
+    ) : (
+      c.kind === "telegram" && <p class="meta">Not checked yet.</p>
+    )}
+    {chief && (
+      <div class="actions">
+        {c.kind === "telegram" && (
+          <form method="post">
+            <input type="hidden" name="action" value="check-channel" /><input type="hidden" name="id" value={c.id} />
+            <button title="Asks Telegram about the bot and the chat; sends nothing">Test (sends nothing)</button>
+          </form>
+        )}
+        <form method="post">
+          <input type="hidden" name="action" value="channel-status" /><input type="hidden" name="id" value={c.id} />
+          <input type="hidden" name="status" value={c.status === "active" ? "disabled" : "active"} />
+          <button>{c.status === "active" ? "Turn off" : "Turn on"}</button>
+        </form>
+        {c.kind === "telegram" && (
+          <form method="post" autocomplete="off">
+            <input type="hidden" name="action" value="replace-token" /><input type="hidden" name="id" value={c.id} />
+            <label>New bot token<input name="bot_token" type="password" required autocomplete="new-password" placeholder="sealed, never shown again" /></label>
+            <button>Replace the token</button>
+          </form>
+        )}
+      </div>
+    )}
+  </section>
+))}
+{channels.some((c) => c.check_result === null && c.checked_at === null) && chief && (
+  <p class="meta">A test runs in the publisher; reload in a few seconds for its result.</p>
+)}
+{chief && (
+  <form method="post" autocomplete="off" class="card">
+    <h2>Add a channel</h2>
+    <input type="hidden" name="action" value="add-channel" />
+    <label>Kind<select name="kind"><option>telegram</option><option>site</option><option>podcast-rss</option></select></label>
+    <label>Language<select name="language"><option>fa</option><option>en</option><option>tr</option></select></label>
+    <label>Telegram chat id or @username<input name="external_id" /></label>
+    <label>Bot token<input name="bot_token" type="password" placeholder="sealed, never shown again" autocomplete="new-password" /></label>
+    <button>Add</button>
+  </form>
+)}

@@ -1,0 +1,117 @@
+---
+import { type DeskPublication, detail, editForm, type Preview, usd, when } from "../../lib/desk.ts";
+import Holds from "./Holds.astro";
+
+interface Props {
+  newsroom: string;
+  publication: DeskPublication;
+  preview?: Preview;
+}
+const { newsroom, publication: p, preview } = Astro.props;
+const rendition = p.rendition as { title?: unknown; items?: Record<string, unknown>[] } | null;
+const held = p.status === "with-editor";
+const unknown = p.posts.some((x) => x.status === "unknown");
+// Once a part went out, or may have, the text is fixed (D97).
+const editable = held && rendition !== null && !p.posts.some((x) => x.status === "sent" || x.status === "unknown");
+const fields = editable ? editForm(rendition) : [];
+---
+<h1>{String(rendition?.title ?? "(untitled)")}</h1>
+<p class="meta">{p.series} · {p.language} · {when(p.slot)} · <strong>{p.status}</strong></p>
+
+{held && (
+  <section class="card decide">
+    <h2>Decide</h2>
+    {unknown ? (
+      <p><strong>Settle every post with an unknown result (below) before approving.</strong></p>
+    ) : (
+      <form method="post">
+        <input type="hidden" name="action" value="approve" /><input type="hidden" name="id" value={p.id} />
+        <button class="primary">Approve: send what the preview shows</button>
+      </form>
+    )}
+    <form method="post">
+      <input type="hidden" name="action" value="return" /><input type="hidden" name="id" value={p.id} />
+      <label>What should the desk change?<textarea name="note" required maxlength="2000" rows="2"></textarea></label>
+      <button>Return to the desk</button>
+    </form>
+  </section>
+)}
+
+<h2>Checks</h2>
+{p.checks.length === 0 ? <p>No checks yet.</p> : <Holds checks={p.checks} />}
+
+{preview && (
+  <section>
+    <h2>Preview</h2>
+    <p>Exactly what the publisher would send now. Label: <span class="label">{preview.label}</span></p>
+    {preview.channels.map((c) => (
+      <div class="channel">
+        <h3>{c.kind}{!c.configured && " (no active channel: skipped)"}</h3>
+        {c.error && <p role="alert"><strong>It would be held: {c.error}</strong></p>}
+        {c.parts.map((part, i) => (
+          <figure>
+            <figcaption>Part {i + 1} of {c.parts.length} · {part.length} characters with markup</figcaption>
+            <pre>{part}</pre>
+          </figure>
+        ))}
+      </div>
+    ))}
+    <div class="channel">
+      <h3>site</h3>
+      <p class="meta">{preview.site.url}</p>
+      <iframe class="site" title="Site page preview" sandbox="" srcdoc={preview.site.html}></iframe>
+    </div>
+  </section>
+)}
+
+{editable && (
+  <section>
+    <h2>Edit the text</h2>
+    <p>Only words change; the items, their claims and sources stay. Once saved, the label reads that a person edited it.</p>
+    <form method="post" class="edit">
+      <input type="hidden" name="action" value="edit" /><input type="hidden" name="id" value={p.id} />
+      {fields.map((f) => (
+        <label>{f.label}
+          {f.long ? <textarea name={f.name} rows="4">{f.text}</textarea> : <input name={f.name} value={f.text} />}
+        </label>
+      ))}
+      <button>Save the edit</button>
+    </form>
+  </section>
+)}
+
+<h2>Claims</h2>
+<ul>{p.claims.map((c) => (
+  <li><strong>{c.ref}</strong> ({c.kind}) {c.text}
+    {c.quoted_passage && <blockquote>{c.quoted_passage} {c.lead && <a href={c.lead} rel="noreferrer">source</a>}</blockquote>}
+  </li>
+))}</ul>
+
+<h2>Posts</h2>
+{p.posts.length === 0 ? <p>Nothing sent yet.</p> : (
+  <ul>{p.posts.map((x) => (
+    <li>{x.kind} part {x.part}: <strong>{x.status}</strong> {x.external_id} <small>{detail(x.error)}</small>
+      {x.status === "unknown" && (
+        <form method="post">
+          <input type="hidden" name="action" value="resolve-post" /><input type="hidden" name="id" value={x.id} />
+          <p>Did it reach the channel?</p>
+          <label class="inline"><input type="radio" name="went_out" value="yes" required /> yes, it is there</label>
+          <input name="external_id" placeholder="message id, if known" />
+          <label class="inline"><input type="radio" name="went_out" value="no" /> no, send it again</label>
+          <button>Settle</button>
+        </form>
+      )}
+    </li>
+  ))}</ul>
+)}
+
+<h2>Agent runs · {usd(p.cost_usd)}</h2>
+{p.runs.length === 0 ? <p>None recorded.</p> : (
+  <div class="scroll"><table>
+    <thead><tr><th>Role</th><th>Model</th><th>Outcome</th><th>Cost</th><th>Started</th></tr></thead>
+    <tbody>{p.runs.map((r) => (
+      <tr><td>{r.role}</td><td>{r.provider}/{r.model}</td><td>{r.outcome ?? "running"}</td><td>{usd(r.cost_usd)}</td><td>{when(r.started_at)}</td></tr>
+    ))}</tbody>
+  </table></div>
+)}
+<p><a href={`/${newsroom}`}>Back to the queue</a></p>

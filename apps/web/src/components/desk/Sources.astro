@@ -1,0 +1,25 @@
+---
+import { type SourceHealth, when } from "../../lib/desk.ts";
+
+interface Props {
+  sources: SourceHealth[];
+}
+const { sources } = Astro.props;
+---
+<h1>Sources</h1>
+<p>Failing sources first. A source without checked terms is never fetched; terms are set in its newsroom's <code>sources.yaml</code>.</p>
+{sources.length === 0 ? <p>No sources.</p> : (
+  <div class="scroll"><table>
+    <thead><tr><th>Source</th><th>Tier</th><th>Terms</th><th>Last fetch</th><th>Failures</th><th>Leads, 7 days</th></tr></thead>
+    <tbody>{sources.map((s) => (
+      <tr class={s.consecutive_failures > 0 || !s.terms_checked ? "fail" : ""}>
+        <td><a href={s.url} rel="noreferrer">{s.slug}</a> <small>{s.kind}{s.use === "enrichment" ? " · enrichment" : ""}</small></td>
+        <td>{s.tier}</td>
+        <td>{s.terms_checked ?? "not checked"}</td>
+        <td>{s.last_fetched_at ? when(s.last_fetched_at) : "never"} {s.last_status && <small>HTTP {s.last_status}</small>} {s.last_error && <small>{s.last_error}</small>}</td>
+        <td>{s.consecutive_failures}</td>
+        <td>{s.leads_7d}</td>
+      </tr>
+    ))}</tbody>
+  </table></div>
+)}

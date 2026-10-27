@@ -5,8 +5,10 @@ interface Props {
   title: string;
   language: Language;
   direction: Direction;
+  /** A class on <body>, for pages with their own styles (the desk). */
+  class?: string;
 }
-const { title, language, direction } = Astro.props;
+const { title, language, direction, class: bodyClass } = Astro.props;
 ---
 <!doctype html>
 <html lang={language} dir={direction}>
@@ -23,7 +25,7 @@ const { title, language, direction } = Astro.props;
       .anr-disclosure { font-size: 0.85rem; padding: 0.2rem 0.5rem; border: 1px solid #888; border-radius: 4px; display: inline-block; }
     </style>
   </head>
-  <body>
+  <body class={bodyClass}>
     <slot />
   </body>
 </html>

@@ -1,0 +1,24 @@
+---
+import { type ScheduleItem, when } from "../../lib/desk.ts";
+
+interface Props {
+  newsroom: string;
+  items: ScheduleItem[];
+}
+const { newsroom, items } = Astro.props;
+---
+<h1>Upcoming slots</h1>
+<p>The next seven days. A scheduled publication can be pulled back before it goes out; it returns to the review queue.</p>
+{items.length === 0 ? <p>Nothing in the next seven days.</p> : items.map((p) => (
+  <section class="card">
+    <h2><a href={`/${newsroom}/p/${p.id}`}>{p.title ?? "(not written yet)"}</a></h2>
+    <p class="meta">{p.series} · {p.language} · {when(p.slot)} · <strong>{p.status}</strong></p>
+    {p.status === "scheduled" && (
+      <form method="post">
+        <input type="hidden" name="action" value="pull-back" /><input type="hidden" name="id" value={p.id} />
+        <label>Why hold it?<input name="note" required maxlength="2000" /></label>
+        <button>Pull back</button>
+      </form>
+    )}
+  </section>
+))}

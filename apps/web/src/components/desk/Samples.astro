@@ -1,0 +1,37 @@
+---
+import { issueLink, type Sample, when } from "../../lib/desk.ts";
+
+interface Props {
+  newsroom: string;
+  samples: Sample[];
+  issuesUrl: string;
+}
+const { newsroom, samples, issuesUrl } = Astro.props;
+---
+<h1>Review sample</h1>
+<p>A random tenth of what published without a person's approval. A miss says what the gate should have caught; file it as an issue so it becomes a new check or policy rule.</p>
+{samples.length === 0 && <p>Nothing sampled yet.</p>}
+{samples.map((s) => (
+  <section class="card">
+    <h2>{s.title ?? s.publication}</h2>
+    <p class="meta">{s.language} · sampled {when(s.sampled_at)} · <strong>{s.outcome ?? "not reviewed"}</strong></p>
+    {s.note && <blockquote>{s.note}</blockquote>}
+    {!s.outcome && (
+      <form method="post">
+        <input type="hidden" name="action" value="review-sample" /><input type="hidden" name="id" value={s.id} />
+        <label>For a miss: what should have been caught<textarea name="note" maxlength="2000" rows="2"></textarea></label>
+        <div class="actions"><button name="outcome" value="ok">Fine</button><button name="outcome" value="miss">Miss</button></div>
+      </form>
+    )}
+    {s.outcome === "miss" && (s.issue_url ? (
+      <p>Filed as <a href={s.issue_url} rel="noreferrer">{s.issue_url}</a> · {when(s.filed_at)}</p>
+    ) : (
+      <form method="post">
+        <p><a class="button" href={issueLink(issuesUrl, newsroom, s)} target="_blank" rel="noreferrer">File an issue</a> then paste its address here:</p>
+        <input type="hidden" name="action" value="file-issue" /><input type="hidden" name="id" value={s.id} />
+        <label>Issue URL<input name="url" type="url" required pattern="https://.*" /></label>
+        <button>Record it</button>
+      </form>
+    ))}
+  </section>
+))}
