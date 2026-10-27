@@ -47,6 +47,9 @@ export const langchainClient: ClientFactory = (entry) => {
           temperature: 0,
           maxRetries: 0,
           maxTokens: MAX_OUTPUT_TOKENS,
+          ...(entry.reasoningEffort && {
+            modelKwargs: { reasoning_effort: entry.reasoningEffort },
+          }),
           configuration: { baseURL: entry.baseUrl, ...slowServer(entry.timeoutMs) },
         });
   return {

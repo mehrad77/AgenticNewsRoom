@@ -4,6 +4,7 @@
 from __future__ import annotations
 from pydantic import BaseModel, ConfigDict, Field, RootModel, confloat, conint, constr
 from typing import Literal
+from enum import Enum
 
 
 class Id(RootModel[constr(pattern=r"^[a-z0-9][a-z0-9.-]*$")]):
@@ -69,6 +70,13 @@ class OpenaiProvider(BaseModel):
     )
 
 
+class ReasoningEffort(Enum):
+    none = "none"
+    low = "low"
+    medium = "medium"
+    high = "high"
+
+
 class Price(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -89,6 +97,10 @@ class Model(BaseModel):
     )
     tools: bool = Field(..., description="Supports tool calling (every agent role needs it).")
     limits: Limits | None = None
+    reasoning_effort: ReasoningEffort | None = Field(
+        None,
+        description="Sent as reasoning_effort to an OpenAI-compatible provider; none turns a local model's thinking off (D85).",
+    )
     price: Price | None = Field(
         None, description="USD per million tokens; omitted means unknown and cost is not recorded."
     )

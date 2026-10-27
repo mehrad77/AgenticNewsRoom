@@ -53,6 +53,9 @@ function modelsProblems(m: ModelsSchema, file: string, formats: string[]): strin
     if (!m.providers[model.provider]) {
       errors.push(`${file} model ${id}: unknown provider ${model.provider}`);
     }
+    if (model.reasoning_effort && m.providers[model.provider]?.kind !== "openai") {
+      errors.push(`${file} model ${id}: reasoning_effort needs an OpenAI-compatible provider`);
+    }
     // OpenRouter's :online variants search the web; agents have no web access (invariant 2).
     if (model.model.endsWith(":online")) {
       errors.push(`${file} model ${id}: ${model.model} has web access`);

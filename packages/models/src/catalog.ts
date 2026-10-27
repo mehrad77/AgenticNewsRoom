@@ -28,6 +28,8 @@ export interface CatalogEntry {
   /** A 429 on this model means the whole provider account is limited. */
   sharedQuota: boolean;
   price?: { in: number; out: number };
+  /** Sent as reasoning_effort (OpenAI-compatible providers only). */
+  reasoningEffort?: "none" | "low" | "medium" | "high";
   /** How long one call may take before it counts as an outage. */
   timeoutMs: number;
 }
@@ -85,6 +87,7 @@ export function buildCatalog(
       providerLimits: p.limits,
       sharedQuota: p.shared_quota ?? false,
       price: m.price,
+      reasoningEffort: m.reasoning_effort,
       timeoutMs: (p.timeout_s ?? DEFAULT_TIMEOUT_MS / 1000) * 1000,
     });
   }

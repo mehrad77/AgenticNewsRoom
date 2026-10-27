@@ -137,6 +137,10 @@
         "limits": {
           "$ref": "#/$defs/limits"
         },
+        "reasoning_effort": {
+          "enum": ["none", "low", "medium", "high"],
+          "description": "Sent as reasoning_effort to an OpenAI-compatible provider; none turns a local model's thinking off (D85)."
+        },
         "price": {
           "type": "object",
           "description": "USD per million tokens; omitted means unknown and cost is not recorded.",

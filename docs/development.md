@@ -95,4 +95,4 @@ curl -s -X POST http://127.0.0.1:1234/api/v1/models/load -H 'content-type: appli
 curl -s -X POST http://127.0.0.1:1234/api/v1/models/load -H 'content-type: application/json' -d '{"model": "openai/gpt-oss-20b", "context_length": 65536}'
 ```
 
-A local call may take up to 10 minutes (`timeout_s: 600`). A model LM Studio unloads under memory pressure counts as down, so the chain moves on. Keep LM Studio's MCP servers out of this: agents get only ANR's four tools (invariant 2), and the OpenAI-compatible endpoint ANR calls adds none.
+A local call may take up to 10 minutes (`timeout_s: 600`). Gemma runs with `reasoning_effort: none`: with thinking on it reasons past any deadline (D85). A model LM Studio unloads under memory pressure counts as down, so the chain moves on. Keep LM Studio's MCP servers out of this: agents get only ANR's four tools (invariant 2), and the OpenAI-compatible endpoint ANR calls adds none.

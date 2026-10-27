@@ -111,6 +111,8 @@ models:
     model: google/gemma-4-12b
     family: gemma-4-12b
     tools: true
+    # Thinking on, it spent 13-18k tokens reasoning per desk call and answered in 3 (D85).
+    reasoning_effort: none
     price: { in: 0, out: 0 }
   lmstudio-gpt-oss-20b:
     provider: lmstudio

@@ -77,6 +77,16 @@ describe("validateConfig", () => {
     expect(errors).toContain("models.yaml provider local: needs key_env");
   });
 
+  it("sends reasoning_effort only to OpenAI-compatible providers (D85)", () => {
+    const config = loadConfig(root);
+    const m = freeModels(config);
+    if (m.models["gemini-flash"]) m.models["gemini-flash"].reasoning_effort = "none";
+    const errors = validateConfig(config);
+    expect(errors).toContain(
+      "models.free.yaml model gemini-flash: reasoning_effort needs an OpenAI-compatible provider",
+    );
+  });
+
   it("requires a price on every model a role or TTS uses (D82)", () => {
     const config = loadConfig(root);
     const m = freeModels(config);
