@@ -5,6 +5,7 @@ import { createTestNewsroom, testPools } from "@anr/db/testing";
 import { createRenderer, visibleLength } from "@anr/render";
 import { afterAll, describe, expect, it } from "vitest";
 import { type ChannelAdapter, SendError } from "./channels/types.ts";
+import { checkChannel } from "./check.ts";
 import { type PublishDeps, publishOne } from "./publish.ts";
 import { snapshotSubscribers } from "./stats.ts";
 import { sweepDue } from "./sweep.ts";
@@ -392,6 +393,38 @@ describe("the daily subscriber snapshot", () => {
       broken.rows[0]?.id,
     ]);
     expect(none.rows).toHaveLength(0);
+  });
+});
+
+describe("a channel check", () => {
+  it("stores what the channel said, and a refusal as the problem, without sending", async () => {
+    const { newsroomId, telegramId } = await scheduled();
+    const fake = fakeTelegram();
+    const result = async () =>
+      (
+        await pools.system.query(
+          "select check_result, checked_at is not null as checked from channels where id = $1",
+          [telegramId],
+        )
+      ).rows[0];
+    fake.adapter.check = async (t) => {
+      expect(t.credentials).toEqual({ bot_token: "123:FAKE" });
+      return { ok: true, detail: { chat_title: "ANR" } };
+    };
+    await checkChannel(deps(fake.adapter), { newsroomId, channelId: telegramId });
+    expect(await result()).toEqual({
+      check_result: { ok: true, detail: { chat_title: "ANR" } },
+      checked: true,
+    });
+    fake.adapter.check = async () => {
+      throw new SendError("rejected", "Telegram getChat: 400 Bad Request: chat not found");
+    };
+    await checkChannel(deps(fake.adapter), { newsroomId, channelId: telegramId });
+    expect((await result())?.check_result).toEqual({
+      ok: false,
+      problem: "Telegram getChat: 400 Bad Request: chat not found",
+    });
+    expect(fake.calls()).toBe(0);
   });
 });
 

@@ -17,6 +17,8 @@ export const QUEUES = {
   publishSweep: "publish-sweep",
   /** Publisher: once a day, each Telegram channel's subscriber count (audience per language). */
   channelStats: "channel-stats",
+  /** Publisher: asks a channel whether it can be posted to, without posting (D101). */
+  channelCheck: "channel-check",
 } as const;
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
 
@@ -62,6 +64,10 @@ export interface AgentRunJob {
 export interface RedraftJob {
   newsroomId: string;
   assignmentId: string;
+}
+export interface ChannelCheckJob {
+  newsroomId: string;
+  channelId: string;
 }
 export interface GateJob {
   newsroomId: string;

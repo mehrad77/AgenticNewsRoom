@@ -93,4 +93,60 @@ describe("Telegram channel", () => {
       await telegramChannel(answer(200, { ok: true, result: 1234 })).subscribers?.(target),
     ).toBe(1234);
   });
+
+  describe("check", () => {
+    const replies = (chat: object, member: object, calls: string[] = []): typeof fetch =>
+      (async (url: string) => {
+        const method = url.split("/").at(-1) ?? "";
+        calls.push(method);
+        const result =
+          method === "getMe"
+            ? { id: 9, username: "anr_bot" }
+            : method === "getChat"
+              ? chat
+              : member;
+        return new Response(JSON.stringify({ ok: true, result }));
+      }) as unknown as typeof fetch;
+
+    it("passes an admin that may post, and sends nothing", async () => {
+      const calls: string[] = [];
+      const fetchFn = replies(
+        { type: "channel", title: "ANR" },
+        { status: "administrator", can_post_messages: true },
+        calls,
+      );
+      expect(await telegramChannel(fetchFn).check?.(target)).toEqual({
+        ok: true,
+        detail: {
+          bot: "anr_bot",
+          chat_title: "ANR",
+          chat_type: "channel",
+          bot_status: "administrator",
+        },
+      });
+      expect(calls).toEqual(["getMe", "getChat", "getChatMember"]);
+    });
+
+    it("says why a bot cannot post to a channel", async () => {
+      const notAdmin = replies({ type: "channel", title: "ANR" }, { status: "member" });
+      expect(await telegramChannel(notAdmin).check?.(target)).toMatchObject({
+        ok: false,
+        problem: "the bot is not an admin of the channel",
+      });
+      const noRight = replies(
+        { type: "channel" },
+        { status: "administrator", can_post_messages: false },
+      );
+      expect((await telegramChannel(noRight).check?.(target))?.problem).toMatch(/may not post/);
+    });
+
+    it("keeps the token out of a refusal", async () => {
+      const fetchFn = answer(401, { ok: false, error_code: 401, description: "Unauthorized" });
+      const error = await telegramChannel(fetchFn)
+        .check?.(target)
+        .catch((e: Error) => e);
+      expect(error).toMatchObject({ failure: "rejected" });
+      expect(String((error as Error).message)).not.toContain("SECRET");
+    });
+  });
 });

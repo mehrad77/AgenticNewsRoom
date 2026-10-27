@@ -3,6 +3,7 @@
 import { createBoss, createPool, platformKey } from "@anr/db";
 import { createRenderer } from "@anr/render";
 import { telegramChannel } from "./channels/telegram.ts";
+import { checkChannel } from "./check.ts";
 import { registerJobs } from "./jobs.ts";
 import type { PublishDeps } from "./publish.ts";
 import { snapshotSubscribers } from "./stats.ts";
@@ -30,6 +31,10 @@ await registerJobs(boss, {
   },
   stats: async () => {
     console.log(`[publisher] subscribers ${JSON.stringify(await snapshotSubscribers(deps))}`);
+  },
+  check: async (job) => {
+    const result = await checkChannel(deps, job);
+    console.log(`[publisher] channel ${job.channelId} check: ${result?.ok ?? "gone"}`);
   },
 });
 console.log("publisher worker started");

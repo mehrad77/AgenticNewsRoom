@@ -1,6 +1,6 @@
 // Telegram through the Bot API (https://core.telegram.org/bots/api). The bot token is a secret and
 // part of every URL, so no URL, request or response object ever reaches an error or a log.
-import { type ChannelAdapter, type ChannelTarget, SendError } from "./types.ts";
+import { type ChannelAdapter, type ChannelCheck, type ChannelTarget, SendError } from "./types.ts";
 
 const API = "https://api.telegram.org";
 /** A send that takes longer may still land: its result is unknown. */
@@ -79,5 +79,45 @@ export function telegramChannel(fetchFn: Fetch = fetch): ChannelAdapter {
       if (typeof count !== "number") throw new SendError("unknown", "unexpected member count");
       return count;
     },
+    async check(target) {
+      const me = (await call(fetchFn, target, "getMe", {})) as { id?: number; username?: string };
+      const chat = (await call(fetchFn, target, "getChat", { chat_id: chatId(target) })) as {
+        type?: string;
+        title?: string;
+        username?: string;
+      };
+      const member = (await call(fetchFn, target, "getChatMember", {
+        chat_id: chatId(target),
+        user_id: me.id,
+      })) as { status?: string; can_post_messages?: boolean };
+      return verdict(me, chat, member);
+    },
   };
+}
+
+/** Whether the bot may post in the chat: in a channel only as an admin with the right to post. */
+function verdict(
+  me: { username?: string },
+  chat: { type?: string; title?: string; username?: string },
+  member: { status?: string; can_post_messages?: boolean },
+): ChannelCheck {
+  const detail = {
+    bot: me.username ?? null,
+    chat_title: chat.title ?? chat.username ?? null,
+    chat_type: chat.type ?? null,
+    bot_status: member.status ?? null,
+  };
+  const status = member.status ?? "";
+  const ok =
+    chat.type === "channel"
+      ? status === "creator" || (status === "administrator" && member.can_post_messages === true)
+      : ["creator", "administrator", "member"].includes(status);
+  if (ok) return { ok, detail };
+  const problem =
+    chat.type === "channel" && status === "administrator"
+      ? "the bot is an admin of the channel but may not post messages"
+      : chat.type === "channel"
+        ? "the bot is not an admin of the channel"
+        : "the bot is not a member of the chat";
+  return { ok, problem, detail };
 }
