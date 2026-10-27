@@ -4,10 +4,13 @@ import { fileURLToPath } from "node:url";
 import type { AgentRole } from "@anr/core";
 import { createBoss, createPool } from "@anr/db";
 import { buildCatalog, loadModelsConfig, ModelGateway, missingKeys, modelsFile } from "@anr/models";
+import { createRenderer } from "@anr/render";
 import { assignDaily } from "./assign.ts";
 import type { RoleDeps } from "./desk/run.ts";
 import { runDesk } from "./desk/run.ts";
 import { dispatchAgentRun } from "./dispatch.ts";
+import { runGate, verifierClient } from "./gate/run.ts";
+import { sweepStuck } from "./gate/sweep.ts";
 import { handleIngestSource, ingestionClient } from "./ingest.ts";
 import { registerJobs } from "./jobs.ts";
 import { meteredModel } from "./model.ts";
@@ -89,7 +92,32 @@ await registerJobs(boss, {
       renderer: run(runRenderer),
     },
   }),
+  gate: async (job) => {
+    await runGate(
+      {
+        pool,
+        router,
+        configDir,
+        verifier: verifierClient(process.env.ANR_VERIFIER_URL ?? "http://127.0.0.1:8102"),
+        renderer: createRenderer(),
+        makeModel: (chain, tokenCap) => meteredModel(gateway, chain, { tokenCap }),
+      },
+      job,
+    );
+  },
 });
+
+/** Holds whatever is still being written or checked shortly before its slot (D80). */
+const SWEEP_EVERY_MS = 5 * 60_000;
+const sweep = async () => {
+  const held = await sweepStuck(pool).catch((error: Error) => {
+    console.error(`[gate] sweep failed: ${error.message}`);
+    return 0;
+  });
+  if (held > 0) console.log(`[gate] held ${held} publications past their deadline`);
+};
+await sweep();
+const sweeper = setInterval(sweep, SWEEP_EVERY_MS);
 if (canRun("summariser")) {
   const resumed = await resumeSummaries(pool, boss, router);
   if (resumed > 0) console.log(`[agents] resumed ${resumed} unfinished summaries`);
@@ -100,6 +128,7 @@ for (const role of ["summariser", "desk", "renderer", "fact-checker", "item-matc
 console.log(`agents worker started (${modelsFile(configDir)})`);
 
 const stop = async () => {
+  clearInterval(sweeper);
   await boss.stop();
   await pool.end();
   process.exit(0);

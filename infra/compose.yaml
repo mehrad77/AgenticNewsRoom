@@ -112,6 +112,7 @@ services:
       DATABASE_URL: postgres://anr_app:${ANR_APP_DB_PASSWORD:-anr_app}@postgres:5432/anr
       DATABASE_SYSTEM_URL: postgres://anr_system:${ANR_SYSTEM_DB_PASSWORD:-anr_system}@postgres:5432/anr
       ANR_INGESTION_URL: http://ingestion:8000
+      ANR_VERIFIER_URL: http://verifier:8000
     build: { context: .., dockerfile: infra/docker/node.Dockerfile, args: { APP: agents } }
 
   publisher:

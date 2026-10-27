@@ -17,6 +17,7 @@ dev = [
   "datamodel-code-generator>=0.86",
   "httpx2>=2.16",
   "boto3-stubs[s3]>=1.43.118",
+  "types-pyyaml>=6.0",
 ]
 
 [tool.ruff]

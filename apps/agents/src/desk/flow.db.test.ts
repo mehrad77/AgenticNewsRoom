@@ -271,6 +271,24 @@ describe("daily assignment and the desk (D81, D77)", () => {
     ).toBeNull();
   });
 
+  it("queues the gate straight after the desk for a one-language series", async () => {
+    const t = await setup();
+    await pools.system.query("update series set languages = '{fa}' where id = $1", [t.seriesId]);
+    const assigned = await assignDaily(
+      pools.app,
+      t.boss,
+      router,
+      { newsroomId: t.newsroomId, seriesId: t.seriesId },
+      NOW,
+    );
+    if (assigned.kind !== "assigned") throw new Error("not assigned");
+    t.answers.push("{}", "{}", valid(t.ids.best, "fa"));
+    expect(await runDesk(t.deps, { newsroomId: t.newsroomId, agentRunId: assigned.runId })).toBe(
+      "submitted",
+    );
+    expect(t.sent.filter((s) => s.queue === QUEUES.gate)).toHaveLength(1);
+  });
+
   it("holds the assignment with the errors after a second invalid draft", async () => {
     const t = await setup();
     const assigned = await assignDaily(

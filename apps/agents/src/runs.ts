@@ -35,6 +35,17 @@ export async function createRun(
   boss: Pick<PgBoss, "send">,
   run: NewRun,
 ): Promise<string> {
+  const { id, newsroomId } = await insertRun(client, run);
+  const job: AgentRunJob = { newsroomId, agentRunId: id };
+  await boss.send(QUEUES.agentRun, job, { db: onClient(client) });
+  return id;
+}
+
+/** Writes an Agent run that the caller runs itself (the gate's checkers), with no job. */
+export async function insertRun(
+  client: Client,
+  run: NewRun,
+): Promise<{ id: string; newsroomId: string }> {
   const { rows } = await client.query<{ id: string; newsroom_id: string }>(
     `insert into agent_runs (newsroom_id, role, provider, model, prompt_version, input_hash,
                              assignment_id, story_id, language)
@@ -54,9 +65,7 @@ export async function createRun(
   );
   const row = rows[0];
   if (!row) throw new Error("agent run not created");
-  const job: AgentRunJob = { newsroomId: row.newsroom_id, agentRunId: row.id };
-  await boss.send(QUEUES.agentRun, job, { db: onClient(client) });
-  return row.id;
+  return { id: row.id, newsroomId: row.newsroom_id };
 }
 
 /**
@@ -96,6 +105,22 @@ export async function finishRun(
   return rowCount === 1;
 }
 
+/**
+ * Adds what an unfinished attempt used to its run, which stays open for the retry: spend that
+ * a rate limit or a crash interrupts still counts toward the budget (D76).
+ */
+export async function recordUsage(client: Client, runId: string, meter: Meter): Promise<void> {
+  if (meter.calls === 0) return;
+  await client.query(
+    `update agent_runs set
+       tokens_in = coalesce(tokens_in, 0) + $2, tokens_out = coalesce(tokens_out, 0) + $3,
+       cost_usd = coalesce(cost_usd, 0) + $4,
+       families = array(select distinct f from unnest(families || $5::text[]) f order by f)
+     where id = $1 and outcome is null`,
+    [runId, meter.tokensIn, meter.tokensOut, meter.costUsd, [...meter.families]],
+  );
+}
+
 export interface HoldReason {
   /** Which check, such as desk-invalid or budget. */
   name: string;
@@ -118,8 +143,9 @@ export async function holdPublications(
        values (anr.current_newsroom_id(), $1, 'policy', $2, $3, $4)`,
       [id, reason.name, reason.result, JSON.stringify(reason.detail ?? null)],
     );
+    // Locked and read now: a gate or an editor may have moved it since the caller looked.
     const { rows } = await client.query<{ status: string }>(
-      "select status from publications where id = $1",
+      "select status from publications where id = $1 for update",
       [id],
     );
     if (rows[0] && ["assigned", "drafted"].includes(rows[0].status)) {

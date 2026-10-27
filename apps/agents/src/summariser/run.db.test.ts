@@ -46,6 +46,34 @@ async function setup() {
 }
 
 describe("summariser runs", () => {
+  it("waits at the newsroom's writing limit (D76) and tells the Editor-in-Chief", async () => {
+    const { newsroomId, leadId } = await setup();
+    await pools.system.query(
+      `update newsrooms set policy = '{"budget": {"monthly_usd": 10, "check_reserve_usd": 2}}'
+       where id = $1`,
+      [newsroomId],
+    );
+    await pools.system.query(
+      `insert into agent_runs (newsroom_id, role, provider, model, prompt_version, input_hash, cost_usd, outcome)
+       values ($1, 'desk', 'p', 'm', 'v', 'h', 8, 'submitted')`,
+      [newsroomId],
+    );
+    const boss = { send: async () => "job" };
+    const [runId] = await enqueueSummaries(pools.app, boss as never, router, newsroomId, [leadId]);
+    const model = new FakeListChatModel({ responses: ['{"summary": "s", "beats": []}'] });
+    const job = { newsroomId, agentRunId: runId ?? "" };
+    expect(await runSummariser(pools.app, router, () => model, job)).toBe("paused");
+    const { rows } = await pools.system.query("select outcome from agent_runs where id = $1", [
+      runId,
+    ]);
+    expect(rows[0]).toEqual({ outcome: null });
+    const notices = await pools.system.query(
+      "select kind from notices where newsroom_id = $1 order by kind",
+      [newsroomId],
+    );
+    expect(notices.rows).toEqual([{ kind: "budget-cap" }, { kind: "budget-warning" }]);
+  });
+
   it("logs an Agent run, queues it in the same transaction, and stores the submit", async () => {
     const { newsroomId, leadId } = await setup();
     const sent: { queue: string; data: unknown; db: unknown }[] = [];

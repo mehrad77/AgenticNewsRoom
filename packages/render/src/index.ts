@@ -18,6 +18,14 @@ export function createRenderer(root = formatsDir) {
     outputEscape: "escape",
   });
   return {
+    /** The AI-disclosure label alone, from the shared partial: what every template must show. */
+    async disclosureLabel(language: Language, edited = false): Promise<string> {
+      const out = await engine.parseAndRender(
+        '{% render "disclosure", language: language, edited: edited %}',
+        { language, edited },
+      );
+      return out.trim();
+    },
     render(
       format: string,
       channel: string,

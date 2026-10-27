@@ -10,7 +10,7 @@ from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Any
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import urlencode, urljoin, urlsplit
 
 from psycopg_pool import ConnectionPool
 
@@ -49,6 +49,10 @@ UNVOUCHED_TIER = 3
 MAX_REQUESTS_PER_RUN = 5
 """Leads one agent run may have ingestion fetch for it (D61)."""
 RETIER_DAYS = 30
+ARXIV_API = "https://export.arxiv.org/api/query"
+# Papers asked about per request when re-checking for withdrawals; arXiv asks for small queries.
+RECHECK_BATCH = 50
+WITHDRAWN_ON_ARXIV = "withdrawn on arXiv"
 SEMANTIC_SCHOLAR_HOST = "api.semanticscholar.org"
 HOST_DELAYS = {"export.arxiv.org": 3.0}
 """Seconds between requests where a source's terms ask for more than the default second."""
@@ -80,6 +84,8 @@ class Report:
     known: int = 0
     dropped: int = 0
     retiered: int = 0
+    withdrawn: int = 0
+    """Stored papers arXiv now calls withdrawn, marked this run (D78)."""
     errors: list[tuple[str, str]] = field(default_factory=list)
 
     def count(self, outcome: Outcome, lead_id: str | None) -> None:
@@ -211,6 +217,11 @@ class Ingestor:
                             complete = False
                         continue
                     report.count(outcome, lead_id)
+                if api == "arxiv":
+                    try:
+                        report.withdrawn = self._recheck_withdrawn(newsroom_id, src)
+                    except RUN_ERRORS as error:
+                        report.errors.append((src.url, str(error)))
                 if api == "arxiv" and enrichment is not None:
                     try:
                         report.retiered = self._retier(newsroom_id, src, enrichment, origin)
@@ -279,6 +290,8 @@ class Ingestor:
             return Outcome.DROPPED, None
         with with_newsroom(self.pool, newsroom_id) as conn:
             existing = store.lead_by_uri(conn, listed_uri)
+            if existing and candidate.paper is not None and candidate.paper.withdrawn:
+                store.mark_withdrawn(conn, existing, WITHDRAWN_ON_ARXIV)
             if existing:
                 # Seen from another source: a sighting; from this one again: already known.
                 new = self._sighted(conn, newsroom_id, existing, listed_uri, origin, "same-uri")
@@ -416,6 +429,31 @@ class Ingestor:
                 if is_high(info, rules) and store.raise_tier(conn, by_paper[pid], 1):
                     raised += 1
         return raised
+
+    def _recheck_withdrawn(self, newsroom_id: str, src: store.Source) -> int:
+        """Asks arXiv for its own record of the source's recent papers and marks each one it
+        now calls withdrawn (D78). A listing sorted by submission seldom shows a paper again."""
+        with with_newsroom(self.pool, newsroom_id) as conn:
+            papers = store.recent_live_papers(conn, src.id, RETIER_DAYS)
+        by_paper = {pid: lead_id for lead_id, uri in papers if (pid := arxiv_id(uri))}
+        ids = sorted(by_paper)
+        marked = 0
+        for start in range(0, len(ids), RECHECK_BATCH):
+            batch = ids[start : start + RECHECK_BATCH]
+            query = urlencode({"id_list": ",".join(batch), "max_results": len(batch)})
+            fetched = self.fetcher.get(f"{ARXIV_API}?{query}", robots=False)
+            withdrawn = [
+                c.paper.arxiv_id
+                for c in parse_arxiv(fetched.content).candidates
+                if c.paper is not None and c.paper.withdrawn
+            ]
+            with with_newsroom(self.pool, newsroom_id) as conn:
+                for pid in withdrawn:
+                    if pid in by_paper and store.mark_withdrawn(
+                        conn, by_paper[pid], WITHDRAWN_ON_ARXIV
+                    ):
+                        marked += 1
+        return marked
 
     # An agent's request: the same steps, at once, for one URL (D61).
 

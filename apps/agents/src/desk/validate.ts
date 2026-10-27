@@ -107,7 +107,7 @@ export function validateDraft(value: unknown, ctx: ValidationContext): Draft | s
           errors.push(`${where}: lead ${source.lead_id} was not given or read in this run`);
         } else if (lead.withdrawn) {
           errors.push(`${where}: lead ${source.lead_id} is withdrawn; do not cite it`);
-        } else if (source.quoted_passage.trim().length < MIN_PASSAGE_CHARS) {
+        } else if (quoteKey(source.quoted_passage, lead.language).length < MIN_PASSAGE_CHARS) {
           errors.push(`${where}: quoted_passage is too short to prove anything`);
         } else if (!quoteFoundIn(source.quoted_passage, lead)) {
           errors.push(

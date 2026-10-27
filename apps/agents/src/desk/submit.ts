@@ -64,8 +64,11 @@ export async function gateWhenRendered(
   boss: Pick<PgBoss, "send">,
   storyId: string,
 ): Promise<boolean> {
+  // The story row is locked, so two renderers finishing at once cannot both see the other open.
+  await client.query("select from stories where id = $1 for update", [storyId]);
   const { rows } = await client.query<{ open: number; newsroom_id: string }>(
-    `select count(*) filter (where r.outcome is null)::int as open, s.newsroom_id
+    // count(r.id), not count(*): without renderer runs the left join still yields one row.
+    `select count(r.id) filter (where r.outcome is null)::int as open, s.newsroom_id
      from stories s left join agent_runs r on r.story_id = s.id and r.role = 'renderer'
      where s.id = $1 group by s.newsroom_id`,
     [storyId],
@@ -73,7 +76,7 @@ export async function gateWhenRendered(
   const row = rows[0];
   if (!row || row.open > 0) return false;
   const job: GateJob = { newsroomId: row.newsroom_id, storyId };
-  // One gate per story, however many renderers finish at once.
+  // The gate queue is stately (D80): one gate per story queued and one running at a time.
   await boss.send(QUEUES.gate, job, { db: onClient(client), singletonKey: storyId });
   return true;
 }

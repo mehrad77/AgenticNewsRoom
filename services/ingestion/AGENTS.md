@@ -6,6 +6,7 @@ Turns sources into stored leads: fetch → extract (raw page kept) → deduplica
 - Every request goes through `net.Fetcher` (D58): never add another HTTP client. Pages are fetched under robots.txt; only an `api` source's own API calls skip it (D64). Never fetch a source without `terms_checked`; enrichment sources add no leads. A lead from an unknown site is tier 3.
 - `pipeline.py` orchestrates; `kinds.py` parses each kind of source (an `api` adapter is chosen by host); `extract.py`, `canonical.py`, `dedupe.py`, `tier.py` are pure; `store.py` holds the SQL, always inside `db.with_newsroom()` as `anr_app`. Ingestion never migrates.
 - Text normalisation is `anr_schemas.text`, shared with the verifier.
+- A stored lead is never changed or deleted when it turns out withdrawn: it is marked (`store.mark_withdrawn`, D78). Each arXiv run asks arXiv about its papers of the last 30 days by `id_list`.
 - Tests use recorded fixtures in `tests/fixtures/` (`web.json` maps URLs to files), never the network. Database tests run against `anr_test` and fail without it; they run after `@anr/config#test`, whose sync soft-deletes newsrooms not in `config/`.
 - `ANR_INGESTION_REPLAY=<dir>` serves a fixtures directory instead of the web (tests and fixture runs only).
 - Commands: `pnpm --filter @anr/ingestion test|lint|typecheck|dev`.

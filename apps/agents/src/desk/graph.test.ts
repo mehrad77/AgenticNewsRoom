@@ -155,8 +155,9 @@ describe("desk graph", () => {
         { slug: "gossip", status: "banned", description: null },
         { slug: "policy", status: "restricted", description: "Law" },
       ],
-      leads: [{ ...lead, withdrawn: "withdrawn on arXiv" }],
+      leads: [{ ...lead, summary: "Orbit is out.", withdrawn: "withdrawn on arXiv" }],
     });
+    expect(text).toContain("Summary: Orbit is out.");
     expect(text).toContain(`## Lead ${LEAD}`);
     expect(text).toContain("WITHDRAWN: withdrawn on arXiv. Do not cite.");
     expect(text).toContain("- policy (restricted)");

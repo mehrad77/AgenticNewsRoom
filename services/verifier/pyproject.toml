@@ -3,7 +3,14 @@ name = "anr-verifier"
 version = "0.0.0"
 description = "The verifier's code checks on drafts: schema, quotes, source independence, beats, items, disclosure."
 requires-python = ">=3.13"
-dependencies = ["fastapi>=0.162", "uvicorn>=0.54", "anr-schemas"]
+dependencies = [
+    "fastapi>=0.162",
+    "uvicorn>=0.54",
+    "anr-schemas",
+    "psycopg[binary]>=3.3.6",
+    "psycopg-pool>=3.3.3",
+    "pyyaml>=6.0",
+]
 
 [tool.uv.sources]
 anr-schemas = { workspace = true }

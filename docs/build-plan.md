@@ -50,16 +50,16 @@ Gate: **the AI newsroom's sources fill the lead pool.**
 Gate: **a daily brief is drafted, then passes or is held with reasons.**
 
 - [x] Model gateway (`@anr/models`): role chains with fallback on rate limits, outages and retired models; fact-checker excluded by model family; free development profile (`ANR_MODELS=free`) and `pnpm models:probe`.
-- [ ] Agent tool layer: read lead, search lead pool (trigram search), request source, submit; nothing else reachable.
-- [ ] Prompt assembly: role prompt + newsroom `style.md` + format `guide.md`, versioned, under 5 KB.
-- [ ] Submit validation against the format schema; one retry with errors, then hold.
-- [ ] Budgets: per-run token caps per format, monthly spend cap per newsroom, 80% notice, writing paused at the cap with a reserved budget for checks.
-- [ ] Desk graph: read → outline → draft → claims with quotes → validate.
-- [ ] Verifier code checks (Python): schema, quote match after normalisation, source independence, beats, item–claim consistency (numbers, dates, names), disclosure label, per-language style lint; format `checks.yaml` rules.
-- [ ] Fact-checker graph: one claim and passage at a time, model chosen by the router.
-- [ ] Item matcher graph: each rendition item against its claims.
-- [ ] Policy layer: holds, themed and restricted routing, daily news scheduling; every result stored as a Check.
-- [ ] Daily assignment job at 16:00 from the last 24 hours of leads, ranked by tier.
+- [x] Agent tool layer: read lead, search lead pool (trigram search), request source, submit; nothing else reachable.
+- [x] Prompt assembly: role prompt + newsroom `style.md` + format `guide.md`, versioned, under 5 KB.
+- [x] Submit validation against the format schema; one retry with errors, then hold.
+- [x] Budgets: per-run token caps per format, monthly spend cap per newsroom, 80% notice, writing paused at the cap with a reserved budget for checks.
+- [x] Desk graph: read → outline → draft → claims with quotes → validate.
+- [x] Verifier code checks (Python): schema, quote match after normalisation, source independence, beats, item–claim consistency (numbers, dates, names), disclosure label, per-language style lint; format `checks.yaml` rules.
+- [x] Fact-checker graph: one claim and passage at a time, model chosen by the router.
+- [x] Item matcher graph: each rendition item against its claims.
+- [x] Policy layer: holds, themed and restricted routing, daily news scheduling; every result stored as a Check.
+- [x] Daily assignment job at 16:00 from the last 24 hours of leads, ranked by tier.
 - [ ] Gate: a daily newsletter issue is drafted in fa and en and either passes or is held with stored reasons.
 
 ## 4. Publishing

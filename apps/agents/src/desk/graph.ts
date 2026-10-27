@@ -12,8 +12,11 @@ import { type Draft, parseJson, type ValidationContext, validateDraft } from "./
 
 /** One answer plus one retry with the errors; then the assignment is held (technical design). */
 export const MAX_SUBMITS = 2;
-/** Stored text shown per assignment lead up front; the model reads the rest with read_lead. */
-export const EXCERPT_CHARS = 4_000;
+/**
+ * Stored text shown per assignment lead up front, next to its summary; the model reads the rest
+ * with read_lead. Every model call resends the conversation, so this is paid once per call.
+ */
+export const EXCERPT_CHARS = 1_500;
 
 export interface Assignment {
   angle: string | null;
@@ -53,6 +56,7 @@ export function assignmentMessage(a: Assignment): string {
         `## Lead ${l.id}`,
         `Headline: ${l.headline ?? "(none)"} | Publisher: ${l.publisher} | Tier: ${l.tier} | Date: ${l.published ?? "unknown"} | Language: ${l.language}`,
         l.withdrawn ? `WITHDRAWN: ${l.withdrawn}. Do not cite.` : "",
+        l.summary ? `Summary: ${l.summary}` : "",
         text,
       ]
         .filter(Boolean)

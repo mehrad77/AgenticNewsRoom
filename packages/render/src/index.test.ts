@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createRenderer } from "./render.ts";
+import { createRenderer } from "./index.ts";
 
 const renderer = createRenderer();
 const rendition = {
@@ -8,6 +8,13 @@ const rendition = {
 };
 
 describe("channel templates", () => {
+  it("give the disclosure label alone, per language", async () => {
+    expect(await renderer.disclosureLabel("en")).toBe("AI-made");
+    expect(await renderer.disclosureLabel("fa", true)).toBe(
+      "ساخته‌شده با هوش مصنوعی، ویراسته‌ی یک انسان",
+    );
+  });
+
   it("label every Telegram post as AI-made", async () => {
     const out = await renderer.render("newsletter-issue", "telegram", "en", {
       rendition,

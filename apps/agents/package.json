@@ -13,6 +13,7 @@
     "@anr/core": "workspace:*",
     "@anr/db": "workspace:*",
     "@anr/models": "workspace:*",
+    "@anr/render": "workspace:*",
     "@anr/schemas": "workspace:*",
     "@langchain/core": "1.3.0",
     "@langchain/langgraph": "1.5.2",

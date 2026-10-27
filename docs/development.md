@@ -12,15 +12,16 @@ Node 24, pnpm 11, Python 3.13, uv, Docker. Versions are pinned in `.nvmrc`, `pac
 apps/
   api/          Hono API for people; openapi.yaml is the contract
   web/          Astro SSR: reader sites + editor's desk, routed by host
-  agents/       LangGraph.js agents worker, model router
+  agents/       LangGraph.js agents worker, model router, daily assignment, the gate
   publisher/    renders, sends, records; podcast audio
 services/
   ingestion/    Python: sources → stored leads
-  verifier/     Python: the gate's code checks
+  verifier/     Python: the gate's code checks (POST /verify)
 packages/
   core/         vocabulary types, language → direction
   config/       loads and validates config/
   models/       model catalog, provider clients, fallback gateway
+  render/       channel templates rendered with LiquidJS (publisher and the gate's disclosure check)
   schemas/      JSON Schema → zod (src/generated) and pydantic (python/anr_schemas); vendored IPTC vocabularies (iptc/)
   db/           SQL migrations, Postgres client, withNewsroom()
 config/         models, formats, newsrooms

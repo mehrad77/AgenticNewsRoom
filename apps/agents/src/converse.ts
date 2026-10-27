@@ -5,6 +5,9 @@ import { AIMessage, type BaseMessage, HumanMessage, ToolMessage } from "@langcha
 import type { StructuredToolInterface } from "@langchain/core/tools";
 import type { ChatLike } from "./model.ts";
 
+/** A model that keeps calling tools after it was told to answer; the run is held, not retried. */
+export class ToolLoopExceeded extends Error {}
+
 /** Tool rounds per turn; then the model is told to answer with what it has. */
 export const MAX_TOOL_ROUNDS = 6;
 
@@ -49,6 +52,6 @@ export async function converse(
       turn.push(new ToolMessage({ content, tool_call_id: call.id ?? call.name, name: call.name }));
     }
     if (round > MAX_TOOL_ROUNDS)
-      throw new Error("the model kept calling tools after it was told to answer");
+      throw new ToolLoopExceeded("the model kept calling tools after it was told to answer");
   }
 }

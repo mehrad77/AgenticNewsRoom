@@ -35,6 +35,14 @@ export const QUEUE_OPTIONS: Partial<Record<QueueName, { expireInSeconds: number 
   [QUEUES.gate]: { expireInSeconds: AGENT_RUN_TIMEOUT_SECONDS },
 };
 
+/**
+ * Queue policies other than pg-boss's `standard`, fixed when a queue is created. `stately` keeps
+ * at most one queued and one active job per singleton key: one gate per story at a time (D80).
+ */
+export const QUEUE_POLICIES: Partial<Record<QueueName, "stately">> = {
+  [QUEUES.gate]: "stately",
+};
+
 export interface IngestSourceJob {
   newsroomId: string;
   sourceId: string;

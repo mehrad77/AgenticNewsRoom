@@ -8,7 +8,7 @@ import { AllModelsExhausted, ModelCallFailed } from "@anr/models";
 import { type BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { budgetState, mayStart, noticeBudget } from "../budget.ts";
 import { formatMeta } from "../context.ts";
-import { converse, textOf } from "../converse.ts";
+import { converse, ToolLoopExceeded, textOf } from "../converse.ts";
 import { MAX_SUBMITS } from "../desk/graph.ts";
 import type { RoleDeps } from "../desk/run.ts";
 import { gateWhenRendered, submitRendition } from "../desk/submit.ts";
@@ -16,7 +16,8 @@ import { type Draft, parseJson, validateDraft } from "../desk/validate.ts";
 import { newMeter, TokenCapReached } from "../model.ts";
 import { assemblePrompt, readGuides } from "../prompts/assemble.ts";
 import { RENDERER_ROLE, retryPrompt } from "../prompts/roles.ts";
-import { finishRun, holdPublications } from "../runs.ts";
+import { finishRun, holdPublications, recordUsage } from "../runs.ts";
+import { submitTool } from "../tools/tools.ts";
 
 interface RendererInput {
   role: string;
@@ -55,7 +56,11 @@ export async function runRenderer(deps: RoleDeps, job: AgentRunJob): Promise<str
       await finishRun(client, job.agentRunId, "paused", newMeter(), {
         detail: { reason: verdict.reason },
       });
-      await holdLanguage(client, row, { name: "budget", detail: { reason: verdict.reason } });
+      await holdLanguage(client, row, {
+        name: "budget",
+        result: "error",
+        detail: { reason: verdict.reason },
+      });
       await gateWhenRendered(client, deps.boss, row.storyId);
       return null;
     }
@@ -107,28 +112,38 @@ export async function runRenderer(deps: RoleDeps, job: AgentRunJob): Promise<str
   } catch (error) {
     const known =
       error instanceof TokenCapReached ||
+      error instanceof ToolLoopExceeded ||
       error instanceof ModelCallFailed ||
       (error instanceof AllModelsExhausted && !error.transient);
-    if (!known) throw error;
+    if (!known) {
+      // Retried: what this attempt spent still counts (D76).
+      await withNewsroom(deps.pool, job.newsroomId, (c) =>
+        recordUsage(c, job.agentRunId, model.meter),
+      );
+      throw error;
+    }
     errors = [(error as Error).message];
     return fail("error", "model-error");
   }
   if (!draft) return fail("invalid", "renderer-invalid");
 
-  const rendition = draft.rendition;
-  return withNewsroom(deps.pool, job.newsroomId, async (client) => {
-    const id = await submitRendition(client, deps.boss, {
-      runId: job.agentRunId,
-      meter: model.meter,
-      promptVersion: prompt.version,
-      assignmentId: loaded.assignmentId,
-      storyId: loaded.storyId,
-      format: loaded.format,
-      rendition,
-    });
-    await noticeBudget(client, await budgetState(client));
-    return id ? "submitted" : null;
-  });
+  // Code calls the run's one write tool with the validated rendition.
+  const submit = submitTool<Draft>(async (valid) =>
+    withNewsroom(deps.pool, job.newsroomId, async (client) => {
+      const id = await submitRendition(client, deps.boss, {
+        runId: job.agentRunId,
+        meter: model.meter,
+        promptVersion: prompt.version,
+        assignmentId: loaded.assignmentId,
+        storyId: loaded.storyId,
+        format: loaded.format,
+        rendition: valid.rendition,
+      });
+      await noticeBudget(client, await budgetState(client));
+      return id ?? "";
+    }),
+  );
+  return String(await submit.invoke({ draft })) ? "submitted" : null;
 
   async function fail(outcome: "invalid" | "error", name: string) {
     return withNewsroom(deps.pool, job.newsroomId, async (client) => {
@@ -141,7 +156,7 @@ export async function runRenderer(deps: RoleDeps, job: AgentRunJob): Promise<str
       ) {
         return null;
       }
-      await holdLanguage(client, loaded as RendererInput, { name, detail });
+      await holdLanguage(client, loaded as RendererInput, { name, result: "fail", detail });
       // The story's other languages go on to the gate.
       await gateWhenRendered(client, deps.boss, (loaded as RendererInput).storyId);
       return outcome;
@@ -153,7 +168,7 @@ export async function runRenderer(deps: RoleDeps, job: AgentRunJob): Promise<str
 async function holdLanguage(
   client: Parameters<typeof holdPublications>[0],
   run: Pick<RendererInput, "assignmentId" | "language">,
-  reason: { name: string; detail: unknown },
+  reason: { name: string; result: "fail" | "error"; detail: unknown },
 ) {
   const { rows } = await client.query<{ id: string }>(
     "select id from publications where assignment_id = $1 and language = $2",
@@ -162,6 +177,6 @@ async function holdLanguage(
   await holdPublications(
     client,
     rows.map((r) => r.id),
-    { ...reason, result: "fail" },
+    reason,
   );
 }

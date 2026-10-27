@@ -6,6 +6,7 @@ import { type AgentRunJob, QUEUES } from "@anr/core";
 import { type Client, type Pool, withNewsroom } from "@anr/db";
 import { AllModelsExhausted } from "@anr/models";
 import type { PgBoss } from "pg-boss";
+import { budgetState, mayStart, noticeBudget } from "../budget.ts";
 import type { ModelRouter } from "../router.ts";
 import { rateLimitDelayMs, type Throttle } from "../throttle.ts";
 import { type BeforeCall, summarise } from "./graph.ts";
@@ -91,6 +92,12 @@ export async function runSummariser(
       )
     ).rows[0];
     if (!run || run.role !== "summariser" || run.outcome !== null || !run.lead_id) return null;
+    // A writing role (D76): at the newsroom's writing limit the summary waits for next month.
+    const budget = await budgetState(client);
+    if (!mayStart("summariser", budget).ok) {
+      await noticeBudget(client, budget);
+      return "paused" as const;
+    }
     const lead = (
       await client.query<{ headline: string | null; language: string; body: string }>(
         "select headline, language, body from leads where id = $1",
@@ -105,6 +112,7 @@ export async function runSummariser(
     return lead ? { run, lead, beats } : null;
   });
   if (!loaded) return null;
+  if (loaded === "paused") return "paused";
   const beats: SummariserBeat[] = loaded.beats.map((b) => ({
     slug: b.slug,
     description: b.description,
@@ -204,6 +212,9 @@ export async function resumeSummaries(
   return resumed;
 }
 
+/** A summary the budget does not allow now is tried again after this long. */
+const BUDGET_PAUSE_MS = 60 * 60_000;
+
 /** When every model in the chain is cooling down, the job is tried again after this long. */
 const EXHAUSTED_DELAY_MS = 60_000;
 
@@ -239,6 +250,11 @@ export function summariserHandler(deps: SummariserHandlerDeps) {
       const outcome = await runSummariser(deps.pool, deps.router, deps.makeModel, job, () =>
         deps.throttle.wait(),
       );
+      if (outcome === "paused") {
+        // Unstarted: it runs once spend allows, the next month at the latest.
+        await later(job, BUDGET_PAUSE_MS);
+        return;
+      }
       if (outcome) log(`[agents] summariser run ${job.agentRunId}: ${outcome}`);
     } catch (error) {
       // The whole chain rate-limited or down: wait, as a rate-limit answer does. A chain of

@@ -1,4 +1,4 @@
 # IPTC description of this format (schema: packages/schemas/json/format.schema.json).
 genre: genre:Summary # Briefing: a summary of a number of news items
 ninjs_type: text
-run_tokens: 120000 # input + output over all model calls of one agent run (D76)
+run_tokens: 250000 # input + output over all model calls of one agent run (D76)

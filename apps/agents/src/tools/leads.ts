@@ -3,7 +3,7 @@
 import { type Pool, withNewsroom } from "@anr/db";
 
 /** Stored text beyond this is cut when a model reads a lead; claims quote what it was shown. */
-export const MAX_LEAD_CHARS = 24_000;
+export const MAX_LEAD_CHARS = 12_000;
 export const MAX_SEARCH_RESULTS = 10;
 /** pg_trgm word similarity a lead's text needs to match a query (0 to 1). */
 export const SEARCH_THRESHOLD = 0.3;

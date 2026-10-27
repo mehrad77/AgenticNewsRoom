@@ -131,6 +131,23 @@ def test_enrichment_raises_a_paper_to_tier_1(
     assert json.loads(batch.content) == {"ids": ["ARXIV:2610.01234", "ARXIV:2610.03333"]}
 
 
+def test_arxiv_runs_mark_stored_papers_arxiv_now_calls_withdrawn(
+    ingestor: Ingestor, database: Database, newsroom: Newsroom, web: FakeWeb
+) -> None:
+    # arXiv's own record of 2610.01234 now says withdrawn (issue #3, D78).
+    report = ingestor.ingest_source(newsroom.id, newsroom.sources["arxiv-cs-ai"])
+    assert report.withdrawn == 1
+    by_uri = {lead["uri"]: lead for lead in leads(database, newsroom)}
+    withdrawn = by_uri["https://arxiv.org/abs/2610.01234"]
+    assert withdrawn["withdrawn_reason"] == "withdrawn on arXiv"
+    assert withdrawn["withdrawn_at"] is not None
+    assert by_uri["https://arxiv.org/abs/2610.03333"]["withdrawn_at"] is None
+    # Its frozen text and tier are untouched; a second run marks nothing new.
+    assert withdrawn["tier"] == 2
+    assert ingestor.ingest_source(newsroom.id, newsroom.sources["arxiv-cs-ai"]).withdrawn == 0
+    assert any("id_list=" in str(r.url) for r in web.requests)
+
+
 def test_hacker_news_stores_metadata_never_the_linked_page(
     ingestor: Ingestor, database: Database, newsroom: Newsroom, web: FakeWeb
 ) -> None:

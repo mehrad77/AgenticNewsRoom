@@ -6,12 +6,13 @@ import { AllModelsExhausted, ModelCallFailed } from "@anr/models";
 import type { PgBoss } from "pg-boss";
 import { budgetState, mayStart, noticeBudget } from "../budget.ts";
 import { firstLanguage, formatMeta } from "../context.ts";
+import { ToolLoopExceeded } from "../converse.ts";
 import type { IngestionClient } from "../ingest.ts";
 import { newMeter, type RunModel, TokenCapReached } from "../model.ts";
 import { assemblePrompt, readGuides } from "../prompts/assemble.ts";
 import { DESK_CLAIMS, DESK_DRAFT, DESK_OUTLINE, DESK_ROLE } from "../prompts/roles.ts";
 import type { ModelRouter } from "../router.ts";
-import { assignmentPublications, finishRun, holdPublications } from "../runs.ts";
+import { assignmentPublications, finishRun, holdPublications, recordUsage } from "../runs.ts";
 import { type LeadText, readLead } from "../tools/leads.ts";
 import { researchTools, submitTool, type ToolContext } from "../tools/tools.ts";
 import { writeDraft } from "./graph.ts";
@@ -45,6 +46,7 @@ interface DeskInput {
 /** Errors that end the run with a hold; anything else is retried by pg-boss. */
 function runFailure(error: unknown): { name: string; message: string } | null {
   if (error instanceof TokenCapReached) return { name: "token-cap", message: error.message };
+  if (error instanceof ToolLoopExceeded) return { name: "tool-loop", message: error.message };
   if (error instanceof ModelCallFailed) return { name: "model-error", message: error.message };
   if (error instanceof AllModelsExhausted && !error.transient) {
     return { name: "model-error", message: error.message };
@@ -174,7 +176,13 @@ export async function runDesk(deps: RoleDeps, job: AgentRunJob): Promise<string 
     );
   } catch (error) {
     const failure = runFailure(error);
-    if (!failure) throw error;
+    if (!failure) {
+      // Retried (pg-boss, or re-queued after a rate limit): what this attempt spent still counts.
+      await withNewsroom(deps.pool, job.newsroomId, (c) =>
+        recordUsage(c, job.agentRunId, model.meter),
+      );
+      throw error;
+    }
     return hold(failure.name, "error", { error: failure.message });
   }
   if (!outcome.draft) return hold("desk-invalid", "invalid", { errors: outcome.errors });
