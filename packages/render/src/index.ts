@@ -2,6 +2,14 @@ import { fileURLToPath } from "node:url";
 import { digitalSourceType, directionOf, type Language } from "@anr/core";
 import { Liquid } from "liquidjs";
 
+export {
+  type ContextInput,
+  channelKinds,
+  editedByPerson,
+  leadIds,
+  templateContext,
+} from "./context.ts";
+
 const formatsDir = fileURLToPath(new URL("../../../config/formats", import.meta.url));
 
 /** Longest message a channel accepts, in visible UTF-16 units (Telegram: after entity parsing). */

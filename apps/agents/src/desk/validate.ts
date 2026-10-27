@@ -2,21 +2,9 @@
 // schema cannot express. Errors go back to the model once; a second invalid answer holds the
 // assignment. The verifier repeats the checks that matter for publishing; this only gives the
 // writer a chance to fix them first.
-import {
-  ArtistStoryDraftSchema,
-  ClassicArticleDraftSchema,
-  NewsletterIssueDraftSchema,
-  PodcastEpisodeDraftSchema,
-} from "@anr/schemas";
-import type { z } from "zod";
+import { DRAFT_SCHEMAS } from "@anr/schemas";
 
-/** A format's draft schema, by format slug (config/formats/<slug>/schema.json). */
-export const DRAFT_SCHEMAS: Record<string, z.ZodType> = {
-  "artist-story": ArtistStoryDraftSchema,
-  "classic-article": ClassicArticleDraftSchema,
-  "newsletter-issue": NewsletterIssueDraftSchema,
-  "podcast-episode": PodcastEpisodeDraftSchema,
-};
+export { DRAFT_SCHEMAS };
 
 export interface DraftClaim {
   id: string;

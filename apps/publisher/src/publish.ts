@@ -10,9 +10,11 @@ import {
   type Pool,
   withNewsroom,
 } from "@anr/db";
-import type { createRenderer } from "@anr/render";
+import { channelKinds, type createRenderer, editedByPerson, templateContext } from "@anr/render";
 import { type ChannelAdapter, type ChannelTarget, SendError } from "./channels/types.ts";
 import { holdPublication } from "./hold.ts";
+
+export type { ChannelAdapter };
 
 export const PUBLISHER = { kind: "code", name: "publisher" } as const;
 
@@ -112,45 +114,6 @@ function searchText(body: unknown): string {
   return out.join("\n");
 }
 
-function leadIds(body: unknown): string[] {
-  const items = (body as { items?: { lead_id?: unknown }[] }).items ?? [];
-  return [
-    ...new Set(items.map((i) => i.lead_id).filter((id): id is string => typeof id === "string")),
-  ];
-}
-
-/** Whether a person changed the publication's text: the audit log says (AI disclosure). */
-async function editedByPerson(client: Client, publicationId: string, renditionIds: string[]) {
-  const { rows } = await client.query<{ edited: boolean }>(
-    `select exists (
-       select 1 from audit_log
-       where actor_kind = 'person' and action = 'edit'
-         and ((entity = 'renditions' and entity_id = any($2::uuid[]))
-              or (entity = 'publications' and entity_id = $1))
-     ) as edited`,
-    [publicationId, renditionIds],
-  );
-  return rows[0]?.edited === true;
-}
-
-/** Template context shared by every channel of the publication. */
-async function templateContext(client: Client, plan: Omit<Plan, "targets">, edited: boolean) {
-  const { publication: p, site } = plan;
-  const ids = leadIds(plan.rendition);
-  const { rows } = await client.query<{ id: string; uri: string; headline: string | null }>(
-    "select id, uri, headline from leads where id = any($1::uuid[])",
-    [ids],
-  );
-  const path = publicationPath(p.series_slug, p.slot, p.timezone);
-  return {
-    rendition: plan.rendition,
-    edited,
-    site_url: pageUrl(site, p.language, path),
-    ai_policy_url: pageUrl(site, p.language, "/ai-policy"),
-    leads: Object.fromEntries(rows.map((l) => [l.id, { url: l.uri, headline: l.headline }])),
-  };
-}
-
 type Prepared = { kind: "plan"; plan: Plan } | { kind: "done"; outcome: PublishOutcome };
 
 /**
@@ -231,9 +194,7 @@ async function prepare(
     rendition: first.body,
     renditionIds: renditions.map((r) => r.id),
   };
-  const kinds = Object.entries(p.channels)
-    .filter(([kind, languages]) => kind !== "site" && languages.includes(p.language))
-    .map(([kind]) => kind);
+  const kinds = channelKinds(p.channels, p.language);
   const { rows: channels } = await client.query<{
     id: string;
     kind: string;
@@ -259,7 +220,15 @@ async function prepare(
   }
 
   const edited = await editedByPerson(client, id, base.renditionIds);
-  const context = await templateContext(client, base, edited);
+  const context = await templateContext(client, {
+    rendition: first.body,
+    edited,
+    site,
+    language: p.language,
+    seriesSlug: p.series_slug,
+    slot: p.slot,
+    timezone: p.timezone,
+  });
   const targets: Plan["targets"] = [];
   for (const channel of channels) {
     if (!deps.adapters[channel.kind]) return hold("channel-unsupported", { kind: channel.kind });
