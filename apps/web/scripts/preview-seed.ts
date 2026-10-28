@@ -17,6 +17,7 @@ const old = await id("select id from newsrooms where slug = $1", [SLUG]);
 if (old) {
   // Data rows only, children first; config rows (newsroom, series, beats) are reused below.
   for (const t of [
+    "newsroom_tts",
     "picks",
     "editorial_cycles",
     "channel_stats",
@@ -363,6 +364,11 @@ await system.query(
   "insert into memberships (newsroom_id, user_id, role) values ($1, $2, 'editor-in-chief')",
   [newsroomId, userId],
 );
+// The preview's signed-in person is also the platform admin (D113): the one in anr_test.
+await system.query("update users set platform_admin = false where platform_admin and id <> $1", [
+  userId,
+]);
+await system.query("update users set platform_admin = true where id = $1", [userId]);
 console.log(
   `seeded ${SLUG} in anr_test: http://${SLUG}.localhost:4410/ and the desk at http://desk.localhost:4410/`,
 );

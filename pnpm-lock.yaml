@@ -69,6 +69,9 @@ importers:
       '@anr/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@anr/models':
+        specifier: workspace:*
+        version: link:../../packages/models
       '@anr/render':
         specifier: workspace:*
         version: link:../../packages/render

@@ -1,0 +1,35 @@
+---
+import type { NewsroomTts } from "../../lib/desk.ts";
+
+interface Props {
+  tts: NewsroomTts;
+  chief: boolean;
+}
+const { tts, chief } = Astro.props;
+---
+<h1>Voices</h1>
+<p>The text-to-speech engine each language's podcast episodes are voiced with, from the engines the platform admin enabled. With no choice, the default <strong>{tts.default}</strong> is used where it speaks the language.</p>
+{tts.languages.map((l) => (
+  <section class="card">
+    <h2>{l.language}</h2>
+    <p class="meta">
+      {l.effective
+        ? `Voiced with ${l.effective}${l.source === "default" ? " (the default)" : ""}.`
+        : <strong class="fail">Not voiced: {l.reason}</strong>}
+    </p>
+    {chief ? (
+      <form method="post">
+        <input type="hidden" name="action" value="newsroom-tts" /><input type="hidden" name="language" value={l.language} />
+        <label>Engine
+          <select name="engine">
+            <option value="" selected={!l.chosen}>Default ({tts.default})</option>
+            {l.options.map((id) => <option value={id} selected={l.chosen === id}>{id}</option>)}
+          </select>
+        </label>
+        <button class="primary">Save</button>
+      </form>
+    ) : (
+      <p class="meta">Chosen: {l.chosen ?? "none (default)"}. Only the Editor-in-Chief changes it.</p>
+    )}
+  </section>
+))}

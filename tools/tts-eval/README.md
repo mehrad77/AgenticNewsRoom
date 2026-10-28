@@ -56,6 +56,14 @@ then http://localhost:4430/. It has side-by-side players, line-by-line A/B, blin
 parameters and features, and scores saved in the browser. Score in `SCORES.md` or export from the page.
 Each run's speed and memory are in `out/<engine>/<language>/timings.json`.
 
+## Serving an engine to ANR
+
+`serve.py` runs one engine as a local server that the publisher calls when a newsroom chose that
+engine for a language (D113): ports 8601 (Chatterbox), 8602 (XTTS), 8603 (Dia), as catalogued in
+`config/models*.yaml`. Start them from `.claude/launch.json` (`tts-chatterbox`, `tts-xtts`,
+`tts-dia`). Voices: a series' `engine_voices`, else each speaker's default. Reference clips go in
+`voices/` with their licence or consent (see `voices/README.md`).
+
 ## Removing an engine
 
 The weights are in `~/.cache/huggingface/hub/` (`models--ResembleAI--chatterbox`,

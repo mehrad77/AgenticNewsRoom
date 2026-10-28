@@ -12,7 +12,7 @@ import { type AudioDeps, produceEpisode } from "./podcast/produce.ts";
 import { queueAudio } from "./podcast/queue.ts";
 import { c2paSigner } from "./podcast/sign.ts";
 import { localStore } from "./podcast/store.ts";
-import { cachedTts, fakeTts, geminiTts, type TextToSpeech } from "./podcast/tts.ts";
+import { cachedTts, fakeTts, ttsFor } from "./podcast/tts.ts";
 import type { PublishDeps } from "./publish.ts";
 import { snapshotSubscribers } from "./stats.ts";
 import { sweepDue } from "./sweep.ts";
@@ -34,30 +34,29 @@ const configDir =
   process.env.ANR_CONFIG_DIR ?? fileURLToPath(new URL("../../../config", import.meta.url));
 const mediaDir =
   process.env.ANR_MEDIA_DIR ?? fileURLToPath(new URL("../../../.data/media", import.meta.url));
-/** `ANR_TTS=fake` voices episodes with tones, for dry runs that must not spend TTS quota. */
-function textToSpeech(): TextToSpeech | null {
-  if (process.env.ANR_TTS === "fake") return fakeTts();
-  const models = loadModelsConfig(modelsFile(configDir));
-  const entry = buildCatalog(models).entries.get(models.tts);
-  return entry?.apiKey ? geminiTts(entry) : null;
-}
-const tts = textToSpeech();
 const store = localStore(mediaDir);
-const audioDeps: AudioDeps | null = tts && {
+const catalog = buildCatalog(loadModelsConfig(modelsFile(configDir)));
+/**
+ * The engine per newsroom and language, from the engines the platform admin enabled (D113).
+ * `ANR_TTS=fake` voices every episode with tones instead, for dry runs that call no engine.
+ */
+const audioDeps: AudioDeps = {
   pool,
   renderer: deps.renderer,
-  tts: cachedTts(tts, store),
+  tts:
+    process.env.ANR_TTS === "fake"
+      ? cachedTts(fakeTts(), store)
+      : { catalog, make: (entry) => cachedTts(ttsFor(entry), store) },
   store,
   signer: c2paSigner(),
   configDir,
 };
-if (!audioDeps) console.warn("[publisher] no TTS key: episodes wait for their audio");
 
 const boss = createBoss(connectionString, "publisher");
 await boss.start();
 await registerJobs(boss, {
   sweep: async () => {
-    if (audioDeps) await queueAudio(pool, boss);
+    await queueAudio(pool, boss);
     const counts = await sweepDue(deps);
     if (Object.keys(counts).length > 0) console.log(`[publisher] sweep ${JSON.stringify(counts)}`);
   },
@@ -68,12 +67,10 @@ await registerJobs(boss, {
     const result = await checkChannel(deps, job);
     console.log(`[publisher] channel ${job.channelId} check: ${result?.ok ?? "gone"}`);
   },
-  ...(audioDeps && {
-    audio: async (job) => {
-      const outcome = await produceEpisode(audioDeps, job);
-      console.log(`[publisher] episode ${job.publicationId} audio: ${outcome}`);
-    },
-  }),
+  audio: async (job) => {
+    const outcome = await produceEpisode(audioDeps, job);
+    console.log(`[publisher] episode ${job.publicationId} audio: ${outcome}`);
+  },
 });
 console.log("publisher worker started");
 

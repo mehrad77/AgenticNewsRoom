@@ -11,7 +11,7 @@ export type Limits = NonNullable<ModelsConfig["models"][string]["limits"]>;
 export interface CatalogEntry {
   id: string;
   provider: string;
-  kind: "google" | "openai";
+  kind: "google" | "openai" | "local-tts";
   /** The provider's model id. */
   model: string;
   /** The weights, whoever serves them. */
@@ -28,6 +28,8 @@ export interface CatalogEntry {
   /** A 429 on this model means the whole provider account is limited. */
   sharedQuota: boolean;
   price?: { in: number; out: number };
+  /** Text-to-speech models: the languages it speaks. */
+  languages?: string[];
   /** Sent as reasoning_effort (OpenAI-compatible providers only). */
   reasoningEffort?: "none" | "low" | "medium" | "high";
   /** How long one call may take before it counts as an outage. */
@@ -65,14 +67,16 @@ export function buildCatalog(
     if (!p) throw new Error(`model ${id}: unknown provider ${m.provider}`);
     // A local server needs no key (only loopback http is allowed without https).
     const needed = [
-      ...(p.key_env ? [p.key_env] : []),
+      ...("key_env" in p && p.key_env ? [p.key_env] : []),
       ...(p.kind === "openai" && p.account_env ? [p.account_env] : []),
     ];
     const missingEnv = needed.filter((name) => !env[name]);
     const baseUrl =
       p.kind === "openai"
         ? p.base_url.replace("{account}", env[p.account_env ?? ""] ?? "")
-        : undefined;
+        : p.kind === "local-tts"
+          ? p.base_url
+          : undefined;
     entries.set(id, {
       id,
       provider: m.provider,
@@ -81,13 +85,19 @@ export function buildCatalog(
       family: m.family,
       tools: m.tools,
       baseUrl,
-      apiKey: missingEnv.length === 0 ? (p.key_env ? env[p.key_env] : NO_KEY) : undefined,
+      apiKey:
+        missingEnv.length === 0
+          ? "key_env" in p && p.key_env
+            ? env[p.key_env]
+            : NO_KEY
+          : undefined,
       missingEnv,
       limits: m.limits,
-      providerLimits: p.limits,
-      sharedQuota: p.shared_quota ?? false,
+      providerLimits: "limits" in p ? p.limits : undefined,
+      sharedQuota: "shared_quota" in p ? (p.shared_quota ?? false) : false,
       price: m.price,
       reasoningEffort: m.reasoning_effort,
+      languages: m.languages,
       timeoutMs: (p.timeout_s ?? DEFAULT_TIMEOUT_MS / 1000) * 1000,
     });
   }
@@ -97,6 +107,7 @@ export function buildCatalog(
 /** Env vars a role chain or TTS needs but the environment lacks, for a startup warning. */
 export function missingKeys(catalog: Catalog): string[] {
   const used = new Set([...roleChains(catalog.config).flatMap(([, c]) => c), catalog.config.tts]);
+  // Local engines need no key; Gemini's is reported only when it is the default or chosen.
   const missing = new Set<string>();
   for (const id of used) {
     const e = catalog.entries.get(id);

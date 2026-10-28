@@ -11,6 +11,9 @@ export function directionOf(language: Language): Direction {
   return RTL.has(language) ? "rtl" : "ltr";
 }
 
+/** ISO 639-2 codes, as ID3 tags name a language (TLAN). */
+export const ISO_639_2: Readonly<Record<Language, string>> = { fa: "per", en: "eng", tr: "tur" };
+
 export function isLanguage(value: string): value is Language {
   return (LANGUAGES as readonly string[]).includes(value);
 }

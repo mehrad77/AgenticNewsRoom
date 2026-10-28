@@ -156,6 +156,37 @@
               "minimum": 0
             }
           }
+        },
+        "languages": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": ["fa", "en", "tr"]
+          },
+          "description": "Text-to-speech models: the languages it speaks, so the admin can choose it only for those."
+        }
+      }
+    },
+    "localTtsProvider": {
+      "type": "object",
+      "description": "A text-to-speech engine served by a local HTTP server on this machine (tools/tts-eval/serve.py).",
+      "additionalProperties": false,
+      "required": ["kind", "base_url"],
+      "properties": {
+        "kind": {
+          "const": "local-tts"
+        },
+        "base_url": {
+          "type": "string",
+          "pattern": "^http://(127\\.0\\.0\\.1|localhost)(:[0-9]+)?(/|$)",
+          "description": "Plain http to this machine only."
+        },
+        "timeout_s": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 1800,
+          "description": "Seconds one call may take (default 120)."
         }
       }
     }
@@ -174,6 +205,9 @@
           },
           {
             "$ref": "#/$defs/openaiProvider"
+          },
+          {
+            "$ref": "#/$defs/localTtsProvider"
           }
         ]
       }
@@ -230,6 +264,15 @@
     "tts": {
       "$ref": "#/$defs/id",
       "description": "Catalog id of the text-to-speech model."
+    },
+    "tts_engines": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/id"
+      },
+      "description": "Text-to-speech engines the platform admin may choose per language (D113); `tts` is used where none is chosen."
     }
   }
 }

@@ -132,6 +132,64 @@ export function geminiTts(entry: CatalogEntry, fetchImpl: typeof fetch = fetch):
 }
 
 /**
+ * A local engine's server (`tools/tts-eval/serve.py`, D113): one line per request, answered as
+ * 16-bit PCM with its sample rate in a header. No quota, so line by line; it costs nothing.
+ */
+export function localTts(entry: CatalogEntry, fetchImpl: typeof fetch = fetch): TextToSpeech {
+  if (!entry.baseUrl) throw new Error(`${entry.id} has no server address`);
+  const base = entry.baseUrl.replace(/\/$/, "");
+  const engine: TextToSpeech = {
+    provider: entry.provider,
+    model: entry.model,
+    batch: "line",
+    async synthesize(r) {
+      let response: Response;
+      try {
+        response = await fetchImpl(`${base}/synthesize`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            text: r.text,
+            language: r.language,
+            voice: r.voice,
+            speaker: r.speaker ?? null,
+            direction: r.direction ?? null,
+          }),
+          signal: AbortSignal.timeout(entry.timeoutMs),
+        });
+      } catch (error) {
+        throw new SpeechFailed(
+          `${entry.id} is not reachable at ${base}: ${(error as Error).message}`,
+        );
+      }
+      if (!response.ok)
+        throw new SpeechFailed(
+          `${entry.id} answered ${response.status}: ${(await response.text()).slice(0, 500)}`,
+        );
+      return {
+        pcm: Buffer.from(await response.arrayBuffer()),
+        sampleRate: Number(response.headers.get("x-sample-rate") ?? 24_000),
+        tokensIn: 0,
+        tokensOut: 0,
+        costUsd: 0,
+        cached: false,
+      };
+    },
+    async synthesizeTurns(turns) {
+      const parts: Speech[] = [];
+      for (const t of turns) parts.push(await engine.synthesize(t));
+      return { ...(parts[0] as Speech), pcm: Buffer.concat(parts.map((p) => p.pcm)) };
+    },
+  };
+  return engine;
+}
+
+/** The adapter for a catalogued engine: Gemini's API or a local server. */
+export function ttsFor(entry: CatalogEntry): TextToSpeech {
+  return entry.kind === "local-tts" ? localTts(entry) : geminiTts(entry);
+}
+
+/**
  * For tests and dry runs: a quiet tone per line, a little over a third of a second per word, its
  * pitch set by the voice so speakers are told apart by ear. Costs nothing and calls nothing.
  */

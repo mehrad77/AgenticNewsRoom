@@ -1,8 +1,9 @@
-// Writes each podcast series' stock sound cues (D108) into config/newsrooms/<newsroom>/audio/<series>/:
+// Writes a podcast series' stock sound cues (D108) into config/newsrooms/<newsroom>/audio/<series>/:
 // a sting, a bed swell, a bed out, a transition, a loopable music bed and a jingle. Every sound is
 // synthesised by ffmpeg from the formulas below (sine tones with envelopes), so no recording or
 // third-party material is in them and they are the project's own. Each series plays them in its
-// own key. `pnpm --filter @anr/publisher cues` regenerates them; the output is deterministic.
+// own key, a frequency ratio. The output is deterministic:
+//   pnpm --filter @anr/publisher cues <newsroom> <series> <key ratio, e.g. 1 or 0.75>
 import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -10,12 +11,6 @@ import { fileURLToPath } from "node:url";
 
 const configDir = fileURLToPath(new URL("../../../config", import.meta.url));
 export const RATE = 24_000;
-
-/** Series → key: frequencies are multiplied by `ratio`. Integer cycles keep the bed loopable. */
-const SERIES = [
-  { newsroom: "ai", series: "weekly-podcast", ratio: 1 },
-  { newsroom: "kultur", series: "weekly-podcast", ratio: 0.75 },
-];
 
 /** A soft A-major pad: 220, 277.25 and 329.625 Hz complete whole cycles every 8 seconds. */
 const pad = (r: number) =>
@@ -48,7 +43,7 @@ const CUES = (r: number): Record<string, { expr: string; seconds: number }> => (
   },
 });
 
-export function writeCues(dir: string, ratio: number): void {
+export function writeCues(dir: string, ratio: number, command: string): void {
   mkdirSync(dir, { recursive: true });
   for (const [name, { expr, seconds }] of Object.entries(CUES(ratio))) {
     execFileSync("ffmpeg", [
@@ -79,15 +74,19 @@ export function writeCues(dir: string, ratio: number): void {
 Every file here was synthesised by \`apps/publisher/scripts/cues.ts\` with ffmpeg from sine-tone
 formulas (key ratio ${ratio}). They contain no recording and no third-party material, so they are
 the project's own work, released with the repository. Regenerate with
-\`pnpm --filter @anr/publisher cues\`.
+\`${command}\`.
 `,
   );
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  for (const s of SERIES) {
-    const dir = join(configDir, "newsrooms", s.newsroom, "audio", s.series);
-    writeCues(dir, s.ratio);
-    console.log(`cues written: ${dir}`);
+  const [newsroom, series, key] = process.argv.slice(2);
+  const ratio = Number(key);
+  if (!newsroom || !series || !(ratio > 0)) {
+    console.error("usage: cues <newsroom> <series> <key ratio, e.g. 1 or 0.75>");
+    process.exit(2);
   }
+  const dir = join(configDir, "newsrooms", newsroom, "audio", series);
+  writeCues(dir, ratio, `pnpm --filter @anr/publisher cues ${newsroom} ${series} ${key}`);
+  console.log(`cues written: ${dir}`);
 }

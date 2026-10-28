@@ -6,10 +6,18 @@ import { createHash } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { digitalSourceType, type Language, localDay, type PodcastAudioJob } from "@anr/core";
+import {
+  digitalSourceType,
+  ISO_639_2,
+  type Language,
+  localDay,
+  type PodcastAudioJob,
+} from "@anr/core";
 import { budgetState, type Client, type Pool, withNewsroom, writingLimit } from "@anr/db";
+import type { Catalog, CatalogEntry } from "@anr/models";
 import { type createRenderer, editedByPerson, hostName } from "@anr/render";
 import { holdPublication } from "../hold.ts";
+import { engineFor } from "./engine.ts";
 import { type Block, type Clip, mixEpisode } from "./mix.ts";
 import type { Signer } from "./sign.ts";
 import type { MediaStore } from "./store.ts";
@@ -18,8 +26,11 @@ import { MAX_VOICES, type SpeechRequest, type TextToSpeech } from "./tts.ts";
 export interface AudioDeps {
   pool: Pool;
   renderer: ReturnType<typeof createRenderer>;
-  /** Cached (cachedTts): a line already voiced costs nothing. */
-  tts: TextToSpeech;
+  /**
+   * The engine: fixed (tests, dry runs), or chosen per newsroom and language from the catalogue
+   * (D113). Either way cached (cachedTts): a line already voiced costs nothing.
+   */
+  tts: TextToSpeech | { catalog: Catalog; make: (entry: CatalogEntry) => TextToSpeech };
   store: MediaStore;
   signer: Signer;
   configDir: string;
@@ -29,12 +40,12 @@ export type AudioOutcome = "ready" | "exists" | "held" | "not-scheduled";
 
 const PAUSE_BETWEEN_LINES = 0.35;
 const CUE_FILES = new Set(["sting", "transition", "bed-swell", "bed-out"]);
-/** ID3 TLAN takes ISO 639-2 codes. */
-const ISO_639_2: Record<string, string> = { fa: "per", en: "eng", tr: "tur" };
 
 interface SeriesConfig {
   name?: Record<string, string>;
   hosts?: Record<string, Record<string, string>>;
+  /** Per engine and language: a voice for each host and the narrator (D113). */
+  engine_voices?: Record<string, Record<string, Record<string, string>>>;
   host_names?: Record<string, Record<string, string>>;
   narrator?: Record<string, string>;
 }
@@ -108,20 +119,42 @@ export function scriptHash(
 }
 
 /** The episode's blocks, with each line still to be voiced. */
+/**
+ * Each speaker's voice for the engine: the series' `engine_voices` for it, else, for the engine
+ * the host voices were written for (the default, Gemini), `hosts` and `narrator`; a local engine
+ * without voices set gives each speaker its own default voice (`default:<speaker>`).
+ */
+export function voicesFor(
+  config: SeriesConfig,
+  language: string,
+  engine: { id: string; local: boolean },
+): (speaker: string) => string | undefined {
+  const own = config.engine_voices?.[engine.id]?.[language];
+  return (speaker) => {
+    if (own?.[speaker]) return own[speaker];
+    if (engine.local) return `default:${speaker}`;
+    return speaker === "narrator"
+      ? config.narrator?.[language]
+      : config.hosts?.[language]?.[speaker];
+  };
+}
+
 export function plan(
   l: Pick<Loaded, "body" | "config" | "language" | "seriesSlug">,
   intro: { speaker: string; text: string }[],
   audioDir: string,
   batch: "line" | "segment" = "line",
+  voiceOf: (speaker: string) => string | undefined = voicesFor(l.config, l.language, {
+    id: "",
+    local: false,
+  }),
 ): {
   blocks: { chapter?: string; bed?: boolean; items: (SpeechRequest | Clip)[] }[];
   voices: Set<string>;
 } {
-  const hosts = l.config.hosts?.[l.language] ?? {};
-  const narrator = l.config.narrator?.[l.language];
   const voices = new Set<string>();
   const voice = (speaker: string): string => {
-    const v = speaker === "narrator" ? narrator : hosts[speaker];
+    const v = voiceOf(speaker);
     if (!v) throw new Error(`no voice for ${speaker} in ${l.language}`);
     voices.add(v);
     return v;
@@ -215,7 +248,28 @@ export async function produceEpisode(deps: AudioDeps, job: PodcastAudioJob): Pro
     const l = await load(c, job.publicationId);
     if (l?.status !== "scheduled" || l.format !== "podcast-episode") return null;
     const edited = await editedByPerson(c, job.publicationId, [l.renditionId]);
-    const hash = scriptHash(l, edited, deps.tts.model);
+    let tts: TextToSpeech;
+    let engine = { id: "", local: false };
+    if ("synthesize" in deps.tts) tts = deps.tts;
+    else {
+      const choice = await engineFor(c, deps.tts.catalog, l.language);
+      if (!choice.ok) {
+        await holdPublication(c, job.publicationId, {
+          name: "tts-engine",
+          result: "error",
+          detail: { reason: choice.reason },
+        });
+        return { held: true as const };
+      }
+      tts = deps.tts.make(choice.engine);
+      engine = { id: choice.engine.id, local: choice.engine.kind === "local-tts" };
+    }
+    // Another engine or other voices make other audio.
+    const hash = scriptHash(
+      l,
+      edited,
+      `${tts.model}:${JSON.stringify(l.config.engine_voices ?? {})}`,
+    );
     const { rowCount } = await c.query(
       "select from episodes where publication_id = $1 and script_hash = $2",
       [job.publicationId, hash],
@@ -231,12 +285,12 @@ export async function produceEpisode(deps: AudioDeps, job: PodcastAudioJob): Pro
       });
       return { held: true as const };
     }
-    return { l, edited, hash };
+    return { l, edited, hash, tts, engine };
   });
   if (!prepared) return "not-scheduled";
   if ("done" in prepared) return "exists";
   if ("held" in prepared) return "held";
-  const { l, edited, hash } = prepared;
+  const { l, edited, hash, tts, engine } = prepared;
 
   const work = mkdtempSync(join(tmpdir(), "anr-episode-"));
   const spend = { tokensIn: 0, tokensOut: 0, costUsd: 0, calls: 0 };
@@ -251,19 +305,25 @@ export async function produceEpisode(deps: AudioDeps, job: PodcastAudioJob): Pro
       l.config.host_names?.[l.language],
     );
     const audioDir = join(deps.configDir, "newsrooms", l.newsroom, "audio", l.seriesSlug);
-    const { blocks: planned } = plan(l, intro, audioDir, deps.tts.batch);
+    const { blocks: planned } = plan(
+      l,
+      intro,
+      audioDir,
+      tts.batch,
+      engine.id ? voicesFor(l.config, l.language, engine) : undefined,
+    );
     const blocks: Block[] = [];
     for (const b of planned) {
       const clips: Clip[] = [];
-      const steps = deps.tts.batch === "segment" ? requests(b.items) : b.items;
+      const steps = tts.batch === "segment" ? requests(b.items) : b.items;
       for (const item of steps) {
         if (!Array.isArray(item) && "kind" in item) {
           clips.push(item);
           continue;
         }
         const speech = Array.isArray(item)
-          ? await deps.tts.synthesizeTurns(item)
-          : await deps.tts.synthesize(item);
+          ? await tts.synthesizeTurns(item)
+          : await tts.synthesize(item);
         if (!speech.cached) spend.calls += 1;
         spend.tokensIn += speech.tokensIn;
         spend.tokensOut += speech.tokensOut;
@@ -282,7 +342,7 @@ export async function produceEpisode(deps: AudioDeps, job: PodcastAudioJob): Pro
         artist: l.newsroomName,
         album: series,
         date: localDay(l.slot, l.timezone),
-        language: ISO_639_2[l.language] ?? l.language,
+        language: ISO_639_2[l.language],
         comment: `${label}. AI voices: ${voices}.`,
       },
       work,
@@ -309,20 +369,12 @@ export async function produceEpisode(deps: AudioDeps, job: PodcastAudioJob): Pro
           signed.signed,
         ],
       );
-      await recordTts(c, deps.tts, job.publicationId, hash, spend, "submitted");
+      await recordTts(c, tts, job.publicationId, hash, spend, "submitted");
     });
     return "ready";
   } catch (error) {
     await inNewsroom(async (c) => {
-      await recordTts(
-        c,
-        deps.tts,
-        job.publicationId,
-        hash,
-        spend,
-        "error",
-        (error as Error).message,
-      );
+      await recordTts(c, tts, job.publicationId, hash, spend, "error", (error as Error).message);
       await holdPublication(c, job.publicationId, {
         name: "audio",
         result: "error",

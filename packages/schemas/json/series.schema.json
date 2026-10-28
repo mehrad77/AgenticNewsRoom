@@ -146,6 +146,24 @@
         "type": "string",
         "minLength": 1
       }
+    },
+    "engine_voices": {
+      "type": "object",
+      "description": "Per text-to-speech engine (a catalogue id), per language: a voice for each host and \"narrator\". `hosts` and `narrator` are the default engine's voices; a local engine without voices here gives each speaker its own default (D113).",
+      "additionalProperties": {
+        "type": "object",
+        "propertyNames": {
+          "enum": ["fa", "en", "tr"]
+        },
+        "additionalProperties": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
     }
   }
 }

@@ -1,0 +1,29 @@
+---
+import type { AdminTts } from "../../lib/desk.ts";
+
+interface Props {
+  tts: AdminTts;
+}
+const { tts } = Astro.props;
+---
+<h1>Platform admin</h1>
+<h2>Text-to-speech engines</h2>
+<p>The engines in the models file. Newsrooms choose one per language from the ones enabled here; a newsroom with no choice, or whose engine is turned off, uses the default <strong>{tts.default}</strong>.</p>
+<form method="post">
+  <div class="scroll">
+    <table>
+      <tr><th>Enabled</th><th>Engine</th><th>Model</th><th>Languages</th><th>Runs</th></tr>
+      {tts.engines.map((e) => (
+        <tr>
+          <td><input type="checkbox" name="engine" value={e.id} checked={e.enabled} aria-label={`Enable ${e.id}`} /></td>
+          <td><strong>{e.id}</strong>{e.id === tts.default && " (default)"}</td>
+          <td>{e.model}</td>
+          <td>{e.languages.join(", ")}</td>
+          <td>{e.local ? "on this machine" : "API"}</td>
+        </tr>
+      ))}
+    </table>
+  </div>
+  <button class="primary">Save</button>
+</form>
+<p class="meta">A local engine runs from <code>tools/tts-eval</code> (<code>serve.py</code>); start its server before episodes are voiced with it.</p>

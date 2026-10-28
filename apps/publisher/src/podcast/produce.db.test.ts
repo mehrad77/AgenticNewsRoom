@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { platformKey } from "@anr/db";
 import { createTestNewsroom, testPools } from "@anr/db/testing";
+import { buildCatalog } from "@anr/models";
 import { createRenderer } from "@anr/render";
 import { afterAll, describe, expect, it } from "vitest";
 import { podcastFeed } from "../channels/feed.ts";
@@ -281,6 +282,105 @@ describe("episode audio (D109)", () => {
       "Orbit ships",
       "Attention",
     ]);
+  }, 120_000);
+
+  it("voices with the newsroom's engine for the language, or holds when none can", async () => {
+    const { newsroomId, publicationId } = await scheduledEpisode();
+    const slug =
+      (
+        await pools.system.query<{ slug: string }>("select slug from newsrooms where id = $1", [
+          newsroomId,
+        ])
+      ).rows[0]?.slug ?? "";
+    // A catalogue of two engines: the default and a local one.
+    const catalog = buildCatalog({
+      providers: {
+        gemini: { kind: "google", key_env: "UNSET_FOR_TEST" },
+        local: { kind: "local-tts", base_url: "http://127.0.0.1:9" },
+      },
+      models: {
+        "gemini-tts": {
+          provider: "gemini",
+          model: "g",
+          family: "g",
+          tools: false,
+          languages: ["fa"],
+          price: { in: 0, out: 0 },
+        },
+        xtts: {
+          provider: "local",
+          model: "xtts-v2",
+          family: "x",
+          tools: false,
+          languages: ["en", "tr"],
+          price: { in: 0, out: 0 },
+        },
+      },
+      roles: {} as never,
+      tts: "gemini-tts",
+      tts_engines: ["gemini-tts", "xtts"],
+    } as never);
+    const made: string[] = [];
+    const store = localStore(mkdtempSync(join(tmpdir(), "anr-media-")));
+    const deps = {
+      pool: pools.app,
+      renderer: createRenderer(),
+      tts: {
+        catalog,
+        make: (entry: { id: string }) => {
+          made.push(entry.id);
+          return cachedTts(fakeTts(), store);
+        },
+      },
+      store,
+      signer: unsignedForTests,
+      configDir: configWithCues(slug),
+    };
+    const settings = async (engines: string[]) =>
+      pools.system.query(
+        `insert into platform_settings (key, value) values ('tts.engines', $1)
+         on conflict (key) do update set value = excluded.value`,
+        [JSON.stringify(engines)],
+      );
+    const before = (
+      await pools.system.query<{ value: unknown }>(
+        "select value from platform_settings where key = 'tts.engines'",
+      )
+    ).rows[0]?.value;
+    try {
+      // English, nothing enabled that speaks it: held with the reason.
+      await settings(["gemini-tts"]);
+      expect(await produceEpisode(deps, { newsroomId, publicationId })).toBe("held");
+      const [held] = (
+        await pools.system.query<{ name: string; detail: { reason: string } }>(
+          "select name, detail from checks where publication_id = $1",
+          [publicationId],
+        )
+      ).rows;
+      expect(held).toEqual({
+        name: "tts-engine",
+        detail: { reason: "no enabled engine speaks en: choose one for the newsroom" },
+      });
+      expect(made).toEqual([]);
+
+      // Enabled and chosen by the newsroom: voiced with it.
+      await settings(["gemini-tts", "xtts"]);
+      await pools.system.query(
+        "insert into newsroom_tts (newsroom_id, language, engine) values ($1, 'en', 'xtts')",
+        [newsroomId],
+      );
+      await pools.system.query("update publications set status = 'scheduled' where id = $1", [
+        publicationId,
+      ]);
+      expect(await produceEpisode(deps, { newsroomId, publicationId })).toBe("ready");
+      expect(made).toEqual(["xtts"]);
+    } finally {
+      await pools.system.query(
+        `insert into platform_settings (key, value) values ('tts.engines', $1)
+         on conflict (key) do update set value = excluded.value`,
+        [JSON.stringify(before ?? null)],
+      );
+    }
   }, 120_000);
 
   it("holds the episode when a line cannot be voiced, keeping the spend", async () => {

@@ -34,6 +34,31 @@
       "autoPort": true
     },
     {
+      "name": "tts-chatterbox",
+      "runtimeExecutable": "tools/tts-eval/.venv-chatterbox/bin/python",
+      "runtimeArgs": ["tools/tts-eval/serve.py", "chatterbox", "--port", "8601"],
+      "port": 8601
+    },
+    {
+      "name": "tts-xtts",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "COQUI_TOS_AGREED=1",
+        "tools/tts-eval/.venv-xtts/bin/python",
+        "tools/tts-eval/serve.py",
+        "xtts",
+        "--port",
+        "8602"
+      ],
+      "port": 8602
+    },
+    {
+      "name": "tts-dia",
+      "runtimeExecutable": "tools/tts-eval/.venv-dia/bin/python",
+      "runtimeArgs": ["tools/tts-eval/serve.py", "dia", "--port", "8603"],
+      "port": 8603
+    },
+    {
       "name": "tts-eval",
       "runtimeExecutable": "python3",
       "runtimeArgs": [

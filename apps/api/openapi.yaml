@@ -721,6 +721,93 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+  /desk/admin/tts:
+    get:
+      operationId: getAdminTts
+      summary: The text-to-speech engines in the models file, and which are enabled for newsrooms
+      description: Platform admin only (D113).
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      responses:
+        "200":
+          description: The catalogue.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminTts"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: setAdminTts
+      summary: Enable a set of engines for every newsroom to choose from
+      description: Platform admin only; audited in the platform audit log (D113).
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminTtsRequest"
+      responses:
+        "200":
+          description: Saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /desk/newsrooms/{newsroom}/tts:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+    get:
+      operationId: getNewsroomTts
+      summary: The newsroom's TTS engine per language, and what each language would use now
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      responses:
+        "200":
+          description: One row per newsroom language.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NewsroomTts"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: setNewsroomTts
+      summary: Choose the engine for one language, or clear the choice to use the default
+      description: Editor-in-Chief only; audited (D113).
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewsroomTtsRequest"
+      responses:
+        "200":
+          description: Saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
 tags:
   - name: ops
     description: Operational endpoints.
@@ -808,9 +895,12 @@ components:
     DeskMe:
       type: object
       additionalProperties: false
-      required: [email, memberships]
+      required: [email, platform_admin, memberships]
       properties:
         email: { type: string }
+        platform_admin:
+          type: boolean
+          description: The platform's one super admin, who chooses the TTS engines on offer (D113).
         memberships:
           type: array
           items:
@@ -1349,3 +1439,70 @@ components:
       required: [candidate]
       properties:
         candidate: { type: integer, minimum: 0, maximum: 2 }
+    TtsEngine:
+      type: object
+      additionalProperties: false
+      required: [id, model, languages, local, enabled]
+      properties:
+        id: { type: string, description: "Catalogue id in the models file." }
+        model: { type: string }
+        languages:
+          type: array
+          items: { $ref: "#/components/schemas/Language" }
+        local: { type: boolean, description: "Runs on this machine (tools/tts-eval/serve.py)." }
+        enabled: { type: boolean }
+    AdminTts:
+      type: object
+      additionalProperties: false
+      required: [default, engines]
+      properties:
+        default:
+          {
+            type: string,
+            description: "The models file's `tts`: used where a newsroom chose none.",
+          }
+        engines:
+          type: array
+          items: { $ref: "#/components/schemas/TtsEngine" }
+    AdminTtsRequest:
+      type: object
+      additionalProperties: false
+      required: [engines]
+      properties:
+        engines:
+          type: array
+          items: { type: string }
+    NewsroomTtsLanguage:
+      type: object
+      additionalProperties: false
+      required: [language, chosen, effective, source, reason, options]
+      properties:
+        language: { $ref: "#/components/schemas/Language" }
+        chosen: { type: [string, "null"] }
+        effective:
+          {
+            type: [string, "null"],
+            description: "The engine episodes in this language are voiced with now.",
+          }
+        source: { type: [string, "null"], enum: [newsroom, default, null] }
+        reason: { type: [string, "null"], description: "Why no engine can voice this language." }
+        options:
+          type: array
+          description: Enabled engines that speak this language.
+          items: { type: string }
+    NewsroomTts:
+      type: object
+      additionalProperties: false
+      required: [default, languages]
+      properties:
+        default: { type: string }
+        languages:
+          type: array
+          items: { $ref: "#/components/schemas/NewsroomTtsLanguage" }
+    NewsroomTtsRequest:
+      type: object
+      additionalProperties: false
+      required: [language, engine]
+      properties:
+        language: { $ref: "#/components/schemas/Language" }
+        engine: { type: [string, "null"], description: "Null clears the choice." }

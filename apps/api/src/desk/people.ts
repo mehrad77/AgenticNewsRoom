@@ -13,12 +13,14 @@ export interface Membership {
 export interface DeskPerson {
   userId: string;
   email: string;
+  /** The platform's one super admin (D113). */
+  platformAdmin: boolean;
   memberships: Membership[];
 }
 
 export async function deskPerson(pool: Pool, email: string): Promise<DeskPerson | null> {
-  const { rows: users } = await pool.query<{ id: string; email: string }>(
-    "select id, email from users where lower(email) = lower($1)",
+  const { rows: users } = await pool.query<{ id: string; email: string; platform_admin: boolean }>(
+    "select id, email, platform_admin from users where lower(email) = lower($1)",
     [email],
   );
   const user = users[0];
@@ -39,5 +41,5 @@ export async function deskPerson(pool: Pool, email: string): Promise<DeskPerson 
     });
     if (role) memberships.push({ newsroomId: n.id, newsroom: n.slug, name: n.name, role });
   }
-  return { userId: user.id, email: user.email, memberships };
+  return { userId: user.id, email: user.email, platformAdmin: user.platform_admin, memberships };
 }

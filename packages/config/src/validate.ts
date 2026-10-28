@@ -46,7 +46,8 @@ function modelsProblems(m: ModelsSchema, file: string, formats: string[]): strin
     if (file === "models.yaml" && p.kind === "openai" && !p.base_url.startsWith("https://")) {
       errors.push(`${file} provider ${id}: a local server belongs in a development profile`);
     }
-    if (file === "models.yaml" && !p.key_env) {
+    // A local TTS engine runs on the server itself, which is this laptop (D54, D113).
+    if (file === "models.yaml" && p.kind !== "local-tts" && !p.key_env) {
       errors.push(`${file} provider ${id}: needs key_env`);
     }
   }
@@ -78,6 +79,15 @@ function modelsProblems(m: ModelsSchema, file: string, formats: string[]): strin
   }
   if (!m.models[m.tts]) errors.push(`${file} tts: unknown model ${m.tts}`);
   else if (!m.models[m.tts]?.price) errors.push(`${file} tts: ${m.tts} has no price`);
+  // The engines an admin may enable and a newsroom choose per language (D113).
+  for (const id of m.tts_engines ?? []) {
+    const model = m.models[id];
+    if (!model) errors.push(`${file} tts_engines: unknown model ${id}`);
+    else if (!model.price) errors.push(`${file} tts_engines: ${id} has no price`);
+    else if (!model.languages) errors.push(`${file} tts_engines: ${id} has no languages`);
+  }
+  if (m.tts_engines && !m.tts_engines.includes(m.tts))
+    errors.push(`${file} tts: ${m.tts} is not one of tts_engines`);
   const families = new Set(m.roles["fact-checker"].flatMap((id) => m.models[id]?.family ?? []));
   if (families.size < 2) {
     errors.push(`${file} fact-checker needs models from at least two families`);

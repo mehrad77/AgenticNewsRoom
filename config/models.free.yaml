@@ -3,6 +3,10 @@
 # Gemini (outside the EEA, UK and Switzerland) and Mistral's free plan may train on prompts.
 # Keys: docs/development.md#free-models. A provider without a key is skipped.
 providers:
+  # Local text-to-speech servers (tools/tts-eval/serve.py), one per engine, on this machine (D113).
+  chatterbox-local: { kind: local-tts, base_url: "http://127.0.0.1:8601", timeout_s: 600 }
+  xtts-local: { kind: local-tts, base_url: "http://127.0.0.1:8602", timeout_s: 600 }
+  dia-local: { kind: local-tts, base_url: "http://127.0.0.1:8603", timeout_s: 900 }
   gemini: { kind: google, key_env: GEMINI_API_KEY }
   groq:
     kind: openai
@@ -51,6 +55,7 @@ models:
     model: gemini-3.8-flash-tts
     family: gemini-3.8-flash-tts
     tools: false
+    languages: [fa, en, tr]
     price: { in: 0, out: 0 }
   groq-gpt-oss-120b:
     provider: groq
@@ -120,7 +125,30 @@ models:
     tools: true
     price: { in: 0, out: 0 }
 
-# Local models first (no limits, no overload), then quality first, providers alternating so one exhausted account does not empty a chain.
+  # Local models first (no limits, no overload), then quality first, providers alternating so one exhausted account does not empty a chain.
+  # Local TTS engines: free to run, so priced at 0 (D82). Licences: tools/tts-eval/README.md.
+  chatterbox:
+    provider: chatterbox-local
+    model: chatterbox-multilingual
+    family: chatterbox
+    tools: false
+    languages: [en, tr]
+    price: { in: 0, out: 0 }
+  xtts:
+    provider: xtts-local
+    model: xtts-v2
+    family: xtts
+    tools: false
+    languages: [en, tr]
+    price: { in: 0, out: 0 } # Coqui Public Model License: non-commercial only
+  dia:
+    provider: dia-local
+    model: dia-1.6b
+    family: dia
+    tools: false
+    languages: [en]
+    price: { in: 0, out: 0 }
+
 roles:
   planner:
     - gemini-flash
@@ -165,3 +193,5 @@ roles:
     - mistral-small
     - openrouter-gemma
 tts: gemini-flash-tts
+# The engines the platform admin may enable; each newsroom picks one per language (D113).
+tts_engines: [gemini-flash-tts, chatterbox, xtts, dia]

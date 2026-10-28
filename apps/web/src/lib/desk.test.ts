@@ -10,7 +10,8 @@ describe("deskRoute", () => {
     expect(deskRoute(`/ai/p/${id}`)).toEqual({ kind: "publication", newsroom: "ai", id });
     expect(deskRoute("/ai/p/1")).toEqual({ kind: "not-found" });
     expect(deskRoute("/AI")).toEqual({ kind: "not-found" });
-    for (const page of ["plan", "schedule", "budget", "sources", "measures"])
+    expect(deskRoute("/admin")).toEqual({ kind: "admin" });
+    for (const page of ["plan", "voices", "schedule", "budget", "sources", "measures"])
       expect(deskRoute(`/ai/${page}/`)).toEqual({ kind: page, newsroom: "ai" });
   });
 });
@@ -70,6 +71,28 @@ describe("deskApi", () => {
       url: "http://api.test/desk/newsrooms/ai/picks/p1/choose",
       body: { candidate: 2 },
     });
+  });
+
+  it("posts the admin's checked engines, and a newsroom's engine or none", async () => {
+    const calls: { url: string; body: unknown }[] = [];
+    const fetchFn = (async (url: string, init: RequestInit) => {
+      calls.push({ url, body: JSON.parse(String(init.body)) });
+      return new Response("{}");
+    }) as unknown as typeof fetch;
+    const api = deskApi("http://api.test", null, fetchFn);
+    const admin = new FormData();
+    admin.append("engine", "gemini-flash-tts");
+    admin.append("engine", "xtts");
+    expect(await api.act({ kind: "admin" }, admin)).toBe("/admin");
+    const voice = new FormData();
+    voice.set("action", "newsroom-tts");
+    voice.set("language", "en");
+    voice.set("engine", "");
+    expect(await api.act({ kind: "voices", newsroom: "ai" }, voice)).toBe("/ai/voices");
+    expect(calls).toEqual([
+      { url: "http://api.test/desk/admin/tts", body: { engines: ["gemini-flash-tts", "xtts"] } },
+      { url: "http://api.test/desk/newsrooms/ai/tts", body: { language: "en", engine: null } },
+    ]);
   });
 
   it("raises the API's error", async () => {

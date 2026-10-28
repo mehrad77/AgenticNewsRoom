@@ -102,3 +102,9 @@ class SeriesConfig(BaseModel):
     narrator: dict[Literal["fa", "en", "tr"], constr(min_length=1)] | None = Field(
         None, description="Per language: the narrator's TTS voice, used by story segments."
     )
+    engine_voices: (
+        dict[str, dict[Literal["fa", "en", "tr"], dict[str, constr(min_length=1)]]] | None
+    ) = Field(
+        None,
+        description='Per text-to-speech engine (a catalogue id), per language: a voice for each host and "narrator". `hosts` and `narrator` are the default engine\'s voices; a local engine without voices here gives each speaker its own default (D113).',
+    )
