@@ -16,6 +16,7 @@ import { DeskError } from "./desk/errors.ts";
 import { fileIssue, listNotices, listSamples, readNotice, reviewSample } from "./desk/followups.ts";
 import { measures } from "./desk/measures.ts";
 import { type DeskPerson, deskPerson } from "./desk/people.ts";
+import { approveTheme, choosePick, plan } from "./desk/plan.ts";
 import { type PreviewSite, previewPublication } from "./desk/preview.ts";
 import {
   approve,
@@ -267,6 +268,42 @@ export function createApp(deps?: DeskDeps) {
   app.post(`${base}/notices/:notice/read`, async (c) =>
     c.json(await inNewsroom(c, (db) => readNotice(db, id(c, "notice")))),
   );
+
+  // Planning: the Editor-in-Chief sets the agenda (charter: human-directed, D105).
+  app.get(`${base}/plan`, async (c) => c.json(await inNewsroom(c, (db) => plan(db))));
+  app.post(`${base}/cycles/:cycle/approve`, async (c) => {
+    const b = await body(c);
+    const theme = text(b.theme, 140)?.trim();
+    const angle = text(b.angle, 800)?.trim();
+    if (!theme || !angle) throw new DeskError(400, "theme and angle: short, non-empty text");
+    const calendar = Array.isArray(b.calendar) ? b.calendar : [];
+    const weeks = calendar.map((w) => {
+      const week = text((w as Record<string, unknown>)?.week, 10);
+      const focus = text((w as Record<string, unknown>)?.focus, 240);
+      if (!week || focus === undefined)
+        throw new DeskError(400, "calendar: each week with its focus");
+      return { week, focus };
+    });
+    return c.json(
+      await inNewsroom(
+        c,
+        (db, actor) => approveTheme(db, actor, id(c, "cycle"), { theme, angle, calendar: weeks }),
+        chief,
+      ),
+    );
+  });
+  app.post(`${base}/picks/:pick/choose`, async (c) => {
+    const candidate = (await body(c)).candidate;
+    if (typeof candidate !== "number" || !Number.isInteger(candidate) || candidate < 0)
+      throw new DeskError(400, "candidate: 0, 1 or 2");
+    return c.json(
+      await inNewsroom(
+        c,
+        (db, actor) => choosePick(db, boss, actor, id(c, "pick"), candidate),
+        chief,
+      ),
+    );
+  });
 
   return app;
 }

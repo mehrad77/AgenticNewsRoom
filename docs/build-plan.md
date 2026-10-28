@@ -81,8 +81,8 @@ Gate: **daily news publishes end to end on its own.**
 
 Gate: **one editorial cycle runs from plan to published pieces.**
 
-- [ ] Planner graph: themes for each editorial cycle (2–3 with angle and calendar, cycles from `planning` in `newsroom.yaml`) and weekly candidates (three per series).
-- [ ] Desk screens for choosing and editing a theme and picking a candidate; pick deadline skips the slot and notifies the editor.
+- [x] Planner graph: themes for each editorial cycle (2–3 with angle and calendar, cycles from `planning` in `newsroom.yaml`) and weekly candidates (three per series).
+- [x] Desk screens for choosing and editing a theme and picking a candidate; pick deadline skips the slot and notifies the editor.
 - [ ] Renderer graph: another language or format from a story; weekly podcast scripts from the week's published renditions.
 - [ ] Verifier checks for story segments: arc complete and in order, protagonists grounded, turning point and resolution name a protagonist, cues and directions sparse, AI voices introduced.
 - [ ] Stock sound-cue assets per series (sting, bed swell, bed out, transition), all owned or licensed for use.

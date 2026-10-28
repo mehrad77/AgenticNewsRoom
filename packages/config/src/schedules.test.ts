@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cronDaily, cronEvery, newsroomSchedules } from "./schedules.ts";
+import { cronDaily, cronEvery, cronWeekly, newsroomSchedules } from "./schedules.ts";
 
 describe("cronEvery", () => {
   it.each([
@@ -32,6 +32,7 @@ describe("newsroomSchedules", () => {
   const series = [
     { id: "daily", cadence: { daily: "21:00" }, assignment_at: "16:00" },
     { id: "weekly", cadence: { weekly: "wed 10:00" } },
+    { id: "episode", cadence: { weekly: "fri 18:00" }, assignment_at: "fri 08:00" },
   ];
   const schedules = newsroomSchedules("n1", "Europe/Istanbul", sources, series);
 
@@ -50,4 +51,30 @@ describe("newsroomSchedules", () => {
     });
     expect(cronDaily("16:00")).toBe("0 16 * * *");
   });
+
+  it("assigns a weekly episode at its weekday and time, and a picked series never by schedule", () => {
+    const assigns = schedules.filter((s) => s.queue === "assign");
+    expect(assigns.map((s) => [s.key, s.cron])).toEqual([
+      ["daily", "0 16 * * *"],
+      ["episode", "0 8 * * 5"],
+    ]);
+  });
+
+  it("runs one planning tick a day per newsroom, catching up once after downtime", () => {
+    expect(schedules.filter((s) => s.queue === "plan")).toEqual([
+      {
+        queue: "plan",
+        key: "n1",
+        cron: "0 6 * * *",
+        tz: "Europe/Istanbul",
+        data: { newsroomId: "n1" },
+        missed: "once",
+      },
+    ]);
+  });
+});
+
+describe("cronWeekly", () => {
+  it("maps a weekday and time", () => expect(cronWeekly("sun 23:30")).toBe("30 23 * * 0"));
+  it("rejects a bare time", () => expect(() => cronWeekly("08:00")).toThrow("weekday"));
 });

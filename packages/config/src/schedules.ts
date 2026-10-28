@@ -1,4 +1,4 @@
-import type { AssignJob, IngestSourceJob } from "@anr/core";
+import type { AssignJob, IngestSourceJob, PlanJob } from "@anr/core";
 import { QUEUES, type QueueName } from "@anr/core";
 
 /** One pg-boss schedule that config sync keeps in place. `key` is the row id it runs for. */
@@ -16,6 +16,7 @@ export interface DesiredSchedule {
 export const SCHEDULED_QUEUES: readonly QueueName[] = [
   QUEUES.ingestSource,
   QUEUES.assign,
+  QUEUES.plan,
   QUEUES.publishSweep,
   QUEUES.channelStats,
 ];
@@ -43,6 +44,19 @@ export function cronDaily(time: string): string {
   if (!match || hours > 23 || minutes > 59) throw new Error(`time ${time} must be 00:00 to 23:59`);
   return `${minutes} ${hours} * * *`;
 }
+
+const CRON_DAYS = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 } as const;
+
+/** Cron for a weekday and time (`fri 08:00`). */
+export function cronWeekly(at: string): string {
+  const match = /^(mon|tue|wed|thu|fri|sat|sun) (.+)$/.exec(at);
+  if (!match) throw new Error(`${at} must be a weekday and a time, like "fri 08:00"`);
+  const [minutes, hours] = cronDaily(match[2] ?? "").split(" ");
+  return `${minutes} ${hours} * * ${CRON_DAYS[match[1] as keyof typeof CRON_DAYS]}`;
+}
+
+/** The planning tick's time of day in each newsroom's timezone (D103). */
+export const PLAN_AT = "06:00";
 
 export interface ScheduledSource {
   id: string;
@@ -79,18 +93,28 @@ export function newsroomSchedules(
     });
   }
   for (const s of series) {
-    // Daily news is assigned by schedule; weekly series are assigned from a pick.
-    if (!s.assignment_at || !s.cadence.daily) continue;
+    // Daily news and weekly episodes are assigned by schedule; a picked series from its pick.
+    if (!s.assignment_at) continue;
     const data: AssignJob = { newsroomId, seriesId: s.id };
     out.push({
       queue: QUEUES.assign,
       key: s.id,
-      cron: cronDaily(s.assignment_at),
+      cron: s.cadence.daily ? cronDaily(s.assignment_at) : cronWeekly(s.assignment_at),
       tz: timezone,
       data,
       missed: "once",
     });
   }
+  // Once a day, the planner's themes and weekly candidates are started when they are due.
+  const plan: PlanJob = { newsroomId };
+  out.push({
+    queue: QUEUES.plan,
+    key: newsroomId,
+    cron: cronDaily(PLAN_AT),
+    tz: timezone,
+    data: plan,
+    missed: "once",
+  });
   return out;
 }
 

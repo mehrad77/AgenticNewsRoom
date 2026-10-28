@@ -15,9 +15,11 @@ export type ScheduleItem = S["ScheduleItem"];
 export type Budget = S["Budget"];
 export type SourceHealth = S["SourceHealth"];
 export type Measures = S["Measures"];
+export type Plan = S["Plan"];
 
 /** Pages that list or show one newsroom's things, under `/<newsroom>/<page>`. */
 const PAGES = [
+  "plan",
   "channels",
   "samples",
   "notices",
@@ -89,6 +91,7 @@ export function deskApi(base: string, token: string | null, fetchFn: typeof fetc
     budget: (newsroom: string) => call<Budget>(`${n(newsroom)}/budget`),
     sources: (newsroom: string) => call<SourceHealth[]>(`${n(newsroom)}/sources`),
     measures: (newsroom: string) => call<Measures>(`${n(newsroom)}/measures`),
+    plan: (newsroom: string) => call<Plan>(`${n(newsroom)}/plan`),
     /** Runs the action a desk form posted; returns where to go next. */
     async act(route: DeskRoute, form: FormData): Promise<string> {
       if (route.kind === "home" || route.kind === "not-found")
@@ -158,6 +161,16 @@ export function deskApi(base: string, token: string | null, fetchFn: typeof fetc
         case "file-issue":
           await call(`${base}/samples/${id}/issue`, { url: field("url") ?? "" });
           return `/${route.newsroom}/samples`;
+        case "approve-theme":
+          await call(`${base}/cycles/${id}/approve`, {
+            theme: field("theme") ?? "",
+            angle: field("angle") ?? "",
+            calendar: calendarFields(form),
+          });
+          return `/${route.newsroom}/plan`;
+        case "choose-pick":
+          await call(`${base}/picks/${id}/choose`, { candidate: Number(field("candidate")) });
+          return `/${route.newsroom}/plan`;
         case "read-notice":
           await call(`${base}/notices/${id}/read`, {});
           return `/${route.newsroom}/notices`;
@@ -166,6 +179,22 @@ export function deskApi(base: string, token: string | null, fetchFn: typeof fetc
       }
     },
   };
+}
+
+/** A theme form's calendar: `week.<i>` and `focus.<i>` pairs, in the order of `i`. */
+export function calendarFields(form: FormData): { week: string; focus: string }[] {
+  const weeks: { i: number; week: string; focus: string }[] = [];
+  form.forEach((value, name) => {
+    const m = /^week\.([0-9]+)$/.exec(name);
+    if (!m || typeof value !== "string") return;
+    const focus = form.get(`focus.${m[1]}`);
+    weeks.push({
+      i: Number(m[1]),
+      week: value,
+      focus: typeof focus === "string" ? focus.replace(/\r\n/g, "\n").trim() : "",
+    });
+  });
+  return weeks.sort((a, b) => a.i - b.i).map(({ week, focus }) => ({ week, focus }));
 }
 
 /** The edit form's field for a text field of the rendition: `text:<JSON pointer>`. */

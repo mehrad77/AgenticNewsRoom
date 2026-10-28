@@ -5,7 +5,7 @@ import type { AgentRole } from "@anr/core";
 import { createBoss, createPool } from "@anr/db";
 import { buildCatalog, loadModelsConfig, ModelGateway, missingKeys, modelsFile } from "@anr/models";
 import { createRenderer } from "@anr/render";
-import { assignDaily } from "./assign.ts";
+import { assignDaily, assignPick } from "./assign.ts";
 import type { RoleDeps } from "./desk/run.ts";
 import { runDesk } from "./desk/run.ts";
 import { dispatchAgentRun } from "./dispatch.ts";
@@ -14,6 +14,9 @@ import { sweepStuck } from "./gate/sweep.ts";
 import { handleIngestSource, ingestionClient } from "./ingest.ts";
 import { registerJobs } from "./jobs.ts";
 import { meteredModel } from "./model.ts";
+import { pickDeadline } from "./planner/deadline.ts";
+import { runPlanner } from "./planner/run.ts";
+import { planTick } from "./planner/tick.ts";
 import { redraft } from "./redraft.ts";
 import { runRenderer } from "./renderer/run.ts";
 import { ModelRouter } from "./router.ts";
@@ -74,8 +77,20 @@ await registerJobs(boss, {
     if (canRun("summariser")) await resumeSummaries(pool, boss, router);
   },
   assign: async (job) => {
-    const outcome = await assignDaily(pool, boss, router, job);
+    const { pickId } = job;
+    const outcome = pickId
+      ? await assignPick(pool, boss, router, { ...job, pickId })
+      : await assignDaily(pool, boss, router, job);
     console.log(`[agents] assign ${job.seriesId}: ${JSON.stringify(outcome)}`);
+  },
+  plan: async (job) => {
+    const outcomes = await planTick(pool, boss, router, job);
+    if (outcomes.length > 0)
+      console.log(`[agents] plan ${job.newsroomId}: ${JSON.stringify(outcomes)}`);
+  },
+  "pick-deadline": async (job) => {
+    const outcome = await pickDeadline(pool, boss, job);
+    console.log(`[agents] pick ${job.pickId} deadline: ${outcome}`);
   },
   "agent-run": dispatchAgentRun({
     pool,
@@ -89,6 +104,7 @@ await registerJobs(boss, {
         makeModel: (chain) => gatewayModel(gateway, chain),
         throttle: Throttle.perMinute(Number(process.env.ANR_SUMMARISER_RPM ?? 10)),
       }),
+      planner: run((deps, job) => runPlanner(deps, job)),
       desk: run(runDesk),
       renderer: run(runRenderer),
     },
@@ -127,7 +143,14 @@ if (canRun("summariser")) {
   const resumed = await resumeSummaries(pool, boss, router);
   if (resumed > 0) console.log(`[agents] resumed ${resumed} unfinished summaries`);
 }
-for (const role of ["summariser", "desk", "renderer", "fact-checker", "item-matcher"] as const) {
+for (const role of [
+  "summariser",
+  "planner",
+  "desk",
+  "renderer",
+  "fact-checker",
+  "item-matcher",
+] as const) {
   if (!canRun(role)) console.warn(`[agents] no key for any ${role} model: its runs wait`);
 }
 console.log(`agents worker started (${modelsFile(configDir)})`);

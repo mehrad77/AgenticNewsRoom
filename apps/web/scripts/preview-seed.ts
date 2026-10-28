@@ -17,6 +17,8 @@ const old = await id("select id from newsrooms where slug = $1", [SLUG]);
 if (old) {
   // Data rows only, children first; config rows (newsroom, series, beats) are reused below.
   for (const t of [
+    "picks",
+    "editorial_cycles",
     "channel_stats",
     "page_views",
     "agent_runs",
@@ -275,6 +277,85 @@ await system.query(
   `insert into notices (newsroom_id, kind, key, detail) values ($1, 'no-channel', 'telegram:fa', '{"kind": "telegram", "language": "fa"}')`,
   [newsroomId],
 );
+// Planning (milestone 5): two proposed themes for the next cycle, and an open weekly pick.
+const classicId = await id(
+  `insert into series (newsroom_id, slug, format_id, languages, config)
+   select $1, 'weekly-classic', f.id, '{fa,en}', $2
+   from formats f where f.slug = 'classic-article'
+   on conflict (newsroom_id, slug) do update set removed_at = null, config = excluded.config
+   returning id`,
+  [
+    newsroomId,
+    JSON.stringify({
+      name: { fa: "مقاله‌ی کلاسیک هفته", en: "Classic Paper of the Week" },
+      cadence: { weekly: "wed 10:00" },
+      pick: { planner_proposes: 3, by: "mon", editor_picks_by: "tue" },
+      channels: { site: ["fa", "en"] },
+    }),
+  ],
+);
+const paper = await id(
+  `insert into leads (newsroom_id, uri, headline, body, language, content_hash, tier)
+   values ($1, 'https://arxiv.org/abs/1706.03762', 'Attention Is All You Need', 'The Transformer.', 'en', 'seed-paper', 1)
+   returning id`,
+  [newsroomId],
+);
+const nextStart = new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10);
+const weeksOf = (start: string) =>
+  [0, 7, 14, 21, 28].map((d) =>
+    new Date(Date.parse(start) + d * 86_400_000).toISOString().slice(0, 10),
+  );
+for (const [theme, angle] of [
+  [
+    "Open weights",
+    "Who builds open models, who can inspect them, and what changes when weights are public.",
+  ],
+  [
+    "Small models",
+    "How much a model needs to be useful: distillation, quantisation and on-device work.",
+  ],
+]) {
+  await system.query(
+    `insert into editorial_cycles (newsroom_id, starts, ends, theme, angle, calendar, rationale, lead_ids)
+     values ($1, $2::date, $2::date + 30, $3, $4, $5, $6, $7)`,
+    [
+      newsroomId,
+      nextStart,
+      theme,
+      angle,
+      JSON.stringify(
+        weeksOf(nextStart).map((week, i) => ({ week, focus: `${theme}, part ${i + 1}` })),
+      ),
+      "Releases in this area doubled in the lead pool over the last month.",
+      [paper],
+    ],
+  );
+}
+const current = await id(
+  `insert into editorial_cycles (newsroom_id, starts, ends, theme, angle, status, decided_at)
+   values ($1, $2::date - 25, $2::date, 'Agents at work', 'What agents do in real jobs.', 'approved', now()) returning id`,
+  [newsroomId, nextStart],
+);
+await system.query(
+  `insert into picks (newsroom_id, cycle_id, series_id, week, candidates, deadline, slot)
+   values ($1, $2, $3, current_date, $4, now() + interval '1 day', now() + interval '34 hours')`,
+  [
+    newsroomId,
+    current,
+    classicId,
+    JSON.stringify(
+      ["Attention Is All You Need", "Deep Residual Learning", "Sequence to Sequence Learning"].map(
+        (title) => ({
+          title,
+          angle: `${title}: the paper, its authors, and what it changed.`,
+          why: "It is the root of this week's focus.",
+          lead_ids: [paper],
+        }),
+      ),
+    ),
+  ],
+);
+
 const userId = await id(
   "insert into users (email) values ('dev@anr.test') on conflict (lower(email)) do update set email = users.email returning id",
 );

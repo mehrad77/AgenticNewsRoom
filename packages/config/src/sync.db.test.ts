@@ -124,8 +124,14 @@ describe("syncConfig", () => {
     for (const s of sources) delete s.terms_checked;
     await syncConfig(pools.system, boss, unchecked);
     expect(await mine("ingest-source")).toEqual([]);
-    expect((await mine("assign")).map((s) => [s.cron, s.timezone])).toEqual([
+    // Daily news at 16:00; the weekly episode on Friday at 08:00; a picked series never.
+    expect((await mine("assign")).map((s) => [s.cron, s.timezone]).sort()).toEqual([
       ["0 16 * * *", "Europe/Istanbul"],
+      ["0 8 * * 5", "Europe/Istanbul"],
+    ]);
+    // One planning tick a day per newsroom (D103).
+    expect((await mine("plan")).map((s) => [s.cron, s.timezone])).toEqual([
+      ["0 6 * * *", "Europe/Istanbul"],
     ]);
 
     // As committed: every lead source with terms_checked, on its own interval.

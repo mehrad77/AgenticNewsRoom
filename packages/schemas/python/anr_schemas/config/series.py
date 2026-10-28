@@ -78,7 +78,12 @@ class SeriesConfig(BaseModel):
     format: str
     languages: list[Language] = Field(..., min_length=1)
     cadence: Cadence
-    assignment_at: constr(pattern=r"^[0-2][0-9]:[0-5][0-9]$") | None = None
+    assignment_at: (
+        constr(pattern=r"^((mon|tue|wed|thu|fri|sat|sun) )?[0-2][0-9]:[0-5][0-9]$") | None
+    ) = Field(
+        None,
+        description="When code makes the assignment for the next slot: a time (daily series) or a weekday and time (weekly series built from segments).",
+    )
     items: dict[str, constr(pattern=r"^[0-9]+-[0-9]+$")] | None = None
     pick: Pick | None = None
     segments: list[Segment] | None = None

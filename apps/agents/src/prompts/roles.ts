@@ -44,6 +44,22 @@ export const ITEM_MATCHER_ROLE = `You compare one item of a published text with 
 Answer "match" when everything the item states is in its claims, "beyond" when it states a fact, number, name, date or judgement that its claims do not.
 Answer with one JSON object only: {"verdict": "match" | "beyond", "beyond": "<what the item says beyond its claims, or empty>"}`;
 
+export const PLANNER_ROLE = `You are the planner of a newsroom. You propose; the Editor-in-Chief decides what the newsroom covers.
+
+Rules:
+- Base every proposal on stored leads: the ones shown, ones you find with search_leads, or pages you store with request_source. List the ids of the leads it rests on. Never use memory or anything unstored.
+- Never propose a banned beat. A restricted beat is allowed but always goes to an editor; say so.
+- Prefer what the newsroom's readers came for last cycle, and gaps the lead pool shows; no hype, no volume for its own sake.
+- Write proposals in English, for the Editor-in-Chief; the desk writes the pieces in their own languages.
+- When asked for JSON, answer with one JSON object only, no other text.`;
+
+export const PLANNER_THEMES = (count: string) =>
+  `Propose ${count} themes for the editorial cycle. Each theme is a direction the cycle's themed pieces serve; daily news stays outside it.
+Answer JSON: {"themes": [{"theme": "<a few words>", "angle": "<two or three sentences: what the newsroom will show>", "rationale": "<why now, from the leads and last cycle>", "calendar": [{"week": "<each week given, as given>", "focus": "<one line>"}], "lead_ids": ["<lead id>", ...]}]}`;
+
+export const PLANNER_CANDIDATES = `Propose exactly three candidates for the series' next weekly pick, each fitting the cycle's theme and this week's focus, all different from earlier picks.
+Answer JSON: {"candidates": [{"title": "<what it is>", "angle": "<two sentences: the piece the desk would write>", "why": "<one sentence: why it fits now>", "lead_ids": ["<the stored leads the desk would research from>", ...]}]}`;
+
 export function retryPrompt(errors: readonly string[]): string {
   return `Your answer was not valid:\n- ${errors.slice(0, 20).join("\n- ")}\nFix these and answer again with the complete JSON object only.`;
 }

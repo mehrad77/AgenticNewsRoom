@@ -33,6 +33,31 @@ describe("validateConfig", () => {
     );
   });
 
+  it("assigns an episode at a weekday and time, and a picked series only from its pick", () => {
+    const config = loadConfig(root);
+    const ai = config.newsrooms.find((n) => n.slug === "ai");
+    if (!ai) throw new Error("ai newsroom missing");
+    const podcast = ai.series["weekly-podcast"] as { assignment_at?: string };
+    const classic = ai.series["weekly-classic"] as { assignment_at?: string; segments?: unknown };
+    podcast.assignment_at = "08:00";
+    classic.assignment_at = "mon 08:00";
+    classic.segments = [{ kind: "story", minutes: 5, from: "week.daily-newsletter" }];
+    const errors = validateConfig(config);
+    expect(errors).toContain(
+      'newsrooms/ai/series/weekly-podcast.yaml assignment_at: 08:00 must be a weekday and a time, like "fri 08:00"',
+    );
+    expect(errors).toContain(
+      "newsrooms/ai/series/weekly-classic.yaml is assigned from its pick, so has no assignment_at",
+    );
+    expect(errors).toContain(
+      "newsrooms/ai/series/weekly-classic.yaml has both segments and a pick",
+    );
+    delete podcast.assignment_at;
+    expect(validateConfig(config)).toContain(
+      "newsrooms/ai/series/weekly-podcast.yaml has segments but no assignment_at",
+    );
+  });
+
   it("reads every models file", () => {
     expect(Object.keys(loadConfig(root).models)).toEqual(["models.free.yaml", "models.yaml"]);
   });

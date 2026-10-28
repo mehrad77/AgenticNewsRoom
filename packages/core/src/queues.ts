@@ -5,8 +5,15 @@
 export const QUEUES = {
   /** Agents worker: one source's fetch through the ingestion service, then summaries. */
   ingestSource: "ingest-source",
-  /** Agents worker: a series' assignment for its next slot (daily news at assignment_at). */
+  /**
+   * Agents worker: a series' assignment for its next slot: daily news and weekly episodes at
+   * `assignment_at`, a weekly pick once the Editor-in-Chief chose it.
+   */
   assign: "assign",
+  /** Agents worker: once a day per newsroom, starts the planner's themes and weekly candidates. */
+  plan: "plan",
+  /** Agents worker: one weekly pick's deadline; unchosen, its slot is skipped (D104). */
+  pickDeadline: "pick-deadline",
   /** Agents worker: one agent run, one graph, one submit. */
   agentRun: "agent-run",
   /** Agents worker: the verifier gate for one story, from code checks to policy (D80). */
@@ -19,6 +26,8 @@ export const QUEUES = {
   channelStats: "channel-stats",
   /** Publisher: asks a channel whether it can be posted to, without posting (D101). */
   channelCheck: "channel-check",
+  /** Publisher: voices, mixes, tags, signs and stores one approved episode before its slot. */
+  podcastAudio: "podcast-audio",
 } as const;
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
 
@@ -31,6 +40,9 @@ export const INGEST_TIMEOUT_SECONDS = 15 * 60;
  */
 export const AGENT_RUN_TIMEOUT_SECONDS = 45 * 60;
 
+/** One episode's audio: a TTS call per line (cached), then the mix. */
+export const PODCAST_AUDIO_TIMEOUT_SECONDS = 60 * 60;
+
 /**
  * Queue options that differ from pg-boss's defaults. A job expires only after its own work has
  * timed out, so pg-boss never starts a second attempt while the first runs.
@@ -39,6 +51,7 @@ export const QUEUE_OPTIONS: Partial<Record<QueueName, { expireInSeconds: number 
   [QUEUES.ingestSource]: { expireInSeconds: INGEST_TIMEOUT_SECONDS + 5 * 60 },
   [QUEUES.agentRun]: { expireInSeconds: AGENT_RUN_TIMEOUT_SECONDS },
   [QUEUES.gate]: { expireInSeconds: AGENT_RUN_TIMEOUT_SECONDS },
+  [QUEUES.podcastAudio]: { expireInSeconds: PODCAST_AUDIO_TIMEOUT_SECONDS },
 };
 
 /**
@@ -47,6 +60,7 @@ export const QUEUE_OPTIONS: Partial<Record<QueueName, { expireInSeconds: number 
  */
 export const QUEUE_POLICIES: Partial<Record<QueueName, "stately">> = {
   [QUEUES.gate]: "stately",
+  [QUEUES.podcastAudio]: "stately",
 };
 
 export interface IngestSourceJob {
@@ -56,6 +70,19 @@ export interface IngestSourceJob {
 export interface AssignJob {
   newsroomId: string;
   seriesId: string;
+  /** A chosen weekly pick to assign; without one, the series' next scheduled slot. */
+  pickId?: string;
+}
+export interface PlanJob {
+  newsroomId: string;
+}
+export interface PickDeadlineJob {
+  newsroomId: string;
+  pickId: string;
+}
+export interface PodcastAudioJob {
+  newsroomId: string;
+  publicationId: string;
 }
 export interface AgentRunJob {
   newsroomId: string;

@@ -5,7 +5,7 @@ import { type ModelsSchema, roleChains } from "@anr/schemas";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import addFormatsModule from "ajv-formats";
 import type { RawConfig } from "./load.ts";
-import { cronDaily, cronEvery } from "./schedules.ts";
+import { cronDaily, cronEvery, cronWeekly } from "./schedules.ts";
 
 const require = createRequire(import.meta.url);
 const schemaPath = (name: string) => require.resolve(`@anr/schemas/json/${name}.schema.json`);
@@ -195,14 +195,25 @@ export function validateConfig(config: RawConfig): string[] {
         hosts?: Record<string, Record<string, string>>;
         narrator?: Record<string, string>;
         assignment_at?: string;
+        cadence: { daily?: string; weekly?: string };
+        pick?: unknown;
       };
-      if (series.assignment_at !== undefined) {
+      // Daily news is assigned at a time of day; an episode built from segments at a weekday and
+      // time; a picked series when its pick is chosen (D104).
+      const assignAt = series.assignment_at;
+      const weekly = series.cadence.weekly !== undefined;
+      if (assignAt !== undefined) {
         try {
-          cronDaily(series.assignment_at);
+          if (weekly) cronWeekly(assignAt);
+          else cronDaily(assignAt);
         } catch (error) {
           errors.push(`${where} assignment_at: ${(error as Error).message}`);
         }
+        if (series.pick) errors.push(`${where} is assigned from its pick, so has no assignment_at`);
       }
+      if (series.segments && !assignAt) errors.push(`${where} has segments but no assignment_at`);
+      if (series.segments && series.pick) errors.push(`${where} has both segments and a pick`);
+      if (series.pick && !weekly) errors.push(`${where} has a pick but no weekly cadence`);
       if (!config.formats.includes(series.format))
         errors.push(`${where} uses unknown format ${series.format}`);
       for (const l of series.languages) {

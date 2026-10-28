@@ -5,6 +5,7 @@ import Budget from "../components/desk/Budget.astro";
 import Channels from "../components/desk/Channels.astro";
 import Measures from "../components/desk/Measures.astro";
 import Notices from "../components/desk/Notices.astro";
+import Plan from "../components/desk/Plan.astro";
 import Publication from "../components/desk/Publication.astro";
 import Queue from "../components/desk/Queue.astro";
 import Samples from "../components/desk/Samples.astro";
@@ -63,10 +64,12 @@ const schedule = r.kind === "schedule" ? await load(() => api.schedule(r.newsroo
 const budget = r.kind === "budget" ? await load(() => api.budget(r.newsroom)) : undefined;
 const sources = r.kind === "sources" ? await load(() => api.sources(r.newsroom)) : undefined;
 const measures = r.kind === "measures" ? await load(() => api.measures(r.newsroom)) : undefined;
+const plan = r.kind === "plan" ? await load(() => api.plan(r.newsroom)) : undefined;
 const role = me?.memberships.find((m) => m.newsroom === n)?.role;
 if (r.kind === "not-found") Astro.response.status = 404;
 const nav = [
   ["", "Queue"],
+  ["/plan", "Plan"],
   ["/schedule", "Upcoming"],
   ["/samples", "Sample"],
   ["/notices", "Notices"],
@@ -95,6 +98,7 @@ const nav = [
     {n && queue && <Queue newsroom={n} queue={queue} />}
     {n && publication && <Publication newsroom={n} publication={publication} preview={preview} />}
     {n && schedule && <Schedule newsroom={n} items={schedule} />}
+    {plan && <Plan plan={plan} chief={role === "editor-in-chief"} />}
     {channels && <Channels channels={channels} chief={role === "editor-in-chief"} />}
     {n && samples && <Samples newsroom={n} samples={samples} issuesUrl={issuesUrl} />}
     {notices && <Notices notices={notices} />}
@@ -145,6 +149,8 @@ const nav = [
   .desk blockquote { margin: 0.5rem 0; padding-inline-start: 0.75rem; border-inline-start: 3px solid #ccc; }
   .desk meter { width: 100%; height: 1.25rem; }
   .desk li.read { color: #777; }
+  .desk fieldset { border: 1px solid #ddd; border-radius: 6px; display: flex; flex-direction: column; gap: 0.5rem; }
+  .desk ol li { margin-bottom: 0.75rem; }
   @media (max-width: 40rem) {
     body.desk { padding: 0.5rem; }
     .desk header { gap: 0.5rem; }

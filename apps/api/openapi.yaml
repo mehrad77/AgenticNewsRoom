@@ -630,6 +630,97 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+  /desk/newsrooms/{newsroom}/plan:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+    get:
+      operationId: getPlan
+      summary: The planner's theme proposals and weekly picks, current and coming
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      responses:
+        "200":
+          description: Themes of the current and next cycle, and picks from the last four weeks on.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Plan"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /desk/newsrooms/{newsroom}/cycles/{cycle}/approve:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+      - name: cycle
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: approveTheme
+      summary: Approve one proposed theme, as edited, for its cycle; the cycle's other proposals are declined
+      description: Editor-in-Chief only (D105). Every changed field is audited.
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApproveThemeRequest"
+      responses:
+        "200":
+          description: Approved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /desk/newsrooms/{newsroom}/picks/{pick}/choose:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+      - name: pick
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: choosePick
+      summary: Choose one of a weekly pick's three candidates before its deadline
+      description: Editor-in-Chief only (D105). Queues the assignment for the pick's slot; refused once the deadline has passed (D104).
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChoosePickRequest"
+      responses:
+        "200":
+          description: Chosen; the desk will research it.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
 tags:
   - name: ops
     description: Operational endpoints.
@@ -929,7 +1020,10 @@ components:
       required: [id, kind, key, detail, created_at]
       properties:
         id: { type: string, format: uuid }
-        kind: { type: string, enum: [budget-warning, budget-cap, no-leads, no-channel] }
+        kind:
+          type: string
+          enum:
+            [budget-warning, budget-cap, no-leads, no-channel, no-theme, pick-missed, plan-failed]
         key: { type: string }
         detail: {}
         created_at: { type: string, format: date-time }
@@ -1163,3 +1257,95 @@ components:
               external_id: { type: [string, "null"] }
               subscribers: { type: integer }
               day: { type: string, format: date }
+
+    PlanLead:
+      type: object
+      additionalProperties: false
+      required: [id, url, headline]
+      properties:
+        id: { type: string, format: uuid }
+        url: { type: string }
+        headline: { type: [string, "null"] }
+    CalendarWeek:
+      type: object
+      additionalProperties: false
+      required: [week, focus]
+      properties:
+        week: { type: string, format: date, description: "The Monday of a week the cycle touches." }
+        focus: { type: string, minLength: 1, maxLength: 240 }
+    ThemeProposal:
+      type: object
+      additionalProperties: false
+      required: [id, starts, ends, theme, angle, rationale, calendar, status, decided_at, leads]
+      properties:
+        id: { type: string, format: uuid }
+        starts: { type: string, format: date }
+        ends: { type: string, format: date, description: "The day after the cycle's last day." }
+        theme: { type: string }
+        angle: { type: [string, "null"] }
+        rationale: { type: [string, "null"] }
+        calendar:
+          type: array
+          items: { $ref: "#/components/schemas/CalendarWeek" }
+        status: { type: string, enum: [proposed, approved, declined] }
+        decided_at: { type: [string, "null"], format: date-time }
+        leads:
+          type: array
+          items: { $ref: "#/components/schemas/PlanLead" }
+    PickCandidate:
+      type: object
+      additionalProperties: false
+      required: [title, angle, why, leads]
+      properties:
+        title: { type: string }
+        angle: { type: string }
+        why: { type: string }
+        leads:
+          type: array
+          items: { $ref: "#/components/schemas/PlanLead" }
+    WeeklyPick:
+      type: object
+      additionalProperties: false
+      required: [id, series, week, slot, deadline, chosen, picked_at, skipped_at, candidates]
+      properties:
+        id: { type: string, format: uuid }
+        series: { type: string }
+        week: { type: string, format: date }
+        slot: { type: string, format: date-time }
+        deadline: { type: string, format: date-time }
+        chosen: { type: [integer, "null"], minimum: 0, maximum: 2 }
+        picked_at: { type: [string, "null"], format: date-time }
+        skipped_at: { type: [string, "null"], format: date-time }
+        candidates:
+          type: array
+          items: { $ref: "#/components/schemas/PickCandidate" }
+    Plan:
+      type: object
+      additionalProperties: false
+      required: [themes, picks]
+      properties:
+        themes:
+          type: array
+          description: Proposals for the current and later cycles, newest cycle first.
+          items: { $ref: "#/components/schemas/ThemeProposal" }
+        picks:
+          type: array
+          description: Picks of the last four weeks and later, newest first.
+          items: { $ref: "#/components/schemas/WeeklyPick" }
+    ApproveThemeRequest:
+      type: object
+      additionalProperties: false
+      required: [theme, angle, calendar]
+      properties:
+        theme: { type: string, minLength: 1, maxLength: 140 }
+        angle: { type: string, minLength: 1, maxLength: 800 }
+        calendar:
+          type: array
+          description: The same weeks as proposed, each with its focus as the Editor-in-Chief wants it.
+          items: { $ref: "#/components/schemas/CalendarWeek" }
+    ChoosePickRequest:
+      type: object
+      additionalProperties: false
+      required: [candidate]
+      properties:
+        candidate: { type: integer, minimum: 0, maximum: 2 }
