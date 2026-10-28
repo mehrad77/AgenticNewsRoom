@@ -456,10 +456,22 @@ export async function runGate(deps: GateDeps, job: GateJob): Promise<string> {
 }
 
 /** The story's writers, from its desk and renderer runs: every family that answered (D71). */
-async function writerFamilies(client: Client, storyId: string): Promise<string[]> {
+/**
+ * Every family that wrote the story's claims or text (invariant 4): the story's own desk and
+ * renderer runs, and those of every story its claims were copied from (an episode's, D107), so a
+ * copied claim is never checked by the family that wrote the original.
+ */
+export async function writerFamilies(client: Client, storyId: string): Promise<string[]> {
   const { rows } = await client.query<{ family: string }>(
-    `select distinct unnest(families) as family from agent_runs
-     where story_id = $1 and role in ('desk', 'renderer')`,
+    `with recursive written(story_id) as (
+       select $1::uuid
+       union
+       select o.story_id from written w
+       join claims c on c.story_id = w.story_id
+       join claims o on o.id = c.copied_from
+     )
+     select distinct unnest(r.families) as family from agent_runs r
+     where r.story_id in (select story_id from written) and r.role in ('desk', 'renderer')`,
     [storyId],
   );
   return rows.map((r) => r.family);

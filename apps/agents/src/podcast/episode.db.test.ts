@@ -5,11 +5,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { QUEUES } from "@anr/core";
+import { withNewsroom } from "@anr/db";
 import { createTestNewsroom, testPools } from "@anr/db/testing";
 import { AIMessage } from "@langchain/core/messages";
 import type { PgBoss } from "pg-boss";
 import { afterAll, describe, expect, it } from "vitest";
 import type { RoleDeps } from "../desk/run.ts";
+import { writerFamilies } from "../gate/run.ts";
 import { type ChatLike, meteredChat } from "../model.ts";
 import { ModelRouter } from "../router.ts";
 import { assignEpisode } from "./episode.ts";
@@ -243,6 +245,27 @@ describe("weekly episodes (D107)", () => {
       { ref: "c3", story: t.stories.classic },
       { ref: "c4", story: t.stories.classic },
     ]);
+    // Invariant 4: the families that wrote the copied claims are writers of the episode too.
+    const [episodeStory] = await t.q<{ id: string }>(
+      `select s.id from stories s join assignments a on a.id = s.assignment_id
+       where s.newsroom_id = $1 and a.series_id = $2`,
+      [t.podcastId],
+    );
+    const run = (storyId: string, role: string, family: string) =>
+      pools.system.query(
+        `insert into agent_runs (newsroom_id, role, provider, model, prompt_version, input_hash,
+                                 story_id, families, outcome)
+         values ($1, $2, 'p', 'm', 'v', 'h', $3, $4, 'submitted')`,
+        [t.newsroomId, role, storyId, [family]],
+      );
+    await run(t.stories.classic, "desk", "pro-family");
+    await run(t.stories.held, "desk", "not-copied");
+    await run(episodeStory?.id ?? "", "renderer", "flash-family");
+    const families = await withNewsroom(pools.app, t.newsroomId, (c) =>
+      writerFamilies(c, episodeStory?.id ?? ""),
+    );
+    expect(families.sort()).toEqual(["flash-family", "pro-family"]);
+
     const runs = t.sent.filter((s) => s.queue === QUEUES.agentRun);
     expect(runs).toHaveLength(2);
     const byLanguage = await t.q<{ id: string; language: string }>(
