@@ -4,10 +4,12 @@
 // user agent under a secret derived for that day, so it is never stored in the clear and cannot
 // link a listener across days; rows older than yesterday are deleted.
 import { createHmac, randomBytes } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { createReadStream, statSync } from "node:fs";
 import { join } from "node:path";
+import { Readable } from "node:stream";
 import { type Language, pageUrl, type SiteAddress } from "@anr/core";
 import { type Pool, withNewsroom } from "@anr/db";
+import { createRenderer } from "@anr/render";
 import type { ReaderNewsroom } from "./reader.ts";
 
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
@@ -57,6 +59,15 @@ export async function episodeAudio(
   });
 }
 
+/**
+ * The listener's address: behind the site's proxy (Caddy), the last X-Forwarded-For entry, which
+ * the proxy itself wrote; without the header, the connection's own address.
+ */
+export function listenerAddress(forwardedFor: string | null, connection: string): string {
+  const last = forwardedFor?.split(",").at(-1)?.trim();
+  return last || connection;
+}
+
 /** Counts one download per listener, episode and day in the newsroom's timezone. */
 export async function countDownload(
   pool: Pool,
@@ -87,16 +98,53 @@ export async function countDownload(
   });
 }
 
-/** Where a stored episode is fetched from: object storage's public URL, or the local store. */
-export function audioResponse(mediaKey: string): Response {
+/** `bytes=start-end` (one range) as inclusive offsets in a file of `size` bytes; null if unusable. */
+export function byteRange(header: string | null, size: number): [number, number] | null {
+  const match = /^bytes=([0-9]*)-([0-9]*)$/.exec(header?.trim() ?? "");
+  if (!match || (!match[1] && !match[2])) return null;
+  const [start, end] = match[1]
+    ? [Number(match[1]), match[2] ? Math.min(Number(match[2]), size - 1) : size - 1]
+    : [Math.max(0, size - Number(match[2])), size - 1];
+  return start <= end && start < size ? [start, end] : null;
+}
+
+/**
+ * Where a stored episode is fetched from: object storage's public URL, or the local store,
+ * streamed and with byte ranges, as podcast apps ask for them.
+ */
+export function audioResponse(mediaKey: string, range: string | null = null): Response {
   const base = process.env.ANR_MEDIA_URL;
   if (base) return Response.redirect(`${base.replace(/\/$/, "")}/${mediaKey}`, 302);
   const dir = process.env.ANR_MEDIA_DIR ?? join(process.cwd(), "../../.data/media");
-  const bytes = readFileSync(join(dir, mediaKey));
-  return new Response(bytes, {
-    headers: { "content-type": "audio/mpeg", "content-length": String(bytes.length) },
+  const file = join(dir, mediaKey);
+  const size = statSync(file).size;
+  const headers = { "content-type": "audio/mpeg", "accept-ranges": "bytes" };
+  const stream = (start: number, end: number) =>
+    Readable.toWeb(createReadStream(file, { start, end })) as ReadableStream;
+  if (range === null || size === 0)
+    return new Response(size === 0 ? null : stream(0, size - 1), {
+      headers: { ...headers, "content-length": String(size) },
+    });
+  const span = byteRange(range, size);
+  if (!span)
+    return new Response(null, {
+      status: 416,
+      headers: { ...headers, "content-range": `bytes */${size}` },
+    });
+  const [start, end] = span;
+  return new Response(stream(start, end), {
+    status: 206,
+    headers: {
+      ...headers,
+      "content-length": String(end - start + 1),
+      "content-range": `bytes ${start}-${end}/${size}`,
+    },
   });
 }
+
+let renderer: ReturnType<typeof createRenderer> | undefined;
+/** One renderer for every feed request, as the site's pages keep one (page.ts). */
+export const feedRenderer = () => (renderer ??= createRenderer());
 
 const xml = (s: string) =>
   s.replace(

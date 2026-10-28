@@ -105,10 +105,6 @@ export function splitParts(text: string, label: string, limit: number): string[]
 }
 
 /**
- * Renders a format's channel template. Templates live in config/formats/<format>/templates and
- * share partials in config/formats/_partials (the AI-disclosure label among them).
- */
-/**
  * Why an episode's opening does not introduce its AI voices: a host or the narrator without a
  * line, a host's line that does not name them, or a line without the language's word for AI.
  */
@@ -132,6 +128,10 @@ export function introProblems(
   return problems;
 }
 
+/**
+ * Renders a format's channel template. Templates live in config/formats/<format>/templates and
+ * share partials in config/formats/_partials (the AI-disclosure label among them).
+ */
 export function createRenderer(root = formatsDir) {
   const engine = new Liquid({
     root,

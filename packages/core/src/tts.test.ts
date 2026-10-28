@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chooseEngine } from "./tts.ts";
+import { chooseEngine, enabledEngines } from "./tts.ts";
 
 const engines = [
   { id: "gemini", languages: ["fa", "en", "tr"] },
@@ -31,5 +31,13 @@ describe("chooseEngine (D113)", () => {
       ok: false,
       reason: "no enabled engine speaks fa: choose one for the newsroom",
     });
+  });
+});
+
+describe("enabledEngines (D113)", () => {
+  it("keeps the admin's engines the models file offers; before any choice, the default", () => {
+    expect(enabledEngines(["xtts", "gone"], ["gemini", "xtts"], "gemini")).toEqual(["xtts"]);
+    expect(enabledEngines(undefined, ["gemini", "xtts"], "gemini")).toEqual(["gemini"]);
+    expect(enabledEngines(undefined, ["xtts"], "gemini")).toEqual([]);
   });
 });

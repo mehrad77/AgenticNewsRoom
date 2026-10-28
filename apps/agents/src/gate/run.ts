@@ -455,7 +455,6 @@ export async function runGate(deps: GateDeps, job: GateJob): Promise<string> {
   return outcomes.join(", ");
 }
 
-/** The story's writers, from its desk and renderer runs: every family that answered (D71). */
 /**
  * Every family that wrote the story's claims or text (invariant 4): the story's own desk and
  * renderer runs, and those of every story its claims were copied from (an episode's, D107), so a

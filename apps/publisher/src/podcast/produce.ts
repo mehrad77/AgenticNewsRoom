@@ -111,6 +111,7 @@ export function scriptHash(
         l.config.hosts?.[l.language],
         l.config.narrator?.[l.language],
         l.config.name?.[l.language],
+        l.config.host_names?.[l.language],
         edited,
         model,
       ]),
@@ -118,7 +119,6 @@ export function scriptHash(
     .digest("hex");
 }
 
-/** The episode's blocks, with each line still to be voiced. */
 /**
  * Each speaker's voice for the engine: the series' `engine_voices` for it, else, for the engine
  * the host voices were written for (the default, Gemini), `hosts` and `narrator`; a local engine
@@ -139,6 +139,7 @@ export function voicesFor(
   };
 }
 
+/** The episode's blocks, with each line still to be voiced. */
 export function plan(
   l: Pick<Loaded, "body" | "config" | "language" | "seriesSlug">,
   intro: { speaker: string; text: string }[],
@@ -270,8 +271,10 @@ export async function produceEpisode(deps: AudioDeps, job: PodcastAudioJob): Pro
       edited,
       `${tts.model}:${JSON.stringify(l.config.engine_voices ?? {})}`,
     );
+    // The same audio is still current for this version of the publication: mark it made now, so
+    // the publisher and the sweep (audio made after the publication last changed) accept it.
     const { rowCount } = await c.query(
-      "select from episodes where publication_id = $1 and script_hash = $2",
+      "update episodes set created_at = now() where publication_id = $1 and script_hash = $2",
       [job.publicationId, hash],
     );
     if (rowCount) return { done: true as const };

@@ -31,3 +31,19 @@ export function chooseEngine(
       : `no enabled engine speaks ${language}: choose one for the newsroom`,
   };
 }
+
+/** The platform setting that lists the engines newsrooms may choose. */
+export const TTS_ENGINES_KEY = "tts.engines";
+
+/**
+ * The engines the platform admin has enabled, from the stored setting: those of them the models
+ * file offers; before any choice, the default alone.
+ */
+export function enabledEngines(
+  stored: unknown,
+  offered: readonly string[],
+  fallback: string,
+): string[] {
+  const chosen = Array.isArray(stored) ? (stored as string[]) : [fallback];
+  return chosen.filter((id) => offered.includes(id));
+}

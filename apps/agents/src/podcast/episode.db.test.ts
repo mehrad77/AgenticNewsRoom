@@ -213,6 +213,21 @@ describe("weekly episodes (D107)", () => {
     }
   });
 
+  it("does not build next week's episode from a firing late for this week's slot", async () => {
+    const t = await setup();
+    // Friday 19:00 in Istanbul: this week's 18:00 slot has passed.
+    const late = new Date(FRIDAY.getTime() + 11 * 3_600_000);
+    expect(
+      await assignEpisode(
+        pools.app,
+        t.boss,
+        router,
+        { newsroomId: t.newsroomId, seriesId: t.podcastId },
+        late,
+      ),
+    ).toEqual({ kind: "slot-passed", slot: "2026-11-06T15:00:00.000Z" });
+  });
+
   it("builds the episode story from the week's published stories, then writes each language", async () => {
     const t = await setup();
     const assigned = await assignEpisode(

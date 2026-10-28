@@ -1,24 +1,20 @@
 // Which text-to-speech engine voices an episode (D113): the newsroom's choice for its language,
 // when the platform admin has that engine enabled and it speaks the language; else the platform
 // default under the same conditions; else none, and the episode is held with the reason.
-import { chooseEngine } from "@anr/core";
+import { chooseEngine, enabledEngines, TTS_ENGINES_KEY } from "@anr/core";
 import type { Client } from "@anr/db";
 import type { Catalog, CatalogEntry } from "@anr/models";
 
-/** The platform setting that lists the engines newsrooms may choose. */
-export const TTS_ENGINES_KEY = "tts.engines";
-
-/** Engines the admin has enabled; before any choice, the models file's default alone. */
-export async function enabledEngines(client: Client, catalog: Catalog): Promise<string[]> {
+/** Engines the admin has enabled that the models file has; before any choice, its default. */
+async function enabled(client: Client, catalog: Catalog): Promise<string[]> {
   const { rows } = await client.query<{ value: unknown }>(
     "select value from platform_settings where key = $1",
     [TTS_ENGINES_KEY],
   );
-  const offered = new Set(catalog.config.tts_engines ?? [catalog.config.tts]);
-  const chosen = Array.isArray(rows[0]?.value)
-    ? (rows[0]?.value as string[])
-    : [catalog.config.tts];
-  return chosen.filter((id) => offered.has(id));
+  const offered = engineInfo(catalog)
+    .filter((e) => catalog.entries.has(e.id))
+    .map((e) => e.id);
+  return enabledEngines(rows[0]?.value, offered, catalog.config.tts);
 }
 
 export type EngineChoice =
@@ -44,7 +40,7 @@ export async function engineFor(
   const choice = chooseEngine(
     language,
     rows[0]?.engine,
-    await enabledEngines(client, catalog),
+    await enabled(client, catalog),
     catalog.config.tts,
     engineInfo(catalog),
   );

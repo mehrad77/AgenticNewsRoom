@@ -1,7 +1,7 @@
 // Text-to-speech engines at the desk (D113): the platform admin enables engines from the models
 // file's catalogue; each newsroom's Editor-in-Chief picks one per language from those. The engine
 // a language would use now follows the publisher's own rule (chooseEngine in @anr/core).
-import { chooseEngine, type Language } from "@anr/core";
+import { chooseEngine, enabledEngines, type Language, TTS_ENGINES_KEY } from "@anr/core";
 import { type Client, type Pool, recordAudit } from "@anr/db";
 import { buildCatalog, loadModelsConfig, modelsFile } from "@anr/models";
 import { DeskError } from "./errors.ts";
@@ -13,8 +13,6 @@ export interface TtsCatalog {
   default: string;
   engines: { id: string; model: string; languages: Language[]; local: boolean }[];
 }
-
-export const TTS_ENGINES_KEY = "tts.engines";
 
 /** The catalogue as the models file (ANR_MODELS profile) has it; keys are not needed here. */
 export function ttsCatalog(configDir: string): TtsCatalog {
@@ -43,9 +41,11 @@ async function enabled(db: Pick<Client, "query">, catalog: TtsCatalog): Promise<
     "select value from platform_settings where key = $1",
     [TTS_ENGINES_KEY],
   );
-  const offered = new Set(catalog.engines.map((e) => e.id));
-  const chosen = Array.isArray(rows[0]?.value) ? (rows[0]?.value as string[]) : [catalog.default];
-  return chosen.filter((id) => offered.has(id));
+  return enabledEngines(
+    rows[0]?.value,
+    catalog.engines.map((e) => e.id),
+    catalog.default,
+  );
 }
 
 export async function adminTts(pool: Pool, catalog: TtsCatalog) {

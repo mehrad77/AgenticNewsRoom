@@ -50,9 +50,20 @@ export interface Mixed {
 const ffmpeg = (args: string[]) =>
   run("ffmpeg", ["-hide_banner", "-nostdin", "-y", ...args], { maxBuffer: 64 * 1024 * 1024 });
 
-/** Any audio as 24 kHz mono signed 16-bit PCM. */
-async function decode(clip: Clip): Promise<Buffer> {
+/**
+ * Any audio as 24 kHz mono signed 16-bit PCM. Speech already in it is used as it is, and each cue
+ * file is decoded once per episode (`files`).
+ */
+async function decode(clip: Clip, files: Map<string, Promise<Buffer>>): Promise<Buffer> {
   if (clip.kind === "silence") return Buffer.alloc(Math.round(clip.seconds * RATE) * 2);
+  if (clip.kind === "speech" && clip.sampleRate === RATE) return clip.pcm;
+  if (clip.kind === "speech") return ffmpegDecode(clip);
+  const pcm = files.get(clip.path) ?? ffmpegDecode(clip);
+  files.set(clip.path, pcm);
+  return pcm;
+}
+
+function ffmpegDecode(clip: Exclude<Clip, { kind: "silence" }>): Promise<Buffer> {
   const input =
     clip.kind === "file"
       ? ["-i", clip.path]
@@ -139,11 +150,12 @@ export async function mixEpisode(
   const parts: Buffer[] = [];
   const chapters: Chapter[] = [];
   const bedRanges: [number, number][] = [];
+  const files = new Map<string, Promise<Buffer>>();
   let at = 0;
   for (const block of blocks) {
     const start = at;
     for (const clip of block.clips) {
-      const pcm = await decode(clip);
+      const pcm = await decode(clip, files);
       parts.push(pcm);
       at += pcm.length / BYTES_PER_SECOND;
     }

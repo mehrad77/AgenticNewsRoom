@@ -31,6 +31,7 @@ interface SeriesRow {
   languages: string[];
   segments: { kind: "news-recap" | "story"; minutes: number; from: string }[] | null;
   weekly: string | null;
+  assignment_at: string | null;
   timezone: string;
 }
 
@@ -87,7 +88,8 @@ export async function assignEpisode(
   return withNewsroom(pool, job.newsroomId, async (client) => {
     const { rows } = await client.query<SeriesRow>(
       `select s.slug, s.languages, s.config->'segments' as segments,
-              s.config->'cadence'->>'weekly' as weekly, n.timezone
+              s.config->'cadence'->>'weekly' as weekly, s.config->>'assignment_at' as assignment_at,
+              n.timezone
        from series s join newsrooms n on n.id = s.newsroom_id
        where s.id = $1 and s.removed_at is null`,
       [job.seriesId],
@@ -95,6 +97,20 @@ export async function assignEpisode(
     const series = rows[0];
     if (!series?.segments || !series.weekly) return { kind: "not-daily" };
     const slot = nextWeekly(series.weekly, now, series.timezone);
+    // Before this slot's assignment time, the firing is a late one for the slot that has passed:
+    // building this week's episode now would take the next one's place.
+    const week = 7 * 86_400_000;
+    if (series.assignment_at) {
+      const due = nextWeekly(
+        series.assignment_at,
+        new Date(slot.getTime() - week),
+        series.timezone,
+      );
+      if (now < due) {
+        const passed = nextWeekly(series.weekly, new Date(slot.getTime() - week), series.timezone);
+        return { kind: "slot-passed", slot: passed.toISOString() };
+      }
+    }
     const at = slot.toISOString();
     const { rowCount: exists } = await client.query(
       "select from assignments where series_id = $1 and slot = $2",
