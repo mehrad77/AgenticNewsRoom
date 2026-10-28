@@ -14,6 +14,7 @@ import {
   channelKinds,
   type createRenderer,
   editedByPerson,
+  seriesVoicesNote,
   sitePath,
   templateContext,
 } from "@anr/render";
@@ -226,7 +227,23 @@ async function prepare(
   }
 
   const edited = await editedByPerson(client, id, base.renditionIds);
+  let voicesNote: string | undefined;
+  if (p.format === "podcast-episode") {
+    // Nothing goes out before the audio made from this version of the script (D109): audio made
+    // after the publication last changed (its approval, or an edit before it).
+    const { rowCount: ready } = await client.query(
+      "select from episodes where publication_id = $1 and rendition_id = $2 and created_at >= $3",
+      [id, first.id, p.updated_at],
+    );
+    if (!ready) {
+      if (now.getTime() - p.slot.getTime() <= RETRY_WINDOW_MS)
+        return { kind: "done", outcome: "retry" };
+      return hold("audio-missing", { reason: "no audio was made for the approved script" });
+    }
+    voicesNote = await seriesVoicesNote(client, deps.renderer, p.series_slug, p.language);
+  }
   const context = await templateContext(client, {
+    voicesNote,
     publicationId: id,
     rendition: first.body,
     edited,

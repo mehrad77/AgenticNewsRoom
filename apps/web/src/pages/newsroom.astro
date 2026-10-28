@@ -5,10 +5,35 @@ import { directionOf } from "@anr/core";
 import { db } from "../lib/db.ts";
 import { scriptJson } from "../lib/metadata.ts";
 import { loadPage } from "../lib/page.ts";
+import { audioResponse, countDownload, episodeAudio, podcastFeed, podcastRoute } from "../lib/podcast.ts";
+import { newsroomBySubdomain } from "../lib/reader.ts";
+import { createRenderer } from "@anr/render";
 
 const site = Astro.locals.site;
 if (site.kind !== "newsroom") return new Response("Unknown site", { status: 404 });
 const rootDomain = process.env.ANR_ROOT_DOMAIN ?? "localhost";
+// The podcast feed and the counting audio redirect (src/lib/podcast.ts).
+const pod = podcastRoute(site.path);
+if (pod) {
+  const newsroom = await newsroomBySubdomain(db(), site.newsroom.subdomain);
+  if (!newsroom) return new Response("Unknown site", { status: 404 });
+  if (pod.kind === "audio") {
+    const key = await episodeAudio(db(), newsroom, pod.publicationId);
+    if (!key) return new Response("Not found", { status: 404 });
+    await countDownload(db(), newsroom, pod.publicationId, Astro.clientAddress, Astro.request.headers.get("user-agent"));
+    return audioResponse(key);
+  }
+  const address = {
+    subdomain: newsroom.subdomain,
+    rootDomain,
+    languages: newsroom.languages,
+    devPort: rootDomain === "localhost" ? Number(Astro.url.port) || undefined : undefined,
+  };
+  const label = await createRenderer().disclosureLabel(site.language);
+  const feed = await podcastFeed(db(), newsroom, site.language, pod.series, address, label);
+  if (!feed) return new Response("Not found", { status: 404 });
+  return new Response(feed, { headers: { "content-type": "application/rss+xml; charset=utf-8" } });
+}
 const page = await loadPage(
   { pool: db(), rootDomain, devPort: rootDomain === "localhost" ? Number(Astro.url.port) || undefined : undefined },
   {

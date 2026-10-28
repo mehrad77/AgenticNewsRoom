@@ -191,8 +191,8 @@ The publisher is a TypeScript worker. When an approved publication's slot comes 
 - **Channels in v1.**
   - Site: the piece's status becomes published, and the server-rendered site shows it at once.
   - Telegram: the Bot API, for newsrooms that have a Telegram channel.
-  - Podcast RSS: the feed is generated from the database.
-- **Podcast script.** The renderer writes the episode script as JSON. A news-recap segment is a conversation of host lines. A story segment is told as a narrative:
+  - Podcast RSS: sending stores the episode's `<item>` as its Post, and the site serves each language's feed from those Posts at `/podcast/<series>.xml` (D110).
+- **Podcast script.** At the series' `assignment_at`, code builds the episode's own story from copies of the claims of the week's published stories; a renderer run per language writes the script as JSON, one part per call (D107). Each recap topic and story beat lists the claims its lines rely on. Code opens every episode with each host and the narrator saying they are AI voices (`_partials/ai-voices.liquid`), and the gate checks it. A news-recap segment is a conversation of host lines. A story segment is told as a narrative:
   - **Protagonists:** one to three people the story follows, each grounded in claims.
   - **Beats:** cold open, context, turning point, stakes, resolution, takeaway, each exactly once in that order (stakes and turning point may swap). The turning point and resolution name a protagonist.
   - **Narrator:** a third AI voice for scene-setting and transitions, alongside the hosts.
@@ -200,11 +200,11 @@ The publisher is a TypeScript worker. When an approved publication's slot comes 
   - **Sound cues:** sting, bed swell, bed out, pause or transition, mapped to the series' stock assets.
   Sources are paraphrased and attributed in speech, never read aloud as quotes. The verifier checks the arc, the protagonists' claims, and that cues and directions stay sparse.
 - **Podcast audio.** Code then runs the current pipeline:
-  1. Gemini TTS, with voices set per host, narrator and language in the series config, delivery directions as style prompts, one job per segment, cached by text, voice and direction.
-  2. ffmpeg mix: jingles, a ducked music bed, the script's sound cues mapped to stock assets, and loudness normalised to −16 LUFS, encoded as MP3. Episodes contain no recorded-music clips.
-  3. ID3 tags and chapters.
-  4. Upload to object storage.
-  5. Add the feed item, and send the episode to Telegram where the newsroom has a channel there.
+  1. Once the script is approved, a `podcast-audio` job: Gemini TTS per line, with voices set per host, narrator and language in the series config, delivery directions as style prompts, cached by text, voice and direction (D109).
+  2. ffmpeg mix: jingles, a ducked music bed, the script's sound cues mapped to the series' stock assets (synthesised and owned, D108), and loudness normalised to −16 LUFS in two passes, encoded as MP3. Episodes contain no recorded-music clips.
+  3. ID3 tags and a chapter per topic and story, then the C2PA signature.
+  4. Store the file: a local directory until milestone 7, then object storage.
+  5. At the slot, if audio made after the last approval exists: add the feed item, and send the episode to Telegram where the newsroom has a channel there; else wait an hour, then hold.
 - **Media.** v1 publishes images only with a recorded licence: an artist's or label's press kit that allows press use, or a free Wikimedia Commons licence, always with credit. The publisher refuses media without one.
 
 ## Tenancy and configuration

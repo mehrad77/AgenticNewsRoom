@@ -1,11 +1,15 @@
 import { fileURLToPath } from "node:url";
 import { digitalSourceType, directionOf, type Language } from "@anr/core";
+import type { Client } from "@anr/db";
 import { Liquid } from "liquidjs";
 
 export {
+  audioPath,
   type ContextInput,
   channelKinds,
+  chapterTitles,
   editedByPerson,
+  isEpisode,
   leadIds,
   type SitePathInput,
   sitePath,
@@ -140,6 +144,24 @@ export function createRenderer(root = formatsDir) {
       return out.trim();
     },
     render,
+    /** The notes line naming an episode's voices as AI (`_partials/ai-voices-notes.liquid`). */
+    async voicesNote(
+      language: Language,
+      hosts: readonly string[],
+      narrator: boolean,
+    ): Promise<string> {
+      const out = await engine.parseAndRender(
+        '{% render "ai-voices-notes", language: language, hosts: hosts, narrator: narrator %}',
+        {
+          language,
+          hosts: hosts
+            .map(spokenName)
+            .join(language === "fa" ? " و " : language === "tr" ? " ve " : " and "),
+          narrator,
+        },
+      );
+      return out.trim();
+    },
     /**
      * The opening every episode starts with (from `_partials/ai-voices.liquid`): each host, then
      * the narrator, says they are an AI voice. The audio pipeline voices exactly these lines.
@@ -198,4 +220,22 @@ export function createRenderer(root = formatsDir) {
       digital_source_type: digitalSourceType(context.edited === true).uri,
     });
   }
+}
+
+/** The notes line of a series' episodes in `language`: its hosts and narrator named as AI. */
+export async function seriesVoicesNote(
+  client: Client,
+  renderer: ReturnType<typeof createRenderer>,
+  seriesSlug: string,
+  language: Language,
+): Promise<string> {
+  const { rows } = await client.query<{
+    hosts: Record<string, string> | null;
+    narrator: string | null;
+  }>(
+    "select config->'hosts'->$2 as hosts, config->'narrator'->>$2 as narrator from series where slug = $1",
+    [seriesSlug, language],
+  );
+  const row = rows[0];
+  return renderer.voicesNote(language, Object.keys(row?.hosts ?? {}), Boolean(row?.narrator));
 }

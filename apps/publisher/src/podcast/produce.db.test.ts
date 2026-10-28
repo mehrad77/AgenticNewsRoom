@@ -2,13 +2,17 @@
 // own cues, ID3 tags and chapters, C2PA signing with c2patool's test certificate when it is
 // installed, the local store, the Episode row and the TTS spend.
 import { execFileSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { platformKey } from "@anr/db";
 import { createTestNewsroom, testPools } from "@anr/db/testing";
 import { createRenderer } from "@anr/render";
 import { afterAll, describe, expect, it } from "vitest";
+import { podcastFeed } from "../channels/feed.ts";
+import { publishOne } from "../publish.ts";
 import { loudness } from "./mix.ts";
 import { produceEpisode } from "./produce.ts";
 import { c2paSigner, unsignedForTests } from "./sign.ts";
@@ -89,6 +93,7 @@ async function scheduledEpisode() {
       newsroomId,
       JSON.stringify({
         name: { en: "Weekly Podcast" },
+        channels: { "podcast-rss": ["en"] },
         hosts: { en: { maya: "Kore", leo: "Puck" } },
         narrator: { en: "Enceladus" },
       }),
@@ -267,5 +272,81 @@ describe("episode audio (D109)", () => {
       )
     ).rows[0]?.status;
     expect(status).toBe("with-editor");
+  });
+
+  it("sends an episode to its feed only once its audio exists, and holds it after the window", async () => {
+    const { newsroomId, publicationId } = await scheduledEpisode();
+    await pools.system.query(
+      "insert into channels (newsroom_id, kind, language) values ($1, 'podcast-rss', 'en')",
+      [newsroomId],
+    );
+    const at = (iso: string) => ({
+      pool: pools.app,
+      renderer: createRenderer(),
+      adapters: { "podcast-rss": podcastFeed() },
+      platform: platformKey(randomBytes(32).toString("base64")),
+      rootDomain: "example.test",
+      now: () => new Date(iso),
+    });
+    // At the slot with no audio: wait for it.
+    expect(await publishOne(at("2026-11-06T15:01:00Z"), newsroomId, publicationId)).toBe("retry");
+
+    const slug =
+      (
+        await pools.system.query<{ slug: string }>("select slug from newsrooms where id = $1", [
+          newsroomId,
+        ])
+      ).rows[0]?.slug ?? "";
+    const store = localStore(mkdtempSync(join(tmpdir(), "anr-media-")));
+    const made = await produceEpisode(
+      {
+        pool: pools.app,
+        renderer: createRenderer(),
+        tts: cachedTts(fakeTts(), store),
+        store,
+        signer: unsignedForTests,
+        configDir: configWithCues(slug),
+      },
+      { newsroomId, publicationId },
+    );
+    expect(made).toBe("ready");
+    expect(await publishOne(at("2026-11-06T15:02:00Z"), newsroomId, publicationId)).toBe(
+      "published",
+    );
+    const [item] = (
+      await pools.system.query<{ body: string; external_id: string }>(
+        "select body, external_id from posts where publication_id = $1",
+        [publicationId],
+      )
+    ).rows;
+    expect(item?.external_id).toBe(`${publicationId}-en`);
+    expect(item?.body).toContain(`/a/${publicationId}.mp3`);
+    expect(item?.body).toContain("Orbit ships · Attention");
+    expect(item?.body).toContain(
+      // Hosts in jsonb's key order, the same order the intro speaks them in.
+      "Hosts: Leo and Maya, all AI voices; the narrator is an AI voice too.",
+    );
+    expect(item?.body).toContain("AI-made");
+    expect(item?.body).toMatch(/length="[1-9][0-9]+"/);
+  }, 120_000);
+
+  it("holds an episode whose audio never came, an hour past its slot", async () => {
+    const { newsroomId, publicationId } = await scheduledEpisode();
+    const deps = {
+      pool: pools.app,
+      renderer: createRenderer(),
+      adapters: { "podcast-rss": podcastFeed() },
+      platform: platformKey(randomBytes(32).toString("base64")),
+      rootDomain: "example.test",
+      now: () => new Date("2026-11-06T16:30:00Z"),
+    };
+    expect(await publishOne(deps, newsroomId, publicationId)).toBe("held");
+    const checks = (
+      await pools.system.query<{ name: string }>(
+        "select name from checks where publication_id = $1",
+        [publicationId],
+      )
+    ).rows;
+    expect(checks).toEqual([{ name: "audio-missing" }]);
   });
 });

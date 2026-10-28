@@ -1,6 +1,6 @@
 // What a publication's templates are rendered with. The publisher sends from it and the desk
 // previews from it, so a preview is exactly what goes out.
-import { type Language, pageUrl, publicationPath, type SiteAddress } from "@anr/core";
+import { type Language, pageUrl, publicationPath, type SiteAddress, siteOrigin } from "@anr/core";
 import type { Client } from "@anr/db";
 
 /** The lead ids a rendition's items cite, in order, once each. */
@@ -61,7 +61,28 @@ export interface ContextInput extends SitePathInput {
   rendition: Record<string, unknown>;
   edited: boolean;
   site: SiteAddress;
+  /** For an episode: its voices' notes line, from `_partials/ai-voices-notes.liquid`. */
+  voicesNote?: string;
 }
+
+/** An episode's audio as the site serves it: through the counting redirect (D110). */
+export const audioPath = (publicationId: string) => `/a/${publicationId}.mp3`;
+
+/** The chapters an episode's script has: its recap topics' and stories' titles. */
+export function chapterTitles(rendition: unknown): string[] {
+  const items = (rendition as { items?: unknown[] }).items ?? [];
+  return items.flatMap((item) => {
+    const i = item as { segment?: string; title?: string; topics?: { title?: string }[] };
+    if (i.segment === "news-recap")
+      return (i.topics ?? []).map((t) => t.title ?? "").filter(Boolean);
+    if (i.segment === "story" && i.title) return [i.title];
+    return [];
+  });
+}
+
+/** Whether a rendition is an episode script. */
+export const isEpisode = (rendition: unknown) =>
+  ((rendition as { items?: { segment?: unknown }[] }).items ?? []).some((i) => i?.segment);
 
 /** Template context shared by every channel of the publication, the site included. */
 export async function templateContext(client: Client, input: ContextInput) {
@@ -70,11 +91,34 @@ export async function templateContext(client: Client, input: ContextInput) {
     [leadIds(input.rendition)],
   );
   const path = await sitePath(client, input);
+  const episode = isEpisode(input.rendition) ? await episodeContext(client, input) : {};
   return {
+    ...episode,
     rendition: input.rendition,
     edited: input.edited,
     site_url: pageUrl(input.site, input.language, path),
     ai_policy_url: pageUrl(input.site, input.language, "/ai-policy"),
     leads: Object.fromEntries(rows.map((l) => [l.id, { url: l.uri, headline: l.headline }])),
+  };
+}
+
+/**
+ * An episode's audio and notes: the redirect URL, the newest audio file's size and length (empty
+ * until it is made), and notes listing its chapters and naming its voices as AI.
+ */
+async function episodeContext(client: Client, input: ContextInput) {
+  const { rows } = await client.query<{ bytes: string; seconds: string }>(
+    "select bytes, seconds from episodes where publication_id = $1 order by created_at desc limit 1",
+    [input.publicationId],
+  );
+  const audio = rows[0];
+  const chapters = chapterTitles(input.rendition);
+  return {
+    publication_id: input.publicationId,
+    audio_url: `${siteOrigin(input.site)}${audioPath(input.publicationId)}`,
+    audio_bytes: audio ? Number(audio.bytes) : 0,
+    audio_seconds: audio ? Math.round(Number(audio.seconds)) : 0,
+    published_at: input.slot.toUTCString(),
+    show_notes: [chapters.join(" · "), input.voicesNote ?? ""].filter(Boolean).join("\n"),
   };
 }

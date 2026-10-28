@@ -11,14 +11,16 @@
     "start": "node --env-file-if-exists=../../.env src/worker.ts",
     "typecheck": "tsc -p .",
     "test": "vitest run",
-    "cues": "node scripts/cues.ts"
+    "cues": "node scripts/cues.ts",
+    "samples": "node scripts/listening-samples.ts"
   },
   "dependencies": {
     "@anr/core": "workspace:*",
     "@anr/db": "workspace:*",
     "@anr/models": "workspace:*",
     "@anr/render": "workspace:*",
-    "pg-boss": "12.38.0"
+    "pg-boss": "12.38.0",
+    "yaml": "2.9.1"
   },
   "devDependencies": {
     "@types/node": "24.19.2",

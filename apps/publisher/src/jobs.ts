@@ -1,4 +1,4 @@
-import { type ChannelCheckJob, QUEUES, type QueueName } from "@anr/core";
+import { type ChannelCheckJob, type PodcastAudioJob, QUEUES, type QueueName } from "@anr/core";
 import type { PgBoss } from "pg-boss";
 
 /** The queues this worker owns (@anr/core QUEUES). */
@@ -6,6 +6,7 @@ export const PUBLISHER_QUEUES: readonly QueueName[] = [
   QUEUES.publishSweep,
   QUEUES.channelStats,
   QUEUES.channelCheck,
+  QUEUES.podcastAudio,
 ];
 
 export interface PublisherHandlers {
@@ -15,6 +16,8 @@ export interface PublisherHandlers {
   stats: () => Promise<void>;
   /** When the desk asks: whether one channel can be posted to. */
   check: (job: ChannelCheckJob) => Promise<void>;
+  /** An approved episode's audio, before its slot (D109). */
+  audio?: (job: PodcastAudioJob) => Promise<void>;
 }
 
 export async function registerJobs(
@@ -34,4 +37,10 @@ export async function registerJobs(
   await boss.work<ChannelCheckJob>(QUEUES.channelCheck, async ([job]) => {
     if (job) await handlers.check(job.data);
   });
+  const audio = handlers.audio;
+  if (audio) {
+    await boss.work<PodcastAudioJob>(QUEUES.podcastAudio, async ([job]) => {
+      if (job) await audio(job.data);
+    });
+  }
 }
