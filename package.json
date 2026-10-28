@@ -23,10 +23,13 @@
     "db:migrate": "pnpm --filter @anr/db run migrate && pnpm --filter @anr/db run migrate:test",
     "db:roles": "docker compose --env-file .env -f infra/compose.yaml exec postgres anr-roles",
     "config:sync": "pnpm --filter @anr/config run sync",
-    "models:probe": "pnpm --filter @anr/models run probe"
+    "models:probe": "pnpm --filter @anr/models run probe",
+    "css:tools": "tailwindcss -i packages/schemas/viewer/tags.src.css -o packages/schemas/viewer/tags.build.css --minify && tailwindcss -i tools/tts-eval/tags.src.css -o tools/tts-eval/tags.build.css --minify"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.3",
+    "@tailwindcss/cli": "4.3.3",
+    "tailwindcss": "4.3.3",
     "turbo": "2.11.10",
     "typescript": "5.9.3"
   }

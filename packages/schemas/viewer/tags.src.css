@@ -1,0 +1,31 @@
+/*
+ * The schema viewer's quiet defaults for plain HTML tags, under the page's own styles (which win
+ * wherever both speak). Tailwind's theme only, no reset, so the page keeps its look. Build with
+ * `pnpm css:tools` into tags.build.css, which index.html links.
+ */
+@import "tailwindcss/theme.css" layer(theme);
+
+@layer base {
+  html {
+    @apply antialiased;
+  }
+  main h1 {
+    @apply mt-0 mb-1 text-xl font-semibold tracking-tight;
+  }
+  main h2 {
+    @apply mt-6 mb-2 text-base font-semibold;
+  }
+  main p {
+    @apply my-2 max-w-prose text-stone-600 dark:text-stone-400;
+  }
+  a {
+    @apply underline-offset-2;
+  }
+  code {
+    @apply rounded bg-stone-200/60 px-1 font-mono text-[0.9em] dark:bg-stone-700/60;
+  }
+  input,
+  button {
+    @apply transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600/50;
+  }
+}

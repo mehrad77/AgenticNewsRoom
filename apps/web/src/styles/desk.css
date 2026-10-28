@@ -1,0 +1,129 @@
+/*
+ * The editor's desk: Tailwind's base, and quiet defaults for plain HTML tags only. No classes are
+ * styled here and none are needed in the markup; the desk's own layout classes stay in desk.astro.
+ * Imported by the desk page alone, so reader sites keep their own styles.
+ */
+@import "tailwindcss" source(none);
+
+@layer base {
+  html {
+    @apply bg-stone-50 text-stone-900 antialiased;
+  }
+  body {
+    @apply text-[0.95rem];
+  }
+
+  /* Header and navigation: Base.astro lays them out; the desk only softens them. */
+  header {
+    @apply items-center border-stone-200 pb-3;
+  }
+  nav {
+    @apply flex flex-wrap gap-x-3 gap-y-1 text-sm;
+  }
+  nav a[aria-current="page"] {
+    @apply font-semibold text-stone-900 no-underline;
+  }
+
+  h1 {
+    @apply mt-2 mb-4 text-2xl font-semibold tracking-tight text-pretty wrap-anywhere;
+  }
+  h2 {
+    @apply mt-6 mb-2 text-lg font-semibold wrap-anywhere;
+  }
+  h3 {
+    @apply mt-4 mb-2 font-semibold;
+  }
+  h4 {
+    @apply mt-3 mb-1 font-medium;
+  }
+  p {
+    @apply my-2;
+  }
+  a {
+    @apply text-emerald-800 underline decoration-emerald-800/30 underline-offset-2 hover:decoration-emerald-800;
+  }
+  small {
+    @apply text-stone-500;
+  }
+  strong {
+    @apply font-semibold;
+  }
+  ul {
+    @apply my-2 list-disc ps-5;
+  }
+  ol {
+    @apply my-2 list-decimal ps-5;
+  }
+  li {
+    @apply my-1;
+  }
+  ol > li {
+    @apply mb-3;
+  }
+  blockquote {
+    @apply my-2 border-s-4 border-stone-300 ps-3 text-stone-700;
+  }
+  code {
+    @apply rounded bg-stone-100 px-1 font-mono text-[0.85em];
+  }
+  pre {
+    @apply max-h-96 overflow-auto rounded-md bg-stone-100 p-2 font-mono text-sm whitespace-pre-wrap wrap-anywhere;
+  }
+  figure {
+    @apply mb-4;
+  }
+  figcaption {
+    @apply text-sm text-stone-500;
+  }
+  details {
+    @apply my-2;
+  }
+  summary {
+    @apply cursor-pointer text-sm text-stone-600;
+  }
+
+  table {
+    @apply w-full border-collapse text-sm;
+  }
+  th {
+    @apply border-b border-stone-300 px-2 py-1.5 text-start align-top font-semibold text-stone-600;
+  }
+  td {
+    @apply border-b border-stone-200 px-2 py-1.5 text-start align-top;
+  }
+  td:first-child {
+    @apply whitespace-nowrap;
+  }
+
+  /* Forms: a column of labelled fields, touch-sized controls. */
+  form {
+    @apply my-2 flex flex-col gap-2;
+  }
+  fieldset {
+    @apply flex flex-col gap-2 rounded-md border border-stone-200 p-3;
+  }
+  legend {
+    @apply px-1 text-sm font-medium text-stone-600;
+  }
+  label {
+    @apply flex flex-col gap-1 text-sm text-stone-700;
+  }
+  input:not([type="checkbox"], [type="radio"], [type="hidden"]),
+  select,
+  textarea {
+    @apply min-h-11 w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-base text-stone-900 shadow-xs focus:border-emerald-700 focus:outline-2 focus:outline-emerald-700/30;
+  }
+  input[type="checkbox"],
+  input[type="radio"] {
+    @apply size-4 accent-emerald-700;
+  }
+  button {
+    @apply inline-flex min-h-11 cursor-pointer items-center self-start rounded-md border border-stone-300 bg-white px-4 py-2 font-medium text-stone-800 shadow-xs hover:bg-stone-100 focus-visible:outline-2 focus-visible:outline-emerald-700/40 max-sm:self-stretch max-sm:justify-center;
+  }
+  meter {
+    @apply h-5 w-full;
+  }
+  [role="alert"] {
+    @apply rounded-md border border-red-200 bg-red-50 px-3 py-2 text-red-900;
+  }
+}

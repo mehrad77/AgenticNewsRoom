@@ -1,0 +1,90 @@
+/*
+ * Every newsroom's reader site: Tailwind's base, and quiet defaults for plain HTML tags only. No
+ * classes are styled here. Spacing and borders use logical sides (start and end), so a Persian
+ * page mirrors on its own. Imported by the reader pages alone; Base.astro lays out the page.
+ */
+@import "tailwindcss" source(none);
+
+@layer base {
+  html {
+    @apply bg-white text-stone-900 antialiased;
+  }
+
+  header {
+    @apply items-center border-stone-200 py-2;
+  }
+  header strong a {
+    @apply text-lg text-stone-900 no-underline;
+  }
+  nav {
+    @apply flex gap-3 text-sm;
+  }
+  footer {
+    @apply border-stone-200 pt-3 text-stone-500;
+  }
+
+  h1 {
+    @apply mt-6 mb-3 text-3xl leading-tight font-bold tracking-tight text-balance;
+  }
+  h2 {
+    @apply mt-8 mb-2 text-xl font-semibold;
+  }
+  h3 {
+    @apply mt-6 mb-2 text-lg font-semibold;
+  }
+  p {
+    @apply my-3;
+  }
+  a {
+    @apply text-emerald-800 underline decoration-emerald-800/30 underline-offset-2 hover:decoration-emerald-800;
+  }
+  strong {
+    @apply font-semibold;
+  }
+  ul {
+    @apply my-3 list-disc ps-5;
+  }
+  ol {
+    @apply my-3 list-decimal ps-5;
+  }
+  li {
+    @apply my-1.5;
+  }
+  time {
+    @apply text-sm text-stone-500;
+  }
+  article {
+    @apply my-4;
+  }
+  section {
+    @apply my-6;
+  }
+  aside {
+    @apply my-4 rounded-md border-s-4 border-amber-500 bg-amber-50 px-4 py-2 text-sm;
+  }
+  blockquote {
+    @apply my-4 border-s-4 border-stone-300 ps-4 text-stone-700 italic;
+  }
+  figure {
+    @apply my-4;
+  }
+  figcaption {
+    @apply mt-1 text-sm text-stone-500;
+  }
+  img {
+    @apply h-auto max-w-full rounded-md;
+  }
+  audio {
+    @apply my-3 w-full;
+  }
+  hr {
+    @apply my-6 border-stone-200;
+  }
+
+  form[role="search"] {
+    @apply ms-auto;
+  }
+  input[type="search"] {
+    @apply min-h-10 w-48 rounded-full border border-stone-300 bg-stone-50 px-4 py-1.5 text-sm focus:border-emerald-700 focus:bg-white focus:outline-2 focus:outline-emerald-700/30 max-sm:w-full;
+  }
+}

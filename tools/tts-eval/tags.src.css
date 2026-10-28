@@ -1,0 +1,47 @@
+/*
+ * The comparison page's quiet defaults for plain HTML tags, under the page's own styles (which win
+ * wherever both speak). Tailwind's theme only, no reset, so the page keeps its look. Build with
+ * `pnpm css:tools` into tags.build.css, which index.html links.
+ */
+@import "tailwindcss/theme.css" layer(theme);
+
+@layer base {
+  html {
+    @apply antialiased;
+  }
+  h1 {
+    @apply tracking-tight;
+  }
+  h2 {
+    @apply mt-8 mb-3 text-lg font-semibold;
+  }
+  h3 {
+    @apply mt-0 mb-1 text-base font-semibold;
+  }
+  p {
+    @apply my-2;
+  }
+  table {
+    @apply w-full border-separate border-spacing-0 overflow-hidden rounded-xl text-sm;
+  }
+  th {
+    @apply bg-stone-100 px-3 py-2 text-start align-bottom text-xs font-semibold tracking-wide text-stone-600 uppercase dark:bg-stone-800 dark:text-stone-300;
+  }
+  td {
+    @apply px-3 py-2 align-top;
+  }
+  tr:not(:last-child) > td {
+    @apply border-b border-stone-200 dark:border-stone-700;
+  }
+  button,
+  select,
+  textarea {
+    @apply transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600/50;
+  }
+  button {
+    @apply font-medium;
+  }
+  audio {
+    @apply h-9 w-full;
+  }
+}

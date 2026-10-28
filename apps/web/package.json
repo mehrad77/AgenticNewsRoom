@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "astro dev --port ${WEB_PORT:-4321}",
+    "dev": "node --env-file-if-exists=../../.env node_modules/astro/bin/astro.mjs dev --port ${WEB_PORT:-4321}",
     "build": "astro build",
     "start": "node --env-file-if-exists=../../.env dist/server/entry.mjs",
     "typecheck": "tsc -p .",
@@ -21,9 +21,11 @@
   },
   "devDependencies": {
     "@anr/api": "workspace:*",
+    "@tailwindcss/vite": "4.3.3",
     "@types/node": "24.19.2",
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
+    "tailwindcss": "4.3.3",
     "typescript": "5.9.3",
     "vitest": "5.0.5"
   }
