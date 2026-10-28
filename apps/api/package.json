@@ -14,11 +14,13 @@
     "typecheck": "tsc -p .",
     "test": "vitest run",
     "desk:grant": "node scripts/grant.ts",
-    "dev:test": "node scripts/dev-test.ts"
+    "dev:test": "node scripts/dev-test.ts",
+    "desk:admin": "node scripts/admin.ts"
   },
   "dependencies": {
     "@anr/core": "workspace:*",
     "@anr/db": "workspace:*",
+    "@anr/models": "workspace:*",
     "@anr/render": "workspace:*",
     "@anr/schemas": "workspace:*",
     "@hono/node-server": "2.1.5",

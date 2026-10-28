@@ -1,11 +1,12 @@
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
+import { directionOf, type Language } from "@anr/core";
 import { type ModelsSchema, roleChains } from "@anr/schemas";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import addFormatsModule from "ajv-formats";
 import type { RawConfig } from "./load.ts";
-import { cronDaily, cronEvery } from "./schedules.ts";
+import { cronDaily, cronEvery, cronWeekly } from "./schedules.ts";
 
 const require = createRequire(import.meta.url);
 const schemaPath = (name: string) => require.resolve(`@anr/schemas/json/${name}.schema.json`);
@@ -45,7 +46,8 @@ function modelsProblems(m: ModelsSchema, file: string, formats: string[]): strin
     if (file === "models.yaml" && p.kind === "openai" && !p.base_url.startsWith("https://")) {
       errors.push(`${file} provider ${id}: a local server belongs in a development profile`);
     }
-    if (file === "models.yaml" && !p.key_env) {
+    // A local TTS engine runs on the server itself, which is this laptop (D54, D113).
+    if (file === "models.yaml" && p.kind !== "local-tts" && !p.key_env) {
       errors.push(`${file} provider ${id}: needs key_env`);
     }
   }
@@ -77,6 +79,15 @@ function modelsProblems(m: ModelsSchema, file: string, formats: string[]): strin
   }
   if (!m.models[m.tts]) errors.push(`${file} tts: unknown model ${m.tts}`);
   else if (!m.models[m.tts]?.price) errors.push(`${file} tts: ${m.tts} has no price`);
+  // The engines an admin may enable and a newsroom choose per language (D113).
+  for (const id of m.tts_engines ?? []) {
+    const model = m.models[id];
+    if (!model) errors.push(`${file} tts_engines: unknown model ${id}`);
+    else if (!model.price) errors.push(`${file} tts_engines: ${id} has no price`);
+    else if (!model.languages) errors.push(`${file} tts_engines: ${id} has no languages`);
+  }
+  if (m.tts_engines && !m.tts_engines.includes(m.tts))
+    errors.push(`${file} tts: ${m.tts} is not one of tts_engines`);
   const families = new Set(m.roles["fact-checker"].flatMap((id) => m.models[id]?.family ?? []));
   if (families.size < 2) {
     errors.push(`${file} fact-checker needs models from at least two families`);
@@ -85,6 +96,16 @@ function modelsProblems(m: ModelsSchema, file: string, formats: string[]): strin
 }
 
 /** Returns a list of human-readable problems; empty means the config is valid. */
+/** The sound cues every podcast series has, as files in `newsrooms/<slug>/audio/<series>/`. */
+export const CUE_FILES = [
+  "sting.flac",
+  "transition.flac",
+  "bed.flac",
+  "bed-swell.flac",
+  "bed-out.flac",
+  "jingle.flac",
+] as const;
+
 export function validateConfig(config: RawConfig): string[] {
   const ajv = new Ajv2020({ allErrors: true, strict: true });
   addFormats(ajv);
@@ -193,16 +214,28 @@ export function validateConfig(config: RawConfig): string[] {
         channels: Record<string, string[]>;
         segments?: { kind: string; from: string }[];
         hosts?: Record<string, Record<string, string>>;
+        host_names?: Record<string, Record<string, string>>;
         narrator?: Record<string, string>;
         assignment_at?: string;
+        cadence: { daily?: string; weekly?: string };
+        pick?: unknown;
       };
-      if (series.assignment_at !== undefined) {
+      // Daily news is assigned at a time of day; an episode built from segments at a weekday and
+      // time; a picked series when its pick is chosen (D104).
+      const assignAt = series.assignment_at;
+      const weekly = series.cadence.weekly !== undefined;
+      if (assignAt !== undefined) {
         try {
-          cronDaily(series.assignment_at);
+          if (weekly) cronWeekly(assignAt);
+          else cronDaily(assignAt);
         } catch (error) {
           errors.push(`${where} assignment_at: ${(error as Error).message}`);
         }
+        if (series.pick) errors.push(`${where} is assigned from its pick, so has no assignment_at`);
       }
+      if (series.segments && !assignAt) errors.push(`${where} has segments but no assignment_at`);
+      if (series.segments && series.pick) errors.push(`${where} has both segments and a pick`);
+      if (series.pick && !weekly) errors.push(`${where} has a pick but no weekly cadence`);
       if (!config.formats.includes(series.format))
         errors.push(`${where} uses unknown format ${series.format}`);
       for (const l of series.languages) {
@@ -232,8 +265,22 @@ export function validateConfig(config: RawConfig): string[] {
         if (!(from in n.series)) errors.push(`${where} segment reads from unknown series ${from}`);
       }
       if (series.format === "podcast-episode") {
+        // Stock sound cues, owned or licensed, with their licence beside them (D108).
+        const audio = join(n.dir, "audio", name);
+        for (const file of [...CUE_FILES, "LICENSE.md"]) {
+          if (!existsSync(join(audio, file))) errors.push(`${where} has no audio/${name}/${file}`);
+        }
         for (const l of series.languages) {
           if (!series.hosts?.[l]) errors.push(`${where} has no hosts for ${l}`);
+          // A host's key is Latin; a right-to-left language says and writes the name in its script.
+          for (const host of Object.keys(series.hosts?.[l] ?? {})) {
+            if (directionOf(l as Language) === "rtl" && !series.host_names?.[l]?.[host])
+              errors.push(`${where} has no host_names.${l}.${host}`);
+          }
+          for (const host of Object.keys(series.host_names?.[l] ?? {})) {
+            if (!series.hosts?.[l]?.[host])
+              errors.push(`${where} host_names.${l}.${host} is not a host for ${l}`);
+          }
           const tellsStory = (series.segments ?? []).some((seg) => seg.kind === "story");
           if (tellsStory && !series.narrator?.[l])
             errors.push(`${where} has no narrator voice for ${l}`);

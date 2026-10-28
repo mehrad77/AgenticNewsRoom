@@ -13,6 +13,7 @@ from anr_schemas.formats.artist_story import ArtistStoryDraft
 from anr_schemas.formats.classic_article import ClassicArticleDraft
 from anr_schemas.formats.newsletter_issue import NewsletterIssueDraft
 from anr_schemas.formats.podcast_episode import PodcastEpisodeDraft
+from anr_verifier import podcast
 from anr_verifier.bundle import Bundle, CheckOut, Claim, Rendition
 from anr_verifier.items import SKIP_KEYS, walk
 
@@ -118,7 +119,8 @@ _RANGE = re.compile(r"in (\d+)\.\.(\d+)")
 _AT_MOST = re.compile(r"<= (\d+)")
 MAX_REASON_CHARS = 200
 
-RuleFn = Callable[[str, Rendition, dict[str, Claim]], tuple[bool, dict[str, Any]]]
+# A rule's text, the rendition, the story's claims by ref, and the series' config.
+RuleFn = Callable[[str, Rendition, dict[str, Claim], dict[str, Any]], tuple[bool, dict[str, Any]]]
 
 
 def _range(rule: str) -> tuple[int, int]:
@@ -132,13 +134,17 @@ def _items(r: Rendition, kind: str) -> list[dict[str, Any]]:
     return [i for i in r.body.get("items", []) if isinstance(i, dict) and i.get("kind") == kind]
 
 
-def _count_news(rule: str, r: Rendition, _: dict[str, Claim]) -> tuple[bool, dict[str, Any]]:
+def _count_news(
+    rule: str, r: Rendition, _: dict[str, Claim], _s: dict[str, Any]
+) -> tuple[bool, dict[str, Any]]:
     low, high = _range(rule)
     n = len(_items(r, "news"))
     return low <= n <= high, {"count": n, "range": [low, high]}
 
 
-def _article_limit(rule: str, r: Rendition, _: dict[str, Claim]) -> tuple[bool, dict[str, Any]]:
+def _article_limit(
+    rule: str, r: Rendition, _: dict[str, Claim], _s: dict[str, Any]
+) -> tuple[bool, dict[str, Any]]:
     m = _AT_MOST.search(rule)
     if not m:
         raise ValueError(f"no limit in rule {rule!r}")
@@ -146,7 +152,9 @@ def _article_limit(rule: str, r: Rendition, _: dict[str, Claim]) -> tuple[bool, 
     return n <= int(m.group(1)), {"count": n, "max": int(m.group(1))}
 
 
-def _article_reason(_rule: str, r: Rendition, _: dict[str, Claim]) -> tuple[bool, dict[str, Any]]:
+def _article_reason(
+    _rule: str, r: Rendition, _: dict[str, Claim], _s: dict[str, Any]
+) -> tuple[bool, dict[str, Any]]:
     bad = [
         i
         for i, a in enumerate(_items(r, "article"))
@@ -157,14 +165,16 @@ def _article_reason(_rule: str, r: Rendition, _: dict[str, Claim]) -> tuple[bool
     return not bad, {"articles_without_one_line_reason": bad}
 
 
-def _length(rule: str, r: Rendition, _: dict[str, Claim]) -> tuple[bool, dict[str, Any]]:
+def _length(
+    rule: str, r: Rendition, _: dict[str, Claim], _s: dict[str, Any]
+) -> tuple[bool, dict[str, Any]]:
     low, high = _range(rule)
     words = sum(len(s.split()) for s in strings(r.body))
     return low <= words <= high, {"words": words, "range": [low, high]}
 
 
 def _opinion_items(
-    _rule: str, r: Rendition, by_ref: dict[str, Claim]
+    _rule: str, r: Rendition, by_ref: dict[str, Claim], _s: dict[str, Any]
 ) -> tuple[bool, dict[str, Any]]:
     bad = [
         path
@@ -181,6 +191,14 @@ RULES: dict[str, RuleFn] = {
     "article-has-reason": _article_reason,
     "length": _length,
     "opinion-has-no-facts": _opinion_items,
+    "segments-follow-series": podcast.segments_follow_series,
+    "speakers-known": podcast.speakers_known,
+    "segment-length": podcast.segment_length,
+    "story-arc-complete": podcast.story_arc_complete,
+    "protagonists-grounded": podcast.protagonists_grounded,
+    "arc-follows-protagonists": podcast.arc_follows_protagonists,
+    "cues-sparing": podcast.cues_sparing,
+    "directions-short": podcast.directions_short,
 }
 
 
@@ -210,7 +228,7 @@ def format_rules(b: Bundle, config_dir: Path) -> list[CheckOut]:
                 )
                 continue
             try:
-                ok, detail = fn(rule["rule"], r, by_ref)
+                ok, detail = fn(rule["rule"], r, by_ref, b.series)
             except (ValueError, TypeError) as error:
                 out.append(CheckOut(name, "error", rendition_id=r.id, detail={"error": str(error)}))
                 continue

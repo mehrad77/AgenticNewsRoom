@@ -81,14 +81,14 @@ Gate: **daily news publishes end to end on its own.**
 
 Gate: **one editorial cycle runs from plan to published pieces.**
 
-- [ ] Planner graph: themes for each editorial cycle (2–3 with angle and calendar, cycles from `planning` in `newsroom.yaml`) and weekly candidates (three per series).
-- [ ] Desk screens for choosing and editing a theme and picking a candidate; pick deadline skips the slot and notifies the editor.
-- [ ] Renderer graph: another language or format from a story; weekly podcast scripts from the week's published renditions.
-- [ ] Verifier checks for story segments: arc complete and in order, protagonists grounded, turning point and resolution name a protagonist, cues and directions sparse, AI voices introduced.
-- [ ] Stock sound-cue assets per series (sting, bed swell, bed out, transition), all owned or licensed for use.
-- [ ] Podcast pipeline: Gemini TTS per segment with the narrator voice and delivery directions as style prompts (cached by text, voice and direction), sound cues mixed from stock assets, ffmpeg mix to −16 LUFS MP3, ID3 tags and chapters, upload to R2.
-- [ ] Podcast RSS per language, download counting through the site redirect.
-- [ ] C2PA signing with c2patool's built-in certificate; the `c2pa.actions` assertion carries the publication's IPTC digital source type.
+- [x] Planner graph: themes for each editorial cycle (2–3 with angle and calendar, cycles from `planning` in `newsroom.yaml`) and weekly candidates (three per series).
+- [x] Desk screens for choosing and editing a theme and picking a candidate; pick deadline skips the slot and notifies the editor.
+- [x] Renderer graph: another language or format from a story; weekly podcast scripts from the week's published renditions.
+- [x] Verifier checks for story segments: arc complete and in order, protagonists grounded, turning point and resolution name a protagonist, cues and directions sparse, AI voices introduced.
+- [x] Stock sound-cue assets per series (sting, bed swell, bed out, transition), all owned or licensed for use.
+- [x] Podcast pipeline: Gemini TTS per segment with the narrator voice and delivery directions as style prompts (cached by text, voice and direction), sound cues mixed from stock assets, ffmpeg mix to −16 LUFS MP3, ID3 tags and chapters, upload to R2 (a local store behind the same interface until milestone 7, D109).
+- [x] Podcast RSS per language, download counting through the site redirect.
+- [x] C2PA signing with c2patool's built-in certificate; the `c2pa.actions` assertion carries the publication's IPTC digital source type.
 - [ ] Gate: one full editorial cycle for the AI newsroom (its one-month cycle: theme, four classic papers, four podcasts in fa and en), and listening tests confirm the English and Turkish voices are fit to publish.
 
 ## 6. Safeguards and the second newsroom

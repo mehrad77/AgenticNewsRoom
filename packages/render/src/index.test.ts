@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { CHANNEL_LIMITS, createRenderer, splitParts, visibleLength } from "./index.ts";
+import {
+  CHANNEL_LIMITS,
+  createRenderer,
+  introProblems,
+  splitParts,
+  visibleLength,
+} from "./index.ts";
 
 const renderer = createRenderer();
 const rendition = {
@@ -118,5 +124,39 @@ describe("splitting a post to a channel's limit", () => {
       leads: {},
     });
     expect(parts).toHaveLength(1);
+  });
+});
+
+describe("AI-voice intro", () => {
+  it("introduces every host and the narrator as AI, in each language", async () => {
+    for (const [language, hosts] of [
+      ["en", ["maya", "leo"]],
+      ["fa", ["niloofar", "farzad"]],
+      ["tr", ["deniz", "emre"]],
+    ] as const) {
+      const lines = await renderer.introLines(language, "Weekly", hosts, true);
+      expect(lines.map((l) => l.speaker)).toEqual([...hosts, "narrator"]);
+      expect(introProblems(lines, language, hosts, true)).toEqual([]);
+    }
+  });
+
+  it("names hosts in their language's script when the series gives names", async () => {
+    const names = { niloofar: "نیلوفر", farzad: "فرزاد" };
+    const lines = await renderer.introLines("fa", "پادکست", ["niloofar", "farzad"], false, names);
+    expect(lines[0]?.text).toContain("نیلوفر");
+    expect(lines.map((l) => l.text).join(" ")).not.toMatch(/[A-Za-z]/);
+    expect(introProblems(lines, "fa", ["niloofar", "farzad"], false, names)).toEqual([]);
+    expect(await renderer.voicesNote("fa", ["niloofar", "farzad"], false, names)).toContain(
+      "نیلوفر و فرزاد",
+    );
+  });
+
+  it("names what is missing", () => {
+    const lines = [{ speaker: "maya", text: "Welcome. I'm Maya." }];
+    expect(introProblems(lines, "en", ["maya", "leo"], true)).toEqual([
+      `maya's line does not say "AI"`,
+      "leo is not introduced",
+      "narrator is not introduced",
+    ]);
   });
 });

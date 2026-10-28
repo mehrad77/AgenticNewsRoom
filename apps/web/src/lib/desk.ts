@@ -15,9 +15,14 @@ export type ScheduleItem = S["ScheduleItem"];
 export type Budget = S["Budget"];
 export type SourceHealth = S["SourceHealth"];
 export type Measures = S["Measures"];
+export type Plan = S["Plan"];
+export type AdminTts = S["AdminTts"];
+export type NewsroomTts = S["NewsroomTts"];
 
 /** Pages that list or show one newsroom's things, under `/<newsroom>/<page>`. */
 const PAGES = [
+  "plan",
+  "voices",
   "channels",
   "samples",
   "notices",
@@ -30,6 +35,8 @@ type Page = (typeof PAGES)[number];
 
 export type DeskRoute =
   | { kind: "home" }
+  /** The platform admin's page, above every newsroom. */
+  | { kind: "admin" }
   | { kind: "queue"; newsroom: string }
   | { kind: "publication"; newsroom: string; id: string }
   | { kind: Page; newsroom: string }
@@ -41,6 +48,7 @@ const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 export function deskRoute(path: string): DeskRoute {
   const p = path.length > 1 ? path.replace(/\/+$/, "") : path;
   if (p === "/" || p === "") return { kind: "home" };
+  if (p === "/admin") return { kind: "admin" };
   let m = new RegExp(`^/(${SLUG})$`).exec(p);
   if (m?.[1]) return { kind: "queue", newsroom: m[1] };
   m = new RegExp(`^/(${SLUG})/p/(${UUID})$`).exec(p);
@@ -89,8 +97,17 @@ export function deskApi(base: string, token: string | null, fetchFn: typeof fetc
     budget: (newsroom: string) => call<Budget>(`${n(newsroom)}/budget`),
     sources: (newsroom: string) => call<SourceHealth[]>(`${n(newsroom)}/sources`),
     measures: (newsroom: string) => call<Measures>(`${n(newsroom)}/measures`),
+    plan: (newsroom: string) => call<Plan>(`${n(newsroom)}/plan`),
+    adminTts: () => call<AdminTts>("/desk/admin/tts"),
+    newsroomTts: (newsroom: string) => call<NewsroomTts>(`${n(newsroom)}/tts`),
     /** Runs the action a desk form posted; returns where to go next. */
     async act(route: DeskRoute, form: FormData): Promise<string> {
+      if (route.kind === "admin") {
+        // Every checked engine; an unchecked box sends nothing.
+        const engines = form.getAll("engine").filter((v): v is string => typeof v === "string");
+        await call("/desk/admin/tts", { engines });
+        return "/admin";
+      }
       if (route.kind === "home" || route.kind === "not-found")
         throw new DeskApiError(404, "nothing to do here");
       const action = String(form.get("action") ?? "");
@@ -158,6 +175,22 @@ export function deskApi(base: string, token: string | null, fetchFn: typeof fetc
         case "file-issue":
           await call(`${base}/samples/${id}/issue`, { url: field("url") ?? "" });
           return `/${route.newsroom}/samples`;
+        case "approve-theme":
+          await call(`${base}/cycles/${id}/approve`, {
+            theme: field("theme") ?? "",
+            angle: field("angle") ?? "",
+            calendar: calendarFields(form),
+          });
+          return `/${route.newsroom}/plan`;
+        case "choose-pick":
+          await call(`${base}/picks/${id}/choose`, { candidate: Number(field("candidate")) });
+          return `/${route.newsroom}/plan`;
+        case "newsroom-tts":
+          await call(`${base}/tts`, {
+            language: field("language") ?? "",
+            engine: field("engine") ?? null,
+          });
+          return `/${route.newsroom}/voices`;
         case "read-notice":
           await call(`${base}/notices/${id}/read`, {});
           return `/${route.newsroom}/notices`;
@@ -166,6 +199,22 @@ export function deskApi(base: string, token: string | null, fetchFn: typeof fetc
       }
     },
   };
+}
+
+/** A theme form's calendar: `week.<i>` and `focus.<i>` pairs, in the order of `i`. */
+export function calendarFields(form: FormData): { week: string; focus: string }[] {
+  const weeks: { i: number; week: string; focus: string }[] = [];
+  form.forEach((value, name) => {
+    const m = /^week\.([0-9]+)$/.exec(name);
+    if (!m || typeof value !== "string") return;
+    const focus = form.get(`focus.${m[1]}`);
+    weeks.push({
+      i: Number(m[1]),
+      week: value,
+      focus: typeof focus === "string" ? focus.replace(/\r\n/g, "\n").trim() : "",
+    });
+  });
+  return weeks.sort((a, b) => a.i - b.i).map(({ week, focus }) => ({ week, focus }));
 }
 
 /** The edit form's field for a text field of the rendition: `text:<JSON pointer>`. */

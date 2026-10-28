@@ -78,12 +78,21 @@ class SeriesConfig(BaseModel):
     format: str
     languages: list[Language] = Field(..., min_length=1)
     cadence: Cadence
-    assignment_at: constr(pattern=r"^[0-2][0-9]:[0-5][0-9]$") | None = None
+    assignment_at: (
+        constr(pattern=r"^((mon|tue|wed|thu|fri|sat|sun) )?[0-2][0-9]:[0-5][0-9]$") | None
+    ) = Field(
+        None,
+        description="When code makes the assignment for the next slot: a time (daily series) or a weekday and time (weekly series built from segments).",
+    )
     items: dict[str, constr(pattern=r"^[0-9]+-[0-9]+$")] | None = None
     pick: Pick | None = None
     segments: list[Segment] | None = None
     hosts: dict[Literal["fa", "en", "tr"], dict[str, str]] | None = Field(
         None, description="Per language: host name -> TTS voice."
+    )
+    host_names: dict[Literal["fa", "en", "tr"], dict[str, constr(min_length=1)]] | None = Field(
+        None,
+        description="Per language: host -> the name as spoken and written in that language. Required for right-to-left languages; otherwise the host's key, capitalised.",
     )
     channels: dict[Literal["site", "telegram", "podcast-rss"], list[Channel]] = Field(
         ...,
@@ -92,4 +101,10 @@ class SeriesConfig(BaseModel):
     )
     narrator: dict[Literal["fa", "en", "tr"], constr(min_length=1)] | None = Field(
         None, description="Per language: the narrator's TTS voice, used by story segments."
+    )
+    engine_voices: (
+        dict[str, dict[Literal["fa", "en", "tr"], dict[str, constr(min_length=1)]]] | None
+    ) = Field(
+        None,
+        description='Per text-to-speech engine (a catalogue id), per language: a voice for each host and "narrator". `hosts` and `narrator` are the default engine\'s voices; a local engine without voices here gives each speaker its own default (D113).',
     )

@@ -2,12 +2,15 @@ name: { tr: Kültür Podcast, en: Kültür Podcast, fa: پادکست کولتو�
 format: podcast-episode
 languages: [tr, en, fa]
 cadence: { weekly: fri 18:00 }
+assignment_at: fri 08:00 # code builds the episode story; the script needs an editor before audio
 segments:
   - { kind: story, minutes: 20, from: week.artist-story }
 hosts:
   tr: { deniz: Aoede, emre: Charon }
   en: { ada: Leda, sam: Orus }
   fa: { shirin: Despina, kian: Iapetus }
+host_names: # how each host is named in speech and notes; required for right-to-left languages
+  fa: { shirin: شیرین, kian: کیان }
 narrator: # story segments only
   tr: Gacrux
   en: Schedar

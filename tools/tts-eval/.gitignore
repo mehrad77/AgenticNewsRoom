@@ -1,0 +1,4 @@
+# Everything a run makes: virtual environments, generated audio, the listening files.
+.venv-*/
+out/
+listen/

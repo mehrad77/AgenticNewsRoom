@@ -1,0 +1,38 @@
+{
+  "en": {
+    "hosts": ["Maya", "Leo"],
+    "lines": [
+      [0, "Welcome to Weekly Podcast. I'm Maya, one of this show's AI voices."],
+      [1, "And I'm Leo, an AI voice too."],
+      [
+        0,
+        "This week we look at how small language models are trained, and why that matters for people who run them on a laptop."
+      ],
+      [1, "And we will keep it simple: what changed, who did it, and what is still unclear."],
+      [0, "Let's start with the numbers, because they surprised me."],
+      [1, "They surprised me too. But first, a quick word on where our facts come from."]
+    ]
+  },
+  "tr": {
+    "hosts": ["Deniz", "Emre"],
+    "lines": [
+      [
+        0,
+        "Kültür Podcast programına hoş geldiniz. Ben Deniz, bu programın yapay zekâ seslerinden biriyim."
+      ],
+      [1, "Ben de Emre; benim sesim de yapay zekâ ile üretildi."],
+      [0, "Bu hafta İstanbul'un bağımsız müzik sahnesine ve yeni çıkan albümlere bakıyoruz."],
+      [1, "Ve her zamanki gibi, söylediğimiz her şey bir kaynağa dayanıyor."],
+      [0, "Önce sanatçının kendi açıklamasıyla başlayalım; çünkü hikâye orada başlıyor."],
+      [1, "Sonra da eleştirmenlerin ne dediğine bakarız. Hazırsan başlayalım."],
+      [
+        0,
+        "Zor kelimeler: yapay zekâ, ağaç, ışık, şarkı, güzel İstanbul. 2026 yılında 3 albüm çıktı."
+      ]
+    ]
+  },
+  "stability": {
+    "en": "They surprised me too. But first, a quick word on where our facts come from.",
+    "tr": "Zor kelimeler: yapay zekâ, ağaç, ışık, şarkı, güzel İstanbul. 2026 yılında 3 albüm çıktı."
+  }
+}

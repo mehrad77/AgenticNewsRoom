@@ -5,7 +5,7 @@
 import type { AgentRole, CheckResult, GateJob, Language } from "@anr/core";
 import { auditedUpdate, type Client, type Pool, withNewsroom } from "@anr/db";
 import { AllModelsExhausted, ModelCallFailed } from "@anr/models";
-import type { createRenderer } from "@anr/render";
+import { type createRenderer, introProblems } from "@anr/render";
 import { budgetState, mayStart, noticeBudget } from "../budget.ts";
 import { formatMeta } from "../context.ts";
 import { newMeter, type RunModel, TokenCapReached } from "../model.ts";
@@ -101,6 +101,14 @@ interface GateStory {
   themed: boolean;
   channels: Record<string, string[]>;
   autoPublish: string[];
+  /** The series' name per language, hosts per language and narrator voices, for its AI-voice intro. */
+  series: {
+    name?: Record<string, string>;
+    hosts?: Record<string, Record<string, string>>;
+    host_names?: Record<string, Record<string, string>>;
+    narrator?: Record<string, string>;
+  };
+  seriesSlug: string;
   claims: GateClaim[];
   renditions: GateRendition[];
   publications: GatePublication[];
@@ -122,7 +130,18 @@ export function itemPaths(value: unknown, path = ""): [string, Record<string, un
   return [];
 }
 
-const ITEM_SKIP = new Set(["kind", "claim_ids", "lead_id", "segment", "beat", "cue", "direction"]);
+/** Labels and delivery hints, not reader-facing text; the verifier's SKIP_KEYS. */
+const ITEM_SKIP = new Set([
+  "kind",
+  "claim_ids",
+  "lead_id",
+  "segment",
+  "beat",
+  "cue",
+  "direction",
+  "speaker",
+  "host",
+]);
 /** An item's own text, nested lists included; a nested object with its own claim_ids is its own item. */
 export function itemText(item: Record<string, unknown>): string {
   const texts = (value: unknown): string[] => {
@@ -147,7 +166,8 @@ async function loadStory(client: Client, storyId: string): Promise<GateStory | n
   >(
     `select n.slug as "newsroomSlug", f.slug as format, (a.cycle_id is not null or a.pick_id is not null) as themed,
             coalesce(se.config->'channels', '{}') as channels,
-            coalesce(n.policy->'auto_publish', '[]') as "autoPublish", s.assignment_id
+            coalesce(n.policy->'auto_publish', '[]') as "autoPublish", s.assignment_id,
+            se.config as series, se.slug as "seriesSlug"
      from stories s join assignments a on a.id = s.assignment_id
      join series se on se.id = a.series_id join formats f on f.id = se.format_id
      join newsrooms n on n.id = s.newsroom_id
@@ -310,6 +330,51 @@ export async function runGate(deps: GateDeps, job: GateJob): Promise<string> {
     });
   }
 
+  // 2b. AI voices: a series with hosts opens every episode with code-rendered lines in which each
+  // host and the narrator says they are AI; the audio pipeline voices exactly these lines.
+  if (story.series.hosts && !checks.some((c) => c.name === "ai-voices")) {
+    await inStory(async (c) => {
+      for (const r of story.renditions) {
+        const hosts = Object.keys(story.series.hosts?.[r.language] ?? {});
+        const narrator = Boolean(story.series.narrator?.[r.language]);
+        try {
+          const lines = await deps.renderer.introLines(
+            r.language,
+            story.series.name?.[r.language] ?? story.seriesSlug,
+            hosts,
+            narrator,
+            story.series.host_names?.[r.language],
+          );
+          const problems =
+            hosts.length === 0
+              ? ["no hosts for this language"]
+              : introProblems(
+                  lines,
+                  r.language,
+                  hosts,
+                  narrator,
+                  story.series.host_names?.[r.language],
+                );
+          await storeCheck(c, {
+            kind: "code",
+            name: "ai-voices",
+            result: problems.length === 0 ? "pass" : "fail",
+            renditionId: r.id,
+            detail: { problems, lines },
+          });
+        } catch (error) {
+          await storeCheck(c, {
+            kind: "code",
+            name: "ai-voices",
+            result: "error",
+            renditionId: r.id,
+            detail: { error: (error as Error).message },
+          });
+        }
+      }
+    });
+  }
+
   // 3. Model checks, only on what passed its code checks: a held draft needs no model's time.
   // Claims are shared by every language, so a claim's failure (or the verifier's) stops all of
   // them; a rendition's own failure stops only that rendition's item matching.
@@ -358,6 +423,7 @@ export async function runGate(deps: GateDeps, job: GateJob): Promise<string> {
         claims: story.claims.map((c) => ({ id: c.id, kind: c.kind, sources: c.sources.length })),
         checks: checks.filter((c) => c.claimId || c.renditionId === rendition?.id),
         themed: story.themed,
+        voices: Boolean(story.series.hosts),
         format: story.format,
         autoPublish: story.autoPublish,
         restricted,
@@ -389,11 +455,22 @@ export async function runGate(deps: GateDeps, job: GateJob): Promise<string> {
   return outcomes.join(", ");
 }
 
-/** The story's writers, from its desk and renderer runs: every family that answered (D71). */
-async function writerFamilies(client: Client, storyId: string): Promise<string[]> {
+/**
+ * Every family that wrote the story's claims or text (invariant 4): the story's own desk and
+ * renderer runs, and those of every story its claims were copied from (an episode's, D107), so a
+ * copied claim is never checked by the family that wrote the original.
+ */
+export async function writerFamilies(client: Client, storyId: string): Promise<string[]> {
   const { rows } = await client.query<{ family: string }>(
-    `select distinct unnest(families) as family from agent_runs
-     where story_id = $1 and role in ('desk', 'renderer')`,
+    `with recursive written(story_id) as (
+       select $1::uuid
+       union
+       select o.story_id from written w
+       join claims c on c.story_id = w.story_id
+       join claims o on o.id = c.copied_from
+     )
+     select distinct unnest(r.families) as family from agent_runs r
+     where r.story_id in (select story_id from written) and r.role in ('desk', 'renderer')`,
     [storyId],
   );
   return rows.map((r) => r.family);

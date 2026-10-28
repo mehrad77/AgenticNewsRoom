@@ -1,0 +1,9 @@
+{%- comment -%}
+  The line in every episode's notes that names its voices as AI (charter: AI hosts are disclosed).
+  `hosts` is the hosts' names joined; `narrator` is true when the episode has a narrator.
+{%- endcomment -%}
+{%- case language -%}
+  {%- when "fa" -%}میزبانان: {{ hosts }}؛ همه صداهای ساخته‌ی هوش مصنوعی{% if narrator %}، و راوی هم صدای هوش مصنوعی است{% endif %}.
+  {%- when "tr" -%}Sunucular: {{ hosts }}; hepsi yapay zekâ sesleri{% if narrator %}, anlatıcı da bir yapay zekâ sesi{% endif %}.
+  {%- else -%}Hosts: {{ hosts }}, all AI voices{% if narrator %}; the narrator is an AI voice too{% endif %}.
+{%- endcase -%}

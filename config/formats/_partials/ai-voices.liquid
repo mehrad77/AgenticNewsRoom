@@ -1,0 +1,22 @@
+{%- comment -%}
+  One line of an episode's opening, spoken by `name` (a host) or by the narrator (`narrator` true).
+  Code renders a line per voice, voices them first in every episode and the gate checks that each
+  says the voice is AI. The script never repeats them.
+{%- endcomment -%}
+{%- case language -%}
+  {%- when "fa" -%}
+    {%- if narrator -%}من راوی این برنامه‌ام و صدای من هم ساخته‌ی هوش مصنوعی است.
+    {%- elsif first -%}به {{ series }} خوش آمدید. من {{ name }} هستم، یکی از صداهای هوش مصنوعی این برنامه.
+    {%- else -%}من هم {{ name }} هستم و صدای من هم ساخته‌ی هوش مصنوعی است.
+    {%- endif -%}
+  {%- when "tr" -%}
+    {%- if narrator -%}Ben de anlatıcıyım; benim sesim de yapay zekâ ile üretildi.
+    {%- elsif first -%}{{ series }} programına hoş geldiniz. Ben {{ name }}, bu programın yapay zekâ seslerinden biriyim.
+    {%- else -%}Ben de {{ name }}; benim sesim de yapay zekâ ile üretildi.
+    {%- endif -%}
+  {%- else -%}
+    {%- if narrator -%}And I'm the narrator, an AI voice as well.
+    {%- elsif first -%}Welcome to {{ series }}. I'm {{ name }}, one of this show's AI voices.
+    {%- else -%}And I'm {{ name }}, an AI voice too.
+    {%- endif -%}
+{%- endcase -%}

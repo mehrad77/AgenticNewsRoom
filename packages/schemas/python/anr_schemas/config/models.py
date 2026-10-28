@@ -85,6 +85,12 @@ class Price(BaseModel):
     out: confloat(ge=0.0)
 
 
+class Language(Enum):
+    fa = "fa"
+    en = "en"
+    tr = "tr"
+
+
 class Model(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -103,6 +109,24 @@ class Model(BaseModel):
     )
     price: Price | None = Field(
         None, description="USD per million tokens; omitted means unknown and cost is not recorded."
+    )
+    languages: list[Language] | None = Field(
+        None,
+        description="Text-to-speech models: the languages it speaks, so the admin can choose it only for those.",
+        min_length=1,
+    )
+
+
+class LocalTtsProvider(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    kind: Literal["local-tts"]
+    base_url: constr(pattern=r"^http://(127\.0\.0\.1|localhost)(:[0-9]+)?(/|$)") = Field(
+        ..., description="Plain http to this machine only."
+    )
+    timeout_s: conint(ge=10, le=1800) | None = Field(
+        None, description="Seconds one call may take (default 120)."
     )
 
 
@@ -134,7 +158,14 @@ class ModelsConfig(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    providers: dict[Id, GoogleProvider | OpenaiProvider] = Field(..., min_length=1)
+    providers: dict[Id, GoogleProvider | OpenaiProvider | LocalTtsProvider] = Field(
+        ..., min_length=1
+    )
     models: dict[Id, Model] = Field(..., min_length=1)
     roles: Roles
     tts: Id = Field(..., description="Catalog id of the text-to-speech model.")
+    tts_engines: list[Id] | None = Field(
+        None,
+        description="Text-to-speech engines the platform admin may choose per language (D113); `tts` is used where none is chosen.",
+        min_length=1,
+    )

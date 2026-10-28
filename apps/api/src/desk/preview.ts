@@ -6,6 +6,7 @@ import {
   channelKinds,
   type createRenderer,
   editedByPerson,
+  seriesVoicesNote,
   sitePath,
   templateContext,
 } from "@anr/render";
@@ -65,7 +66,16 @@ export async function previewPublication(
     slot: p.slot,
     timezone: p.timezone,
   };
-  const context = await templateContext(client, { ...where, rendition: first.body, edited, site });
+  const context = await templateContext(client, {
+    ...where,
+    rendition: first.body,
+    edited,
+    site,
+    voicesNote:
+      p.format === "podcast-episode"
+        ? await seriesVoicesNote(client, renderer, p.series_slug, p.language)
+        : undefined,
+  });
   const label = await renderer.disclosureLabel(p.language, edited);
   const { rows: active } = await client.query<{ kind: string }>(
     "select distinct kind from channels where language = $1 and status = 'active'",

@@ -13,6 +13,13 @@ export const AGENT_ROLES = [
 ] as const;
 export type AgentRole = (typeof AGENT_ROLES)[number];
 
+/**
+ * Who an Agent run row records: an agent role, or `tts`, the producer's text-to-speech calls,
+ * which are priced and counted toward the budget like any model call (D76, D106).
+ */
+export const RUN_ROLES = [...AGENT_ROLES, "tts"] as const;
+export type RunRole = (typeof RUN_ROLES)[number];
+
 export const BEAT_STATUSES = ["open", "restricted", "banned"] as const;
 export type BeatStatus = (typeof BEAT_STATUSES)[number];
 
@@ -75,7 +82,18 @@ export const AGENT_RUN_OUTCOMES = ["submitted", "invalid", "error", "timed-out",
 export type AgentRunOutcome = (typeof AGENT_RUN_OUTCOMES)[number];
 
 /** Messages from code to a newsroom's Editor-in-Chief, shown in the editor's desk. */
-export const NOTICE_KINDS = ["budget-warning", "budget-cap", "no-leads", "no-channel"] as const;
+export const NOTICE_KINDS = [
+  "budget-warning",
+  "budget-cap",
+  "no-leads",
+  "no-channel",
+  /** A cycle started with no approved theme; its weekly picks wait for one. */
+  "no-theme",
+  /** A weekly pick's deadline passed with no choice: its slot is skipped. */
+  "pick-missed",
+  /** The planner could not propose themes or candidates. */
+  "plan-failed",
+] as const;
 export type NoticeKind = (typeof NOTICE_KINDS)[number];
 
 /** An editor's verdict on a sampled auto-published publication (D94). */

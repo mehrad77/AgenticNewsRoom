@@ -11,3 +11,4 @@ Hono on Node: reads and writes for people (editor's desk, reader sites). Contrac
 - The preview (`src/desk/preview.ts`) renders with the publisher's own context from `@anr/render`; `tools.db.test.ts` holds it equal to what the publisher sends (D98).
 - Dev: `pnpm --filter @anr/api dev` → http://localhost:8787/healthz. On the test database, signed in as `dev@anr.test`: `pnpm --filter @anr/api dev:test` → :8788 (the web app's `dev:test` desk calls it).
 - First Editor-in-Chief: `pnpm --filter @anr/api desk:grant <newsroom> <email> editor-in-chief`.
+- The one platform admin (TTS engines on offer, D113): `pnpm --filter @anr/api desk:admin <email>`.

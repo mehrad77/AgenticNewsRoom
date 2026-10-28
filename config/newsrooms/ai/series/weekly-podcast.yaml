@@ -2,12 +2,15 @@ name: { fa: پادکست هفتگی, en: Weekly Podcast }
 format: podcast-episode
 languages: [fa, en]
 cadence: { weekly: fri 18:00 }
+assignment_at: fri 08:00 # code builds the episode story; the script needs an editor before audio
 segments:
   - { kind: news-recap, minutes: 15, from: week.daily-newsletter }
   - { kind: story, minutes: 15, from: week.weekly-classic }
 hosts:
   fa: { niloofar: Sulafat, farzad: Algenib }
   en: { maya: Kore, leo: Puck }
+host_names: # how each host is named in speech and notes; required for right-to-left languages
+  fa: { niloofar: نیلوفر, farzad: فرزاد }
 narrator: # story segments only
   fa: Alnilam
   en: Enceladus

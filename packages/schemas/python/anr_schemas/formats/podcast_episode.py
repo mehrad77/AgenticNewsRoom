@@ -53,7 +53,6 @@ class HostLine(BaseModel):
     )
     host: str = Field(..., description="A host of the series for this language.")
     text: constr(min_length=1)
-    claim_ids: ClaimIds
 
 
 class StoryLine(BaseModel):
@@ -66,7 +65,6 @@ class StoryLine(BaseModel):
         None,
         description='Delivery hint passed to TTS as a style prompt, e.g. "hushed", "curious, slower".',
     )
-    claim_ids: ClaimIds
 
 
 class Cue1(Enum):
@@ -97,16 +95,19 @@ class Beat1(Enum):
     takeaway = "takeaway"
 
 
+class ClaimId(RootModel[constr(pattern=r"^c[0-9]+$")]):
+    root: constr(pattern=r"^c[0-9]+$")
+
+
 class Beat(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
     beat: Beat1
+    claim_ids: list[ClaimId] = Field(
+        ..., description="Every claim the beat's lines rely on.", min_length=1
+    )
     lines: list[StoryLine | Cue] = Field(..., min_length=1)
-
-
-class ClaimId(RootModel[constr(pattern=r"^c[0-9]+$")]):
-    root: constr(pattern=r"^c[0-9]+$")
 
 
 class Protagonist(BaseModel):
@@ -120,6 +121,19 @@ class Protagonist(BaseModel):
     claim_ids: list[ClaimId] = Field(
         ..., description="Claims that establish who they are.", min_length=1
     )
+
+
+class Topic(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    title: constr(min_length=1, max_length=120) = Field(
+        ..., description="The retold story in a few words; a chapter of the episode."
+    )
+    claim_ids: list[ClaimId] = Field(
+        ..., description="Every claim the topic's lines rely on.", min_length=1
+    )
+    lines: list[HostLine] = Field(..., min_length=1)
 
 
 class Story(BaseModel):
@@ -136,7 +150,7 @@ class Items(BaseModel):
         extra="forbid",
     )
     segment: Literal["news-recap"]
-    lines: list[HostLine] = Field(..., min_length=1)
+    topics: list[Topic] = Field(..., min_length=1)
 
 
 class Items1(BaseModel):
@@ -144,6 +158,9 @@ class Items1(BaseModel):
         extra="forbid",
     )
     segment: Literal["story"]
+    title: constr(min_length=1, max_length=120) = Field(
+        ..., description="The story in a few words; a chapter of the episode."
+    )
     protagonists: list[Protagonist] = Field(..., max_length=3, min_length=1)
     beats: list[Beat] = Field(..., min_length=4)
 

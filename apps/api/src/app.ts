@@ -16,6 +16,7 @@ import { DeskError } from "./desk/errors.ts";
 import { fileIssue, listNotices, listSamples, readNotice, reviewSample } from "./desk/followups.ts";
 import { measures } from "./desk/measures.ts";
 import { type DeskPerson, deskPerson } from "./desk/people.ts";
+import { approveTheme, choosePick, plan } from "./desk/plan.ts";
 import { type PreviewSite, previewPublication } from "./desk/preview.ts";
 import {
   approve,
@@ -28,6 +29,7 @@ import {
   schedule,
 } from "./desk/review.ts";
 import { sourceHealth } from "./desk/sources.ts";
+import { adminTts, newsroomTts, setAdminTts, setNewsroomTts, type TtsCatalog } from "./desk/tts.ts";
 import type { components } from "./generated/api.ts";
 
 type Health = components["schemas"]["Health"];
@@ -40,6 +42,8 @@ export interface DeskDeps {
   /** Where the newsroom sites are, for the preview's links (as the publisher has them). */
   site: PreviewSite;
   renderer?: ReturnType<typeof createRenderer>;
+  /** The models file's text-to-speech engines (D113). */
+  tts?: TtsCatalog;
 }
 
 type Env = { Variables: { person: DeskPerson } };
@@ -124,6 +128,7 @@ export function createApp(deps?: DeskDeps) {
     const p = c.get("person");
     return c.json({
       email: p.email,
+      platform_admin: p.platformAdmin,
       memberships: p.memberships.map((m) => ({ newsroom: m.newsroom, name: m.name, role: m.role })),
     });
   });
@@ -267,6 +272,68 @@ export function createApp(deps?: DeskDeps) {
   app.post(`${base}/notices/:notice/read`, async (c) =>
     c.json(await inNewsroom(c, (db) => readNotice(db, id(c, "notice")))),
   );
+
+  // Text-to-speech engines: the platform admin enables, each newsroom chooses (D113).
+  const tts = deps.tts ?? { default: "", engines: [] };
+  const admin = (c: Context<Env>) => {
+    const person = c.get("person");
+    if (!person.platformAdmin) throw new DeskError(403, "only the platform admin can do this");
+    return { kind: "person" as const, userId: person.userId };
+  };
+  app.get("/desk/admin/tts", async (c) => {
+    admin(c);
+    return c.json(await adminTts(pool, tts));
+  });
+  app.post("/desk/admin/tts", async (c) => {
+    const actor = admin(c);
+    return c.json(await setAdminTts(pool, actor, tts, (await body(c)).engines));
+  });
+  app.get(`${base}/tts`, async (c) => c.json(await inNewsroom(c, (db) => newsroomTts(db, tts))));
+  app.post(`${base}/tts`, async (c) => {
+    const b = await body(c);
+    const language = text(b.language, 5) ?? "";
+    const engine = b.engine === null ? null : text(b.engine, 100);
+    if (engine === undefined) throw new DeskError(400, "engine: an engine id, or null to clear");
+    return c.json(
+      await inNewsroom(c, (db, actor) => setNewsroomTts(db, actor, tts, language, engine), chief),
+    );
+  });
+
+  // Planning: the Editor-in-Chief sets the agenda (charter: human-directed, D105).
+  app.get(`${base}/plan`, async (c) => c.json(await inNewsroom(c, (db) => plan(db))));
+  app.post(`${base}/cycles/:cycle/approve`, async (c) => {
+    const b = await body(c);
+    const theme = text(b.theme, 140)?.trim();
+    const angle = text(b.angle, 800)?.trim();
+    if (!theme || !angle) throw new DeskError(400, "theme and angle: short, non-empty text");
+    const calendar = Array.isArray(b.calendar) ? b.calendar : [];
+    const weeks = calendar.map((w) => {
+      const week = text((w as Record<string, unknown>)?.week, 10);
+      const focus = text((w as Record<string, unknown>)?.focus, 240);
+      if (!week || focus === undefined)
+        throw new DeskError(400, "calendar: each week with its focus");
+      return { week, focus };
+    });
+    return c.json(
+      await inNewsroom(
+        c,
+        (db, actor) => approveTheme(db, actor, id(c, "cycle"), { theme, angle, calendar: weeks }),
+        chief,
+      ),
+    );
+  });
+  app.post(`${base}/picks/:pick/choose`, async (c) => {
+    const candidate = (await body(c)).candidate;
+    if (typeof candidate !== "number" || !Number.isInteger(candidate) || candidate < 0)
+      throw new DeskError(400, "candidate: 0, 1 or 2");
+    return c.json(
+      await inNewsroom(
+        c,
+        (db, actor) => choosePick(db, boss, actor, id(c, "pick"), candidate),
+        chief,
+      ),
+    );
+  });
 
   return app;
 }

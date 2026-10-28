@@ -53,6 +53,13 @@ describe("gate policy (D80)", () => {
     if (d.status === "with-editor") expect(d.holds[0]).toMatchObject({ name: "checks", result });
   });
 
+  it("requires the AI-voice intro check for a series with hosts", () => {
+    const f = { ...complete(), voices: true };
+    expect(missingChecks(f)).toEqual(["ai-voices"]);
+    f.checks = [...f.checks, check({ name: "ai-voices", renditionId: R })];
+    expect(missingChecks(f)).toEqual([]);
+  });
+
   it("holds when a check never ran: no finding is not a pass", () => {
     const f = complete();
     f.checks = f.checks.filter((c) => c.kind !== "fact-check" && c.name !== "disclosure");

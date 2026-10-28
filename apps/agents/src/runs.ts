@@ -1,11 +1,11 @@
 // Agent run rows and holds, shared by every role. Call these inside withNewsroom(), so a run's
 // outcome, its submit and the jobs it queues commit together or not at all.
 import {
-  type AgentRole,
   type AgentRunJob,
   type AgentRunOutcome,
   type CheckResult,
   QUEUES,
+  type RunRole,
 } from "@anr/core";
 import { auditedUpdate, type Client } from "@anr/db";
 import type { PgBoss } from "pg-boss";
@@ -17,7 +17,7 @@ export const onClient = (client: Client) => ({
 });
 
 export interface NewRun {
-  role: AgentRole;
+  role: RunRole;
   /** Provider and model of the chain's first model; updated to the one that answered. */
   provider: string;
   model: string;
@@ -27,6 +27,8 @@ export interface NewRun {
   assignmentId?: string;
   storyId?: string;
   language?: string;
+  /** What a run without an assignment works on; `key` names it (the planner's, D103). */
+  task?: { key: string } & object;
 }
 
 /** Writes an Agent run and queues its job in the same transaction. */
@@ -48,9 +50,9 @@ export async function insertRun(
 ): Promise<{ id: string; newsroomId: string }> {
   const { rows } = await client.query<{ id: string; newsroom_id: string }>(
     `insert into agent_runs (newsroom_id, role, provider, model, prompt_version, input_hash,
-                             assignment_id, story_id, language)
+                             assignment_id, story_id, language, task)
      values (anr.current_newsroom_id(), $1, $2, $3, $4,
-             encode(sha256(convert_to($5, 'UTF8')), 'hex'), $6, $7, $8)
+             encode(sha256(convert_to($5, 'UTF8')), 'hex'), $6, $7, $8, $9)
      returning id, newsroom_id`,
     [
       run.role,
@@ -61,6 +63,7 @@ export async function insertRun(
       run.assignmentId ?? null,
       run.storyId ?? null,
       run.language ?? null,
+      run.task === undefined ? null : JSON.stringify(run.task),
     ],
   );
   const row = rows[0];

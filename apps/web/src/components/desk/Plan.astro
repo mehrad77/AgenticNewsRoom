@@ -1,0 +1,88 @@
+---
+import { type Plan, safeHref, when } from "../../lib/desk.ts";
+
+interface Props {
+  plan: Plan;
+  chief: boolean;
+}
+const { plan, chief } = Astro.props;
+const cycles = [...new Set(plan.themes.map((t) => t.starts))];
+const lastDay = (ends: string) => new Date(Date.parse(`${ends}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+const now = Date.now();
+---
+<h1>Plan</h1>
+<p>The planner proposes; the Editor-in-Chief decides. Approve one theme per cycle, edited as you want it, and choose one candidate per weekly pick before its deadline. With no choice by then, the slot is skipped.</p>
+
+<h2>Themes</h2>
+{cycles.length === 0 && <p>No proposals for the current or next cycle yet. The planner proposes a week before a cycle starts.</p>}
+{cycles.map((starts) => {
+  const themes = plan.themes.filter((t) => t.starts === starts);
+  const decided = themes.some((t) => t.status === "approved");
+  return (
+    <section>
+      <h3>Cycle {starts} to {lastDay(themes[0]?.ends ?? starts)}{decided ? " · approved" : ""}</h3>
+      {themes.map((t) => (
+        <section class="card">
+          <p class="meta"><span class="label">{t.status}</span>{t.decided_at && ` · ${when(t.decided_at)}`}</p>
+          {t.status === "proposed" && chief && !decided ? (
+            <form method="post">
+              <input type="hidden" name="action" value="approve-theme" /><input type="hidden" name="id" value={t.id} />
+              <label>Theme<input name="theme" value={t.theme} maxlength="140" required /></label>
+              <label>Angle<textarea name="angle" maxlength="800" rows="3" required>{t.angle ?? ""}</textarea></label>
+              <fieldset>
+                <legend>Calendar: each week's focus</legend>
+                {t.calendar.map((w, i) => (
+                  <label>Week of {w.week}<input type="hidden" name={`week.${i}`} value={w.week} /><input name={`focus.${i}`} value={w.focus} maxlength="240" required /></label>
+                ))}
+              </fieldset>
+              {t.rationale && <p><strong>Why:</strong> {t.rationale}</p>}
+              <button class="primary">Approve this theme</button>
+            </form>
+          ) : (
+            <>
+              <h4>{t.theme}</h4>
+              {t.angle && <p>{t.angle}</p>}
+              {t.rationale && <p class="meta">Why: {t.rationale}</p>}
+              <ul>{t.calendar.map((w) => <li>Week of {w.week}: {w.focus}</li>)}</ul>
+            </>
+          )}
+          {t.leads.length > 0 && (
+            <details><summary>Leads it rests on ({t.leads.length})</summary>
+              <ul>{t.leads.map((l) => <li><a href={safeHref(l.url)} rel="noreferrer">{l.headline ?? l.url}</a></li>)}</ul>
+            </details>
+          )}
+        </section>
+      ))}
+    </section>
+  );
+})}
+
+<h2>Weekly picks</h2>
+{plan.picks.length === 0 && <p>No picks yet. Each pick week the planner proposes three candidates for every picked series, once its cycle has an approved theme.</p>}
+{plan.picks.map((p) => {
+  const open = p.chosen === null && !p.skipped_at && Date.parse(p.deadline) > now;
+  return (
+    <section class="card">
+      <h3>{p.series} · week of {p.week}</h3>
+      <p class="meta">Publishes {when(p.slot)} · choose by {when(p.deadline)} · <strong>{
+        p.chosen !== null ? `chosen ${when(p.picked_at ?? "")}` : p.skipped_at ? "skipped: no choice by the deadline" : open ? "open" : "deadline passed"
+      }</strong></p>
+      <ol start="0">
+        {p.candidates.map((c, i) => (
+          <li>
+            <strong>{c.title}</strong>{p.chosen === i && " ✓"}
+            <p>{c.angle}</p>
+            <p class="meta">{c.why}</p>
+            <ul>{c.leads.map((l) => <li><a href={safeHref(l.url)} rel="noreferrer">{l.headline ?? l.url}</a></li>)}</ul>
+            {open && chief && (
+              <form method="post" class="inline">
+                <input type="hidden" name="action" value="choose-pick" /><input type="hidden" name="id" value={p.id} />
+                <button class="primary" name="candidate" value={String(i)}>Choose this one</button>
+              </form>
+            )}
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+})}

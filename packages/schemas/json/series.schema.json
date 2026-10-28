@@ -45,7 +45,8 @@
     },
     "assignment_at": {
       "type": "string",
-      "pattern": "^[0-2][0-9]:[0-5][0-9]$"
+      "description": "When code makes the assignment for the next slot: a time (daily series) or a weekday and time (weekly series built from segments).",
+      "pattern": "^((mon|tue|wed|thu|fri|sat|sun) )?[0-2][0-9]:[0-5][0-9]$"
     },
     "items": {
       "type": "object",
@@ -106,6 +107,21 @@
         }
       }
     },
+    "host_names": {
+      "type": "object",
+      "description": "Per language: host -> the name as spoken and written in that language. Required for right-to-left languages; otherwise the host's key, capitalised.",
+      "propertyNames": {
+        "enum": ["fa", "en", "tr"]
+      },
+      "additionalProperties": {
+        "type": "object",
+        "minProperties": 1,
+        "additionalProperties": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
     "channels": {
       "type": "object",
       "description": "Channel kind -> languages. The publisher finds matching channels (data) at send time.",
@@ -129,6 +145,24 @@
       "additionalProperties": {
         "type": "string",
         "minLength": 1
+      }
+    },
+    "engine_voices": {
+      "type": "object",
+      "description": "Per text-to-speech engine (a catalogue id), per language: a voice for each host and \"narrator\". `hosts` and `narrator` are the default engine's voices; a local engine without voices here gives each speaker its own default (D113).",
+      "additionalProperties": {
+        "type": "object",
+        "propertyNames": {
+          "enum": ["fa", "en", "tr"]
+        },
+        "additionalProperties": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
       }
     }
   }

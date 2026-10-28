@@ -3,6 +3,8 @@ import {
   type AssignJob,
   type GateJob,
   type IngestSourceJob,
+  type PickDeadlineJob,
+  type PlanJob,
   QUEUES,
   type QueueName,
   type RedraftJob,
@@ -13,6 +15,8 @@ import type { PgBoss } from "pg-boss";
 export const AGENTS_QUEUES: readonly QueueName[] = [
   QUEUES.ingestSource,
   QUEUES.assign,
+  QUEUES.plan,
+  QUEUES.pickDeadline,
   QUEUES.agentRun,
   QUEUES.gate,
   QUEUES.redraft,
@@ -25,12 +29,21 @@ export const AGENTS_QUEUES: readonly QueueName[] = [
 export interface JobHandlers {
   "ingest-source"?: (job: IngestSourceJob) => Promise<void>;
   assign?: (job: AssignJob) => Promise<void>;
+  plan?: (job: PlanJob) => Promise<void>;
+  "pick-deadline"?: (job: PickDeadlineJob) => Promise<void>;
   "agent-run"?: (job: AgentRunJob) => Promise<void>;
   gate?: (job: GateJob) => Promise<void>;
   redraft?: (job: RedraftJob) => Promise<void>;
 }
 
-type Job = IngestSourceJob | AssignJob | AgentRunJob | GateJob | RedraftJob;
+type Job =
+  | IngestSourceJob
+  | AssignJob
+  | PlanJob
+  | PickDeadlineJob
+  | AgentRunJob
+  | GateJob
+  | RedraftJob;
 
 export async function registerJobs(
   boss: Pick<PgBoss, "work">,

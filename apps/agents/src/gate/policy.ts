@@ -24,6 +24,8 @@ export interface PublicationFacts {
   /** Every check about the story's claims, this rendition and this publication. */
   checks: readonly StoredCheck[];
   themed: boolean;
+  /** A series with hosts: its episodes need the AI-voice intro check. */
+  voices?: boolean;
   format: string;
   autoPublish: readonly string[];
   /** Restricted beats of the story or of its cited leads. */
@@ -47,7 +49,7 @@ export function missingChecks(f: PublicationFacts): string[] {
   const count = (p: (c: StoredCheck) => boolean) => f.checks.filter(p).length;
   if (!f.renditionId) return ["rendition"];
   const missing: string[] = [];
-  for (const name of RENDITION_CHECKS) {
+  for (const name of [...RENDITION_CHECKS, ...(f.voices ? ["ai-voices"] : [])]) {
     if (!has((c) => c.name === name && c.renditionId === f.renditionId)) missing.push(name);
   }
   for (const claim of f.claims) {

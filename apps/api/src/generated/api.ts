@@ -472,6 +472,122 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/desk/newsrooms/{newsroom}/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        /** The planner's theme proposals and weekly picks, current and coming */
+        get: operations["getPlan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/cycles/{cycle}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                cycle: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve one proposed theme, as edited, for its cycle; the cycle's other proposals are declined
+         * @description Editor-in-Chief only (D105). Every changed field is audited.
+         */
+        post: operations["approveTheme"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/picks/{pick}/choose": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                pick: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Choose one of a weekly pick's three candidates before its deadline
+         * @description Editor-in-Chief only (D105). Queues the assignment for the pick's slot; refused once the deadline has passed (D104).
+         */
+        post: operations["choosePick"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/admin/tts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The text-to-speech engines in the models file, and which are enabled for newsrooms
+         * @description Platform admin only (D113).
+         */
+        get: operations["getAdminTts"];
+        put?: never;
+        /**
+         * Enable a set of engines for every newsroom to choose from
+         * @description Platform admin only; audited in the platform audit log (D113).
+         */
+        post: operations["setAdminTts"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/tts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        /** The newsroom's TTS engine per language, and what each language would use now */
+        get: operations["getNewsroomTts"];
+        put?: never;
+        /**
+         * Choose the engine for one language, or clear the choice to use the default
+         * @description Editor-in-Chief only; audited (D113).
+         */
+        post: operations["setNewsroomTts"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -496,6 +612,8 @@ export interface components {
         Role: "editor-in-chief" | "editor";
         DeskMe: {
             email: string;
+            /** @description The platform's one super admin, who chooses the TTS engines on offer (D113). */
+            platform_admin: boolean;
             memberships: {
                 /** @description The newsroom's slug. */
                 newsroom: string;
@@ -650,7 +768,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            kind: "budget-warning" | "budget-cap" | "no-leads" | "no-channel";
+            kind: "budget-warning" | "budget-cap" | "no-leads" | "no-channel" | "no-theme" | "pick-missed" | "plan-failed";
             key: string;
             detail: unknown;
             /** Format: date-time */
@@ -806,6 +924,116 @@ export interface components {
                 /** Format: date */
                 day: string;
             }[];
+        };
+        PlanLead: {
+            /** Format: uuid */
+            id: string;
+            url: string;
+            headline: string | null;
+        };
+        CalendarWeek: {
+            /**
+             * Format: date
+             * @description The Monday of a week the cycle touches.
+             */
+            week: string;
+            focus: string;
+        };
+        ThemeProposal: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date */
+            starts: string;
+            /**
+             * Format: date
+             * @description The day after the cycle's last day.
+             */
+            ends: string;
+            theme: string;
+            angle: string | null;
+            rationale: string | null;
+            calendar: components["schemas"]["CalendarWeek"][];
+            /** @enum {string} */
+            status: "proposed" | "approved" | "declined";
+            /** Format: date-time */
+            decided_at: string | null;
+            leads: components["schemas"]["PlanLead"][];
+        };
+        PickCandidate: {
+            title: string;
+            angle: string;
+            why: string;
+            leads: components["schemas"]["PlanLead"][];
+        };
+        WeeklyPick: {
+            /** Format: uuid */
+            id: string;
+            series: string;
+            /** Format: date */
+            week: string;
+            /** Format: date-time */
+            slot: string;
+            /** Format: date-time */
+            deadline: string;
+            chosen: number | null;
+            /** Format: date-time */
+            picked_at: string | null;
+            /** Format: date-time */
+            skipped_at: string | null;
+            candidates: components["schemas"]["PickCandidate"][];
+        };
+        Plan: {
+            /** @description Proposals for the current and later cycles, newest cycle first. */
+            themes: components["schemas"]["ThemeProposal"][];
+            /** @description Picks of the last four weeks and later, newest first. */
+            picks: components["schemas"]["WeeklyPick"][];
+        };
+        ApproveThemeRequest: {
+            theme: string;
+            angle: string;
+            /** @description The same weeks as proposed, each with its focus as the Editor-in-Chief wants it. */
+            calendar: components["schemas"]["CalendarWeek"][];
+        };
+        ChoosePickRequest: {
+            candidate: number;
+        };
+        TtsEngine: {
+            /** @description Catalogue id in the models file. */
+            id: string;
+            model: string;
+            languages: components["schemas"]["Language"][];
+            /** @description Runs on this machine (tools/tts-eval/serve.py). */
+            local: boolean;
+            enabled: boolean;
+        };
+        AdminTts: {
+            /** @description The models file's `tts`: used where a newsroom chose none. */
+            default: string;
+            engines: components["schemas"]["TtsEngine"][];
+        };
+        AdminTtsRequest: {
+            engines: string[];
+        };
+        NewsroomTtsLanguage: {
+            language: components["schemas"]["Language"];
+            chosen: string | null;
+            /** @description The engine episodes in this language are voiced with now. */
+            effective: string | null;
+            /** @enum {string|null} */
+            source: "newsroom" | "default" | null;
+            /** @description Why no engine can voice this language. */
+            reason: string | null;
+            /** @description Enabled engines that speak this language. */
+            options: string[];
+        };
+        NewsroomTts: {
+            default: string;
+            languages: components["schemas"]["NewsroomTtsLanguage"][];
+        };
+        NewsroomTtsRequest: {
+            language: components["schemas"]["Language"];
+            /** @description Null clears the choice. */
+            engine: string | null;
         };
     };
     responses: {
@@ -1538,6 +1766,201 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Measures"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Themes of the current and next cycle, and picks from the last four weeks on. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Plan"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    approveTheme: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                cycle: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApproveThemeRequest"];
+            };
+        };
+        responses: {
+            /** @description Approved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    choosePick: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                pick: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChoosePickRequest"];
+            };
+        };
+        responses: {
+            /** @description Chosen; the desk will research it. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getAdminTts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The catalogue. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminTts"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    setAdminTts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminTtsRequest"];
+            };
+        };
+        responses: {
+            /** @description Saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getNewsroomTts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One row per newsroom language. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NewsroomTts"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    setNewsroomTts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewsroomTtsRequest"];
+            };
+        };
+        responses: {
+            /** @description Saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusResult"];
                 };
             };
             400: components["responses"]["BadRequest"];

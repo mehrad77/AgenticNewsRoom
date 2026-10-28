@@ -21,4 +21,15 @@ Desk and gate (milestone 3, D73–D81):
 - `gate/`: the `gate` job per story (verifier service at `ANR_VERIFIER_URL`, disclosure via `@anr/render`, fact-checker and item matcher via `verdict.ts`, `policy.ts`), and `sweep.ts`, which holds publications still unfinished 30 minutes before their slot. Policy passes only when every expected check exists and passed.
 - `gate/gate.db.test.ts` spawns the Python verifier against `anr_test`, like `pipeline.db.test.ts` spawns ingestion.
 
+Planner (milestone 5, D103–D104):
+- `planner/tick.ts`: the daily `plan` job starts the planner runs that are due. A run's `task` says what it works on, and its key keeps it from starting twice.
+- `planner/run.ts`: the run, with validation in `validate.ts` and its context in `context.ts`.
+- Its submit stores themes (`editorial_cycles`) or a pick plus its `pick-deadline` job.
+- `planner/deadline.ts` skips an unchosen pick. A chosen one is assigned by `assignPick()` in `assign.ts`.
+
+Podcasts (D107):
+- `podcast/episode.ts`: at a segment series' `assignment_at`, it builds the episode's story from copies of the week's published claims (`copied_from`) and starts one renderer run per language, whose task is `episode`.
+- `podcast/run.ts`: writes the script one part per call (a recap's source story, the story plan, each beat), with validation in `script.ts`.
+- The gate adds an `ai-voices` check for series with hosts (`introLines` in `@anr/render`).
+
 Use the `add-agent-role` skill for a new role. Commands: `pnpm --filter @anr/agents test`, `pnpm --filter @anr/agents dev` (needs `pnpm db:up`).
