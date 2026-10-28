@@ -71,6 +71,8 @@ class Bundle:
     leads: dict[str, Lead]
     renditions: tuple[Rendition, ...]
     policy: Policy
+    series: dict[str, Any] = field(default_factory=dict)
+    """The story's series config (hosts, narrator, segments), for format rules."""
 
 
 @dataclass

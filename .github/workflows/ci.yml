@@ -23,6 +23,8 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with:
           python-version-file: .python-version
+      # The episode mix and its tests use ffmpeg; signing tests run only where c2patool is installed.
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
       - run: pnpm install --frozen-lockfile
       - run: uv sync --frozen
       # Database tests (RLS, tenancy check, normalize_text, config sync) run against Postgres

@@ -10,11 +10,13 @@
     "dev": "node --env-file-if-exists=../../.env --watch src/worker.ts",
     "start": "node --env-file-if-exists=../../.env src/worker.ts",
     "typecheck": "tsc -p .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "cues": "node scripts/cues.ts"
   },
   "dependencies": {
     "@anr/core": "workspace:*",
     "@anr/db": "workspace:*",
+    "@anr/models": "workspace:*",
     "@anr/render": "workspace:*",
     "pg-boss": "12.38.0"
   },

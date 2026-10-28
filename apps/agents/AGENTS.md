@@ -27,4 +27,9 @@ Planner (milestone 5, D103–D104):
 - Its submit stores themes (`editorial_cycles`) or a pick plus its `pick-deadline` job.
 - `planner/deadline.ts` skips an unchosen pick. A chosen one is assigned by `assignPick()` in `assign.ts`.
 
+Podcasts (D107):
+- `podcast/episode.ts`: at a segment series' `assignment_at`, it builds the episode's story from copies of the week's published claims (`copied_from`) and starts one renderer run per language, whose task is `episode`.
+- `podcast/run.ts`: writes the script one part per call (a recap's source story, the story plan, each beat), with validation in `script.ts`.
+- The gate adds an `ai-voices` check for series with hosts (`introLines` in `@anr/render`).
+
 Use the `add-agent-role` skill for a new role. Commands: `pnpm --filter @anr/agents test`, `pnpm --filter @anr/agents dev` (needs `pnpm db:up`).

@@ -10,6 +10,8 @@
 - id: arc-follows-protagonists
   rule: the turning-point and resolution beats each name at least one protagonist
 - id: cues-sparing
-  rule: at most one cue per beat; pause only with seconds; no cues in news-recap segments
+  rule: at most 1 cue per beat; pause only with seconds; no cues in news-recap segments
 - id: directions-short
   rule: direction is at most 40 characters and on at most a third of lines
+- id: segments-follow-series
+  rule: the episode's segments are the series' segments, in order

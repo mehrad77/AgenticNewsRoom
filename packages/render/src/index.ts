@@ -17,6 +17,22 @@ const formatsDir = fileURLToPath(new URL("../../../config/formats", import.meta.
 /** Longest message a channel accepts, in visible UTF-16 units (Telegram: after entity parsing). */
 export const CHANNEL_LIMITS: Readonly<Record<string, number>> = { telegram: 4096 };
 
+/** The word every AI-voice intro line must say, per language. */
+export const AI_TERMS: Readonly<Record<Language, string>> = {
+  fa: "هوش مصنوعی",
+  en: "AI",
+  tr: "yapay zekâ",
+};
+
+/** One spoken line of an episode's opening: a host by name, or the narrator. */
+export interface IntroLine {
+  speaker: string;
+  text: string;
+}
+
+/** A host's name as spoken: the series config's key, capitalised (`maya` → `Maya`). */
+export const spokenName = (host: string) => host.charAt(0).toLocaleUpperCase() + host.slice(1);
+
 const ENTITIES: Record<string, string> = { lt: "<", gt: ">", amp: "&", quot: '"', apos: "'" };
 
 /** The text a reader sees: tags dropped, entities decoded. */
@@ -82,6 +98,29 @@ export function splitParts(text: string, label: string, limit: number): string[]
  * Renders a format's channel template. Templates live in config/formats/<format>/templates and
  * share partials in config/formats/_partials (the AI-disclosure label among them).
  */
+/**
+ * Why an episode's opening does not introduce its AI voices: a host or the narrator without a
+ * line, a host's line that does not name them, or a line without the language's word for AI.
+ */
+export function introProblems(
+  lines: readonly IntroLine[],
+  language: Language,
+  hosts: readonly string[],
+  narrator: boolean,
+): string[] {
+  const problems: string[] = [];
+  const term = AI_TERMS[language].toLocaleLowerCase(language);
+  for (const voice of [...hosts, ...(narrator ? ["narrator"] : [])]) {
+    const line = lines.find((l) => l.speaker === voice);
+    if (!line) problems.push(`${voice} is not introduced`);
+    else if (voice !== "narrator" && !line.text.includes(spokenName(voice)))
+      problems.push(`${voice}'s line does not name them`);
+    else if (!line.text.toLocaleLowerCase(language).includes(term))
+      problems.push(`${voice}'s line does not say "${AI_TERMS[language]}"`);
+  }
+  return problems;
+}
+
 export function createRenderer(root = formatsDir) {
   const engine = new Liquid({
     root,
@@ -101,6 +140,29 @@ export function createRenderer(root = formatsDir) {
       return out.trim();
     },
     render,
+    /**
+     * The opening every episode starts with (from `_partials/ai-voices.liquid`): each host, then
+     * the narrator, says they are an AI voice. The audio pipeline voices exactly these lines.
+     */
+    async introLines(
+      language: Language,
+      series: string,
+      hosts: readonly string[],
+      narrator: boolean,
+    ): Promise<IntroLine[]> {
+      const line = async (vars: Record<string, unknown>) =>
+        (
+          await engine.parseAndRender(
+            '{% render "ai-voices", language: language, series: series, name: name, first: first, narrator: narrator %}',
+            { language, series, name: "", first: false, narrator: false, ...vars },
+          )
+        ).trim();
+      const out: IntroLine[] = [];
+      for (const [i, host] of hosts.entries())
+        out.push({ speaker: host, text: await line({ name: spokenName(host), first: i === 0 }) });
+      if (narrator) out.push({ speaker: "narrator", text: await line({ narrator: true }) });
+      return out;
+    },
     /**
      * What a channel is sent: the template's output, split to the channel's limit with the
      * disclosure label on every part. The publisher sends these and the gate checks these (D79).

@@ -85,6 +85,16 @@ function modelsProblems(m: ModelsSchema, file: string, formats: string[]): strin
 }
 
 /** Returns a list of human-readable problems; empty means the config is valid. */
+/** The sound cues every podcast series has, as files in `newsrooms/<slug>/audio/<series>/`. */
+export const CUE_FILES = [
+  "sting.flac",
+  "transition.flac",
+  "bed.flac",
+  "bed-swell.flac",
+  "bed-out.flac",
+  "jingle.flac",
+] as const;
+
 export function validateConfig(config: RawConfig): string[] {
   const ajv = new Ajv2020({ allErrors: true, strict: true });
   addFormats(ajv);
@@ -243,6 +253,11 @@ export function validateConfig(config: RawConfig): string[] {
         if (!(from in n.series)) errors.push(`${where} segment reads from unknown series ${from}`);
       }
       if (series.format === "podcast-episode") {
+        // Stock sound cues, owned or licensed, with their licence beside them (D108).
+        const audio = join(n.dir, "audio", name);
+        for (const file of [...CUE_FILES, "LICENSE.md"]) {
+          if (!existsSync(join(audio, file))) errors.push(`${where} has no audio/${name}/${file}`);
+        }
         for (const l of series.languages) {
           if (!series.hosts?.[l]) errors.push(`${where} has no hosts for ${l}`);
           const tellsStory = (series.segments ?? []).some((seg) => seg.kind === "story");

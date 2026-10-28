@@ -290,16 +290,8 @@ def test_format_rules_read_their_numbers_from_checks_yaml() -> None:
     ]
 
 
-# Podcast rules arrive with milestone 5; until then they hold every episode with an error.
-PENDING = {
-    "speakers-known",
-    "segment-length",
-    "story-arc-complete",
-    "protagonists-grounded",
-    "arc-follows-protagonists",
-    "cues-sparing",
-    "directions-short",
-}
+# Every configured rule has code; a new one without code holds every rendition with an error.
+PENDING: set[str] = set()
 
 
 def test_every_configured_rule_is_implemented_or_pending() -> None:

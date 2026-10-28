@@ -26,8 +26,9 @@ _PUBLISHER = (
 
 def load(conn: Conn, story_id: str) -> Bundle:
     story = conn.execute(
-        """select s.id, b.slug as beat, n.policy
+        """select s.id, b.slug as beat, n.policy, se.config as series
            from stories s join newsrooms n on n.id = s.newsroom_id
+           join assignments a on a.id = s.assignment_id join series se on se.id = a.series_id
            left join beats b on b.id = s.beat_id
            where s.id = %s""",
         (story_id,),
@@ -109,6 +110,7 @@ def load(conn: Conn, story_id: str) -> Bundle:
             tier1_alone=bool(sources.get("tier1_alone", False)),
             opinion=str(policy.get("opinion", "not_allowed")),
         ),
+        series=story["series"] or {},
     )
 
 

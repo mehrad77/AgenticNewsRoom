@@ -18,7 +18,18 @@ _SENTENCE_START = re.compile(r"(?:^|[.!?:;]\s+|\n)\s*$")
 # Words that start a sentence or a headline in English without naming anything.
 _COMMON = {"a", "an", "the", "it", "its", "this", "that", "these", "i", "in", "on", "at", "and"}
 
-SKIP_KEYS = {"kind", "claim_ids", "lead_id", "segment", "beat", "cue", "direction"}
+# Labels and delivery hints, not reader-facing text: a podcast line's voice is no unsourced name.
+SKIP_KEYS = {
+    "kind",
+    "claim_ids",
+    "lead_id",
+    "segment",
+    "beat",
+    "cue",
+    "direction",
+    "speaker",
+    "host",
+}
 
 
 def numbers(text: str) -> set[str]:

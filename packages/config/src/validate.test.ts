@@ -58,6 +58,20 @@ describe("validateConfig", () => {
     );
   });
 
+  it("requires owned or licensed sound cues for every podcast series (D108)", () => {
+    const config = loadConfig(root);
+    const ai = config.newsrooms.find((n) => n.slug === "ai");
+    if (!ai) throw new Error("ai newsroom missing");
+    ai.series["other-podcast"] = ai.series["weekly-podcast"];
+    const errors = validateConfig(config);
+    expect(errors).toContain(
+      "newsrooms/ai/series/other-podcast.yaml has no audio/other-podcast/sting.flac",
+    );
+    expect(errors).toContain(
+      "newsrooms/ai/series/other-podcast.yaml has no audio/other-podcast/LICENSE.md",
+    );
+  });
+
   it("reads every models file", () => {
     expect(Object.keys(loadConfig(root).models)).toEqual(["models.free.yaml", "models.yaml"]);
   });

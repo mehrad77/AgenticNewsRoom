@@ -28,7 +28,7 @@ export interface NewRun {
   storyId?: string;
   language?: string;
   /** What a run without an assignment works on; `key` names it (the planner's, D103). */
-  task?: { key: string } & Record<string, unknown>;
+  task?: { key: string } & object;
 }
 
 /** Writes an Agent run and queues its job in the same transaction. */

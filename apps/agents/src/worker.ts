@@ -2,7 +2,7 @@
 // one submit. The daily assignment and the verifier gate run here too.
 import { fileURLToPath } from "node:url";
 import type { AgentRole } from "@anr/core";
-import { createBoss, createPool } from "@anr/db";
+import { createBoss, createPool, withNewsroom } from "@anr/db";
 import { buildCatalog, loadModelsConfig, ModelGateway, missingKeys, modelsFile } from "@anr/models";
 import { createRenderer } from "@anr/render";
 import { assignDaily, assignPick } from "./assign.ts";
@@ -17,6 +17,8 @@ import { meteredModel } from "./model.ts";
 import { pickDeadline } from "./planner/deadline.ts";
 import { runPlanner } from "./planner/run.ts";
 import { planTick } from "./planner/tick.ts";
+import { assignEpisode } from "./podcast/episode.ts";
+import { isEpisodeRun, runEpisode } from "./podcast/run.ts";
 import { redraft } from "./redraft.ts";
 import { runRenderer } from "./renderer/run.ts";
 import { ModelRouter } from "./router.ts";
@@ -78,9 +80,11 @@ await registerJobs(boss, {
   },
   assign: async (job) => {
     const { pickId } = job;
-    const outcome = pickId
+    let outcome = pickId
       ? await assignPick(pool, boss, router, { ...job, pickId })
       : await assignDaily(pool, boss, router, job);
+    // A weekly series built from segments: the episode (D107).
+    if (outcome.kind === "not-daily") outcome = await assignEpisode(pool, boss, router, job);
     console.log(`[agents] assign ${job.seriesId}: ${JSON.stringify(outcome)}`);
   },
   plan: async (job) => {
@@ -106,7 +110,11 @@ await registerJobs(boss, {
       }),
       planner: run((deps, job) => runPlanner(deps, job)),
       desk: run(runDesk),
-      renderer: run(runRenderer),
+      renderer: run(async (deps, job) =>
+        (await withNewsroom(pool, job.newsroomId, (c) => isEpisodeRun(c, job.agentRunId)))
+          ? runEpisode(deps, job)
+          : runRenderer(deps, job),
+      ),
     },
   }),
   redraft: async (job) => {
