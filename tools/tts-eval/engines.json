@@ -1,0 +1,38 @@
+{
+  "chatterbox": {
+    "name": "Chatterbox Multilingual",
+    "maker": "Resemble AI",
+    "licence": "MIT",
+    "size": "about 0.5B parameters (per vendor)",
+    "output": "24 kHz mono",
+    "languages": "23: ar da de el en es fi fr he hi it ja ko ms nl no pl pt ru sv sw tr zh",
+    "voices": "one default voice; zero-shot cloning from a short reference clip",
+    "parameters": "exaggeration 0.5 (emotion intensity), cfg_weight 0.5 (pacing and adherence), temperature 0.8, repetition_penalty 2.0, min_p 0.05, top_p 1.0",
+    "special": "Embeds Resemble's Perth imperceptible watermark in every output (an extra AI marker); emotion intensity is a single knob; ran on the Apple GPU (MPS).",
+    "ran_as": "language_id = the language"
+  },
+  "xtts": {
+    "name": "XTTS-v2",
+    "maker": "Coqui (community fork coqui-tts; weights from the tts-hub/XTTS-v2 mirror)",
+    "licence": "Coqui Public Model License: non-commercial only",
+    "size": "about 0.47B parameters (per vendor)",
+    "output": "24 kHz mono",
+    "languages": "17: en es fr de it pt pl tr ru nl cs ar zh-cn hu ko ja hi",
+    "voices": "57 built-in studio speakers; cloning from about 6 seconds of reference audio",
+    "parameters": "temperature 0.75, top_k 50, top_p 0.85, repetition_penalty 5.0, length_penalty 1.0, speed",
+    "special": "Fastest here (faster than real time on the CPU); streaming output; a cloned voice can speak other languages.",
+    "ran_as": "built-in speakers per host"
+  },
+  "dia": {
+    "name": "Dia 1.6B",
+    "maker": "Nari Labs",
+    "licence": "Apache 2.0",
+    "size": "1.6B parameters",
+    "output": "44.1 kHz mono (Descript audio codec)",
+    "languages": "English only",
+    "voices": "random per run unless seeded or given an audio prompt (cloning)",
+    "parameters": "max_tokens 3072, cfg_scale 3.0, temperature 1.2, top_p 0.95, cfg_filter_top_k 45",
+    "special": "Writes a whole two-speaker dialogue in one pass from [S1]/[S2] tags; non-verbal sounds such as (laughs), (sighs), (coughs) in the text.",
+    "ran_as": "the dialogue in one pass with a fixed seed"
+  }
+}

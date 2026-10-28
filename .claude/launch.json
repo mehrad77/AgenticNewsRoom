@@ -32,6 +32,21 @@
       "runtimeArgs": ["--filter", "@anr/schemas", "run", "view"],
       "port": 4400,
       "autoPort": true
+    },
+    {
+      "name": "tts-eval",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4430",
+        "--bind",
+        "127.0.0.1",
+        "--directory",
+        "tools/tts-eval"
+      ],
+      "port": 4430,
+      "url": "http://localhost:4430"
     }
   ]
 }

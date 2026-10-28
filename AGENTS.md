@@ -24,6 +24,7 @@ ANR (Agentic News Room): a platform for running publications where humans set th
 | `packages/db`        | SQL migrations (dbmate), Postgres client, `withNewsroom()`                  | TS/SQL           |
 | `config/`            | Models, formats, newsrooms (versioned configuration)                        | YAML/JSON/Liquid |
 | `infra/`             | Docker Compose, Dockerfiles, Caddy, dev Postgres init                       | —                |
+| `tools/tts-eval`     | Local TTS comparison kit (Chatterbox, XTTS-v2, Dia) for English and Turkish | Python/HTML      |
 | `docs/`              | Charter, technical design, first newsrooms, decisions, build plan           | Markdown         |
 
 Each app, service and package has its own short `AGENTS.md` with its boundaries.

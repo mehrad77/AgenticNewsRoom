@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TTS Comparison</title>
+<style>
+  :root { --bg: #fafaf8; --fg: #1d1d1b; --muted: #666; --card: #fff; --line: #e2e2dc; --accent: #1a5d2e; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #161615; --fg: #ecece8; --muted: #a3a39c; --card: #20201e; --line: #34342f; --accent: #6fbf86; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, sans-serif; }
+  main { max-width: 72rem; margin: 0 auto; padding: 1rem; }
+  h1 { font-size: 1.4rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.1rem; margin: 1.5rem 0 .5rem; }
+  .muted { color: var(--muted); font-size: .9rem; }
+  .bar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: 1rem 0; }
+  button, select { font: inherit; padding: .4rem .8rem; border-radius: 6px; border: 1px solid var(--line); background: var(--card); color: var(--fg); cursor: pointer; min-height: 40px; }
+  button[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: .75rem; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: .75rem; }
+  .card h3 { margin: 0 0 .25rem; font-size: 1rem; }
+  audio { width: 100%; height: 36px; margin: .25rem 0; }
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
+  th, td { border-bottom: 1px solid var(--line); padding: .4rem .5rem; text-align: start; vertical-align: top; }
+  td.text { min-width: 16rem; max-width: 28rem; }
+  td audio { min-width: 11rem; }
+  .who { font-weight: 600; color: var(--muted); font-size: .85rem; }
+  .score select { min-height: 32px; padding: .2rem .4rem; }
+  textarea { width: 100%; font: inherit; min-height: 4rem; background: var(--card); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: .4rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Local TTS comparison</h1>
+  <p class="muted">Every clip is normalised to −16 LUFS, like the episode pipeline, so loudness does not bias you. Scores stay in this browser; export them when done.</p>
+  <div class="bar" id="langs"></div>
+  <div class="bar">
+    <button type="button" id="blind" aria-pressed="false">Blind mode</button>
+    <button type="button" id="export">Export scores</button>
+    <span class="muted" id="saved"></span>
+  </div>
+  <section id="view"></section>
+</main>
+<script>
+const CRITERIA = ["Pronunciation", "Naturalness", "Speaker distinctness", "Stability", "Disclosure line", "Fit to publish"];
+const store = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+let manifest, language = store.get("tts:lang", "en"), blind = store.get("tts:blind", false);
+const scores = store.get("tts:scores", {});
+const el = (tag, attrs = {}, ...kids) => {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "text") e.textContent = v;
+    else e.setAttribute(k, v);
+  }
+  for (const k of kids) if (k) e.append(k);
+  return e;
+};
+const audio = (src) => el("audio", { controls: "", preload: "none", src });
+// Blind labels: a stable shuffle per language, so "B" stays the same engine while you listen.
+function labels(engines) {
+  const key = `tts:order:${language}`;
+  let order = store.get(key, null);
+  if (!order || order.length !== engines.length || !engines.every((e) => order.includes(e.engine))) {
+    order = engines.map((e) => e.engine).sort(() => Math.random() - 0.5);
+    store.set(key, order);
+  }
+  return Object.fromEntries(order.map((name, i) => [name, blind ? `Voice ${"ABCDEFG"[i]}` : name]));
+}
+function render() {
+  const lang = manifest.languages[language];
+  const engines = lang.engines;
+  const name = labels(engines);
+  const shown = blind ? [...engines].sort((a, b) => name[a.engine].localeCompare(name[b.engine])) : engines;
+  const view = document.getElementById("view");
+  view.replaceChildren();
+
+  view.append(el("h2", { text: "Whole dialogue and stability" }));
+  const cards = el("div", { class: "cards" });
+  for (const e of shown) {
+    const t = e.timings;
+    cards.append(el("div", { class: "card" },
+      el("h3", { text: name[e.engine] }),
+      blind ? null : el("div", { class: "muted", text: `${e.licence}${t ? ` · ${t.compute_per_audio_second} s per audio s · ${Math.round(t.peak_memory_mb / 100) / 10} GB` : ""}` }),
+      el("div", { class: "who", text: "Dialogue" }), audio(e.dialogue),
+      e.stability ? el("div", { class: "who", text: "Stability: the same line three times" }) : null,
+      e.stability ? audio(e.stability) : null,
+    ));
+  }
+  view.append(cards);
+
+  const withLines = shown.filter((e) => e.lines.length);
+  if (withLines.length) {
+    view.append(el("h2", { text: "Line by line" }));
+    const table = el("table");
+    table.append(el("tr", {}, el("th", { text: "Line" }), ...withLines.map((e) => el("th", { text: name[e.engine] }))));
+    lang.lines.forEach(([who, text], i) => {
+      const n = String(i).padStart(2, "0");
+      table.append(el("tr", {},
+        el("td", { class: "text", dir: "auto" }, el("div", { class: "who", text: lang.hosts[who] }), text),
+        ...withLines.map((e) => el("td", {}, audio(e.lines.find((p) => p.endsWith(`-${n}.mp3`)) ?? "")))));
+    });
+    view.append(el("div", { class: "scroll" }, table));
+  }
+
+  if (!blind) {
+    view.append(el("h2", { text: "Models: parameters and special features" }));
+    const info = el("table");
+    const rows = ["maker", "licence", "size", "output", "languages", "voices", "parameters", "special", "ran_as"];
+    const labelsOf = { maker: "Maker", licence: "Licence", size: "Size", output: "Output", languages: "Languages", voices: "Voices", parameters: "Generation parameters (defaults used)", special: "Special features", ran_as: "How it ran here" };
+    info.append(el("tr", {}, el("th", { text: "" }), ...shown.map((e) => el("th", { text: manifest.engines[e.engine]?.name ?? e.engine }))));
+    for (const r of rows)
+      info.append(el("tr", {}, el("td", { class: "who", text: labelsOf[r] }), ...shown.map((e) => el("td", { text: manifest.engines[e.engine]?.[r] ?? "" }))));
+    view.append(el("div", { class: "scroll" }, info));
+  }
+
+  view.append(el("h2", { text: "Scores (1 bad – 5 fit to publish)" }));
+  const grid = el("table", { class: "score" });
+  grid.append(el("tr", {}, el("th", { text: "Criterion" }), ...shown.map((e) => el("th", { text: name[e.engine] }))));
+  for (const c of CRITERIA) {
+    grid.append(el("tr", {}, el("td", { text: c }), ...shown.map((e) => {
+      const key = `${language}:${e.engine}:${c}`;
+      const s = el("select", { "aria-label": `${c}, ${name[e.engine]}` }, el("option", { value: "", text: "–" }),
+        ...[1, 2, 3, 4, 5].map((v) => el("option", { value: String(v), text: String(v) })));
+      s.value = scores[key] ?? "";
+      s.onchange = () => { scores[key] = s.value; store.set("tts:scores", scores); saved(); };
+      return el("td", {}, s);
+    })));
+  }
+  view.append(el("div", { class: "scroll" }, grid));
+  const notes = el("textarea", { placeholder: "Notes: what you heard, which voice to change…" });
+  notes.value = scores[`${language}:notes`] ?? "";
+  notes.oninput = () => { scores[`${language}:notes`] = notes.value; store.set("tts:scores", scores); saved(); };
+  view.append(el("h2", { text: "Notes" }), notes);
+}
+function saved() { document.getElementById("saved").textContent = `Saved ${new Date().toLocaleTimeString()}`; }
+function tabs() {
+  const bar = document.getElementById("langs");
+  bar.replaceChildren(...Object.keys(manifest.languages).map((l) => {
+    const b = el("button", { type: "button", "aria-pressed": String(l === language), text: { en: "English", tr: "Türkçe" }[l] ?? l });
+    b.onclick = () => { language = l; store.set("tts:lang", l); tabs(); render(); };
+    return b;
+  }));
+}
+document.getElementById("blind").onclick = (ev) => {
+  blind = !blind; store.set("tts:blind", blind); ev.target.setAttribute("aria-pressed", String(blind)); render();
+};
+document.getElementById("export").onclick = () => {
+  const blob = new Blob([JSON.stringify(scores, null, 2)], { type: "application/json" });
+  const a = el("a", { href: URL.createObjectURL(blob), download: "tts-scores.json" });
+  a.click();
+};
+fetch("listen/manifest.json").then((r) => r.json()).then((m) => {
+  manifest = m;
+  if (!manifest.languages[language]) language = "en";
+  document.getElementById("blind").setAttribute("aria-pressed", String(blind));
+  tabs(); render();
+});
+</script>
+</body>
+</html>
