@@ -8,12 +8,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { digitalSourceType, type Language, localDay, type PodcastAudioJob } from "@anr/core";
 import { budgetState, type Client, type Pool, withNewsroom, writingLimit } from "@anr/db";
-import { type createRenderer, editedByPerson, spokenName } from "@anr/render";
+import { type createRenderer, editedByPerson, hostName } from "@anr/render";
 import { holdPublication } from "../hold.ts";
 import { type Block, type Clip, mixEpisode } from "./mix.ts";
 import type { Signer } from "./sign.ts";
 import type { MediaStore } from "./store.ts";
-import type { SpeechRequest, TextToSpeech } from "./tts.ts";
+import { MAX_VOICES, type SpeechRequest, type TextToSpeech } from "./tts.ts";
 
 export interface AudioDeps {
   pool: Pool;
@@ -35,6 +35,7 @@ const ISO_639_2: Record<string, string> = { fa: "per", en: "eng", tr: "tur" };
 interface SeriesConfig {
   name?: Record<string, string>;
   hosts?: Record<string, Record<string, string>>;
+  host_names?: Record<string, Record<string, string>>;
   narrator?: Record<string, string>;
 }
 interface Script {
@@ -111,6 +112,7 @@ export function plan(
   l: Pick<Loaded, "body" | "config" | "language" | "seriesSlug">,
   intro: { speaker: string; text: string }[],
   audioDir: string,
+  batch: "line" | "segment" = "line",
 ): {
   blocks: { chapter?: string; bed?: boolean; items: (SpeechRequest | Clip)[] }[];
   voices: Set<string>;
@@ -125,8 +127,8 @@ export function plan(
     return v;
   };
   const say = (speaker: string, text: string, direction?: string): (SpeechRequest | Clip)[] => [
-    { text, voice: voice(speaker), language: l.language, ...(direction && { direction }) },
-    { kind: "silence", seconds: PAUSE_BETWEEN_LINES },
+    { text, speaker, voice: voice(speaker), language: l.language, ...(direction && { direction }) },
+    { kind: "silence", seconds: PAUSE_BETWEEN_LINES, gap: true },
   ];
   const file = (name: string): Clip => ({ kind: "file", path: join(audioDir, `${name}.flac`) });
   const blocks: { chapter?: string; bed?: boolean; items: (SpeechRequest | Clip)[] }[] = [
@@ -137,11 +139,22 @@ export function plan(
   ];
   for (const item of l.body.items) {
     if (item.segment === "news-recap") {
-      for (const topic of item.topics)
+      // Voiced a segment at a time, topics share one clip: one chapter for the recap (D112).
+      if (batch === "segment") {
         blocks.push({
-          chapter: topic.title,
-          items: topic.lines.flatMap((ln) => say(ln.host, ln.text)),
+          chapter: item.topics
+            .map((t) => t.title)
+            .join(" · ")
+            .slice(0, 200),
+          items: item.topics.flatMap((t) => t.lines.flatMap((ln) => say(ln.host, ln.text))),
         });
+      } else {
+        for (const topic of item.topics)
+          blocks.push({
+            chapter: topic.title,
+            items: topic.lines.flatMap((ln) => say(ln.host, ln.text)),
+          });
+      }
       continue;
     }
     const items: (SpeechRequest | Clip)[] = [];
@@ -158,12 +171,49 @@ export function plan(
   return { blocks, voices };
 }
 
+/** Words one request may hold: well under the output cap (about ten minutes of speech). */
+export const MAX_REQUEST_WORDS = 1200;
+
+/**
+ * A block's items as requests (plan B, D112): consecutive lines join one request until a third
+ * voice, the word limit or a cue; the pauses between them are left to the model.
+ */
+export function requests(
+  items: readonly (SpeechRequest | Clip)[],
+  maxVoices = MAX_VOICES,
+  maxWords = MAX_REQUEST_WORDS,
+): (SpeechRequest[] | Clip)[] {
+  const out: (SpeechRequest[] | Clip)[] = [];
+  let turns: SpeechRequest[] = [];
+  let words = 0;
+  const flush = () => {
+    if (turns.length > 0) out.push(turns);
+    turns = [];
+    words = 0;
+  };
+  for (const item of items) {
+    if ("kind" in item) {
+      if (item.kind === "silence" && item.gap) continue;
+      flush();
+      out.push(item);
+      continue;
+    }
+    const voices = new Set([...turns.map((t) => t.voice), item.voice]);
+    const n = item.text.split(/\s+/).length;
+    if (voices.size > maxVoices || (turns.length > 0 && words + n > maxWords)) flush();
+    turns.push(item);
+    words += n;
+  }
+  flush();
+  return out;
+}
+
 export async function produceEpisode(deps: AudioDeps, job: PodcastAudioJob): Promise<AudioOutcome> {
   const inNewsroom = <T>(fn: (c: Client) => Promise<T>) =>
     withNewsroom(deps.pool, job.newsroomId, fn);
   const prepared = await inNewsroom(async (c) => {
     const l = await load(c, job.publicationId);
-    if (!l || l.status !== "scheduled" || l.format !== "podcast-episode") return null;
+    if (l?.status !== "scheduled" || l.format !== "podcast-episode") return null;
     const edited = await editedByPerson(c, job.publicationId, [l.renditionId]);
     const hash = scriptHash(l, edited, deps.tts.model);
     const { rowCount } = await c.query(
@@ -198,18 +248,22 @@ export async function produceEpisode(deps: AudioDeps, job: PodcastAudioJob): Pro
       series,
       hostNames,
       Boolean(l.config.narrator?.[l.language]),
+      l.config.host_names?.[l.language],
     );
     const audioDir = join(deps.configDir, "newsrooms", l.newsroom, "audio", l.seriesSlug);
-    const { blocks: planned } = plan(l, intro, audioDir);
+    const { blocks: planned } = plan(l, intro, audioDir, deps.tts.batch);
     const blocks: Block[] = [];
     for (const b of planned) {
       const clips: Clip[] = [];
-      for (const item of b.items) {
-        if ("kind" in item) {
+      const steps = deps.tts.batch === "segment" ? requests(b.items) : b.items;
+      for (const item of steps) {
+        if (!Array.isArray(item) && "kind" in item) {
           clips.push(item);
           continue;
         }
-        const speech = await deps.tts.synthesize(item);
+        const speech = Array.isArray(item)
+          ? await deps.tts.synthesizeTurns(item)
+          : await deps.tts.synthesize(item);
         if (!speech.cached) spend.calls += 1;
         spend.tokensIn += speech.tokensIn;
         spend.tokensOut += speech.tokensOut;
@@ -219,7 +273,7 @@ export async function produceEpisode(deps: AudioDeps, job: PodcastAudioJob): Pro
       blocks.push({ chapter: b.chapter, bed: b.bed, clips });
     }
     const label = await deps.renderer.disclosureLabel(l.language, edited);
-    const voices = `${hostNames.map(spokenName).join(", ")}${l.config.narrator?.[l.language] ? ", narrator" : ""}`;
+    const voices = `${hostNames.map((h) => hostName(h, l.config.host_names?.[l.language])).join(", ")}${l.config.narrator?.[l.language] ? ", narrator" : ""}`;
     const mixed = await mixEpisode(
       blocks,
       join(audioDir, "bed.flac"),

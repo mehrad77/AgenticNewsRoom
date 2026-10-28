@@ -140,6 +140,17 @@ describe("AI-voice intro", () => {
     }
   });
 
+  it("names hosts in their language's script when the series gives names", async () => {
+    const names = { niloofar: "نیلوفر", farzad: "فرزاد" };
+    const lines = await renderer.introLines("fa", "پادکست", ["niloofar", "farzad"], false, names);
+    expect(lines[0]?.text).toContain("نیلوفر");
+    expect(lines.map((l) => l.text).join(" ")).not.toMatch(/[A-Za-z]/);
+    expect(introProblems(lines, "fa", ["niloofar", "farzad"], false, names)).toEqual([]);
+    expect(await renderer.voicesNote("fa", ["niloofar", "farzad"], false, names)).toContain(
+      "نیلوفر و فرزاد",
+    );
+  });
+
   it("names what is missing", () => {
     const lines = [{ speaker: "maya", text: "Welcome. I'm Maya." }];
     expect(introProblems(lines, "en", ["maya", "leo"], true)).toEqual([

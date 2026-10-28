@@ -200,7 +200,7 @@ The publisher is a TypeScript worker. When an approved publication's slot comes 
   - **Sound cues:** sting, bed swell, bed out, pause or transition, mapped to the series' stock assets.
   Sources are paraphrased and attributed in speech, never read aloud as quotes. The verifier checks the arc, the protagonists' claims, and that cues and directions stay sparse.
 - **Podcast audio.** Code then runs the current pipeline:
-  1. Once the script is approved, a `podcast-audio` job: Gemini TTS per line, with voices set per host, narrator and language in the series config, delivery directions as style prompts, cached by text, voice and direction (D109).
+  1. Once the script is approved, a `podcast-audio` job voices it, with voices set per host, narrator and language in the series config and delivery directions as style prompts, cached by text, voice and direction (D109). Gemini TTS takes a segment's lines in as few requests as two voices per request allow (D112); a local engine takes a line at a time.
   2. ffmpeg mix: jingles, a ducked music bed, the script's sound cues mapped to the series' stock assets (synthesised and owned, D108), and loudness normalised to −16 LUFS in two passes, encoded as MP3. Episodes contain no recorded-music clips.
   3. ID3 tags and a chapter per topic and story, then the C2PA signature.
   4. Store the file: a local directory until milestone 7, then object storage.

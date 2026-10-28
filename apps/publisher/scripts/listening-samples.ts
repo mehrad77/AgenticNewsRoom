@@ -8,8 +8,9 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Language } from "@anr/core";
 import { buildCatalog, loadModelsConfig, modelsFile } from "@anr/models";
-import { createRenderer, spokenName } from "@anr/render";
+import { createRenderer } from "@anr/render";
 import { parse } from "yaml";
+import { geminiTts } from "../src/podcast/tts.ts";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const configDir = join(root, "config");
@@ -56,6 +57,7 @@ const models = loadModelsConfig(modelsFile(configDir));
 const entry = buildCatalog(models).entries.get(models.tts);
 if (!entry?.apiKey) throw new Error(`no key for the TTS model ${models.tts}`);
 const renderer = createRenderer(join(configDir, "formats"));
+const tts = geminiTts(entry);
 mkdirSync(out, { recursive: true });
 
 for (const s of chosen) {
@@ -72,53 +74,27 @@ for (const s of chosen) {
     false,
   );
   const turns = [
-    ...intro.map((l) => ({ speaker: spokenName(l.speaker), text: l.text })),
-    ...s.lines.map(([who, text]) => ({ speaker: spokenName(hosts[who]?.[0] ?? a[0]), text })),
-  ];
-  const body = {
-    // Gemini 3.8 TTS: each turn is its own text part, tagged with the speaker who says it.
-    contents: [
-      { parts: turns.map((t) => ({ text: t.text, speechMetadata: { speaker: t.speaker } })) },
-    ],
-    generationConfig: {
-      responseModalities: ["AUDIO"],
-      speechConfig: {
-        multiSpeakerVoiceConfig: {
-          speakerVoiceConfigs: [a, b].map(([name, voice]) => ({
-            speaker: spokenName(name),
-            voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } },
-          })),
-        },
-      },
-    },
-  };
+    ...intro.map((l) => ({ speaker: l.speaker, text: l.text })),
+    ...s.lines.map(([who, text]) => ({ speaker: hosts[who]?.[0] ?? a[0], text })),
+  ].map((t) => ({
+    ...t,
+    voice: series.hosts[s.language]?.[t.speaker] ?? a[1],
+    language: s.language,
+  }));
   console.log(`[samples] ${s.language}: 1 request, voices ${a[1]} and ${b[1]}`);
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${entry.model}:generateContent`,
-    {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-goog-api-key": entry.apiKey },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(180_000),
-    },
-  );
-  if (!response.ok) {
+  // The episode pipeline's own adapter: two voices, each turn its own part tagged with its speaker.
+  let speech: Awaited<ReturnType<typeof tts.synthesizeTurns>>;
+  try {
+    speech = await tts.synthesizeTurns(turns);
+  } catch (error) {
     // Kept whole: a refused request still counts against the day's few TTS calls.
-    const error = `${s.language}: TTS answered ${response.status}: ${await response.text()}`;
-    writeFileSync(join(out, `${s.language}.error.txt`), error);
-    throw new Error(`${error.slice(0, 400)}\n(saved in ${join(out, `${s.language}.error.txt`)})`);
+    const message = `${s.language}: ${(error as Error).message}`;
+    writeFileSync(join(out, `${s.language}.error.txt`), message);
+    throw new Error(`${message.slice(0, 400)}\n(saved in ${join(out, `${s.language}.error.txt`)})`);
   }
-  const json = (await response.json()) as {
-    candidates?: {
-      content?: { parts?: { inlineData?: { mimeType?: string; data?: string } }[] };
-    }[];
-    usageMetadata?: Record<string, number>;
-  };
-  const audio = json.candidates?.[0]?.content?.parts?.find((p) => p.inlineData)?.inlineData;
-  if (!audio?.data) throw new Error(`${s.language}: no audio in the answer`);
-  const rate = /rate=([0-9]+)/.exec(audio.mimeType ?? "")?.[1] ?? "24000";
+  const rate = String(speech.sampleRate);
   const pcm = join(out, `${s.language}.pcm`);
-  writeFileSync(pcm, Buffer.from(audio.data, "base64"));
+  writeFileSync(pcm, speech.pcm);
   execFileSync("ffmpeg", [
     "-hide_banner",
     "-loglevel",
@@ -144,9 +120,9 @@ for (const s of chosen) {
   ]);
   writeFileSync(
     join(out, `${s.language}.txt`),
-    `${turns.map((t) => `${t.speaker}: ${t.text}`).join("\n")}\n\nusage: ${JSON.stringify(json.usageMetadata)}\n`,
+    `${turns.map((t) => `${t.speaker}: ${t.text}`).join("\n")}\n\ntokens: ${speech.tokensIn} in, ${speech.tokensOut} out; $${speech.costUsd.toFixed(4)}\n`,
   );
   console.log(
-    `[samples] ${s.language}: ${join(out, `${s.language}.mp3`)} ${JSON.stringify(json.usageMetadata)}`,
+    `[samples] ${s.language}: ${join(out, `${s.language}.mp3`)} ($${speech.costUsd.toFixed(4)})`,
   );
 }

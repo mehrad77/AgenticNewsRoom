@@ -9,6 +9,8 @@ hosts:
   tr: { deniz: Aoede, emre: Charon }
   en: { ada: Leda, sam: Orus }
   fa: { shirin: Despina, kian: Iapetus }
+host_names: # how each host is named in speech and notes; required for right-to-left languages
+  fa: { shirin: شیرین, kian: کیان }
 narrator: # story segments only
   tr: Gacrux
   en: Schedar

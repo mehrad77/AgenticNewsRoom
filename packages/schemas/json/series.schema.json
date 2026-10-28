@@ -107,6 +107,21 @@
         }
       }
     },
+    "host_names": {
+      "type": "object",
+      "description": "Per language: host -> the name as spoken and written in that language. Required for right-to-left languages; otherwise the host's key, capitalised.",
+      "propertyNames": {
+        "enum": ["fa", "en", "tr"]
+      },
+      "additionalProperties": {
+        "type": "object",
+        "minProperties": 1,
+        "additionalProperties": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
     "channels": {
       "type": "object",
       "description": "Channel kind -> languages. The publisher finds matching channels (data) at send time.",

@@ -16,7 +16,8 @@ const BYTES_PER_SECOND = RATE * 2;
 export type Clip =
   | { kind: "speech"; pcm: Buffer; sampleRate: number }
   | { kind: "file"; path: string }
-  | { kind: "silence"; seconds: number };
+  /** `gap`: the pause between two lines, left out when lines are voiced in one request. */
+  | { kind: "silence"; seconds: number; gap?: boolean };
 
 /** A stretch of the episode: its clips, a chapter title if it starts a chapter, and whether the bed plays under it. */
 export interface Block {
@@ -200,11 +201,11 @@ export async function mixEpisode(
     "-map_chapters",
     "1",
     "-af",
-    [
+    `${[
       `loudnorm=I=${LOUDNESS.I}:TP=${LOUDNESS.TP}:LRA=${LOUDNESS.LRA}`,
       `measured_I=${m.input_i}:measured_TP=${m.input_tp}:measured_LRA=${m.input_lra}`,
       `measured_thresh=${m.input_thresh}:offset=${m.target_offset}:linear=true`,
-    ].join(":") + ",aresample=44100",
+    ].join(":")},aresample=44100`,
     "-ac",
     "1",
     "-c:a",

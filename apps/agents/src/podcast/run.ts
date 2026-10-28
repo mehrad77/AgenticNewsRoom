@@ -59,6 +59,8 @@ interface Loaded {
   slot: Date;
   timezone: string;
   hosts: string[];
+  /** How each host is named in this language (`host_names`); the key otherwise. */
+  names: Record<string, string>;
   narrator: boolean;
   task: EpisodeTask;
   claims: Claim[];
@@ -101,6 +103,7 @@ async function load(client: Client, runId: string): Promise<Loaded | null> {
     config: {
       name?: Record<string, string>;
       hosts?: Record<string, Record<string, string>>;
+      host_names?: Record<string, Record<string, string>>;
       narrator?: Record<string, string>;
     };
     slug: string;
@@ -153,6 +156,7 @@ async function load(client: Client, runId: string): Promise<Loaded | null> {
     slot: run.slot,
     timezone: run.timezone,
     hosts: Object.keys(run.config.hosts?.[run.language] ?? {}),
+    names: run.config.host_names?.[run.language] ?? {},
     narrator: Boolean(run.config.narrator?.[run.language]),
     task: run.task,
     claims: claims.map(({ copied_from: _, ...c }) => c),
@@ -228,7 +232,9 @@ export async function runEpisode(deps: RoleDeps, job: AgentRunJob): Promise<stri
     formatMeta(deps.configDir, FORMAT).run_tokens,
   );
   const speakers = [...l.hosts, ...(l.narrator ? ["narrator"] : [])];
-  const header = `Language: ${l.language}. Series: ${l.seriesName}. Hosts: ${l.hosts.join(", ")}.${l.narrator ? " Narrator: narrator." : ""}`;
+  // Lines name their speaker by key; in the spoken text a host is called by their name.
+  const named = l.hosts.map((h) => (l.names[h] ? `${h} (called "${l.names[h]}" in speech)` : h));
+  const header = `Language: ${l.language}. Series: ${l.seriesName}. Hosts: ${named.join(", ")}.${l.narrator ? " Narrator: narrator." : ""}`;
 
   const items: unknown[] = [];
   let errors: string[] = [];

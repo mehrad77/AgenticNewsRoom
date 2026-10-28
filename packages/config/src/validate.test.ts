@@ -72,6 +72,22 @@ describe("validateConfig", () => {
     );
   });
 
+  it("requires a written name for each host of a right-to-left language", () => {
+    const config = loadConfig(root);
+    const ai = config.newsrooms.find((n) => n.slug === "ai");
+    if (!ai) throw new Error("ai newsroom missing");
+    const podcast = ai.series["weekly-podcast"] as {
+      host_names: Record<string, Record<string, string>>;
+    };
+    delete podcast.host_names.fa?.farzad;
+    podcast.host_names.en = { someone: "Someone" };
+    const errors = validateConfig(config);
+    expect(errors).toContain("newsrooms/ai/series/weekly-podcast.yaml has no host_names.fa.farzad");
+    expect(errors).toContain(
+      "newsrooms/ai/series/weekly-podcast.yaml host_names.en.someone is not a host for en",
+    );
+  });
+
   it("reads every models file", () => {
     expect(Object.keys(loadConfig(root).models)).toEqual(["models.free.yaml", "models.yaml"]);
   });

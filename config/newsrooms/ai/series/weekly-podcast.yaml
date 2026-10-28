@@ -9,6 +9,8 @@ segments:
 hosts:
   fa: { niloofar: Sulafat, farzad: Algenib }
   en: { maya: Kore, leo: Puck }
+host_names: # how each host is named in speech and notes; required for right-to-left languages
+  fa: { niloofar: نیلوفر, farzad: فرزاد }
 narrator: # story segments only
   fa: Alnilam
   en: Enceladus

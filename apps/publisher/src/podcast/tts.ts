@@ -8,6 +8,8 @@ import type { MediaStore } from "./store.ts";
 export interface SpeechRequest {
   text: string;
   voice: string;
+  /** Who says it (a host's key or "narrator"); names the turn in a two-voice request. */
+  speaker?: string;
   language: string;
   /** A short delivery hint, such as "hushed"; passed as a style prompt. */
   direction?: string;
@@ -26,8 +28,18 @@ export interface Speech {
 export interface TextToSpeech {
   readonly provider: string;
   readonly model: string;
+  /**
+   * How episodes are voiced (D112): `line`, one request per line; `segment`, a segment's lines
+   * joined into as few requests as two voices per request allow (plan B, for quota-limited APIs).
+   */
+  readonly batch: "line" | "segment";
   synthesize(request: SpeechRequest): Promise<Speech>;
+  /** Several turns, at most two voices, as one clip. */
+  synthesizeTurns(turns: readonly SpeechRequest[]): Promise<Speech>;
 }
+
+/** Most voices one request may speak in (Gemini's multi-speaker limit). */
+export const MAX_VOICES = 2;
 
 /** What the model is asked to say: the text, after the delivery hint when there is one. */
 export function stylePrompt(r: SpeechRequest): string {
@@ -39,52 +51,83 @@ export class SpeechFailed extends Error {}
 
 const TIMEOUT_MS = 120_000;
 
-/** Gemini's generateContent with an audio response (24 kHz linear PCM). */
+/**
+ * Gemini's generateContent with an audio response (24 kHz linear PCM). One voice: the text with
+ * its style prompt. Two voices: each turn its own text part, tagged with its speaker.
+ */
 export function geminiTts(entry: CatalogEntry, fetchImpl: typeof fetch = fetch): TextToSpeech {
   if (!entry.apiKey) throw new Error(`no key for ${entry.id}`);
   const key = entry.apiKey;
+  const price = entry.price ?? { in: 0, out: 0 };
+  async function call(turns: readonly SpeechRequest[]): Promise<Speech> {
+    const voices = [...new Set(turns.map((t) => t.voice))];
+    if (voices.length === 0 || voices.length > MAX_VOICES)
+      throw new SpeechFailed(`a request speaks in one or two voices, not ${voices.length}`);
+    const speakers = new Map(turns.map((t) => [t.speaker ?? t.voice, t.voice]));
+    const single = voices.length === 1;
+    const body = {
+      contents: [
+        {
+          parts: single
+            ? [{ text: turns.map(stylePrompt).join("\n") }]
+            : turns.map((t) => ({
+                text: stylePrompt(t),
+                speechMetadata: { speaker: t.speaker ?? t.voice },
+              })),
+        },
+      ],
+      generationConfig: {
+        responseModalities: ["AUDIO"],
+        speechConfig: single
+          ? { voiceConfig: { prebuiltVoiceConfig: { voiceName: voices[0] } } }
+          : {
+              multiSpeakerVoiceConfig: {
+                speakerVoiceConfigs: [...speakers].map(([speaker, voice]) => ({
+                  speaker,
+                  voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } },
+                })),
+              },
+            },
+      },
+    };
+    const url = `${entry.baseUrl ?? "https://generativelanguage.googleapis.com"}/v1beta/models/${entry.model}:generateContent`;
+    const response = await fetchImpl(url, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-goog-api-key": key },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    if (!response.ok)
+      throw new SpeechFailed(
+        `TTS answered ${response.status}: ${(await response.text()).slice(0, 500)}`,
+      );
+    const json = (await response.json()) as {
+      candidates?: {
+        content?: { parts?: { inlineData?: { mimeType?: string; data?: string } }[] };
+      }[];
+      usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
+    };
+    const audio = json.candidates?.[0]?.content?.parts?.find((p) => p.inlineData)?.inlineData;
+    if (!audio?.data) throw new SpeechFailed("TTS answered without audio");
+    const rate = Number(/rate=([0-9]+)/.exec(audio.mimeType ?? "")?.[1] ?? 24_000);
+    const tokensIn = json.usageMetadata?.promptTokenCount ?? 0;
+    const tokensOut = json.usageMetadata?.candidatesTokenCount ?? 0;
+    return {
+      pcm: Buffer.from(audio.data, "base64"),
+      sampleRate: rate,
+      tokensIn,
+      tokensOut,
+      costUsd: (tokensIn * price.in + tokensOut * price.out) / 1_000_000,
+      cached: false,
+    };
+  }
   return {
     provider: entry.provider,
     model: entry.model,
-    async synthesize(r) {
-      const url = `${entry.baseUrl ?? "https://generativelanguage.googleapis.com"}/v1beta/models/${entry.model}:generateContent`;
-      const response = await fetchImpl(url, {
-        method: "POST",
-        headers: { "content-type": "application/json", "x-goog-api-key": key },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: stylePrompt(r) }] }],
-          generationConfig: {
-            responseModalities: ["AUDIO"],
-            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: r.voice } } },
-          },
-        }),
-        signal: AbortSignal.timeout(TIMEOUT_MS),
-      });
-      if (!response.ok)
-        throw new SpeechFailed(
-          `TTS answered ${response.status}: ${(await response.text()).slice(0, 500)}`,
-        );
-      const json = (await response.json()) as {
-        candidates?: {
-          content?: { parts?: { inlineData?: { mimeType?: string; data?: string } }[] };
-        }[];
-        usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
-      };
-      const audio = json.candidates?.[0]?.content?.parts?.find((p) => p.inlineData)?.inlineData;
-      if (!audio?.data) throw new SpeechFailed("TTS answered without audio");
-      const rate = Number(/rate=([0-9]+)/.exec(audio.mimeType ?? "")?.[1] ?? 24_000);
-      const tokensIn = json.usageMetadata?.promptTokenCount ?? 0;
-      const tokensOut = json.usageMetadata?.candidatesTokenCount ?? 0;
-      const price = entry.price ?? { in: 0, out: 0 };
-      return {
-        pcm: Buffer.from(audio.data, "base64"),
-        sampleRate: rate,
-        tokensIn,
-        tokensOut,
-        costUsd: (tokensIn * price.in + tokensOut * price.out) / 1_000_000,
-        cached: false,
-      };
-    },
+    // A few requests a day on this account: a segment per request (plan B).
+    batch: "segment",
+    synthesize: (r) => call([r]),
+    synthesizeTurns: call,
   };
 }
 
@@ -92,10 +135,15 @@ export function geminiTts(entry: CatalogEntry, fetchImpl: typeof fetch = fetch):
  * For tests and dry runs: a quiet tone per line, a little over a third of a second per word, its
  * pitch set by the voice so speakers are told apart by ear. Costs nothing and calls nothing.
  */
-export function fakeTts(sampleRate = 24_000): TextToSpeech {
-  return {
+export function fakeTts(sampleRate = 24_000, batch: "line" | "segment" = "line"): TextToSpeech {
+  const fake: TextToSpeech = {
     provider: "fake",
     model: "fake-tts",
+    batch,
+    async synthesizeTurns(turns) {
+      const parts = await Promise.all(turns.map((t) => fake.synthesize(t)));
+      return { ...(parts[0] as Speech), pcm: Buffer.concat(parts.map((p) => p.pcm)) };
+    },
     async synthesize(r) {
       const seconds = Math.max(0.5, r.text.split(/\s+/).length * 0.35);
       const hz = 180 + (createHash("sha256").update(r.voice).digest()[0] ?? 0);
@@ -111,36 +159,45 @@ export function fakeTts(sampleRate = 24_000): TextToSpeech {
       return { pcm, sampleRate, tokensIn: 0, tokensOut: 0, costUsd: 0, cached: false };
     },
   };
+  return fake;
 }
 
-export function cacheKey(model: string, r: SpeechRequest): string {
+export function cacheKey(model: string, turns: readonly SpeechRequest[]): string {
   const hash = createHash("sha256")
-    .update(JSON.stringify([model, r.voice, r.language, r.direction ?? "", r.text]))
+    .update(
+      JSON.stringify([
+        model,
+        ...turns.map((r) => [r.speaker ?? "", r.voice, r.language, r.direction ?? "", r.text]),
+      ]),
+    )
     .digest("hex");
   return `tts/${hash.slice(0, 2)}/${hash}.pcm`;
 }
 
-/** The same request is synthesised once; later ones read the stored audio (24 kHz unless noted). */
+/** The same request is synthesised once; later ones read the stored audio. */
 export function cachedTts(tts: TextToSpeech, store: MediaStore): TextToSpeech {
+  async function cached(turns: readonly SpeechRequest[], make: () => Promise<Speech>) {
+    const key = cacheKey(tts.model, turns);
+    const hit = await store.get(key);
+    const meta = await store.get(`${key}.json`);
+    if (hit && meta) {
+      const { sampleRate } = JSON.parse(meta.toString()) as { sampleRate: number };
+      return { pcm: hit, sampleRate, tokensIn: 0, tokensOut: 0, costUsd: 0, cached: true };
+    }
+    const speech = await make();
+    await store.put(key, speech.pcm, "audio/L16");
+    await store.put(
+      `${key}.json`,
+      Buffer.from(JSON.stringify({ sampleRate: speech.sampleRate })),
+      "application/json",
+    );
+    return speech;
+  }
   return {
     provider: tts.provider,
     model: tts.model,
-    async synthesize(r) {
-      const key = cacheKey(tts.model, r);
-      const hit = await store.get(key);
-      const meta = await store.get(`${key}.json`);
-      if (hit && meta) {
-        const { sampleRate } = JSON.parse(meta.toString()) as { sampleRate: number };
-        return { pcm: hit, sampleRate, tokensIn: 0, tokensOut: 0, costUsd: 0, cached: true };
-      }
-      const speech = await tts.synthesize(r);
-      await store.put(key, speech.pcm, "audio/L16");
-      await store.put(
-        `${key}.json`,
-        Buffer.from(JSON.stringify({ sampleRate: speech.sampleRate })),
-        "application/json",
-      );
-      return speech;
-    },
+    batch: tts.batch,
+    synthesize: (r) => cached([r], () => tts.synthesize(r)),
+    synthesizeTurns: (turns) => cached(turns, () => tts.synthesizeTurns(turns)),
   };
 }

@@ -236,14 +236,64 @@ describe("episode audio (D109)", () => {
     writeFileSync(join(tmpdir(), "anr-last-episode.txt"), file);
   }, 120_000);
 
+  it("voices a segment per request in plan B, with a chapter per segment", async () => {
+    const { newsroomId, publicationId } = await scheduledEpisode();
+    const slug =
+      (
+        await pools.system.query<{ slug: string }>("select slug from newsrooms where id = $1", [
+          newsroomId,
+        ])
+      ).rows[0]?.slug ?? "";
+    const store = localStore(mkdtempSync(join(tmpdir(), "anr-media-")));
+    const fake = fakeTts(24_000, "segment");
+    let calls = 0;
+    const counted: TextToSpeech = {
+      ...fake,
+      synthesize: async (r) => {
+        calls += 1;
+        return fake.synthesize(r);
+      },
+      synthesizeTurns: async (turns) => {
+        calls += 1;
+        return fake.synthesizeTurns(turns);
+      },
+    };
+    const deps = {
+      pool: pools.app,
+      renderer: createRenderer(),
+      tts: cachedTts(counted, store),
+      store,
+      signer: unsignedForTests,
+      configDir: configWithCues(slug),
+    };
+    expect(await produceEpisode(deps, { newsroomId, publicationId })).toBe("ready");
+    // Intro (two hosts; the narrator joins the next request), the recap, and the story split only
+    // by its sting and pause: far fewer than the 12 line-by-line calls.
+    expect(calls).toBeLessThanOrEqual(6);
+    const [episode] = (
+      await pools.system.query<{ chapters: { title: string }[] }>(
+        "select chapters from episodes where publication_id = $1",
+        [publicationId],
+      )
+    ).rows;
+    expect(episode?.chapters.map((c) => c.title)).toEqual([
+      script.title,
+      "Orbit ships",
+      "Attention",
+    ]);
+  }, 120_000);
+
   it("holds the episode when a line cannot be voiced, keeping the spend", async () => {
     const { newsroomId, publicationId } = await scheduledEpisode();
+    const fail = async (): Promise<never> => {
+      throw new Error("TTS answered 500");
+    };
     const failing: TextToSpeech = {
       provider: "fake",
       model: "fake-tts",
-      synthesize: async () => {
-        throw new Error("TTS answered 500");
-      },
+      batch: "line",
+      synthesize: fail,
+      synthesizeTurns: fail,
     };
     const store = localStore(mkdtempSync(join(tmpdir(), "anr-media-")));
     const outcome = await produceEpisode(

@@ -90,6 +90,10 @@ class SeriesConfig(BaseModel):
     hosts: dict[Literal["fa", "en", "tr"], dict[str, str]] | None = Field(
         None, description="Per language: host name -> TTS voice."
     )
+    host_names: dict[Literal["fa", "en", "tr"], dict[str, constr(min_length=1)]] | None = Field(
+        None,
+        description="Per language: host -> the name as spoken and written in that language. Required for right-to-left languages; otherwise the host's key, capitalised.",
+    )
     channels: dict[Literal["site", "telegram", "podcast-rss"], list[Channel]] = Field(
         ...,
         description="Channel kind -> languages. The publisher finds matching channels (data) at send time.",

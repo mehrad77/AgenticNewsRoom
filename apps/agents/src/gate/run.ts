@@ -105,6 +105,7 @@ interface GateStory {
   series: {
     name?: Record<string, string>;
     hosts?: Record<string, Record<string, string>>;
+    host_names?: Record<string, Record<string, string>>;
     narrator?: Record<string, string>;
   };
   seriesSlug: string;
@@ -342,11 +343,18 @@ export async function runGate(deps: GateDeps, job: GateJob): Promise<string> {
             story.series.name?.[r.language] ?? story.seriesSlug,
             hosts,
             narrator,
+            story.series.host_names?.[r.language],
           );
           const problems =
             hosts.length === 0
               ? ["no hosts for this language"]
-              : introProblems(lines, r.language, hosts, narrator);
+              : introProblems(
+                  lines,
+                  r.language,
+                  hosts,
+                  narrator,
+                  story.series.host_names?.[r.language],
+                );
           await storeCheck(c, {
             kind: "code",
             name: "ai-voices",

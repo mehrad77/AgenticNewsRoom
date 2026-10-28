@@ -37,6 +37,12 @@ export interface IntroLine {
 /** A host's name as spoken: the series config's key, capitalised (`maya` → `Maya`). */
 export const spokenName = (host: string) => host.charAt(0).toLocaleUpperCase() + host.slice(1);
 
+/** A series' `host_names` for one language: how each host is named there. */
+export type HostNames = Readonly<Record<string, string>>;
+
+/** A host's name in a language: its `host_names` entry, else its key capitalised. */
+export const hostName = (host: string, names?: HostNames) => names?.[host] ?? spokenName(host);
+
 const ENTITIES: Record<string, string> = { lt: "<", gt: ">", amp: "&", quot: '"', apos: "'" };
 
 /** The text a reader sees: tags dropped, entities decoded. */
@@ -111,13 +117,14 @@ export function introProblems(
   language: Language,
   hosts: readonly string[],
   narrator: boolean,
+  names?: HostNames,
 ): string[] {
   const problems: string[] = [];
   const term = AI_TERMS[language].toLocaleLowerCase(language);
   for (const voice of [...hosts, ...(narrator ? ["narrator"] : [])]) {
     const line = lines.find((l) => l.speaker === voice);
     if (!line) problems.push(`${voice} is not introduced`);
-    else if (voice !== "narrator" && !line.text.includes(spokenName(voice)))
+    else if (voice !== "narrator" && !line.text.includes(hostName(voice, names)))
       problems.push(`${voice}'s line does not name them`);
     else if (!line.text.toLocaleLowerCase(language).includes(term))
       problems.push(`${voice}'s line does not say "${AI_TERMS[language]}"`);
@@ -149,13 +156,14 @@ export function createRenderer(root = formatsDir) {
       language: Language,
       hosts: readonly string[],
       narrator: boolean,
+      names?: HostNames,
     ): Promise<string> {
       const out = await engine.parseAndRender(
         '{% render "ai-voices-notes", language: language, hosts: hosts, narrator: narrator %}',
         {
           language,
           hosts: hosts
-            .map(spokenName)
+            .map((h) => hostName(h, names))
             .join(language === "fa" ? " و " : language === "tr" ? " ve " : " and "),
           narrator,
         },
@@ -171,6 +179,7 @@ export function createRenderer(root = formatsDir) {
       series: string,
       hosts: readonly string[],
       narrator: boolean,
+      names?: HostNames,
     ): Promise<IntroLine[]> {
       const line = async (vars: Record<string, unknown>) =>
         (
@@ -181,7 +190,10 @@ export function createRenderer(root = formatsDir) {
         ).trim();
       const out: IntroLine[] = [];
       for (const [i, host] of hosts.entries())
-        out.push({ speaker: host, text: await line({ name: spokenName(host), first: i === 0 }) });
+        out.push({
+          speaker: host,
+          text: await line({ name: hostName(host, names), first: i === 0 }),
+        });
       if (narrator) out.push({ speaker: "narrator", text: await line({ narrator: true }) });
       return out;
     },
@@ -231,11 +243,19 @@ export async function seriesVoicesNote(
 ): Promise<string> {
   const { rows } = await client.query<{
     hosts: Record<string, string> | null;
+    names: Record<string, string> | null;
     narrator: string | null;
   }>(
-    "select config->'hosts'->$2 as hosts, config->'narrator'->>$2 as narrator from series where slug = $1",
+    `select config->'hosts'->$2 as hosts, config->'host_names'->$2 as names,
+            config->'narrator'->>$2 as narrator
+     from series where slug = $1`,
     [seriesSlug, language],
   );
   const row = rows[0];
-  return renderer.voicesNote(language, Object.keys(row?.hosts ?? {}), Boolean(row?.narrator));
+  return renderer.voicesNote(
+    language,
+    Object.keys(row?.hosts ?? {}),
+    Boolean(row?.narrator),
+    row?.names ?? undefined,
+  );
 }

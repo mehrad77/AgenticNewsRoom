@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
+import { directionOf, type Language } from "@anr/core";
 import { type ModelsSchema, roleChains } from "@anr/schemas";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import addFormatsModule from "ajv-formats";
@@ -203,6 +204,7 @@ export function validateConfig(config: RawConfig): string[] {
         channels: Record<string, string[]>;
         segments?: { kind: string; from: string }[];
         hosts?: Record<string, Record<string, string>>;
+        host_names?: Record<string, Record<string, string>>;
         narrator?: Record<string, string>;
         assignment_at?: string;
         cadence: { daily?: string; weekly?: string };
@@ -260,6 +262,15 @@ export function validateConfig(config: RawConfig): string[] {
         }
         for (const l of series.languages) {
           if (!series.hosts?.[l]) errors.push(`${where} has no hosts for ${l}`);
+          // A host's key is Latin; a right-to-left language says and writes the name in its script.
+          for (const host of Object.keys(series.hosts?.[l] ?? {})) {
+            if (directionOf(l as Language) === "rtl" && !series.host_names?.[l]?.[host])
+              errors.push(`${where} has no host_names.${l}.${host}`);
+          }
+          for (const host of Object.keys(series.host_names?.[l] ?? {})) {
+            if (!series.hosts?.[l]?.[host])
+              errors.push(`${where} host_names.${l}.${host} is not a host for ${l}`);
+          }
           const tellsStory = (series.segments ?? []).some((seg) => seg.kind === "story");
           if (tellsStory && !series.narrator?.[l])
             errors.push(`${where} has no narrator voice for ${l}`);
