@@ -4,7 +4,7 @@
   "tasks": {
     "test": {
       "cache": false,
-      "dependsOn": ["^gen", "@anr/config#test"]
+      "dependsOn": ["^gen", "@anr/config#test", "@anr/publisher#test"]
     }
   }
 }
