@@ -7,6 +7,8 @@ import { listSchemas, loadSchema } from "./catalog.ts";
 
 const port = Number(process.env.SCHEMA_VIEWER_PORT ?? process.env.PORT ?? 4400);
 const page = new URL("./index.html", import.meta.url);
+// Tag defaults built from tags.src.css by `pnpm css:tools`.
+const tags = new URL("./tags.build.css", import.meta.url);
 const repo = new URL("../../..", import.meta.url).pathname;
 
 const json = (body: unknown, status = 200) => ({
@@ -21,6 +23,8 @@ createServer(async (req, res) => {
   try {
     if (url.pathname === "/") {
       out = { status: 200, type: "text/html; charset=utf-8", body: readFileSync(page, "utf8") };
+    } else if (url.pathname === "/tags.build.css") {
+      out = { status: 200, type: "text/css; charset=utf-8", body: readFileSync(tags, "utf8") };
     } else if (url.pathname === "/api/schemas") {
       out = json(listSchemas().map((s) => ({ ...s, file: relative(repo, s.file) })));
     } else if (url.pathname.startsWith("/api/schemas/")) {
