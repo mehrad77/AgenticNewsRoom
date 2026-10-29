@@ -146,3 +146,45 @@ def test_another_newsrooms_story_is_not_found(database: Database) -> None:
             "/verify", json={"newsroom_id": other["newsroom"], "story_id": s["story"]}
         )
     assert response.status_code == 404
+
+
+def test_a_claim_copied_from_a_corrected_one_fails(database: Database) -> None:
+    s = story(database)
+    # A person corrected the claim; a later story copied it, and another copied the copy (D107).
+    database.system.execute(
+        """insert into checks (newsroom_id, claim_id, kind, name, result)
+           values (%s, %s, 'correction', 'correction', 'fail')""",
+        (s["newsroom"], s["claim"]),
+    )
+    source = s["claim"]
+    for _ in range(2):
+        later = one(
+            database,
+            """with a as (
+                 insert into assignments (newsroom_id, series_id, slot)
+                 select newsroom_id, series_id,
+                        slot + interval '1 day' * (select count(*) from assignments)
+                 from assignments
+                 where id = (select assignment_id from stories where id = %s) returning *
+               ), st as (
+                 insert into stories (newsroom_id, assignment_id, summary, beat_id)
+                 select a.newsroom_id, a.id, 's', o.beat_id from a, stories o where o.id = %s
+                 returning *
+               )
+               insert into claims (newsroom_id, story_id, ref, kind, text, lead_id,
+                                   quoted_passage, copied_from)
+               select st.newsroom_id, st.id, 'c1', c.kind, c.text, c.lead_id, c.quoted_passage,
+                      c.id
+               from st, claims c where c.id = %s returning story_id, id""",
+            s["story"],
+            s["story"],
+            source,
+        )
+        source = later["id"]
+    with TestClient(create_app(database.app, CONFIG)) as client:
+        response = client.post(
+            "/verify", json={"newsroom_id": s["newsroom"], "story_id": str(later["story_id"])}
+        )
+    assert response.status_code == 200, response.text
+    names = [(c["name"], c["result"]) for c in response.json()["checks"]]
+    assert ("corrected-claim", "fail") in names

@@ -1,0 +1,29 @@
+{
+  "batchcomplete": true,
+  "query": {
+    "pages": [
+      {
+        "pageid": 990003,
+        "ns": 6,
+        "title": "File:Old poster.png",
+        "imagerepository": "local",
+        "imageinfo": [
+          {
+            "url": "https://upload.wikimedia.org/wikipedia/commons/e/ef/Old_poster.png",
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Old_poster.png",
+            "mime": "image/png",
+            "extmetadata": {
+              "Artist": { "value": "<bdi>Unknown printer</bdi>", "source": "commons-desc-page" },
+              "LicenseShortName": {
+                "value": "Public domain",
+                "source": "commons-desc-page",
+                "hidden": ""
+              },
+              "License": { "value": "pd", "source": "commons-templates", "hidden": "" }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

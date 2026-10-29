@@ -11,6 +11,80 @@ export function leadIds(body: unknown): string[] {
   ];
 }
 
+/** The media ids a rendition's items show, once each (D119). */
+export function mediaIds(body: unknown): string[] {
+  const items = (body as { items?: { media_id?: unknown }[] }).items ?? [];
+  return [
+    ...new Set(items.map((i) => i.media_id).filter((id): id is string => typeof id === "string")),
+  ];
+}
+
+const EXTENSIONS: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+
+/** An image as the site serves it: the publisher's copy with its metadata and manifest (D120). */
+export const mediaPath = (mediaId: string, contentType: string) =>
+  `/m/${mediaId}.${EXTENSIONS[contentType] ?? "bin"}`;
+
+export interface MediaContext {
+  url: string;
+  alt: string;
+  credit: string;
+  licence: string;
+  licence_url: string;
+  /** As recorded from the source image, else null (D45). */
+  digital_source_type: string | null;
+  /** Its recorded source type says AI made it, in whole or part: the caption labels it. */
+  ai_made: boolean;
+}
+
+/** IPTC digital source types of media made, in whole or part, by a model or algorithm. */
+const AI_MADE =
+  /\/(trainedAlgorithmicMedia|compositeWithTrainedAlgorithmicMedia|compositeSynthetic|algorithmicMedia)$/;
+
+/** The licensed images a rendition shows, by id; an unlicensed one is left out (D16). */
+export async function mediaContext(
+  client: Client,
+  body: unknown,
+  origin: string,
+): Promise<Record<string, MediaContext>> {
+  const ids = mediaIds(body);
+  if (ids.length === 0) return {};
+  const { rows } = await client.query<{
+    id: string;
+    content_type: string;
+    description: string | null;
+    credit_line: string;
+    licence: string;
+    licence_url: string;
+    digital_source_type: string | null;
+  }>(
+    `select id, content_type, description, credit_line, licence, licence_url, digital_source_type
+     from media
+     where id = any($1::uuid[]) and licence is not null`,
+    [ids.filter((id) => UUID.test(id))],
+  );
+  return Object.fromEntries(
+    rows.map((m) => [
+      m.id,
+      {
+        url: `${origin}${mediaPath(m.id, m.content_type)}`,
+        alt: m.description ?? "",
+        credit: m.credit_line,
+        licence: m.licence,
+        licence_url: m.licence_url,
+        digital_source_type: m.digital_source_type,
+        ai_made: AI_MADE.test(m.digital_source_type ?? ""),
+      },
+    ]),
+  );
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /** Whether a person changed the publication's text: the audit log says (AI disclosure). */
 export async function editedByPerson(
   client: Client,
@@ -99,6 +173,7 @@ export async function templateContext(client: Client, input: ContextInput) {
     site_url: pageUrl(input.site, input.language, path),
     ai_policy_url: pageUrl(input.site, input.language, "/ai-policy"),
     leads: Object.fromEntries(rows.map((l) => [l.id, { url: l.uri, headline: l.headline }])),
+    media: await mediaContext(client, input.rendition, siteOrigin(input.site)),
   };
 }
 

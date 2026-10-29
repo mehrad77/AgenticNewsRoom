@@ -3,8 +3,11 @@ packages:
   - services/*
   - packages/*
 
-# pnpm 11 blocks dependency build scripts unless they are listed here.
-onlyBuiltDependencies:
-  - esbuild
-  - sharp
-  - dbmate
+# pnpm 11 fails an install on any dependency build script not decided here: true runs it, false
+# leaves it unrun. @parcel/watcher (via @tailwindcss/cli) only compiles from source when asked to;
+# its prebuilt platform package is what runs.
+allowBuilds:
+  esbuild: true
+  sharp: true
+  dbmate: true
+  "@parcel/watcher": false

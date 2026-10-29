@@ -59,8 +59,8 @@ export type ChannelStatus = (typeof CHANNEL_STATUSES)[number];
 export const EDITORIAL_CYCLE_STATUSES = ["proposed", "approved", "declined"] as const;
 export type EditorialCycleStatus = (typeof EDITORIAL_CYCLE_STATUSES)[number];
 
-/** The four layers of the verifier gate (docs/technical-design.md#verifier-gate). */
-export const CHECK_KINDS = ["code", "fact-check", "item-match", "policy"] as const;
+/** The four layers of the verifier gate, plus `correction`: a claim a person found wrong (D116). */
+export const CHECK_KINDS = ["code", "fact-check", "item-match", "policy", "correction"] as const;
 export type CheckKind = (typeof CHECK_KINDS)[number];
 
 /** Anything but `pass` holds the publication for an editor. */
@@ -93,8 +93,19 @@ export const NOTICE_KINDS = [
   "pick-missed",
   /** The planner could not propose themes or candidates. */
   "plan-failed",
+  /** A reader's challenge is due for acknowledgement or an answer within hours (D114). */
+  "challenge-due",
+  /** A reader's challenge passed its acknowledgement or answer deadline. */
+  "challenge-overdue",
+  /** An image a member added could not be fetched or read (D119). */
+  "media-failed",
 ] as const;
 export type NoticeKind = (typeof NOTICE_KINDS)[number];
+
+/** Where a media item's licence comes from (D16, D119): a press kit, recorded by a person, or a
+ * free Wikimedia Commons licence, recorded by code. */
+export const LICENCE_KINDS = ["press-kit", "commons"] as const;
+export type LicenceKind = (typeof LICENCE_KINDS)[number];
 
 /** An editor's verdict on a sampled auto-published publication (D94). */
 export const SAMPLE_OUTCOMES = ["ok", "miss"] as const;

@@ -4,6 +4,8 @@ export * from "./ClassicArticleDraft.ts";
 export * from "./Format.ts";
 export * from "./IngestResult.ts";
 export * from "./IngestRun.ts";
+export * from "./MediaRequestResult.ts";
+export * from "./MediaRequest.ts";
 export * from "./Models.ts";
 export * from "./NewsletterIssueDraft.ts";
 export * from "./Newsroom.ts";

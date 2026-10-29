@@ -109,6 +109,36 @@ export async function syncConfig(pool: Pool, boss: PgBoss, config: RawConfig): P
   }
 }
 
+/**
+ * For tests: the config's formats and its newsrooms, upserted exactly as `syncConfig` does, with
+ * nothing removed and no schedule touched, so tests running beside it keep their own newsrooms.
+ */
+export async function syncNewsroomsOnly(pool: Pool, config: RawConfig): Promise<SyncReport> {
+  const errors = validateConfig(config);
+  if (errors.length > 0) throw new Error(`config is invalid:\n${errors.join("\n")}`);
+  const report: SyncReport = {
+    formats: counts(),
+    newsrooms: counts(),
+    beats: counts(),
+    sources: counts(),
+    series: counts(),
+    schedules: { scheduled: 0, unscheduled: 0 },
+  };
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    const formatIds = await syncFormats(client, config, report.formats);
+    for (const n of config.newsrooms) await syncNewsroom(client, n, formatIds, report);
+    await client.query("commit");
+    return report;
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 type Row = { id: string; added: boolean };
 
 /** `xmax = 0` is true only for a row this statement inserted, false for one it updated. */

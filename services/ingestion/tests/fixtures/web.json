@@ -101,5 +101,68 @@
   },
   "https://export.arxiv.org/api/query?id_list=2610.01234%2C2610.03333&max_results=2": {
     "file": "arxiv-recheck.xml"
+  },
+  "https://label.example/robots.txt": {
+    "file": "robots-allow.txt"
+  },
+  "https://label.example/press/north-tour.jpg": {
+    "file": "media-press.jpg",
+    "headers": {
+      "Content-Type": "image/jpeg"
+    }
+  },
+  "https://label.example/press/cem.png": {
+    "file": "media-press.png",
+    "headers": {
+      "Content-Type": "image/png"
+    }
+  },
+  "https://label.example/press/coming-soon.jpg": {
+    "file": "not-an-image.html",
+    "headers": {
+      "Content-Type": "image/jpeg"
+    }
+  },
+  "https://private-label.example/robots.txt": {
+    "file": "robots-deny.txt"
+  },
+  "https://private-label.example/press/photo.jpg": {
+    "file": "media-plain.jpg",
+    "headers": {
+      "Content-Type": "image/jpeg"
+    }
+  },
+  "https://commons.wikimedia.org/w/api.php?action=query&format=json&formatversion=2&prop=imageinfo&iiprop=url%7Cmime%7Cextmetadata&titles=File%3ANorth+Hall+concert.jpg": {
+    "file": "commons-bysa.json",
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  },
+  "https://commons.wikimedia.org/w/api.php?action=query&format=json&formatversion=2&prop=imageinfo&iiprop=url%7Cmime%7Cextmetadata&titles=File%3ABackstage+portrait.jpg": {
+    "file": "commons-nc.json",
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  },
+  "https://commons.wikimedia.org/w/api.php?action=query&format=json&formatversion=2&prop=imageinfo&iiprop=url%7Cmime%7Cextmetadata&titles=File%3ANothing+here.jpg": {
+    "file": "commons-missing.json",
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  },
+  "https://upload.wikimedia.org/robots.txt": {
+    "file": "robots-allow.txt"
+  },
+  "https://upload.wikimedia.org/wikipedia/commons/a/ab/North_Hall_concert.jpg": {
+    "file": "media-commons.jpg",
+    "headers": {
+      "Content-Type": "image/jpeg"
+    }
+  },
+  "https://upload.wikimedia.org/wikipedia/commons/c/cd/Backstage_portrait.jpg": {
+    "file": "media-plain.jpg",
+    "headers": {
+      "Content-Type": "image/jpeg"
+    }
   }
 }

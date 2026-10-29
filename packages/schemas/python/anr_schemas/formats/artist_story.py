@@ -62,6 +62,10 @@ class Item(BaseModel):
     heading: str | None = None
     paragraphs: list[str] = Field(..., min_length=1)
     opinion: bool | None = False
+    media_id: constr(min_length=1) | None = Field(
+        None,
+        description="id of a licensed image listed with the leads, or leave out; code writes its caption and credit",
+    )
     claim_ids: ClaimIds
 
 

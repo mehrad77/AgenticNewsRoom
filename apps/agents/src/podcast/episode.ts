@@ -55,12 +55,24 @@ async function publishedStories(
   return rows.map((r) => r.story_id);
 }
 
-/** Copies the stories' claims into the episode's story as c1, c2…, with their further sources. */
+/**
+ * Copies the stories' claims into the episode's story as c1, c2…, with their further sources.
+ * Opinion is left out, since speech cannot carry the opinion label (D117), and so is any claim a
+ * person corrected (D116).
+ */
 async function copyClaims(client: Client, storyId: string, sources: string[]): Promise<string[]> {
   const { rows } = await client.query<{ lead_id: string | null }>(
     `with original as (
        select c.*, row_number() over (order by array_position($2::uuid[], c.story_id), c.created_at, c.ref) as n
-       from claims c where c.story_id = any($2::uuid[])
+       from claims c
+       where c.story_id = any($2::uuid[]) and c.kind <> 'opinion'
+         and not exists (
+           with recursive up (id, copied_from) as (
+             select c.id, c.copied_from
+             union all
+             select k.id, k.copied_from from claims k join up on k.id = up.copied_from
+           )
+           select 1 from up join checks k on k.claim_id = up.id and k.kind = 'correction')
      ), copied as (
        insert into claims (newsroom_id, story_id, ref, kind, text, lead_id, quoted_passage, copied_from)
        select anr.current_newsroom_id(), $1, 'c' || n, kind, text, lead_id, quoted_passage, id

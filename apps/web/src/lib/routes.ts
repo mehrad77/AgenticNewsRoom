@@ -5,6 +5,8 @@ export type Route =
   | { kind: "search" }
   | { kind: "ai-policy" }
   | { kind: "corrections" }
+  /** A reader's own challenge, opened with the token in its link (D114). */
+  | { kind: "challenge"; id: string }
   | { kind: "publication"; path: string }
   /** The publication's ninjs 3.2 twin: its page URL plus `.json`. */
   | { kind: "ninjs"; path: string }
@@ -19,6 +21,8 @@ export function route(path: string): Route {
   if (p === "/search") return { kind: "search" };
   if (p === "/ai-policy") return { kind: "ai-policy" };
   if (p === "/corrections") return { kind: "corrections" };
+  const challenge = /^\/challenge\/([0-9a-f-]{36})$/.exec(p);
+  if (challenge?.[1]) return { kind: "challenge", id: challenge[1] };
   if (p.endsWith(".json") && PUBLICATION.test(p.slice(0, -5)))
     return { kind: "ninjs", path: p.slice(0, -5) };
   if (PUBLICATION.test(p)) return { kind: "publication", path: p };

@@ -1,0 +1,43 @@
+---
+import { type MediaItem, when } from "../../lib/desk.ts";
+
+interface Props {
+  media: MediaItem[];
+}
+const { media } = Astro.props;
+---
+<h1>Images</h1>
+<p>A piece may show an image only with a recorded licence: an artist's or label's press kit that allows press use, recorded here, or a free Wikimedia Commons licence, recorded by code. Every image is credited. A recorded licence cannot change.</p>
+<form method="post" class="card">
+  <input type="hidden" name="action" value="add-media" />
+  <label>Image: a Commons file page, or the image's address in a press kit <input name="url" type="url" required /></label>
+  <label>Press kit page (not needed for Commons) <input name="source_url" type="url" /></label>
+  <label>Lead it goes with (id; agents see a lead's licensed images) <input name="lead_id" required /></label>
+  <button>Add</button>
+</form>
+{media.length === 0 && <p>No images yet. One you add appears once it has been fetched, or a notice says why it could not be.</p>}
+{media.map((m) => (
+  <section class="card">
+    <h2><a href={m.source_url}>{m.description ?? m.file_url}</a></h2>
+    <p class="meta">
+      added {when(m.created_at)}{m.lead_headline ? ` · lead: ${m.lead_headline}` : ""}
+      · credit: {m.credit_line ?? "none in its metadata"}
+      {m.creator && ` · creator: ${m.creator}`}
+      {m.digital_source_type && ` · source type: ${m.digital_source_type.split("/").pop()}`}
+    </p>
+    {m.licence ? (
+      <p><strong>{m.licence}</strong> ({m.licence_kind}) · <a href={m.licence_url ?? undefined}>terms</a> · recorded {when(m.licence_recorded_at ?? m.created_at)}</p>
+    ) : m.source_url.startsWith("https://commons.wikimedia.org/") ? (
+      <p class="fail">Not usable: Commons gives no free licence (CC0, public domain, CC BY or CC BY-SA) with an author for this file.</p>
+    ) : (
+      <form method="post">
+        <input type="hidden" name="action" value="record-licence" />
+        <input type="hidden" name="id" value={m.id} />
+        <label>The press kit's terms, in its words <input name="licence" required maxlength="200" placeholder="Press use with credit" /></label>
+        <label>Page stating them <input name="terms_url" type="url" required value={m.source_url} /></label>
+        <label>Credit {m.credit_line ? "(replaces the metadata's)" : "(required: the metadata has none)"} <input name="credit" maxlength="200" required={!m.credit_line} /></label>
+        <button>Record the licence</button>
+      </form>
+    )}
+  </section>
+))}

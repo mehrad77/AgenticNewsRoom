@@ -43,6 +43,8 @@ export interface ValidationContext {
   beats: readonly string[];
   /** Leads the run may cite (the assignment's and those it read), by id. */
   leads: ReadonlyMap<string, CitableLead>;
+  /** Licensed images an item may show: those of the leads the run was given or read (D119). */
+  media?: ReadonlySet<string>;
   /** For a renderer: the story's claim ids and the first rendition's items. */
   storyClaimIds?: readonly string[];
   firstItems?: readonly DraftItem[];
@@ -178,6 +180,11 @@ export function validateDraft(value: unknown, ctx: ValidationContext): Draft | s
     if (item.lead_id !== undefined && ctx.needsStory && !ctx.leads.has(item.lead_id)) {
       errors.push(`rendition.items.${i}: lead ${item.lead_id} was not given or read in this run`);
     }
+    if (typeof item.media_id === "string" && ctx.needsStory && !ctx.media?.has(item.media_id)) {
+      errors.push(
+        `rendition.items.${i}: image ${item.media_id} is not a licensed image of the leads`,
+      );
+    }
   }
   return errors.length > 0 ? errors : draft;
 }
@@ -195,6 +202,9 @@ function sameItems(items: readonly DraftItem[], first: readonly DraftItem[]): st
     if (!original) continue;
     if (item.kind !== original.kind) {
       errors.push(`rendition.items.${i}: kind must be "${original.kind}"`);
+    }
+    if (item.media_id !== original.media_id) {
+      errors.push(`rendition.items.${i}: media_id must be ${original.media_id ?? "absent"}`);
     }
     if (item.lead_id !== original.lead_id) {
       errors.push(`rendition.items.${i}: lead_id must be ${original.lead_id ?? "absent"}`);

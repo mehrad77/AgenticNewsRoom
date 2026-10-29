@@ -1,4 +1,5 @@
-// What a run needs from config/ besides the database: a format's per-run token cap (D76).
+// What a run needs from config/ besides the database: a format's per-run token cap (D76) and its
+// draft schema.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse } from "yaml";
@@ -15,6 +16,11 @@ export function formatMeta(configDir: string, format: string): { run_tokens: num
     cache.set(key, meta);
   }
   return meta;
+}
+
+/** A format's draft JSON Schema (`config/formats/<format>/schema.json`). */
+export function formatSchema(configDir: string, format: string): unknown {
+  return JSON.parse(readFileSync(join(configDir, "formats", format, "schema.json"), "utf8"));
 }
 
 /** The language a story is first written in: the newsroom's primary one when the series has it. */

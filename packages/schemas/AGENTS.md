@@ -2,7 +2,7 @@
 
 JSON Schema is the source of truth; zod (TypeScript) and pydantic (Python) are generated from it.
 
-- Sources: `json/*.schema.json` (config files, and the ingestion service's HTTP bodies: `ingest-*`, `source-request*`) and `config/formats/<format>/schema.json` (draft submits).
+- Sources: `json/*.schema.json` (config files, and the ingestion service's HTTP bodies: `ingest-*`, `source-request*`, `media-request*`) and `config/formats/<format>/schema.json` (draft submits).
 - Generated, never edited by hand: `src/generated/` (zod) and `python/anr_schemas/{config,formats}/` (pydantic).
 - After changing a schema run `pnpm gen`; CI fails if generated code is stale (`pnpm gen:check`).
 - `iptc/`: vendored IPTC vocabularies (Media Topics, genre, digital source type, trust indicators) and the ninjs 3.2 JSON Schema; see `iptc/README.md`. Refresh only with `pnpm --filter @anr/schemas iptc`, never by hand. Look codes up there, never from memory.

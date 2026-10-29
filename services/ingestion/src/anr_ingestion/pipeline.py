@@ -38,6 +38,17 @@ from anr_ingestion.kinds import (
     parse_site,
     query_categories,
 )
+from anr_ingestion.media import (
+    CONTENT_TYPES,
+    NoSuchFile,
+    commons_api_url,
+    commons_page_url,
+    commons_title,
+    credit_line,
+    parse_commons,
+    read_xmp,
+    sniff_type,
+)
 from anr_ingestion.net import Fetched, Fetcher, FetchError, Refused, check_url
 from anr_ingestion.rawstore import RawStore
 from anr_ingestion.tier import PaperRules, is_high, paper_tier
@@ -514,3 +525,66 @@ class Ingestor:
         if row is None:
             raise NotFound(f"no lead {lead_id}")
         return row
+
+    # A desk member's image, by URL (D119).
+
+    def add_media(
+        self,
+        newsroom_id: str,
+        url: str,
+        source_url: str | None,
+        lead_id: str | None,
+        added_by: str,
+    ) -> tuple[str, bool, str | None]:
+        """Fetches an image, reads its Photo Metadata and stores it: (media id, created, licence).
+        A Commons file page records its free licence; any other image stays unlicensed until a
+        person records its press kit's, so it must name the page it comes from."""
+        check_url(url)
+        with with_newsroom(self.pool, newsroom_id) as conn:
+            if not store.newsroom_exists(conn):
+                raise NotFound(f"no newsroom {newsroom_id}")
+            if not store.user_exists(conn, added_by):
+                raise NotFound(f"no user {added_by}")
+            if lead_id is not None and not store.lead_exists(conn, lead_id):
+                raise NotFound(f"no lead {lead_id} in newsroom {newsroom_id}")
+        title = commons_title(url)
+        commons = None
+        if title is not None:
+            source_url = commons_page_url(title)
+            answer = self.fetcher.get(commons_api_url(title), robots=False)  # an API call: D64
+            try:
+                commons = parse_commons(answer.content)
+            except NoSuchFile as error:
+                raise Refused(str(error)) from error
+            except (ValueError, KeyError, TypeError, AttributeError, IndexError) as error:
+                raise FetchError(f"{url}: unreadable answer from Commons: {error!r}") from error
+            if commons.mime not in CONTENT_TYPES:
+                raise Refused(f"{url}: {commons.mime} is not a JPEG, PNG or WebP image")
+            url = commons.file_url
+        elif source_url is None:
+            raise Refused(f"{url}: an image not on Commons needs the page it comes from")
+        fetched = self.fetcher.get(url)
+        content_type = sniff_type(fetched.content)
+        if content_type is None:
+            raise Refused(f"{fetched.url}: not a JPEG, PNG or WebP image")
+        xmp = read_xmp(fetched.content)
+        media = store.NewMedia(
+            file=self.raw_store.put(fetched.content, content_type),
+            lead_id=lead_id,
+            # Commons fills what the file's own metadata leaves empty.
+            creator=xmp.creator or (commons.creator if commons else None),
+            credit_line=credit_line(xmp, commons),
+            copyright_notice=xmp.copyright_notice,
+            web_statement=xmp.web_statement,
+            licensor=xmp.licensor,
+            digital_source_type=xmp.digital_source_type,
+            description=xmp.description or (commons.description if commons else None),
+            source_url=source_url,
+            file_url=fetched.url,
+            content_type=content_type,
+            added_by=added_by,
+            licence=commons.licence if commons else None,
+            licence_url=commons.licence_url if commons else None,
+        )
+        with with_newsroom(self.pool, newsroom_id) as conn:
+            return store.insert_media(conn, newsroom_id, media)

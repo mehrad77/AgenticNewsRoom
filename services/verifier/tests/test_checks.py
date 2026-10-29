@@ -5,8 +5,8 @@ from typing import Any
 import pytest
 
 from anr_verifier import claims, items, rendition
-from anr_verifier.bundle import Bundle, CheckOut, Claim, Lead, Policy, Rendition, Source
-from anr_verifier.verify import item_leads, run_checks
+from anr_verifier.bundle import Bundle, CheckOut, Claim, Lead, Media, Policy, Rendition, Source
+from anr_verifier.verify import item_leads, item_media, run_checks
 
 CONFIG = Path(__file__).resolve().parents[3] / "config"
 
@@ -145,6 +145,32 @@ def test_opinion_only_where_policy_allows_it() -> None:
     assert claims.opinion(bundle([opinion], policy=Policy(2, True, "allowed_marked"))) == []
 
 
+def test_opinion_is_marked_and_marked_items_carry_no_facts() -> None:
+    marked = Policy(2, True, "allowed_marked")
+    story = [claim("c1"), claim("c2", kind="opinion", lead_id=None, quoted_passage=None)]
+
+    def section(*refs: str, opinion: bool | None = None) -> dict[str, Any]:
+        item: dict[str, Any] = {"paragraphs": ["Text."], "claim_ids": list(refs)}
+        return item if opinion is None else item | {"opinion": opinion}
+
+    ok = bundle(story, [section("c1"), section("c2", opinion=True)], policy=marked)
+    assert claims.opinion_marking(ok) == []
+    unmarked = bundle(story, [section("c1", "c2")], policy=marked)
+    [fail] = claims.opinion_marking(unmarked)
+    assert (fail.result, fail.item, fail.detail) == (
+        "fail",
+        "items.0",
+        {"unmarked_opinion": ["c2"]},
+    )
+    hidden = bundle(story, [section("c1", "c2", opinion=True)], policy=marked)
+    assert [c.detail for c in claims.opinion_marking(hidden)] == [{"facts": ["c1"]}]
+
+
+def test_a_corrected_claim_is_never_published_again() -> None:
+    out = claims.corrected(bundle([claim("c1"), claim("c2", corrected=True)]))
+    assert [(c.name, c.result, c.claim_id) for c in out] == [("corrected-claim", "fail", "id-c2")]
+
+
 def test_beats_fail_banned_and_unplaced_and_list_restricted() -> None:
     [ok] = claims.beats(bundle([claim()]))
     assert ok.result == "pass"
@@ -235,6 +261,32 @@ def test_article_items_name_live_leads() -> None:
     }
     unknown = article | {"lead_id": "nope"}
     assert [c.result for c in item_leads(bundle([claim()], [article, unknown]))] == ["fail", "fail"]
+
+
+def test_an_image_id_is_not_item_text() -> None:
+    shown = news("c1") | {"media_id": "0b5a2da5-c261-41ee-a474-977449b1345b"}
+    assert [c.result for c in items.item_claims(bundle([claim()], [shown]))] == ["pass"]
+
+
+def test_items_show_only_licensed_credited_media() -> None:
+    shown = [
+        news("c1") | {"media_id": "m-ok"},
+        news("c1") | {"media_id": "m-bare"},
+        news("c1") | {"media_id": "m-other-newsroom"},
+        news("c1"),
+    ]
+    b = replace(
+        bundle([claim()], shown),
+        media={
+            "m-ok": Media("m-ok", "CC BY-SA 4.0", "Ada, Wikimedia Commons"),
+            "m-bare": Media("m-bare", None, None),
+        },
+    )
+    assert [(c.item, c.result) for c in item_media(b)] == [
+        ("items.0", "pass"),
+        ("items.1", "fail"),
+        ("items.2", "fail"),
+    ]
 
 
 def test_schema_and_style_lint() -> None:

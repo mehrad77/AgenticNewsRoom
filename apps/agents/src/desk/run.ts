@@ -5,12 +5,13 @@ import { type Pool, withNewsroom } from "@anr/db";
 import { AllModelsExhausted, ModelCallFailed } from "@anr/models";
 import type { PgBoss } from "pg-boss";
 import { budgetState, mayStart, noticeBudget } from "../budget.ts";
-import { firstLanguage, formatMeta } from "../context.ts";
+import { firstLanguage, formatMeta, formatSchema } from "../context.ts";
 import { ToolLoopExceeded } from "../converse.ts";
 import type { IngestionClient } from "../ingest.ts";
 import { newMeter, type RunModel, TokenCapReached } from "../model.ts";
 import { assemblePrompt, readGuides } from "../prompts/assemble.ts";
-import { DESK_CLAIMS, DESK_DRAFT, DESK_OUTLINE, DESK_ROLE } from "../prompts/roles.ts";
+import { deskRole, deskSteps, type OpinionPolicy } from "../prompts/roles.ts";
+import { itemShape } from "../prompts/shapes.ts";
 import type { ModelRouter } from "../router.ts";
 import { assignmentPublications, finishRun, holdPublications, recordUsage } from "../runs.ts";
 import { type LeadText, readLead } from "../tools/leads.ts";
@@ -39,6 +40,7 @@ interface DeskInput {
   format: string;
   newsroom: string;
   newsroomLanguages: string[];
+  opinion: OpinionPolicy;
   beats: { slug: string; status: string; description: string | null }[];
   leadIds: string[];
 }
@@ -60,6 +62,7 @@ export async function runDesk(deps: RoleDeps, job: AgentRunJob): Promise<string 
       `select r.outcome, r.role, a.id as "assignmentId", a.angle, s.slug as series,
               s.config as "seriesConfig", s.languages as "seriesLanguages", f.slug as format,
               n.slug as newsroom, n.languages as "newsroomLanguages",
+              coalesce(n.policy->>'opinion', 'not_allowed') as opinion,
               array(select al.lead_id from assignment_leads al where al.assignment_id = a.id) as "leadIds",
               coalesce((select json_agg(json_build_object('slug', b.slug, 'status', b.status,
                                                          'description', b.description) order by b.slug)
@@ -97,9 +100,10 @@ export async function runDesk(deps: RoleDeps, job: AgentRunJob): Promise<string 
 
   const language = firstLanguage(loaded.newsroomLanguages, loaded.seriesLanguages);
   const { style, guide } = readGuides(deps.configDir, loaded.newsroom, loaded.format);
+  const steps = deskSteps(language, itemShape(formatSchema(deps.configDir, loaded.format)));
   const prompt = assemblePrompt("desk", {
-    role: DESK_ROLE,
-    steps: [DESK_OUTLINE, DESK_DRAFT(language), DESK_CLAIMS],
+    role: deskRole(loaded.opinion),
+    steps: [steps.outline, steps.draft, steps.claims],
     style,
     guide,
     language,
@@ -163,13 +167,14 @@ export async function runDesk(deps: RoleDeps, job: AgentRunJob): Promise<string 
       {
         model,
         tools: researchTools(ctx),
-        language,
+        steps,
         validation: () => ({
           format: loaded.format,
           language,
           needsStory: true,
           beats,
           leads: citable(),
+          media: new Set([...readLeads.values()].flatMap((l) => l.images.map((m) => m.id))),
         }),
       },
       prompt.system,

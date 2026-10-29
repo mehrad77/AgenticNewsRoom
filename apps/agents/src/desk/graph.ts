@@ -6,7 +6,7 @@ import type { StructuredToolInterface } from "@langchain/core/tools";
 import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
 import { converse, textOf } from "../converse.ts";
 import type { ChatLike } from "../model.ts";
-import { DESK_CLAIMS, DESK_DRAFT, DESK_OUTLINE, retryPrompt } from "../prompts/roles.ts";
+import { type DeskSteps, retryPrompt } from "../prompts/roles.ts";
 import type { LeadText } from "../tools/leads.ts";
 import { type Draft, parseJson, type ValidationContext, validateDraft } from "./validate.ts";
 
@@ -57,6 +57,9 @@ export function assignmentMessage(a: Assignment): string {
         `Headline: ${l.headline ?? "(none)"} | Publisher: ${l.publisher} | Tier: ${l.tier} | Date: ${l.published ?? "unknown"} | Language: ${l.language}`,
         l.withdrawn ? `WITHDRAWN: ${l.withdrawn}. Do not cite.` : "",
         l.summary ? `Summary: ${l.summary}` : "",
+        l.images.length > 0
+          ? `Licensed images: ${l.images.map((m) => `${m.id} (${m.description ?? "no description"}; ${m.credit})`).join(", ")}`
+          : "",
         text,
       ]
         .filter(Boolean)
@@ -81,7 +84,8 @@ export interface DeskGraphDeps {
   tools: readonly StructuredToolInterface[];
   /** Built when validating, so leads read during the run are citable. */
   validation: () => ValidationContext;
-  language: string;
+  /** The outline, draft and claims prompts for the format and language (`deskSteps`). */
+  steps: DeskSteps;
 }
 
 export function deskGraph(deps: DeskGraphDeps) {
@@ -89,13 +93,13 @@ export function deskGraph(deps: DeskGraphDeps) {
     messages: await converse(deps.model, state.messages, ask, deps.tools),
   });
   return new StateGraph(State)
-    .addNode("outline", turn(DESK_OUTLINE))
-    .addNode("draft", turn(DESK_DRAFT(deps.language)))
+    .addNode("outline", turn(deps.steps.outline))
+    .addNode("draft", turn(deps.steps.draft))
     .addNode("claims", async (state) => ({
       messages: await converse(
         deps.model,
         state.messages,
-        state.attempts === 0 ? DESK_CLAIMS : retryPrompt(state.errors),
+        state.attempts === 0 ? deps.steps.claims : retryPrompt(state.errors),
         deps.tools,
       ),
       attempts: state.attempts + 1,

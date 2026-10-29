@@ -5,7 +5,15 @@
 import type { AgentRole, CheckResult, GateJob, Language } from "@anr/core";
 import { auditedUpdate, type Client, type Pool, withNewsroom } from "@anr/db";
 import { AllModelsExhausted, ModelCallFailed } from "@anr/models";
-import { type createRenderer, introProblems } from "@anr/render";
+import {
+  type createRenderer,
+  introProblems,
+  mediaContext,
+  mediaIds,
+  occurrences,
+  opinionItems,
+  unmarkOpinion,
+} from "@anr/render";
 import { budgetState, mayStart, noticeBudget } from "../budget.ts";
 import { formatMeta } from "../context.ts";
 import { newMeter, type RunModel, TokenCapReached } from "../model.ts";
@@ -135,6 +143,7 @@ const ITEM_SKIP = new Set([
   "kind",
   "claim_ids",
   "lead_id",
+  "media_id",
   "segment",
   "beat",
   "cue",
@@ -298,7 +307,11 @@ export async function runGate(deps: GateDeps, job: GateJob): Promise<string> {
           .map(([kind]) => kind);
         try {
           const label = await deps.renderer.disclosureLabel(r.language);
+          // Each item marked opinion shows the opinion label on every channel (D117).
+          const opinions = opinionItems(r.body);
+          const opinion = opinions > 0 ? await deps.renderer.opinionLabel(r.language) : "";
           const missing: string[] = [];
+          const unlabelled: string[] = [];
           for (const kind of kinds) {
             const parts = await deps.renderer.renderParts(story.format, kind, r.language, {
               rendition: r.body,
@@ -308,14 +321,33 @@ export async function runGate(deps: GateDeps, job: GateJob): Promise<string> {
               leads: {},
             });
             if (!parts.every((p) => p.includes(label))) missing.push(kind);
+            if (opinions > 0) {
+              // The label's own occurrences: the output with the marks, against the same output
+              // without them, so the word inside a sentence never counts as a label.
+              const unmarked = await deps.renderer.renderParts(story.format, kind, r.language, {
+                rendition: unmarkOpinion(r.body),
+                edited: false,
+                site_url: "https://example.invalid/",
+                ai_policy_url: "/ai-policy",
+                leads: {},
+              });
+              const labels =
+                occurrences(parts.join("\n"), opinion) - occurrences(unmarked.join("\n"), opinion);
+              if (labels < opinions) unlabelled.push(kind);
+            }
           }
-          const result = kinds.length > 0 && missing.length === 0 ? "pass" : "fail";
+          const result =
+            kinds.length > 0 && missing.length === 0 && unlabelled.length === 0 ? "pass" : "fail";
           await storeCheck(c, {
             kind: "code",
             name: "disclosure",
             result,
             renditionId: r.id,
-            detail: { channels: kinds, missing_label: missing },
+            detail: {
+              channels: kinds,
+              missing_label: missing,
+              ...(opinions > 0 && { opinion_items: opinions, missing_opinion_label: unlabelled }),
+            },
           });
         } catch (error) {
           await storeCheck(c, {
@@ -330,7 +362,58 @@ export async function runGate(deps: GateDeps, job: GateJob): Promise<string> {
     });
   }
 
-  // 2b. AI voices: a series with hosts opens every episode with code-rendered lines in which each
+  // 2b. Credits: every image an item shows is licensed, and every channel's output carries its
+  // credit (D16, D119). The verifier checked the media rows; this checks what readers see.
+  if (!checks.some((c) => c.name === "media-credit")) {
+    await inStory(async (c) => {
+      for (const r of story.renditions) {
+        const shown = mediaIds(r.body);
+        if (shown.length === 0) continue;
+        const kinds = Object.entries(story.channels)
+          .filter(([, languages]) => languages.includes(r.language))
+          .map(([kind]) => kind);
+        try {
+          const media = await mediaContext(c, r.body, "https://example.invalid");
+          const unlicensed = shown.filter((id) => !media[id]);
+          const uncredited: string[] = [];
+          for (const kind of kinds) {
+            const out = (
+              await deps.renderer.renderParts(story.format, kind, r.language, {
+                rendition: r.body,
+                edited: false,
+                site_url: "https://example.invalid/",
+                ai_policy_url: "/ai-policy",
+                leads: {},
+                media,
+              })
+            ).join("\n");
+            for (const m of Object.values(media))
+              if (!out.includes(await deps.renderer.escaped(m.credit))) uncredited.push(kind);
+          }
+          await storeCheck(c, {
+            kind: "code",
+            name: "media-credit",
+            result:
+              kinds.length > 0 && unlicensed.length === 0 && uncredited.length === 0
+                ? "pass"
+                : "fail",
+            renditionId: r.id,
+            detail: { media: shown, unlicensed, missing_credit: [...new Set(uncredited)] },
+          });
+        } catch (error) {
+          await storeCheck(c, {
+            kind: "code",
+            name: "media-credit",
+            result: "error",
+            renditionId: r.id,
+            detail: { error: (error as Error).message },
+          });
+        }
+      }
+    });
+  }
+
+  // 2c. AI voices: a series with hosts opens every episode with code-rendered lines in which each
   // host and the narrator says they are AI; the audio pipeline voices exactly these lines.
   if (story.series.hosts && !checks.some((c) => c.name === "ai-voices")) {
     await inStory(async (c) => {

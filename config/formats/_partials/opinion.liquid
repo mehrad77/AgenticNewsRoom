@@ -1,0 +1,9 @@
+{%- comment -%}
+  Marked opinion (D117). Every template of a format whose items can be marked `opinion: true`
+  renders this label on each marked item; the gate counts it in every channel's output.
+{%- endcomment -%}
+{%- case language -%}
+  {%- when "fa" -%}دیدگاه
+  {%- when "tr" -%}Görüş
+  {%- else -%}Opinion
+{%- endcase -%}

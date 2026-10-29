@@ -1,5 +1,8 @@
 // Publisher: renders approved publications from templates, sends them to their channels and
 // records each post idempotently, and makes each approved episode's audio. No agent is involved.
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createBoss, createPool, platformKey } from "@anr/db";
 import { buildCatalog, loadModelsConfig, modelsFile } from "@anr/models";
@@ -7,7 +10,9 @@ import { createRenderer } from "@anr/render";
 import { podcastFeed } from "./channels/feed.ts";
 import { telegramChannel } from "./channels/telegram.ts";
 import { checkChannel } from "./check.ts";
+import { publishCorrections } from "./corrections.ts";
 import { registerJobs } from "./jobs.ts";
+import { exiftoolWriter, rawReader } from "./media.ts";
 import { type AudioDeps, produceEpisode } from "./podcast/produce.ts";
 import { queueAudio } from "./podcast/queue.ts";
 import { c2paSigner } from "./podcast/sign.ts";
@@ -35,6 +40,14 @@ const configDir =
 const mediaDir =
   process.env.ANR_MEDIA_DIR ?? fileURLToPath(new URL("../../../.data/media", import.meta.url));
 const store = localStore(mediaDir);
+deps.media = {
+  writer: exiftoolWriter(),
+  raw: rawReader(
+    process.env.ANR_RAW_DIR ?? fileURLToPath(new URL("../../../.data/raw", import.meta.url)),
+  ),
+  store,
+  workDir: () => mkdtempSync(join(tmpdir(), "anr-media-")),
+};
 const catalog = buildCatalog(loadModelsConfig(modelsFile(configDir)));
 /**
  * The engine per newsroom and language, from the engines the platform admin enabled (D113).
@@ -70,6 +83,10 @@ await registerJobs(boss, {
   audio: async (job) => {
     const outcome = await produceEpisode(audioDeps, job);
     console.log(`[publisher] episode ${job.publicationId} audio: ${outcome}`);
+  },
+  correction: async (job) => {
+    const count = await publishCorrections(pool, job);
+    console.log(`[publisher] challenge ${job.challengeId}: ${count} corrections published`);
   },
 });
 console.log("publisher worker started");

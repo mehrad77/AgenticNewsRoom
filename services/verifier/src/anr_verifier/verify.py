@@ -8,7 +8,7 @@ from typing import Any
 from psycopg_pool import ConnectionPool
 
 from anr_verifier import claims, items, rendition
-from anr_verifier.bundle import Bundle, CheckOut, Claim, Lead, Policy, Rendition, Source
+from anr_verifier.bundle import Bundle, CheckOut, Claim, Lead, Media, Policy, Rendition, Source
 from anr_verifier.db import Conn, with_newsroom
 
 
@@ -48,6 +48,21 @@ def load(conn: Conn, story_id: str) -> Bundle:
            from claims c where c.story_id = %s order by c.created_at, c.ref""",
         (story_id,),
     ).fetchall()
+    # Claims a person corrected (a `correction` check), directly or through `copied_from`.
+    corrected = {
+        str(r["origin"])
+        for r in conn.execute(
+            """with recursive chain (origin, id) as (
+                 select c.id, c.id from claims c where c.story_id = %s
+                 union all
+                 select chain.origin, k.copied_from from chain join claims k on k.id = chain.id
+                 where k.copied_from is not null
+               )
+               select distinct chain.origin from chain
+               join checks ch on ch.claim_id = chain.id and ch.kind = 'correction'""",
+            (story_id,),
+        )
+    }
     story_claims = tuple(
         Claim(
             id=str(r["id"]),
@@ -57,6 +72,7 @@ def load(conn: Conn, story_id: str) -> Bundle:
             lead_id=str(r["lead_id"]) if r["lead_id"] else None,
             quoted_passage=r["quoted_passage"],
             also=tuple(Source(str(a["lead_id"]), str(a["quoted_passage"])) for a in r["also"]),
+            corrected=str(r["id"]) in corrected,
         )
         for r in claim_rows
     )
@@ -96,6 +112,20 @@ def load(conn: Conn, story_id: str) -> Bundle:
             (sorted(lead_ids),),
         )
     }
+    media_ids = sorted(
+        {
+            str(item["media_id"])
+            for r in renditions
+            for _, item in items.walk(r.body)
+            if item.get("media_id")
+        }
+    )
+    media = {
+        str(r["id"]): Media(str(r["id"]), r["licence"], r["credit_line"])
+        for r in conn.execute(
+            "select id, licence, credit_line from media where id::text = any(%s)", (media_ids,)
+        )
+    }
     policy: dict[str, Any] = story["policy"] or {}
     sources = policy.get("sources", {})
     return Bundle(
@@ -111,6 +141,7 @@ def load(conn: Conn, story_id: str) -> Bundle:
             opinion=str(policy.get("opinion", "not_allowed")),
         ),
         series=story["series"] or {},
+        media=media,
     )
 
 
@@ -135,6 +166,32 @@ def item_leads(b: Bundle) -> list[CheckOut]:
     return out
 
 
+def item_media(b: Bundle) -> list[CheckOut]:
+    """An image an item shows is a media item of this newsroom with a licence and a credit
+    (D16, D119); the publisher checks again before it sends."""
+    out = []
+    for r in b.renditions:
+        for path, item in items.walk(r.body):
+            if not item.get("media_id"):
+                continue
+            m = b.media.get(str(item["media_id"]))
+            ok = m is not None and bool(m.licence) and bool((m.credit_line or "").strip())
+            out.append(
+                CheckOut(
+                    "media-licence",
+                    "pass" if ok else "fail",
+                    rendition_id=r.id,
+                    item=path,
+                    detail={
+                        "media_id": item["media_id"],
+                        "found": m is not None,
+                        "licence": m.licence if m else None,
+                    },
+                )
+            )
+    return out
+
+
 def run_checks(b: Bundle, config_dir: Path) -> list[CheckOut]:
     if not b.claims:
         # The schema result too, so the gate sees the code checks ran and does not ask again.
@@ -147,9 +204,12 @@ def run_checks(b: Bundle, config_dir: Path) -> list[CheckOut]:
         *claims.quotes(b),
         *claims.independence(b),
         *claims.opinion(b),
+        *claims.opinion_marking(b),
+        *claims.corrected(b),
         *claims.beats(b),
         *items.item_claims(b),
         *item_leads(b),
+        *item_media(b),
         *rendition.style_lint(b),
         *rendition.format_rules(b, config_dir),
     ]

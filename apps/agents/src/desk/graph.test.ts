@@ -1,12 +1,17 @@
+import { fileURLToPath } from "node:url";
 import { AIMessage, type BaseMessage, ToolMessage } from "@langchain/core/messages";
 import { tool } from "@langchain/core/tools";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
+import { formatSchema } from "../context.ts";
 import type { ChatLike } from "../model.ts";
+import { deskSteps } from "../prompts/roles.ts";
+import { itemShape } from "../prompts/shapes.ts";
 import type { LeadText } from "../tools/leads.ts";
 import { assignmentMessage, writeDraft } from "./graph.ts";
 import type { CitableLead } from "./validate.ts";
 
+const configDir = fileURLToPath(new URL("../../../../config", import.meta.url));
 const LEAD = "11111111-1111-1111-1111-111111111111";
 const lead: LeadText = {
   id: LEAD,
@@ -21,6 +26,7 @@ const lead: LeadText = {
   text: "Example Lab released Orbit today. It is 40 percent faster than Comet.",
   truncated: false,
   withdrawn: null,
+  images: [],
 };
 
 /** Replays answers in order and records what it was sent. */
@@ -74,7 +80,7 @@ function setup(answers: AIMessage[]) {
   const deps = {
     model,
     tools: [search],
-    language: "en",
+    steps: deskSteps("en", itemShape(formatSchema(configDir, "newsletter-issue"))),
     validation: () => ({
       format: "newsletter-issue",
       language: "en",

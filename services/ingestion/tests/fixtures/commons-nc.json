@@ -1,0 +1,34 @@
+{
+  "batchcomplete": true,
+  "query": {
+    "pages": [
+      {
+        "pageid": 990002,
+        "ns": 6,
+        "title": "File:Backstage portrait.jpg",
+        "imagerepository": "local",
+        "imageinfo": [
+          {
+            "url": "https://upload.wikimedia.org/wikipedia/commons/c/cd/Backstage_portrait.jpg",
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Backstage_portrait.jpg",
+            "mime": "image/jpeg",
+            "extmetadata": {
+              "Artist": { "value": "Eli Example", "source": "commons-desc-page" },
+              "LicenseShortName": {
+                "value": "CC BY-NC-SA 2.0",
+                "source": "commons-desc-page",
+                "hidden": ""
+              },
+              "LicenseUrl": {
+                "value": "https://creativecommons.org/licenses/by-nc-sa/2.0",
+                "source": "commons-desc-page",
+                "hidden": ""
+              },
+              "License": { "value": "cc-by-nc-sa-2.0", "source": "commons-templates", "hidden": "" }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -20,6 +20,7 @@ import {
 } from "@anr/render";
 import { type ChannelAdapter, type ChannelTarget, SendError } from "./channels/types.ts";
 import { holdPublication } from "./hold.ts";
+import { type MediaDeps, prepareMedia } from "./media.ts";
 
 export type { ChannelAdapter };
 
@@ -37,6 +38,8 @@ export interface PublishDeps {
   /** By channel kind; a kind without an adapter cannot be sent to. */
   adapters: Partial<Record<string, ChannelAdapter>>;
   platform: PlatformKey;
+  /** Writes and signs the images a publication shows (D120); without it, such a piece is held. */
+  media?: MediaDeps;
   rootDomain: string;
   devPort?: number;
   now?: () => Date;
@@ -108,7 +111,7 @@ async function locked(
 
 /** Every string a reader sees in a rendition body, for site search. */
 function searchText(body: unknown): string {
-  const skip = new Set(["kind", "claim_ids", "lead_id", "id"]);
+  const skip = new Set(["kind", "claim_ids", "lead_id", "media_id", "id"]);
   const out: string[] = [];
   const walk = (value: unknown, key?: string) => {
     if (key && skip.has(key)) return;
@@ -188,6 +191,12 @@ async function prepare(
   );
   const first = renditions[0];
   if (!first) return hold("no-rendition", {});
+  const media = await prepareMedia(
+    client,
+    deps.media,
+    renditions.map((r) => r.body),
+  );
+  if (media.kind === "hold") return hold(media.name, media.detail);
 
   const site = {
     subdomain: p.subdomain,

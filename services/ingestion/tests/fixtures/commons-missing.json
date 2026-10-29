@@ -1,0 +1,14 @@
+{
+  "batchcomplete": true,
+  "query": {
+    "pages": [
+      {
+        "ns": 6,
+        "title": "File:Nothing here.jpg",
+        "missing": true,
+        "known": false,
+        "imagerepository": ""
+      }
+    ]
+  }
+}

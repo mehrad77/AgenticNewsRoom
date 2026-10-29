@@ -3,6 +3,7 @@
 import { type Language, pageUrl, type SiteAddress } from "@anr/core";
 import type { Pool } from "@anr/db";
 import { createRenderer } from "@anr/render";
+import { type ChallengeStatus, challengeStatus } from "./challenge.ts";
 import { WORDS, type Words } from "./i18n.ts";
 import { jsonLd, ninjs, policyUrls } from "./metadata.ts";
 import {
@@ -46,6 +47,7 @@ export type Page =
   | ({ kind: "search"; query: string; pieces: Listed[] } & Common)
   | ({ kind: "ai-policy" } & Common)
   | ({ kind: "corrections"; corrections: Awaited<ReturnType<typeof corrections>> } & Common)
+  | ({ kind: "challenge"; challenge: ChallengeStatus } & Common)
   | ({
       kind: "publication";
       publication: ReaderPublication;
@@ -109,6 +111,16 @@ export async function loadPage(
         corrections: await corrections(deps.pool, newsroom.id, language),
         ...common(words.corrections, "/corrections"),
       };
+    case "challenge": {
+      const challenge = await challengeStatus(
+        deps.pool,
+        newsroom.id,
+        r.id,
+        request.query.get("k") ?? "",
+      );
+      if (!challenge) return { kind: "not-found", ...common(words.notFound) };
+      return { kind: "challenge", challenge, ...common(words.challenge.status, "/") };
+    }
     case "publication":
     case "ninjs": {
       const publication = await publicationByPath(deps.pool, newsroom.id, language, r.path);
@@ -121,6 +133,7 @@ export async function loadPage(
         edited: publication.edited,
         ai_policy_url: links.aiPolicy,
         leads: publication.leads,
+        media: publication.media,
       });
       const described = { site, newsroom, publication, bodyHtml };
       if (r.kind === "ninjs") return { kind: "ninjs", json: ninjs(described) };

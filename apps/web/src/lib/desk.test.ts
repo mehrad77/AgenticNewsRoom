@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { deskApi, deskRoute, editedFields, editForm, issueLink, type Sample } from "./desk.ts";
+import {
+  type ChallengeDetail,
+  challengeIssueLink,
+  deskApi,
+  deskRoute,
+  editedFields,
+  editForm,
+  issueLink,
+  noticeFields,
+  type Sample,
+} from "./desk.ts";
 
 describe("deskRoute", () => {
   it("knows the desk's pages", () => {
@@ -9,6 +19,9 @@ describe("deskRoute", () => {
     const id = "0b2f6f0e-1c2d-4e5f-8a9b-0c1d2e3f4a5b";
     expect(deskRoute(`/ai/p/${id}`)).toEqual({ kind: "publication", newsroom: "ai", id });
     expect(deskRoute("/ai/p/1")).toEqual({ kind: "not-found" });
+    expect(deskRoute(`/kultur/c/${id}`)).toEqual({ kind: "challenge", newsroom: "kultur", id });
+    expect(deskRoute("/kultur/challenges")).toEqual({ kind: "challenges", newsroom: "kultur" });
+    expect(deskRoute("/kultur/media")).toEqual({ kind: "media", newsroom: "kultur" });
     expect(deskRoute("/AI")).toEqual({ kind: "not-found" });
     expect(deskRoute("/admin")).toEqual({ kind: "admin" });
     for (const page of ["plan", "voices", "schedule", "budget", "sources", "measures"])
@@ -153,5 +166,29 @@ describe("issueLink", () => {
     expect(url.origin + url.pathname).toBe("https://github.com/o/r/issues/new");
     expect(url.searchParams.get("title")).toBe("Sample miss (ai): Today in AI");
     expect(url.searchParams.get("body")).toContain("> A date was wrong.\n> Check dates.");
+  });
+});
+
+describe("challenges at the desk (D114–D116)", () => {
+  it("posts one notice per filled language", () => {
+    const form = new FormData();
+    form.set("notice:tr", " Albüm 2021'de çıktı. ");
+    form.set("notice:en", "");
+    form.set("answer", "Yes.");
+    expect(noticeFields(form)).toEqual({ tr: "Albüm 2021'de çıktı." });
+  });
+
+  it("files the lesson as an issue without the reader's text", () => {
+    const c = {
+      id: "c-1",
+      publication: "p-1",
+      language: "tr",
+      title: "Bir sanatçı",
+      reader_text: "PRIVATE reader words",
+      lesson: "Release years from the label.",
+    } as ChallengeDetail;
+    const url = new URL(challengeIssueLink("https://github.com/x/y/issues/new", "kultur", c));
+    expect(url.searchParams.get("body")).toContain("> Release years from the label.");
+    expect(url.toString()).not.toContain("PRIVATE");
   });
 });

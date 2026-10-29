@@ -24,6 +24,14 @@ export interface LeadText {
   truncated: boolean;
   /** Set when the lead was later found withdrawn or retracted (D78); never cite it. */
   withdrawn: string | null;
+  /** The lead's licensed images an item may show (D119). */
+  images: LeadImage[];
+}
+
+export interface LeadImage {
+  id: string;
+  description: string | null;
+  credit: string;
 }
 
 export interface LeadHit {
@@ -53,7 +61,11 @@ export async function readLead(
               coalesce(array(select b.slug from lead_beats lb join beats b on b.id = lb.beat_id
                              where lb.lead_id = l.id order by b.slug), '{}') as beats,
               to_char(l.first_created at time zone 'UTC', 'YYYY-MM-DD') as published,
-              l.body, l.withdrawn_reason as withdrawn
+              l.body, l.withdrawn_reason as withdrawn,
+              coalesce((select json_agg(json_build_object('id', m.id, 'description', m.description,
+                                                          'credit', m.credit_line)
+                                        order by m.created_at)
+                        from media m where m.lead_id = l.id and m.licence is not null), '[]') as images
        from leads l left join sources s on s.id = l.source_id
        where l.id = $1`,
       [leadId],

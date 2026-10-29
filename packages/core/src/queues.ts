@@ -14,6 +14,10 @@ export const QUEUES = {
   plan: "plan",
   /** Agents worker: one weekly pick's deadline; unchosen, its slot is skipped (D104). */
   pickDeadline: "pick-deadline",
+  /** Agents worker: a reader challenge's reminder or deadline; a notice if it is still open (D114). */
+  challengeDeadline: "challenge-deadline",
+  /** Agents worker: an image a member added, fetched and read by ingestion (D119). */
+  ingestMedia: "ingest-media",
   /** Agents worker: one agent run, one graph, one submit. */
   agentRun: "agent-run",
   /** Agents worker: the verifier gate for one story, from code checks to policy (D80). */
@@ -28,6 +32,8 @@ export const QUEUES = {
   channelCheck: "channel-check",
   /** Publisher: voices, mixes, tags, signs and stores one approved episode before its slot. */
   podcastAudio: "podcast-audio",
+  /** Publisher: an upheld challenge's corrections, published on their pieces (D115). */
+  publishCorrection: "publish-correction",
 } as const;
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
 
@@ -95,6 +101,26 @@ export interface RedraftJob {
 export interface ChannelCheckJob {
   newsroomId: string;
   channelId: string;
+}
+export interface ChallengeDeadlineJob {
+  newsroomId: string;
+  challengeId: string;
+  /** Which deadline, and whether this is the reminder before it or the deadline itself. */
+  step: "acknowledge" | "answer";
+  at: "due" | "overdue";
+}
+export interface PublishCorrectionJob {
+  newsroomId: string;
+  challengeId: string;
+}
+/** Carries the URL: the media row exists only once ingestion has fetched and read the image. */
+export interface IngestMediaJob {
+  newsroomId: string;
+  url: string;
+  /** The press kit's page; a Commons file page is its own source. */
+  sourceUrl?: string;
+  leadId?: string;
+  addedBy: string;
 }
 export interface GateJob {
   newsroomId: string;

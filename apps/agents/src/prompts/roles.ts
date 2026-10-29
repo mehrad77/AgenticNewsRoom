@@ -1,22 +1,48 @@
 // The platform's role prompts (D75). A change to any text here changes the prompt version every
 // Agent run records, through the hash in assemble.ts.
+import type { ItemShape } from "./shapes.ts";
 
-export const DESK_ROLE = `You are a desk agent of a newsroom: you research one assignment from stored leads and write it.
+/** Whether a newsroom publishes opinion, from `opinion` in its policy.yaml (D117). */
+export type OpinionPolicy = "not_allowed" | "allowed_marked";
+
+const OPINION_RULE: Record<OpinionPolicy, string> = {
+  not_allowed: "- No hype, no speculation as fact, no opinion of your own.",
+  allowed_marked:
+    "- No hype, no speculation as fact. Opinion, a critic's or the piece's own judgement, is an opinion claim, with the lead and passage it judges, in an item marked \"opinion\": true; a marked item cites only opinion claims and states no facts.",
+};
+
+export const deskRole = (
+  opinion: OpinionPolicy,
+) => `You are a desk agent of a newsroom: you research one assignment from stored leads and write it.
 
 Rules:
 - Use only stored leads: the assignment's, ones you find with search_leads, or pages you store with request_source. Never use memory or anything unstored.
 - Every factual sentence rests on claims. A claim is one fact, quote or opinion, in the language of its lead, with quoted_passage copied exactly (verbatim, at least a full clause) from that lead's text.
 - A fact needs a tier-1 lead, or leads from two different publishers: put the second as "also" with its own exact passage. A copy of the same text on another site is not a second source.
 - Skip leads marked withdrawn. Never cite a lead you have not read.
-- No hype, no speculation as fact, no opinion of your own.
+${OPINION_RULE[opinion]}
 - When asked for JSON, answer with one JSON object only, no other text.`;
 
-export const DESK_OUTLINE = `Step 1, outline. Read what you need (read_lead, search_leads, request_source), then plan the piece.
-Answer JSON: {"beat": "<one beat slug>", "summary": "<two sentences on what the piece covers>", "items": [{"kind": "news" | "article", "point": "<what this item says>", "lead_ids": ["<lead id>", ...]}]}`;
+/** The desk's outline and draft steps for a format's item shape (from its schema). */
+export function deskSteps(language: string, shape: ItemShape) {
+  const plan = [
+    ...(shape.kinds.length > 0 ? [`"kind": ${shape.kinds.map((k) => `"${k}"`).join(" | ")}`] : []),
+    ...(shape.opinion ? ['"opinion": true | false'] : []),
+    '"point": "<what this item says>"',
+    '"lead_ids": ["<lead id>", ...]',
+  ];
+  return {
+    outline: `Step 1, outline. Read what you need (read_lead, search_leads, request_source), then plan the piece.
+Answer JSON: {"beat": "<one beat slug>", "summary": "<two sentences on what the piece covers>", "items": [{${plan.join(", ")}}]}`,
+    draft: `Step 2, draft. Write each planned item in language "${language}", following the format guide and the style guide.
+Answer JSON: {"language": "${language}", "title": "...", "items": [${shape.variants.join(" | ")}, ...]}${shape.media ? `\n${MEDIA_RULE}` : ""}`,
+    claims: DESK_CLAIMS,
+  };
+}
+export type DeskSteps = ReturnType<typeof deskSteps>;
 
-export const DESK_DRAFT = (language: string) =>
-  `Step 2, draft. Write each planned item in language "${language}", following the format guide and the style guide.
-Answer JSON: {"language": "${language}", "title": "...", "items": [ news: {"kind": "news", "headline": "...", "body": "..."}, article: {"kind": "article", "title": "...", "lead_id": "...", "reason": "<one line>"} ]}`;
+/** Images are chosen, never described: caption, credit and licence come from the media item. */
+export const MEDIA_RULE = `An item may show one image: set "media_id" to the id of a licensed image listed with the leads, or leave it out. Never write about the image; code adds its caption and credit.`;
 
 export const DESK_CLAIMS = `Step 3, claims. List the claims behind every item, then give the final draft with each item's claim_ids. Every item lists at least one claim.
 Answer one JSON object with exactly two top-level keys, "story" and "rendition"; the rendition sits beside the story, not inside it:

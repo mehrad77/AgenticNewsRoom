@@ -14,6 +14,11 @@ RUN pnpm install --frozen-lockfile && pnpm --filter "@anr/${APP}..." run --if-pr
 FROM base AS run
 ARG APP
 ENV APP=${APP} NODE_ENV=production
+# The publisher mixes episodes (ffmpeg) and writes images' Photo Metadata (exiftool, D120).
+RUN if [ "$APP" = publisher ]; then \
+      apt-get update && apt-get install -y --no-install-recommends ffmpeg libimage-exiftool-perl \
+      && rm -rf /var/lib/apt/lists/*; \
+    fi
 COPY --from=build /repo /repo
 WORKDIR /repo/apps/${APP}
 CMD ["pnpm", "start"]
