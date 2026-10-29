@@ -44,6 +44,7 @@ from anr_ingestion.media import (
     commons_api_url,
     commons_page_url,
     commons_title,
+    credit_line,
     parse_commons,
     read_xmp,
     sniff_type,
@@ -572,7 +573,7 @@ class Ingestor:
             lead_id=lead_id,
             # Commons fills what the file's own metadata leaves empty.
             creator=xmp.creator or (commons.creator if commons else None),
-            credit_line=xmp.credit_line or (commons.credit_line if commons else None),
+            credit_line=credit_line(xmp, commons),
             copyright_notice=xmp.copyright_notice,
             web_statement=xmp.web_statement,
             licensor=xmp.licensor,

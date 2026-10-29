@@ -21,12 +21,27 @@ export const PER_READER_PER_DAY = 5;
 export const PER_PUBLICATION_PER_DAY = 20;
 export const PER_NEWSROOM_PER_DAY = 200;
 
-/** A reader's network: the address, or its /64 for IPv6, which one household can rotate within. */
+/**
+ * A reader's network: the address, or its /64 for IPv6, which one household can rotate within. An
+ * IPv4 reader seen on a dual-stack socket (`::ffff:203.0.113.5`) is that IPv4 address, not one
+ * /64 shared by every IPv4 reader.
+ */
 export function readerNetwork(address: string): string {
-  if (!address.includes(":")) return address;
-  const [head = "", tail = ""] = address.split("::");
-  const groups = [...head.split(":"), ...Array(8).fill("0"), ...tail.split(":")].filter(Boolean);
-  return `${groups.slice(0, 4).join(":")}::/64`;
+  const a = address.trim().toLowerCase().replace(/%.*$/, "");
+  const mapped = /^(?:0{0,4}:){0,5}:?ffff:(\d{1,3}(?:\.\d{1,3}){3})$/.exec(a);
+  if (mapped?.[1]) return mapped[1];
+  if (!a.includes(":")) return a;
+  const [head = "", tail = ""] = a.split("::");
+  const fill = 8 - head.split(":").filter(Boolean).length - tail.split(":").filter(Boolean).length;
+  const groups = a.includes("::")
+    ? [
+        ...head.split(":").filter(Boolean),
+        ...Array(Math.max(fill, 0)).fill("0"),
+        ...tail.split(":"),
+      ]
+    : head.split(":");
+  const network = groups.slice(0, 4).map((g) => Number.parseInt(g || "0", 16).toString(16));
+  return `${network.join(":")}::/64`;
 }
 
 let daily: { day: string; secret: Buffer } | undefined;
@@ -44,10 +59,13 @@ export function readerKey(address: string, now: Date) {
 
 export const tokenHash = (token: string) => createHash("sha256").update(token).digest();
 
-/** The reader's address behind the site's proxy: the last X-Forwarded-For entry (D110). */
-export function readerAddress(forwarded: string | undefined, fallback = "unknown"): string {
+/**
+ * The reader's address behind the site's proxy: the last X-Forwarded-For entry (D110), else the
+ * connection's own address. Only a request with neither shares the "unknown" key.
+ */
+export function readerAddress(forwarded: string | undefined, connection?: string): string {
   const last = forwarded?.split(",").at(-1)?.trim();
-  return last || fallback;
+  return last || connection || "unknown";
 }
 
 export interface ChallengeInput {

@@ -461,6 +461,20 @@ def test_the_same_image_twice_is_one_media_item(
     assert len(media(database, newsroom)) == 1
 
 
+def test_the_same_image_for_another_lead_is_another_media_item(
+    ingestor: Ingestor, database: Database, newsroom: Newsroom
+) -> None:
+    user = make_user(database)
+    first_lead, second_lead = ingestor.ingest_source(
+        newsroom.id, newsroom.sources["lab"]
+    ).new_leads[:2]
+    url = "https://label.example/press/cem.png"
+    first, _, _ = ingestor.add_media(newsroom.id, url, PRESS_PAGE, first_lead, user)
+    second, created, _ = ingestor.add_media(newsroom.id, url, PRESS_PAGE, second_lead, user)
+    assert created and second != first
+    assert {str(r["lead_id"]) for r in media(database, newsroom)} == {first_lead, second_lead}
+
+
 def test_media_that_cannot_be_added_is_refused(
     ingestor: Ingestor, database: Database, newsroom: Newsroom, web: FakeWeb
 ) -> None:

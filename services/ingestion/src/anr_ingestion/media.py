@@ -224,6 +224,12 @@ def _free(short: str | None, code: str | None) -> tuple[bool, bool]:
     return True, pd
 
 
+def credit_line(xmp: PhotoMetadata, commons: CommonsFile | None) -> str | None:
+    """A Commons file is credited to its author, as its free licence requires; the file's own
+    credit only fills in where Commons names no author."""
+    return (commons.credit_line if commons else None) or xmp.credit_line
+
+
 def parse_commons(data: bytes) -> CommonsFile:
     """Commons' imageinfo answer (formatversion=2) for one file. Raises NoSuchFile when it names
     no file, another ValueError when it cannot be read. A licence needs an Artist (its credit)

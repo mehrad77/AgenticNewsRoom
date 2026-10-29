@@ -8,6 +8,7 @@ from anr_ingestion.media import (
     PhotoMetadata,
     commons_api_url,
     commons_title,
+    credit_line,
     parse_commons,
     read_xmp,
     sniff_type,
@@ -157,6 +158,17 @@ def test_a_cc_by_sa_file_records_its_licence_and_credit() -> None:
     assert commons.creator == "Dana Example"  # the Artist's HTML, as text
     assert commons.credit_line == "Dana Example, Wikimedia Commons"
     assert commons.description == "The North Hall during a concert, from the balcony."
+
+
+def test_a_commons_author_is_the_credit_whatever_the_file_says() -> None:
+    commons = parse_commons((FIXTURES / "commons-bysa.json").read_bytes())
+    agency = PhotoMetadata(credit_line="Example Agency")
+    assert credit_line(agency, commons) == "Dana Example, Wikimedia Commons"
+    # Without an author from Commons, or off Commons, the file's own credit is used.
+    assert credit_line(agency, None) == "Example Agency"
+    nameless = json.loads((FIXTURES / "commons-bysa.json").read_bytes())
+    del nameless["query"]["pages"][0]["imageinfo"][0]["extmetadata"]["Artist"]
+    assert credit_line(agency, parse_commons(json.dumps(nameless).encode())) == "Example Agency"
 
 
 def test_a_licence_url_that_is_not_http_gives_no_licence() -> None:

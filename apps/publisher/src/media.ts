@@ -5,7 +5,7 @@
 // ingredient so a manifest the source already had stays valid inside ours. Signing comes last:
 // it hashes the file.
 import { execFile } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import type { Client } from "@anr/db";
@@ -13,6 +13,8 @@ import { mediaIds, mediaPath } from "@anr/render";
 import type { MediaStore } from "./podcast/store.ts";
 
 const run = promisify(execFile);
+/** A tool that hangs fails the image (and holds the piece) instead of the publication's lock. */
+const TOOL_TIMEOUT_MS = 60_000;
 
 export interface MediaRow {
   id: string;
@@ -90,9 +92,16 @@ export function exiftoolWriter(
       writeFileSync(original, source);
       writeFileSync(spec, JSON.stringify(manifest(m)));
       // `-charset utf8`: names in Persian or Turkish stay as written.
-      await run(exiftool, ["-q", "-charset", "utf8", ...xmpArgs(m), "-o", tagged, original]);
-      await run(c2patool, [tagged, "-p", original, "-m", spec, "-o", signed, "-f"]);
-      const { stdout } = await run(c2patool, [signed], { maxBuffer: 16 * 1024 * 1024 });
+      await run(exiftool, ["-q", "-charset", "utf8", ...xmpArgs(m), "-o", tagged, original], {
+        timeout: TOOL_TIMEOUT_MS,
+      });
+      await run(c2patool, [tagged, "-p", original, "-m", spec, "-o", signed, "-f"], {
+        timeout: TOOL_TIMEOUT_MS,
+      });
+      const { stdout } = await run(c2patool, [signed], {
+        maxBuffer: 16 * 1024 * 1024,
+        timeout: TOOL_TIMEOUT_MS,
+      });
       const report = JSON.parse(stdout) as { validation_state?: string };
       if (report.validation_state !== "Valid")
         throw new Error(`the signed image does not validate (${report.validation_state})`);
@@ -129,7 +138,9 @@ export type MediaOutcome = { kind: "ready" } | { kind: "hold"; name: string; det
 
 /**
  * Checks every image the renditions show, then publishes each one not published yet. Runs inside
- * the publication's transaction, before any Post row is written.
+ * the publication's transaction, before any Post row is written. Media rows are not locked: two
+ * pieces publishing the same image at once both write a valid copy to the same key, and the
+ * tools' run never blocks another piece or the desk.
  */
 export async function prepareMedia(
   client: Client,
@@ -141,7 +152,7 @@ export async function prepareMedia(
   const { rows } = await client.query<MediaRow>(
     `select id, file, content_type, description, creator, credit_line, copyright_notice,
             web_statement, licensor, digital_source_type, licence, licence_url, published_file
-     from media where id::text = any($1) for update`,
+     from media where id::text = any($1)`,
     [ids],
   );
   const unlicensed = ids.filter((id) => {
@@ -153,19 +164,25 @@ export async function prepareMedia(
   if (!deps)
     return { kind: "hold", name: "media", detail: { error: "no image writer configured" } };
   for (const m of rows.filter((r) => !r.published_file)) {
+    const workDir = deps.workDir();
     try {
       const source = deps.raw(m.file);
       if (!source) throw new Error(`source image ${m.file} is missing`);
-      const { data } = await deps.writer.write(source, m, deps.workDir());
+      const { data } = await deps.writer.write(source, m, workDir);
       const key = mediaPath(m.id, m.content_type).slice(1);
       await deps.store.put(key, data, m.content_type);
-      await client.query("update media set published_file = $2 where id = $1", [m.id, key]);
+      await client.query(
+        "update media set published_file = $2 where id = $1 and published_file is null",
+        [m.id, key],
+      );
     } catch (error) {
       return {
         kind: "hold",
         name: "media",
         detail: { media: m.id, error: (error as Error).message },
       };
+    } finally {
+      rmSync(workDir, { recursive: true, force: true });
     }
   }
   return { kind: "ready" };

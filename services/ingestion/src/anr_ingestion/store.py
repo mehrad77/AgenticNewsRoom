@@ -320,7 +320,8 @@ def lead_exists(conn: Conn, lead_id: str) -> bool:
 @dataclass(frozen=True)
 class NewMedia:
     file: str
-    """The raw store's key: content-addressed, so the same image twice is one media item."""
+    """The raw store's key: content-addressed, so the same image twice for one lead is one media
+    item; for another lead it is another item, since agents see images through their lead."""
     lead_id: str | None
     creator: str | None
     credit_line: str | None
@@ -339,7 +340,7 @@ class NewMedia:
 
 
 def insert_media(conn: Conn, newsroom_id: str, media: NewMedia) -> tuple[str, bool, str | None]:
-    """(id, created, licence); an image already stored keeps its row, as it is."""
+    """(id, created, licence); an image already stored for this lead keeps its row, as it is."""
     commons = media.licence is not None
     row = conn.execute(
         """insert into media
@@ -348,7 +349,7 @@ def insert_media(conn: Conn, newsroom_id: str, media: NewMedia) -> tuple[str, bo
               added_by, licence, licence_kind, licence_url, licence_recorded_at)
            values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                    case when %s then now() end)
-           on conflict (newsroom_id, file) do nothing
+           on conflict on constraint media_lead_file_key do nothing
            returning id, licence""",
         (
             newsroom_id,
@@ -374,7 +375,8 @@ def insert_media(conn: Conn, newsroom_id: str, media: NewMedia) -> tuple[str, bo
     if row is not None:
         return str(row["id"]), True, row["licence"]
     existing = conn.execute(
-        "select id, licence from media where file = %s", (media.file,)
+        "select id, licence from media where file = %s and lead_id is not distinct from %s",
+        (media.file, media.lead_id),
     ).fetchone()
     assert existing is not None
     return str(existing["id"]), False, existing["licence"]

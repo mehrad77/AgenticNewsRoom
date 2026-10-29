@@ -3,7 +3,7 @@
 // (both tools real where installed), and the site page shows its credit.
 import { execFileSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -107,6 +107,9 @@ async function scheduled(day: number) {
   return { id, now: new Date(slot.getTime() + 30_000) };
 }
 
+/** Every work directory the publisher was handed, to check none is left behind. */
+const workDirs: string[] = [];
+
 const deps = (now: Date) => ({
   pool: pools.app,
   renderer: createRenderer(),
@@ -119,7 +122,11 @@ const deps = (now: Date) => ({
     writer: tools ? exiftoolWriter() : unchangedForTests,
     raw: rawReader(rawDir),
     store,
-    workDir: () => mkdtempSync(join(tmpdir(), "anr-work-")),
+    workDir: () => {
+      const dir = mkdtempSync(join(tmpdir(), "anr-work-"));
+      workDirs.push(dir);
+      return dir;
+    },
   },
 });
 
@@ -148,6 +155,8 @@ describe("images (D119, D120)", () => {
       [mediaId],
     );
     expect(rows[0]?.published_file).toBe(`m/${mediaId}.jpg`);
+    expect(workDirs.length).toBeGreaterThan(0);
+    expect(workDirs.filter((d) => existsSync(d))).toEqual([]);
     const file = store.path(`m/${mediaId}.jpg`);
     if (!tools) return;
     const tags = JSON.parse(

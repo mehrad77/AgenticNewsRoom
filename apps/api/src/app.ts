@@ -1,6 +1,7 @@
 import type { MembershipRole } from "@anr/core";
 import { type Client, type PlatformKey, type Pool, withNewsroom } from "@anr/db";
 import { createRenderer } from "@anr/render";
+import { getConnInfo } from "@hono/node-server/conninfo";
 import { type Context, Hono } from "hono";
 import type { PgBoss } from "pg-boss";
 import { ACCESS_HEADER, type VerifyAccess } from "./desk/access.ts";
@@ -87,6 +88,15 @@ function noticeTexts(v: unknown): Record<string, string> | undefined {
     : undefined;
 }
 
+/** The connection's own address on Node's server; none for in-process requests (tests). */
+function connectionAddress(c: Context): string | undefined {
+  try {
+    return getConnInfo(c).remote.address;
+  } catch {
+    return undefined;
+  }
+}
+
 /** A whole-number query parameter within bounds, or its default. */
 function count(c: Context, name: string, fallback: number, max: number): number {
   const raw = c.req.query(name);
@@ -133,7 +143,7 @@ export function createApp(deps?: DeskDeps) {
       publicationId: id(c, "publication"),
       text: said,
       sourceUrl: source || undefined,
-      address: readerAddress(c.req.header("x-forwarded-for")),
+      address: readerAddress(c.req.header("x-forwarded-for"), connectionAddress(c)),
     });
     return c.json(receipt, 201);
   });
