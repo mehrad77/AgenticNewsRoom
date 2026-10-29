@@ -263,6 +263,11 @@ def test_article_items_name_live_leads() -> None:
     assert [c.result for c in item_leads(bundle([claim()], [article, unknown]))] == ["fail", "fail"]
 
 
+def test_an_image_id_is_not_item_text() -> None:
+    shown = news("c1") | {"media_id": "0b5a2da5-c261-41ee-a474-977449b1345b"}
+    assert [c.result for c in items.item_claims(bundle([claim()], [shown]))] == ["pass"]
+
+
 def test_items_show_only_licensed_credited_media() -> None:
     shown = [
         news("c1") | {"media_id": "m-ok"},

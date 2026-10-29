@@ -100,8 +100,8 @@ Gate: **v1 done: Kültür starts with no new code.**
 - [x] Marked opinion in templates and verifier for `opinion: allowed_marked` newsrooms.
 - [x] Media items with IPTC Photo Metadata read from XMP on ingest and written back on publish; publisher refuses unlicensed media.
 - [x] Measures view in the desk: hold rate, sample misses, corrections per 100 publications, editor minutes per week, cost per publication, audience per language (D99; done in milestone 4).
-- [ ] Complete Kültür's `sources.yaml`: Turkish music press, label release feeds, venue calendars, festival line-ups, each with a verified URL and `terms_checked`.
-- [ ] Gate: Kültür goes live from its config folder, a DNS record and channels set up in the desk, with no code change.
+- [ ] Complete Kültür's `sources.yaml`: Turkish music press, label release feeds, venue calendars, festival line-ups, each with a verified URL and `terms_checked`. *21 sources with verified URLs are in; waiting on a person to read each one's terms and set `terms_checked`.*
+- [ ] Gate: Kültür goes live from its config folder, a DNS record and channels set up in the desk, with no code change. *Proven locally: `apps/agents/src/kultur.db.test.ts` syncs the config folder and takes a weekly artist story through the desk, renderer and gate in tr, en and fa, and `kultur.localhost` serves the site; waiting on `terms_checked`, the DNS record and channels.*
 
 ## 7. Deploy
 

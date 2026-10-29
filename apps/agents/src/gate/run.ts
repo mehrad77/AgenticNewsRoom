@@ -143,6 +143,7 @@ const ITEM_SKIP = new Set([
   "kind",
   "claim_ids",
   "lead_id",
+  "media_id",
   "segment",
   "beat",
   "cue",

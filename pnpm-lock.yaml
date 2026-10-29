@@ -57,6 +57,9 @@ importers:
         specifier: 4.6.7
         version: 4.6.7
     devDependencies:
+      '@anr/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@types/node':
         specifier: 24.19.2
         version: 24.19.2

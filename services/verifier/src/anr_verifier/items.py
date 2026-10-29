@@ -23,6 +23,7 @@ SKIP_KEYS = {
     "kind",
     "claim_ids",
     "lead_id",
+    "media_id",
     "segment",
     "beat",
     "cue",

@@ -111,7 +111,7 @@ async function locked(
 
 /** Every string a reader sees in a rendition body, for site search. */
 function searchText(body: unknown): string {
-  const skip = new Set(["kind", "claim_ids", "lead_id", "id"]);
+  const skip = new Set(["kind", "claim_ids", "lead_id", "media_id", "id"]);
   const out: string[] = [];
   const walk = (value: unknown, key?: string) => {
     if (key && skip.has(key)) return;
