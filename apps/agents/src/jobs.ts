@@ -1,6 +1,7 @@
 import {
   type AgentRunJob,
   type AssignJob,
+  type ChallengeDeadlineJob,
   type GateJob,
   type IngestSourceJob,
   type PickDeadlineJob,
@@ -17,6 +18,7 @@ export const AGENTS_QUEUES: readonly QueueName[] = [
   QUEUES.assign,
   QUEUES.plan,
   QUEUES.pickDeadline,
+  QUEUES.challengeDeadline,
   QUEUES.agentRun,
   QUEUES.gate,
   QUEUES.redraft,
@@ -31,6 +33,7 @@ export interface JobHandlers {
   assign?: (job: AssignJob) => Promise<void>;
   plan?: (job: PlanJob) => Promise<void>;
   "pick-deadline"?: (job: PickDeadlineJob) => Promise<void>;
+  "challenge-deadline"?: (job: ChallengeDeadlineJob) => Promise<void>;
   "agent-run"?: (job: AgentRunJob) => Promise<void>;
   gate?: (job: GateJob) => Promise<void>;
   redraft?: (job: RedraftJob) => Promise<void>;
@@ -41,6 +44,7 @@ type Job =
   | AssignJob
   | PlanJob
   | PickDeadlineJob
+  | ChallengeDeadlineJob
   | AgentRunJob
   | GateJob
   | RedraftJob;

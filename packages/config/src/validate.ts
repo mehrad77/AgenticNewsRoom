@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { directionOf, type Language } from "@anr/core";
@@ -16,6 +16,39 @@ const addFormats = (addFormatsModule as unknown as { default: typeof addFormatsM
 interface IptcScheme {
   concepts: { qcode: string; retired?: string }[];
 }
+/** Whether a format's rendition items can be marked `opinion: true` (D117). */
+export function marksOpinion(schema: unknown): boolean {
+  type Item = { properties?: object; oneOf?: { properties?: object }[] };
+  const s = schema as {
+    properties?: { rendition?: { properties?: { items?: { items?: Item } } } };
+  };
+  const items = s.properties?.rendition?.properties?.items?.items ?? {};
+  return (items.oneOf ?? [items]).some((v) => "opinion" in (v.properties ?? {}));
+}
+
+/**
+ * Every channel template renders the AI-disclosure partial (invariant 8), and the opinion label
+ * too when the format's items can be marked opinion (D117). The gate checks the rendered output.
+ */
+function templateProblems(root: string, format: string): string[] {
+  const dir = join(root, "formats", format, "templates");
+  const schemaFile = join(root, "formats", format, "schema.json");
+  if (!existsSync(dir) || !existsSync(schemaFile)) return [];
+  const opinion = marksOpinion(JSON.parse(readFileSync(schemaFile, "utf8")));
+  const problems: string[] = [];
+  for (const file of readdirSync(dir).filter((f) => f.endsWith(".liquid"))) {
+    const text = readFileSync(join(dir, file), "utf8");
+    const at = `formats/${format}/templates/${file}`;
+    if (!/\{%-?\s*render\s+"disclosure"/.test(text))
+      problems.push(`${at} does not render the disclosure partial`);
+    if (opinion && !/\{%-?\s*render\s+"opinion"/.test(text))
+      problems.push(
+        `${at} does not render the opinion label, and the format's items can be marked opinion`,
+      );
+  }
+  return problems;
+}
+
 const qcodeCache = new Map<string, Set<string>>();
 /** Live (not retired) qcodes of a vendored IPTC vocabulary (packages/schemas/iptc/), read once. */
 const liveQcodes = (scheme: string): Set<string> => {
@@ -141,6 +174,7 @@ export function validateConfig(config: RawConfig): string[] {
     if (!existsSync(join(config.root, "formats", format, "schema.json"))) {
       errors.push(`formats/${format} has no schema.json`);
     }
+    errors.push(...templateProblems(config.root, format));
     const meta = config.formatMeta[format];
     const where = `formats/${format}/format.yaml`;
     if (meta === undefined) errors.push(`formats/${format} has no format.yaml`);

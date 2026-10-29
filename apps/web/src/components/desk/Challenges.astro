@@ -1,0 +1,21 @@
+---
+import { type Challenge, when } from "../../lib/desk.ts";
+
+interface Props {
+  newsroom: string;
+  challenges: Challenge[];
+}
+const { newsroom, challenges } = Astro.props;
+const state = (c: Challenge) =>
+  c.outcome ?? (c.acknowledged_at ? `answer by ${when(c.answer_by)}` : `acknowledge by ${when(c.acknowledge_by)}`);
+---
+<h1>Challenges</h1>
+<p>Readers' challenges: acknowledge each within 24 hours and answer within 48. An upheld one is corrected on every affected piece and becomes a new check.</p>
+{challenges.length === 0 && <p>No challenges yet.</p>}
+{challenges.map((c) => (
+  <section class="card">
+    <h2><a href={`/${newsroom}/c/${c.id}`}>{c.title ?? c.publication}</a></h2>
+    <p class="meta">{c.language} · received {when(c.created_at)} · <strong class={c.overdue ? "fail" : undefined}>{state(c)}{c.overdue ? " · overdue" : ""}</strong></p>
+    <blockquote>{c.reader_text}</blockquote>
+  </section>
+))}

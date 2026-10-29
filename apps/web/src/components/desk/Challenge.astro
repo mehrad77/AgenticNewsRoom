@@ -1,0 +1,83 @@
+---
+import { directionOf, type Language } from "@anr/core";
+import { type ChallengeDetail, challengeIssueLink, safeHref, when } from "../../lib/desk.ts";
+
+interface Props {
+  newsroom: string;
+  challenge: ChallengeDetail;
+  issuesUrl: string;
+}
+const { newsroom, challenge: c, issuesUrl } = Astro.props;
+const languages = [...new Set(c.affected.map((p) => p.language))];
+---
+<p><a href={`/${newsroom}/challenges`}>All challenges</a></p>
+<h1>Challenge: {c.title ?? c.publication}</h1>
+<p class="meta">
+  {c.language} · owner {c.owner} · received {when(c.created_at)} ·
+  acknowledge by {when(c.acknowledge_by)} · answer by {when(c.answer_by)}
+  {c.overdue && <strong class="fail"> · overdue</strong>}
+</p>
+{c.path && <p class="meta">On the {c.language} site at <code>{c.path}</code></p>}
+<section class="card">
+  <h2>The reader says</h2>
+  <blockquote>{c.reader_text}</blockquote>
+  {c.source_url && <p>Source: {safeHref(c.source_url) ? <a href={safeHref(c.source_url)} rel="noreferrer nofollow">{c.source_url}</a> : c.source_url}</p>}
+</section>
+
+{c.acknowledged_at ? (
+  <p>Acknowledged {when(c.acknowledged_at)}{c.acknowledgement && <>: {c.acknowledgement}</>}</p>
+) : !c.answered_at && (
+  <form method="post" class="card">
+    <h2>Acknowledge</h2>
+    <input type="hidden" name="action" value="acknowledge-challenge" /><input type="hidden" name="id" value={c.id} />
+    <label>Note to the reader (optional)<textarea name="note" maxlength="2000" rows="2"></textarea></label>
+    <button class="primary">Acknowledge</button>
+  </form>
+)}
+
+{c.answered_at ? (
+  <section class="card">
+    <h2>{c.outcome === "upheld" ? "Upheld" : "Not upheld"} · {when(c.answered_at)}</h2>
+    <p>{c.answer}</p>
+    {c.corrections.length > 0 && (
+      <ul>{c.corrections.map((k) => <li>{k.language}: {k.notice} · {k.published_at ? `published ${when(k.published_at)}` : "publishing"}</li>)}</ul>
+    )}
+    {c.outcome === "upheld" && (c.issue_url ? (
+      <p>Filed as <a href={safeHref(c.issue_url)} rel="noreferrer">{c.issue_url}</a> · {when(c.filed_at)}</p>
+    ) : (
+      <form method="post">
+        <p><a class="button" href={challengeIssueLink(issuesUrl, newsroom, c)} target="_blank" rel="noreferrer">File the lesson as an issue</a> then paste its address here:</p>
+        <input type="hidden" name="action" value="file-challenge-issue" /><input type="hidden" name="id" value={c.id} />
+        <label>Issue URL<input name="url" type="url" required pattern="https://.*" /></label>
+        <button>Record it</button>
+      </form>
+    ))}
+  </section>
+) : (
+  <>
+    <form method="post" class="card">
+      <h2>Not upheld</h2>
+      <input type="hidden" name="action" value="reject-challenge" /><input type="hidden" name="id" value={c.id} />
+      <label>Why the piece stands (the reader sees this)<textarea name="answer" required maxlength="4000" rows="3"></textarea></label>
+      <button>Answer: not upheld</button>
+    </form>
+    <form method="post" class="card">
+      <h2>Uphold and correct</h2>
+      <p>The claim you name is failed by a correction check: the gate refuses it and every copy from now on. Each published piece that carries it gets your notice in its language.</p>
+      <input type="hidden" name="action" value="uphold-challenge" /><input type="hidden" name="id" value={c.id} />
+      <label>The claim that was wrong
+        <select name="claim" required>
+          {c.claims.map((k) => <option value={k.ref}>{k.ref} ({k.kind}, notices: {k.languages.join(", ") || "none"}): {k.text}</option>)}
+        </select>
+      </label>
+      <label>What the gate should have caught<textarea name="lesson" required maxlength="2000" rows="2"></textarea></label>
+      <p>Pieces a correction of the story can cover; write a notice for each language the chosen claim lists:</p>
+      <ul>{c.affected.map((p) => <li>{p.language}: {p.title} <code>{p.path}</code></li>)}</ul>
+      {languages.map((l) => (
+        <label>Correction notice ({l})<textarea name={`notice:${l}`} maxlength="2000" rows="2" lang={l} dir={directionOf(l as Language)}></textarea></label>
+      ))}
+      <label>Answer to the reader<textarea name="answer" required maxlength="4000" rows="3"></textarea></label>
+      <button class="primary">Uphold and publish the corrections</button>
+    </form>
+  </>
+)}

@@ -6,6 +6,7 @@ import { createBoss, createPool, withNewsroom } from "@anr/db";
 import { buildCatalog, loadModelsConfig, ModelGateway, missingKeys, modelsFile } from "@anr/models";
 import { createRenderer } from "@anr/render";
 import { assignDaily, assignPick } from "./assign.ts";
+import { challengeDeadline } from "./challenges/deadline.ts";
 import type { RoleDeps } from "./desk/run.ts";
 import { runDesk } from "./desk/run.ts";
 import { dispatchAgentRun } from "./dispatch.ts";
@@ -95,6 +96,10 @@ await registerJobs(boss, {
   "pick-deadline": async (job) => {
     const outcome = await pickDeadline(pool, boss, job);
     console.log(`[agents] pick ${job.pickId} deadline: ${outcome}`);
+  },
+  "challenge-deadline": async (job) => {
+    const outcome = await challengeDeadline(pool, boss, job);
+    console.log(`[agents] challenge ${job.challengeId} ${job.step} ${job.at}: ${outcome}`);
   },
   "agent-run": dispatchAgentRun({
     pool,

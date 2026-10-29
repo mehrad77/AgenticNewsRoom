@@ -32,4 +32,6 @@ Podcasts (D107):
 - `podcast/run.ts`: writes the script one part per call (a recap's source story, the story plan, each beat), with validation in `script.ts`.
 - The gate adds an `ai-voices` check for series with hosts (`introLines` in `@anr/render`).
 
+Challenges (D114): `challenges/deadline.ts` handles the `challenge-deadline` jobs the API queues with each reader's challenge, leaving a `challenge-due` or `challenge-overdue` notice while a step is still open.
+
 Use the `add-agent-role` skill for a new role. Commands: `pnpm --filter @anr/agents test`, `pnpm --filter @anr/agents dev` (needs `pnpm db:up`).

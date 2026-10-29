@@ -2,8 +2,10 @@ import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
+import { formatSchema } from "../context.ts";
 import { assemblePrompt, MAX_PROMPT_BYTES, readGuides, styleFor } from "./assemble.ts";
-import { DESK_CLAIMS, DESK_DRAFT, DESK_OUTLINE, DESK_ROLE, RENDERER_ROLE } from "./roles.ts";
+import { deskRole, deskSteps, RENDERER_ROLE } from "./roles.ts";
+import { itemShape } from "./shapes.ts";
 
 const configDir = fileURLToPath(new URL("../../../../config", import.meta.url));
 
@@ -27,9 +29,10 @@ describe("prompt assembly (D75)", () => {
     "keeps $newsroom $format $language under 5 KB",
     ({ newsroom, format, language }) => {
       const { style, guide } = readGuides(configDir, newsroom, format);
+      const steps = deskSteps(language, itemShape(formatSchema(configDir, format)));
       const desk = assemblePrompt("desk", {
-        role: DESK_ROLE,
-        steps: [DESK_OUTLINE, DESK_DRAFT(language), DESK_CLAIMS],
+        role: deskRole("allowed_marked"),
+        steps: [steps.outline, steps.draft, steps.claims],
         style,
         guide,
         language,
@@ -39,6 +42,24 @@ describe("prompt assembly (D75)", () => {
       expect(desk.system).toContain("# Format guide");
     },
   );
+
+  it("asks for each format's own items, and opinion only where it can be marked (D117)", () => {
+    const newsletter = deskSteps("fa", itemShape(formatSchema(configDir, "newsletter-issue")));
+    expect(newsletter.outline).toContain('"kind": "news" | "article"');
+    expect(newsletter.draft).toContain('{"kind": "news", "headline": "...", "body": "..."}');
+    expect(newsletter.draft).toContain('"reason": "<One line: why it is worth reading.>"');
+    expect(newsletter.draft).not.toContain("claim_ids");
+    const story = deskSteps("tr", itemShape(formatSchema(configDir, "artist-story")));
+    expect(story.outline).toContain('"opinion": true | false');
+    expect(story.draft).toContain(
+      '{"heading": "...", "paragraphs": ["...", ...], "opinion": true | false}',
+    );
+    expect(
+      deskSteps("en", itemShape(formatSchema(configDir, "classic-article"))).outline,
+    ).not.toContain("opinion");
+    expect(deskRole("not_allowed")).toContain("no opinion of your own");
+    expect(deskRole("allowed_marked")).toContain('"opinion": true');
+  });
 
   it("keeps only the target language's style section", () => {
     const style =

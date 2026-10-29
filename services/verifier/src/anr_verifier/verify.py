@@ -48,6 +48,21 @@ def load(conn: Conn, story_id: str) -> Bundle:
            from claims c where c.story_id = %s order by c.created_at, c.ref""",
         (story_id,),
     ).fetchall()
+    # Claims a person corrected (a `correction` check), directly or through `copied_from`.
+    corrected = {
+        str(r["origin"])
+        for r in conn.execute(
+            """with recursive chain (origin, id) as (
+                 select c.id, c.id from claims c where c.story_id = %s
+                 union all
+                 select chain.origin, k.copied_from from chain join claims k on k.id = chain.id
+                 where k.copied_from is not null
+               )
+               select distinct chain.origin from chain
+               join checks ch on ch.claim_id = chain.id and ch.kind = 'correction'""",
+            (story_id,),
+        )
+    }
     story_claims = tuple(
         Claim(
             id=str(r["id"]),
@@ -57,6 +72,7 @@ def load(conn: Conn, story_id: str) -> Bundle:
             lead_id=str(r["lead_id"]) if r["lead_id"] else None,
             quoted_passage=r["quoted_passage"],
             also=tuple(Source(str(a["lead_id"]), str(a["quoted_passage"])) for a in r["also"]),
+            corrected=str(r["id"]) in corrected,
         )
         for r in claim_rows
     )
@@ -147,6 +163,8 @@ def run_checks(b: Bundle, config_dir: Path) -> list[CheckOut]:
         *claims.quotes(b),
         *claims.independence(b),
         *claims.opinion(b),
+        *claims.opinion_marking(b),
+        *claims.corrected(b),
         *claims.beats(b),
         *items.item_claims(b),
         *item_leads(b),

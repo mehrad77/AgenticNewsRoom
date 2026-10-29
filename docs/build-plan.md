@@ -95,9 +95,9 @@ Gate: **one editorial cycle runs from plan to published pieces.**
 
 Gate: **v1 done: Kültür starts with no new code.**
 
-- [ ] Reader challenges: form on every publication, owner, 24-hour acknowledgement and 48-hour answer deadlines with reminders.
-- [ ] Corrections: published correction notice, publication status Corrected, each correction linked to the new check it adds.
-- [ ] Marked opinion in templates and verifier for `opinion: allowed_marked` newsrooms.
+- [x] Reader challenges: form on every publication, owner, 24-hour acknowledgement and 48-hour answer deadlines with reminders.
+- [x] Corrections: published correction notice, publication status Corrected, each correction linked to the new check it adds.
+- [x] Marked opinion in templates and verifier for `opinion: allowed_marked` newsrooms.
 - [ ] Media items with IPTC Photo Metadata read from XMP on ingest and written back on publish; publisher refuses unlicensed media.
 - [x] Measures view in the desk: hold rate, sample misses, corrections per 100 publications, editor minutes per week, cost per publication, audience per language (D99; done in milestone 4).
 - [ ] Complete Kültür's `sources.yaml`: Turkish music press, label release feeds, venue calendars, festival line-ups, each with a verified URL and `terms_checked`.

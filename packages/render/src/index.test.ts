@@ -3,7 +3,10 @@ import {
   CHANNEL_LIMITS,
   createRenderer,
   introProblems,
+  occurrences,
+  opinionItems,
   splitParts,
+  unmarkOpinion,
   visibleLength,
 } from "./index.ts";
 
@@ -48,6 +51,42 @@ describe("channel templates", () => {
       leads: {},
     });
     expect(out).toContain('dir="rtl"');
+  });
+
+  it("label each item marked opinion, in its language", async () => {
+    const story = {
+      title: "Bir sanatçı",
+      items: [
+        { heading: "Hayat", paragraphs: ["Bir paragraf."], claim_ids: ["c1"] },
+        { paragraphs: ["Bence harika."], opinion: true, claim_ids: ["c2"] },
+        { paragraphs: ["Bence de."], opinion: true, claim_ids: ["c3"] },
+      ],
+    };
+    const label = await renderer.opinionLabel("tr");
+    expect(label).toBe("Görüş");
+    expect(await renderer.opinionLabel("fa")).toBe("دیدگاه");
+    const out = await renderer.render("artist-story", "site", "tr", {
+      rendition: story,
+      edited: false,
+      ai_policy_url: "/ai-policy",
+    });
+    expect(opinionItems(story)).toBe(2);
+    expect(occurrences(out, label)).toBe(2);
+    // The word in a sentence is no label: the gate counts against the output without the marks.
+    const words = {
+      ...story,
+      items: [...story.items, { paragraphs: ["Görüş ayrılığı var."], claim_ids: ["c4"] }],
+    };
+    const render = (r: unknown) =>
+      renderer.render("artist-story", "site", "tr", {
+        rendition: r,
+        edited: false,
+        ai_policy_url: "/",
+      });
+    expect(
+      occurrences(await render(words), label) -
+        occurrences(await render(unmarkOpinion(words)), label),
+    ).toBe(2);
   });
 
   it("escape agent-written text", async () => {

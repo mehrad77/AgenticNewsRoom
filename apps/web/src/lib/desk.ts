@@ -18,10 +18,13 @@ export type Measures = S["Measures"];
 export type Plan = S["Plan"];
 export type AdminTts = S["AdminTts"];
 export type NewsroomTts = S["NewsroomTts"];
+export type Challenge = S["Challenge"];
+export type ChallengeDetail = S["ChallengeDetail"];
 
 /** Pages that list or show one newsroom's things, under `/<newsroom>/<page>`. */
 const PAGES = [
   "plan",
+  "challenges",
   "voices",
   "channels",
   "samples",
@@ -39,6 +42,7 @@ export type DeskRoute =
   | { kind: "admin" }
   | { kind: "queue"; newsroom: string }
   | { kind: "publication"; newsroom: string; id: string }
+  | { kind: "challenge"; newsroom: string; id: string }
   | { kind: Page; newsroom: string }
   | { kind: "not-found" };
 
@@ -53,6 +57,8 @@ export function deskRoute(path: string): DeskRoute {
   if (m?.[1]) return { kind: "queue", newsroom: m[1] };
   m = new RegExp(`^/(${SLUG})/p/(${UUID})$`).exec(p);
   if (m?.[1] && m[2]) return { kind: "publication", newsroom: m[1], id: m[2] };
+  m = new RegExp(`^/(${SLUG})/c/(${UUID})$`).exec(p);
+  if (m?.[1] && m[2]) return { kind: "challenge", newsroom: m[1], id: m[2] };
   m = new RegExp(`^/(${SLUG})/(${PAGES.join("|")})$`).exec(p);
   if (m?.[1] && m[2]) return { kind: m[2] as Page, newsroom: m[1] };
   return { kind: "not-found" };
@@ -98,6 +104,9 @@ export function deskApi(base: string, token: string | null, fetchFn: typeof fetc
     sources: (newsroom: string) => call<SourceHealth[]>(`${n(newsroom)}/sources`),
     measures: (newsroom: string) => call<Measures>(`${n(newsroom)}/measures`),
     plan: (newsroom: string) => call<Plan>(`${n(newsroom)}/plan`),
+    challenges: (newsroom: string) => call<Challenge[]>(`${n(newsroom)}/challenges`),
+    challenge: (newsroom: string, id: string) =>
+      call<ChallengeDetail>(`${n(newsroom)}/challenges/${id}`),
     adminTts: () => call<AdminTts>("/desk/admin/tts"),
     newsroomTts: (newsroom: string) => call<NewsroomTts>(`${n(newsroom)}/tts`),
     /** Runs the action a desk form posted; returns where to go next. */
@@ -118,7 +127,11 @@ export function deskApi(base: string, token: string | null, fetchFn: typeof fetc
         return typeof v === "string" && v.trim() ? v.trim() : undefined;
       };
       const here =
-        route.kind === "publication" ? `/${route.newsroom}/p/${route.id}` : `/${route.newsroom}`;
+        route.kind === "publication"
+          ? `/${route.newsroom}/p/${route.id}`
+          : route.kind === "challenge"
+            ? `/${route.newsroom}/c/${route.id}`
+            : `/${route.newsroom}`;
       switch (action) {
         case "approve":
           await call(`${base}/publications/${id}/approve`, { version: field("version") ?? "" });
@@ -191,6 +204,23 @@ export function deskApi(base: string, token: string | null, fetchFn: typeof fetc
             engine: field("engine") ?? null,
           });
           return `/${route.newsroom}/voices`;
+        case "acknowledge-challenge":
+          await call(`${base}/challenges/${id}/acknowledge`, { note: field("note") });
+          return here;
+        case "reject-challenge":
+          await call(`${base}/challenges/${id}/reject`, { answer: field("answer") ?? "" });
+          return here;
+        case "uphold-challenge":
+          await call(`${base}/challenges/${id}/uphold`, {
+            answer: field("answer") ?? "",
+            claim: field("claim") ?? "",
+            lesson: field("lesson") ?? "",
+            notices: noticeFields(form),
+          });
+          return here;
+        case "file-challenge-issue":
+          await call(`${base}/challenges/${id}/issue`, { url: field("url") ?? "" });
+          return here;
         case "read-notice":
           await call(`${base}/notices/${id}/read`, {});
           return `/${route.newsroom}/notices`;
@@ -266,6 +296,41 @@ export function issueLink(base: string, newsroom: string, sample: Sample): strin
   ].join("\n");
   const url = new URL(base);
   url.searchParams.set("title", title);
+  url.searchParams.set("body", body);
+  return url.toString();
+}
+
+/** An uphold form's correction notices: `notice:<language>` fields, the empty ones left out. */
+export function noticeFields(form: FormData): Record<string, string> {
+  const out: Record<string, string> = {};
+  form.forEach((value, name) => {
+    if (name.startsWith("notice:") && typeof value === "string" && value.trim())
+      out[name.slice("notice:".length)] = value.trim();
+  });
+  return out;
+}
+
+/**
+ * A prefilled issue for an upheld challenge's lesson (D116), as for sample misses (D102). The
+ * repository is public: the issue carries the editor's lesson and where the piece is, never the
+ * reader's text.
+ */
+export function challengeIssueLink(base: string, newsroom: string, c: ChallengeDetail): string {
+  const body = [
+    "A reader's challenge was upheld and the piece corrected.",
+    "",
+    `- Newsroom: \`${newsroom}\``,
+    `- Publication: \`${c.publication}\` (${c.language})`,
+    `- Challenge: \`${c.id}\``,
+    "",
+    "What the gate should have caught:",
+    "",
+    `> ${(c.lesson ?? "").replace(/\n/g, "\n> ")}`,
+    "",
+    "Make it a check (code) or a policy rule (config), and link the change here.",
+  ].join("\n");
+  const url = new URL(base);
+  url.searchParams.set("title", `Correction (${newsroom}): ${c.title ?? c.publication}`);
   url.searchParams.set("body", body);
   return url.toString();
 }

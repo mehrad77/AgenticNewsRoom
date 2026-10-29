@@ -34,6 +34,8 @@ class Claim:
     lead_id: str | None
     quoted_passage: str | None
     also: tuple[Source, ...] = ()
+    corrected: bool = False
+    """A person corrected this claim, or the claim it was copied from (D116)."""
 
     def sources(self) -> tuple[Source, ...]:
         """The claim's lead and passage, then its corroborating ones (D74)."""

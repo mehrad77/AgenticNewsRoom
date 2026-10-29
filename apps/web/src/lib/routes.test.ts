@@ -7,6 +7,10 @@ describe("route", () => {
     expect(route("/search")).toEqual({ kind: "search" });
     expect(route("/ai-policy/")).toEqual({ kind: "ai-policy" });
     expect(route("/corrections")).toEqual({ kind: "corrections" });
+    expect(route("/challenge/0b9c6f5e-1d2a-4c3b-8e7f-123456789abc")).toEqual({
+      kind: "challenge",
+      id: "0b9c6f5e-1d2a-4c3b-8e7f-123456789abc",
+    });
   });
 
   it("finds a publication and its ninjs twin", () => {

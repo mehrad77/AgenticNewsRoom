@@ -808,6 +808,209 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+  /reader/newsrooms/{newsroom}/publications/{publication}/challenges:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+      - $ref: "#/components/parameters/Publication"
+    post:
+      operationId: submitChallenge
+      summary: A reader challenges a published piece (D114)
+      description: >-
+        Public: called by the newsroom's site for its reader form. Nothing about the reader is stored; the
+        rate limit keys on an HMAC of the reader's network (the last X-Forwarded-For entry, an IPv6 /64)
+        under a random secret dropped after the day. The receipt's token opens the reader's status page
+        and is stored only as its hash.
+      tags: [reader]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChallengeRequest"
+      responses:
+        "201":
+          description: Received; owned by the newsroom's corrections owner.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChallengeReceipt"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /desk/newsrooms/{newsroom}/challenges:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+    get:
+      operationId: listChallenges
+      summary: Readers' challenges, open ones first, with their deadlines
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      responses:
+        "200":
+          description: Challenges.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Challenge"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /desk/newsrooms/{newsroom}/challenges/{challenge}:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+      - $ref: "#/components/parameters/Challenge"
+    get:
+      operationId: getChallenge
+      summary: One challenge, with the story's claims and every publication a correction would cover
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      responses:
+        "200":
+          description: The challenge.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChallengeDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /desk/newsrooms/{newsroom}/challenges/{challenge}/acknowledge:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+      - $ref: "#/components/parameters/Challenge"
+    post:
+      operationId: acknowledgeChallenge
+      summary: Acknowledge a challenge, with an optional note the reader sees
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AcknowledgeRequest"
+      responses:
+        "200":
+          description: Done.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChallengeDetail"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /desk/newsrooms/{newsroom}/challenges/{challenge}/reject:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+      - $ref: "#/components/parameters/Challenge"
+    post:
+      operationId: rejectChallenge
+      summary: Answer a challenge without a correction; the reader sees the answer
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RejectRequest"
+      responses:
+        "200":
+          description: Done.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChallengeDetail"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /desk/newsrooms/{newsroom}/challenges/{challenge}/uphold:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+      - $ref: "#/components/parameters/Challenge"
+    post:
+      operationId: upholdChallenge
+      summary: Uphold a challenge, correcting every affected publication and checking the corrected claim (D115, D116)
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpholdRequest"
+      responses:
+        "200":
+          description: Done.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChallengeDetail"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /desk/newsrooms/{newsroom}/challenges/{challenge}/issue:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+      - $ref: "#/components/parameters/Challenge"
+    post:
+      operationId: fileChallengeIssue
+      summary: Record the issue an upheld challenge's lesson was filed as
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IssueRequest"
+      responses:
+        "200":
+          description: Done.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChallengeDetail"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
 tags:
   - name: ops
     description: Operational endpoints.
@@ -816,6 +1019,10 @@ tags:
       The editor's desk, behind Cloudflare Access. Every request carries the Access JWT; the API
       verifies it, maps its email to a user and checks a membership in the newsroom named in the
       path. Every approval and edit is written to the audit log.
+  - name: reader
+    description: >-
+      Public writes from a newsroom's site on a reader's behalf: no sign-in, nothing stored about the
+      reader, rate-limited.
 components:
   securitySchemes:
     cfAccess:
@@ -832,6 +1039,11 @@ components:
       schema: { type: string, pattern: "^[a-z][a-z0-9-]*$" }
     Publication:
       name: publication
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Challenge:
+      name: challenge
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -858,6 +1070,11 @@ components:
           schema: { $ref: "#/components/schemas/Error" }
     Conflict:
       description: The row is not in a state that allows this.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    TooManyRequests:
+      description: Too many challenges from this reader, or to this piece, today.
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
@@ -1113,7 +1330,17 @@ components:
         kind:
           type: string
           enum:
-            [budget-warning, budget-cap, no-leads, no-channel, no-theme, pick-missed, plan-failed]
+            [
+              budget-warning,
+              budget-cap,
+              no-leads,
+              no-channel,
+              no-theme,
+              pick-missed,
+              plan-failed,
+              challenge-due,
+              challenge-overdue,
+            ]
         key: { type: string }
         detail: {}
         created_at: { type: string, format: date-time }
@@ -1506,3 +1733,171 @@ components:
       properties:
         language: { $ref: "#/components/schemas/Language" }
         engine: { type: [string, "null"], description: "Null clears the choice." }
+    ChallengeRequest:
+      type: object
+      additionalProperties: false
+      required: [text]
+      properties:
+        text:
+          {
+            type: string,
+            minLength: 20,
+            maxLength: 4000,
+            description: "What the piece gets wrong.",
+          }
+        source_url:
+          type: string
+          pattern: "^https?://"
+          maxLength: 500
+          description: Where the reader found the correct information, if anywhere.
+    ChallengeReceipt:
+      type: object
+      additionalProperties: false
+      required: [id, token, acknowledge_by, answer_by]
+      properties:
+        id: { type: string, format: uuid }
+        token:
+          {
+            type: string,
+            description: "Opens the reader's status page; shown once, stored as its hash.",
+          }
+        acknowledge_by: { type: string, format: date-time }
+        answer_by: { type: string, format: date-time }
+    Challenge:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          publication,
+          title,
+          language,
+          path,
+          reader_text,
+          source_url,
+          owner,
+          created_at,
+          acknowledge_by,
+          answer_by,
+          acknowledged_at,
+          answered_at,
+          outcome,
+          overdue,
+          issue_url,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        publication: { type: string, format: uuid }
+        title: { type: [string, "null"] }
+        language: { $ref: "#/components/schemas/Language" }
+        path: { type: [string, "null"] }
+        reader_text: { type: string }
+        source_url: { type: [string, "null"] }
+        owner:
+          {
+            type: string,
+            description: "The newsroom's corrections owner when the challenge came in.",
+          }
+        created_at: { type: string, format: date-time }
+        acknowledge_by: { type: string, format: date-time }
+        answer_by: { type: string, format: date-time }
+        acknowledged_at: { type: [string, "null"], format: date-time }
+        acknowledgement: { type: [string, "null"] }
+        answered_at: { type: [string, "null"], format: date-time }
+        answer: { type: [string, "null"] }
+        outcome: { type: [string, "null"], enum: [upheld, rejected, null] }
+        overdue: { type: boolean, description: "A deadline passed before its step was done." }
+        issue_url: { type: [string, "null"] }
+        filed_at: { type: [string, "null"], format: date-time }
+    ChallengeDetail:
+      allOf:
+        - $ref: "#/components/schemas/Challenge"
+        - type: object
+          required: [claims, affected, corrections, lesson]
+          properties:
+            lesson:
+              type: [string, "null"]
+              description: What the gate should have caught, from the correction's check; null until upheld.
+            claims:
+              type: array
+              description: The challenged story's claims; an upheld challenge names the one that was wrong.
+              items:
+                type: object
+                additionalProperties: false
+                required: [ref, kind, text, languages]
+                properties:
+                  ref: { type: string }
+                  kind: { type: string, enum: [fact, quote, opinion] }
+                  text: { type: string }
+                  languages:
+                    type: array
+                    description: The languages a correction of this claim needs a notice in.
+                    items: { $ref: "#/components/schemas/Language" }
+            affected:
+              type: array
+              description: >-
+                Published publications a correction covers: every language of the story, and episodes whose
+                stories copied its claims (D107).
+              items:
+                type: object
+                additionalProperties: false
+                required: [id, title, language, path]
+                properties:
+                  id: { type: string, format: uuid }
+                  title: { type: [string, "null"] }
+                  language: { $ref: "#/components/schemas/Language" }
+                  path: { type: [string, "null"] }
+            corrections:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [publication, language, notice, published_at]
+                properties:
+                  publication: { type: string, format: uuid }
+                  language: { $ref: "#/components/schemas/Language" }
+                  notice: { type: string }
+                  published_at: { type: [string, "null"], format: date-time }
+    AcknowledgeRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        note:
+          {
+            type: string,
+            maxLength: 2000,
+            description: "Shown to the reader on their status page.",
+          }
+    RejectRequest:
+      type: object
+      additionalProperties: false
+      required: [answer]
+      properties:
+        answer:
+          {
+            type: string,
+            minLength: 1,
+            maxLength: 4000,
+            description: "Why the piece stands; the reader sees it.",
+          }
+    UpholdRequest:
+      type: object
+      additionalProperties: false
+      required: [answer, claim, lesson, notices]
+      properties:
+        answer: { type: string, minLength: 1, maxLength: 4000, description: "The reader sees it." }
+        claim:
+          {
+            type: string,
+            pattern: "^c[0-9]+$",
+            description: "The ref of the claim that was wrong.",
+          }
+        lesson:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: What the gate should have caught; stored on the correction's check and filed as an issue.
+        notices:
+          type: object
+          description: The published correction notice per language; one for each language of `affected`.
+          additionalProperties: { type: string, minLength: 1, maxLength: 2000 }

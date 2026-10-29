@@ -150,6 +150,13 @@ export function createRenderer(root = formatsDir) {
       );
       return out.trim();
     },
+    /** The opinion label alone (`_partials/opinion.liquid`): what marks each opinion item (D117). */
+    async opinionLabel(language: Language): Promise<string> {
+      const out = await engine.parseAndRender('{% render "opinion", language: language %}', {
+        language,
+      });
+      return out.trim();
+    },
     render,
     /** The notes line naming an episode's voices as AI (`_partials/ai-voices-notes.liquid`). */
     async voicesNote(
@@ -233,6 +240,27 @@ export function createRenderer(root = formatsDir) {
     });
   }
 }
+
+/** How many items of a rendition are marked opinion (D117). */
+export const opinionItems = (rendition: unknown) =>
+  ((rendition as { items?: { opinion?: unknown }[] }).items ?? []).filter(
+    (i) => i?.opinion === true,
+  ).length;
+
+/** The rendition with every item's opinion mark removed: what the label count is measured against. */
+export function unmarkOpinion(rendition: unknown): unknown {
+  const r = rendition as { items?: unknown[] };
+  return {
+    ...r,
+    items: (r.items ?? []).map((i) =>
+      i && typeof i === "object" ? { ...(i as object), opinion: false } : i,
+    ),
+  };
+}
+
+/** How often `label` occurs in `text`. */
+export const occurrences = (text: string, label: string) =>
+  label === "" ? 0 : text.split(label).length - 1;
 
 /** The notes line of a series' episodes in `language`: its hosts and narrator named as AI. */
 export async function seriesVoicesNote(

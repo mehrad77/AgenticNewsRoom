@@ -145,6 +145,32 @@ def test_opinion_only_where_policy_allows_it() -> None:
     assert claims.opinion(bundle([opinion], policy=Policy(2, True, "allowed_marked"))) == []
 
 
+def test_opinion_is_marked_and_marked_items_carry_no_facts() -> None:
+    marked = Policy(2, True, "allowed_marked")
+    story = [claim("c1"), claim("c2", kind="opinion", lead_id=None, quoted_passage=None)]
+
+    def section(*refs: str, opinion: bool | None = None) -> dict[str, Any]:
+        item: dict[str, Any] = {"paragraphs": ["Text."], "claim_ids": list(refs)}
+        return item if opinion is None else item | {"opinion": opinion}
+
+    ok = bundle(story, [section("c1"), section("c2", opinion=True)], policy=marked)
+    assert claims.opinion_marking(ok) == []
+    unmarked = bundle(story, [section("c1", "c2")], policy=marked)
+    [fail] = claims.opinion_marking(unmarked)
+    assert (fail.result, fail.item, fail.detail) == (
+        "fail",
+        "items.0",
+        {"unmarked_opinion": ["c2"]},
+    )
+    hidden = bundle(story, [section("c1", "c2", opinion=True)], policy=marked)
+    assert [c.detail for c in claims.opinion_marking(hidden)] == [{"facts": ["c1"]}]
+
+
+def test_a_corrected_claim_is_never_published_again() -> None:
+    out = claims.corrected(bundle([claim("c1"), claim("c2", corrected=True)]))
+    assert [(c.name, c.result, c.claim_id) for c in out] == [("corrected-claim", "fail", "id-c2")]
+
+
 def test_beats_fail_banned_and_unplaced_and_list_restricted() -> None:
     [ok] = claims.beats(bundle([claim()]))
     assert ok.result == "pass"

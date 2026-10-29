@@ -2,12 +2,14 @@
 // Every page of a newsroom site; src/lib/page.ts decides what it shows.
 import Base from "../layouts/Base.astro";
 import "../styles/site.css";
-import { directionOf } from "@anr/core";
+import { directionOf, pageUrl } from "@anr/core";
+import { challengeForm, sendChallenge } from "../lib/challenge.ts";
 import { db } from "../lib/db.ts";
 import { scriptJson } from "../lib/metadata.ts";
 import { loadPage } from "../lib/page.ts";
 import { audioResponse, countDownload, episodeAudio, feedRenderer, listenerAddress, podcastFeed, podcastRoute } from "../lib/podcast.ts";
 import { newsroomBySubdomain } from "../lib/reader.ts";
+import { route } from "../lib/routes.ts";
 
 const site = Astro.locals.site;
 if (site.kind !== "newsroom") return new Response("Unknown site", { status: 404 });
@@ -36,6 +38,37 @@ if (pod) {
   if (!feed) return new Response("Not found", { status: 404 });
   return new Response(feed, { headers: { "content-type": "application/rss+xml; charset=utf-8" } });
 }
+// A reader's challenge from the form under a piece (D114): passed to the API, then on to the
+// reader's status page. Handled before the page loads, so it is not counted as a view.
+let challengeFailed = false;
+if (Astro.request.method === "POST" && route(site.path).kind === "publication") {
+  const form = await Astro.request.formData();
+  const body = challengeForm(form);
+  if (!body) return Astro.redirect(Astro.url.pathname, 303);
+  const headers = Astro.request.headers;
+  const sent = await sendChallenge(
+    process.env.ANR_API_URL ?? "http://127.0.0.1:8787",
+    site.newsroom.slug,
+    String(form.get("publication") ?? ""),
+    body,
+    {
+      address: listenerAddress(headers.get("x-forwarded-for"), Astro.clientAddress),
+      userAgent: headers.get("user-agent") ?? "",
+    },
+  );
+  if (sent.ok) {
+    const address = {
+      subdomain: site.newsroom.subdomain,
+      rootDomain,
+      languages: site.newsroom.languages,
+      devPort: rootDomain === "localhost" ? Number(Astro.url.port) || undefined : undefined,
+    };
+    const status = `${pageUrl(address, site.language, `/challenge/${sent.id}`)}?k=${encodeURIComponent(sent.token)}`;
+    return Astro.redirect(status, 303);
+  }
+  challengeFailed = true;
+  Astro.response.status = sent.status === 429 || sent.status === 400 ? sent.status : 503;
+}
 const page = await loadPage(
   { pool: db(), rootDomain, devPort: rootDomain === "localhost" ? Number(Astro.url.port) || undefined : undefined },
   {
@@ -52,6 +85,11 @@ if (page.kind === "ninjs")
     headers: { "content-type": "application/json; charset=utf-8" },
   });
 if (page.kind === "not-found") Astro.response.status = 404;
+// A reader's status page is theirs: never indexed, and its token never sent on as a referrer.
+if (page.kind === "challenge") {
+  Astro.response.headers.set("x-robots-tag", "noindex");
+  Astro.response.headers.set("referrer-policy", "no-referrer");
+}
 const name = page.newsroom.name[page.language] ?? page.newsroom.slug;
 const w = page.words;
 const date = (d: Date) =>
@@ -90,6 +128,42 @@ const date = (d: Date) =>
         {page.publication.corrections.map((c) => (
           <aside id={c.id}><strong>{w.corrected}</strong> ({date(c.publishedAt)}): {c.notice}</aside>
         ))}
+        <section id="challenge">
+          <h2>{w.challenge.heading}</h2>
+          <p>{w.challenge.intro}</p>
+          {challengeFailed && <p role="alert">{w.challenge.failed}</p>}
+          <form method="post" action="#challenge">
+            <input type="hidden" name="publication" value={page.publication.id} />
+            <label>{w.challenge.text}<textarea name="text" required minlength="20" maxlength="4000" rows="4"></textarea></label>
+            <label>{w.challenge.source}<input name="source_url" type="url" maxlength="500" dir="ltr" /></label>
+            <label aria-hidden="true" style="position: absolute; inset-inline-start: -9999px">Website<input name="website" tabindex="-1" autocomplete="off" /></label>
+            <button>{w.challenge.send}</button>
+          </form>
+        </section>
+      </>
+    )}
+    {page.kind === "challenge" && (
+      <>
+        <h1>{w.challenge.status}</h1>
+        <p><strong>{w.challenge.keep}</strong></p>
+        {page.challenge.publication.path && (
+          <p><a href={page.url(page.challenge.publication.path)}>{page.challenge.publication.title ?? page.challenge.publication.path}</a></p>
+        )}
+        <blockquote>{page.challenge.readerText}</blockquote>
+        <dl>
+          <dt>{w.challenge.received}</dt><dd>{date(page.challenge.createdAt)}</dd>
+          {page.challenge.acknowledgedAt ? (
+            <><dt>{w.challenge.acknowledged}</dt><dd>{date(page.challenge.acknowledgedAt)}{page.challenge.acknowledgement && <p>{page.challenge.acknowledgement}</p>}</dd></>
+          ) : (
+            <><dt>{w.challenge.acknowledgeBy}</dt><dd>{date(page.challenge.acknowledgeBy)}</dd></>
+          )}
+          {page.challenge.answeredAt ? (
+            <><dt>{w.challenge.answered}</dt><dd>{date(page.challenge.answeredAt)}<p>{page.challenge.outcome === "upheld" ? w.challenge.upheld : w.challenge.rejected}</p><p>{page.challenge.answer}</p></dd></>
+          ) : (
+            <><dt>{w.challenge.answerBy}</dt><dd>{date(page.challenge.answerBy)}</dd></>
+          )}
+        </dl>
+        {page.challenge.outcome === "upheld" && <p><a href={page.links.corrections}>{w.corrections}</a></p>}
       </>
     )}
     {(page.kind === "home" || page.kind === "search") && (

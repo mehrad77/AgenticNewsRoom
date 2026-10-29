@@ -7,6 +7,7 @@ import { createRenderer } from "@anr/render";
 import { podcastFeed } from "./channels/feed.ts";
 import { telegramChannel } from "./channels/telegram.ts";
 import { checkChannel } from "./check.ts";
+import { publishCorrections } from "./corrections.ts";
 import { registerJobs } from "./jobs.ts";
 import { type AudioDeps, produceEpisode } from "./podcast/produce.ts";
 import { queueAudio } from "./podcast/queue.ts";
@@ -70,6 +71,10 @@ await registerJobs(boss, {
   audio: async (job) => {
     const outcome = await produceEpisode(audioDeps, job);
     console.log(`[publisher] episode ${job.publicationId} audio: ${outcome}`);
+  },
+  correction: async (job) => {
+    const count = await publishCorrections(pool, job);
+    console.log(`[publisher] challenge ${job.challengeId}: ${count} corrections published`);
   },
 });
 console.log("publisher worker started");

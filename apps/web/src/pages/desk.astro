@@ -2,6 +2,8 @@
 // The editor's desk: routed by src/lib/desk.ts, each page a component in src/components/desk, all
 // thin clients of the API.
 import Budget from "../components/desk/Budget.astro";
+import Challenge from "../components/desk/Challenge.astro";
+import Challenges from "../components/desk/Challenges.astro";
 import Channels from "../components/desk/Channels.astro";
 import Measures from "../components/desk/Measures.astro";
 import Notices from "../components/desk/Notices.astro";
@@ -60,6 +62,8 @@ const queue = r.kind === "queue" ? await load(() => api.queue(r.newsroom)) : und
 const publication = r.kind === "publication" ? await load(() => api.publication(r.newsroom, r.id)) : undefined;
 // A preview needs text; a publication still being written has none yet.
 const preview = r.kind === "publication" && publication?.rendition ? await load(() => api.preview(r.newsroom, r.id)) : undefined;
+const challenges = r.kind === "challenges" ? await load(() => api.challenges(r.newsroom)) : undefined;
+const challenge = r.kind === "challenge" ? await load(() => api.challenge(r.newsroom, r.id)) : undefined;
 const channels = r.kind === "channels" ? await load(() => api.channels(r.newsroom)) : undefined;
 const samples = r.kind === "samples" ? await load(() => api.samples(r.newsroom)) : undefined;
 const notices = r.kind === "notices" ? await load(() => api.notices(r.newsroom)) : undefined;
@@ -78,6 +82,7 @@ const nav = [
   ["/voices", "Voices"],
   ["/schedule", "Upcoming"],
   ["/samples", "Sample"],
+  ["/challenges", "Challenges"],
   ["/notices", "Notices"],
   ["/measures", "Measures"],
   ["/budget", "Budget"],
@@ -110,8 +115,10 @@ const nav = [
     {adminTts && <Admin tts={adminTts} />}
     {r.kind === "admin" && me && !me.platform_admin && <h1>Only the platform admin can open this page.</h1>}
     {channels && <Channels channels={channels} chief={role === "editor-in-chief"} />}
+    {n && challenges && <Challenges newsroom={n} challenges={challenges} />}
+    {n && challenge && <Challenge newsroom={n} challenge={challenge} issuesUrl={issuesUrl} />}
     {n && samples && <Samples newsroom={n} samples={samples} issuesUrl={issuesUrl} />}
-    {notices && <Notices notices={notices} />}
+    {n && notices && <Notices newsroom={n} notices={notices} />}
     {budget && <Budget budget={budget} />}
     {sources && <Sources sources={sources} />}
     {measures && <Measures measures={measures} />}

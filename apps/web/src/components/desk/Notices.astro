@@ -2,14 +2,18 @@
 import { detail, type Notice, when } from "../../lib/desk.ts";
 
 interface Props {
+  newsroom: string;
   notices: Notice[];
 }
-const { notices } = Astro.props;
+const { newsroom, notices } = Astro.props;
+/** A challenge's reminder links to the challenge (D114). */
+const challengeOf = (x: Notice) => (x.detail as { challenge?: unknown } | null)?.challenge;
 ---
 <h1>Notices</h1>
 {notices.length === 0 && <p>No notices.</p>}
 <ul>{notices.map((x) => (
   <li class={x.read_at ? "read" : ""}>{x.kind} · {x.key} · {when(x.created_at)} <small>{detail(x.detail)}</small>
+    {typeof challengeOf(x) === "string" && <a href={`/${newsroom}/c/${challengeOf(x)}`}>Open the challenge</a>}
     {!x.read_at && <form method="post" class="inline"><input type="hidden" name="action" value="read-notice" /><input type="hidden" name="id" value={x.id} /><button>Mark read</button></form>}
   </li>
 ))}</ul>

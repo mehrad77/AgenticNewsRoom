@@ -7,10 +7,14 @@ export const DECISION_WINDOW_MINUTES = 60;
 
 const IN_WEEK = (col: string) => `${col} >= w.starts and ${col} < w.ends`;
 
-/** Checks about a publication, its renditions or their stories' claims (as the review queue). */
+/**
+ * Checks about a publication, its renditions or their stories' claims (as the review queue). An
+ * editor's pull-back and what an upheld challenge adds later (D116) are not gate holds.
+ */
 const HELD = `exists (
   select 1 from checks k
-  where k.result <> 'pass' and k.name <> 'pulled-back'
+  where k.result <> 'pass' and k.name <> 'pulled-back' and k.kind <> 'correction'
+    and not (k.kind = 'policy' and k.name = 'corrected-claim')
     and (k.publication_id = p.id
       or k.rendition_id in (select rendition_id from publication_renditions where publication_id = p.id)
       or k.claim_id in (
@@ -61,7 +65,7 @@ export async function measures(client: Client, weeks: number) {
         where s.outcome is not null and ${IN_WEEK("s.sampled_at")}) as samples_reviewed,
        (select count(*)::int from sample_reviews s
         where s.outcome = 'miss' and ${IN_WEEK("s.sampled_at")}) as sample_misses,
-       (select count(*)::int from corrections c where ${IN_WEEK("c.created_at")}) as corrections,
+       (select count(*)::int from corrections c where ${IN_WEEK("c.published_at")}) as corrections,
        (select coalesce(sum(r.cost_usd), 0) from agent_runs r where ${IN_WEEK("r.started_at")}) as cost_usd,
        (select coalesce(sum(extract(epoch from d.at - o.first) / 60), 0)
         from ${DECISIONS} d

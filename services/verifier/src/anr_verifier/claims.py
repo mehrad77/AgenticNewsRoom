@@ -1,8 +1,10 @@
-"""Checks on a story's claims: quotes, withdrawn leads, source independence, opinion, beats."""
+"""Checks on a story's claims: quotes, withdrawn leads, source independence, opinion, corrected
+claims, beats."""
 
 import re
 
 from anr_schemas.text import normalize_text
+from anr_verifier import items
 from anr_verifier.bundle import Bundle, CheckOut, Claim, Lead
 
 MIN_PASSAGE_CHARS = 20
@@ -100,6 +102,33 @@ def opinion(b: Bundle) -> list[CheckOut]:
         CheckOut("opinion", "fail", c.id, detail={"policy": b.policy.opinion})
         for c in b.claims
         if c.kind == "opinion"
+    ]
+
+
+def opinion_marking(b: Bundle) -> list[CheckOut]:
+    """Marked opinion (D117): an item that cites an opinion claim is marked `opinion: true`, so
+    every channel labels it, and a marked item cites only opinion claims, so no fact hides under
+    the label. A format without the marker cannot carry opinion."""
+    kinds = {c.ref: c.kind for c in b.claims}
+    out = []
+    for r in b.renditions:
+        for path, item in items.walk(r.body):
+            refs = [str(x) for x in item.get("claim_ids", [])]
+            opinions = [x for x in refs if kinds.get(x) == "opinion"]
+            others = [x for x in refs if x in kinds and kinds[x] != "opinion"]
+            marked = item.get("opinion") is True
+            if (opinions and not marked) or (marked and others):
+                detail = {"unmarked_opinion": opinions} if not marked else {"facts": others}
+                out.append(CheckOut("opinion-marking", "fail", None, r.id, path, detail))
+    return out
+
+
+def corrected(b: Bundle) -> list[CheckOut]:
+    """A claim a person corrected, or one copied from it, is never published again (D116)."""
+    return [
+        CheckOut("corrected-claim", "fail", c.id, detail={"ref": c.ref})
+        for c in b.claims
+        if c.corrected
     ]
 
 

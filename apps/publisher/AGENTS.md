@@ -7,4 +7,5 @@ Rules (see `docs/technical-design.md#publishing`):
 - A channel test (`channel-check` job, D101) asks the channel without sending and stores the answer on the channel row.
 - Template context comes from `@anr/render` (`templateContext`, `editedByPerson`), shared with the desk's preview.
 - Templates come from `config/formats/<format>/templates/<channel>.liquid`; the disclosure partial is mandatory.
+- An upheld challenge's corrections are published by the `publish-correction` job (`src/corrections.ts`, D115): notice live, piece Corrected; nothing is re-sent.
 - Commands: `pnpm --filter @anr/publisher test`.

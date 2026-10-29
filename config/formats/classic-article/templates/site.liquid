@@ -2,9 +2,8 @@
   <h1>{{ rendition.title }}</h1>
   <p class="anr-disclosure"><a href="{{ ai_policy_url }}">{% render "disclosure", language: language, edited: edited %}</a></p>
   {% for item in rendition.items %}
-    <section{% if item.opinion %} class="anr-opinion"{% endif %}>
+    <section>
       {% if item.heading %}<h2>{{ item.heading }}</h2>{% endif %}
-      {% if item.opinion %}<p class="anr-opinion-label">{{ labels.opinion }}</p>{% endif %}
       {% for p in item.paragraphs %}<p>{{ p }}</p>{% endfor %}
     </section>
   {% endfor %}

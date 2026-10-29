@@ -21,6 +21,24 @@ export interface Words {
   }[];
   /** The corrections page: who owns corrections and how a reader challenges a piece. */
   correctionsBody: (o: { owner: string }) => string;
+  /** A reader's challenge: the form on every piece and the reader's private status page (D114). */
+  challenge: {
+    heading: string;
+    intro: string;
+    text: string;
+    source: string;
+    send: string;
+    failed: string;
+    status: string;
+    keep: string;
+    received: string;
+    acknowledgeBy: string;
+    answerBy: string;
+    acknowledged: string;
+    answered: string;
+    upheld: string;
+    rejected: string;
+  };
 }
 
 const en: Words = {
@@ -51,6 +69,24 @@ const en: Words = {
   ],
   correctionsBody: ({ owner }) =>
     `${owner} owns corrections. A challenge is acknowledged within 24 hours and answered within 48. Every correction is published here and becomes a new check.`,
+  challenge: {
+    heading: "Is something wrong here?",
+    intro:
+      "Tell us what this piece gets wrong. We acknowledge every challenge within 24 hours and answer within 48. We keep nothing about you; the next page's address is how you see our answer.",
+    text: "What is wrong (at least 20 characters)",
+    source: "Where the correct information is, if anywhere (a link)",
+    send: "Send",
+    failed: "Your challenge could not be sent. Please try again later.",
+    status: "Your challenge",
+    keep: "Keep this page's address: it is the only way to see our answer.",
+    received: "Received",
+    acknowledgeBy: "Acknowledged by",
+    answerBy: "Answered by",
+    acknowledged: "Acknowledged",
+    answered: "Answered",
+    upheld: "Upheld: the piece now carries a correction.",
+    rejected: "Not upheld: the piece stands.",
+  },
 };
 
 const fa: Words = {
@@ -81,6 +117,24 @@ const fa: Words = {
   ],
   correctionsBody: ({ owner }) =>
     `مسئول اصلاحیه‌ها ${owner} است. هر اعتراض ظرف ۲۴ ساعت تأیید دریافت و ظرف ۴۸ ساعت پاسخ می‌گیرد. هر اصلاحیه اینجا منتشر می‌شود و به یک بررسی تازه تبدیل می‌شود.`,
+  challenge: {
+    heading: "چیزی در این مطلب نادرست است؟",
+    intro:
+      "بگویید این مطلب کجا اشتباه کرده است. هر اعتراض ظرف ۲۴ ساعت تأیید دریافت و ظرف ۴۸ ساعت پاسخ می‌گیرد. چیزی درباره‌ی شما نگه نمی‌داریم؛ نشانی صفحه‌ی بعد تنها راه دیدن پاسخ ماست.",
+    text: "چه چیزی نادرست است (دست‌کم ۲۰ نویسه)",
+    source: "اطلاعات درست کجاست، اگر جایی هست (یک پیوند)",
+    send: "ارسال",
+    failed: "اعتراض شما فرستاده نشد. لطفاً بعداً دوباره امتحان کنید.",
+    status: "اعتراض شما",
+    keep: "نشانی این صفحه را نگه دارید: تنها راه دیدن پاسخ ماست.",
+    received: "دریافت",
+    acknowledgeBy: "تأیید دریافت تا",
+    answerBy: "پاسخ تا",
+    acknowledged: "تأیید دریافت",
+    answered: "پاسخ",
+    upheld: "پذیرفته شد: مطلب اکنون اصلاحیه دارد.",
+    rejected: "پذیرفته نشد: مطلب به همان شکل می‌ماند.",
+  },
 };
 
 const tr: Words = {
@@ -111,6 +165,24 @@ const tr: Words = {
   ],
   correctionsBody: ({ owner }) =>
     `Düzeltmelerden ${owner} sorumludur. Her itiraz 24 saat içinde alındı olarak bildirilir ve 48 saat içinde yanıtlanır. Her düzeltme burada yayımlanır ve yeni bir kontrole dönüşür.`,
+  challenge: {
+    heading: "Burada yanlış bir şey mi var?",
+    intro:
+      "Bu yazının neyi yanlış verdiğini bize yazın. Her itirazı 24 saat içinde alındı olarak bildirir, 48 saat içinde yanıtlarız. Sizinle ilgili hiçbir şey saklamayız; yanıtımızı bir sonraki sayfanın adresinden görürsünüz.",
+    text: "Yanlış olan ne (en az 20 karakter)",
+    source: "Doğru bilgi nerede, varsa (bir bağlantı)",
+    send: "Gönder",
+    failed: "İtirazınız gönderilemedi. Lütfen daha sonra yeniden deneyin.",
+    status: "İtirazınız",
+    keep: "Bu sayfanın adresini saklayın: yanıtımızı görmenin tek yolu budur.",
+    received: "Alındı",
+    acknowledgeBy: "Alındı bildirimi en geç",
+    answerBy: "Yanıt en geç",
+    acknowledged: "Alındı bildirildi",
+    answered: "Yanıtlandı",
+    upheld: "Kabul edildi: yazıya bir düzeltme eklendi.",
+    rejected: "Kabul edilmedi: yazı olduğu gibi kalıyor.",
+  },
 };
 
 export const WORDS: Record<Language, Words> = { en, fa, tr };

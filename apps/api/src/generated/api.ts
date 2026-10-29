@@ -588,6 +588,155 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/reader/newsrooms/{newsroom}/publications/{publication}/challenges": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                publication: components["parameters"]["Publication"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * A reader challenges a published piece (D114)
+         * @description Public: called by the newsroom's site for its reader form. Nothing about the reader is stored; the rate limit keys on an HMAC of the reader's network (the last X-Forwarded-For entry, an IPv6 /64) under a random secret dropped after the day. The receipt's token opens the reader's status page and is stored only as its hash.
+         */
+        post: operations["submitChallenge"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/challenges": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        /** Readers' challenges, open ones first, with their deadlines */
+        get: operations["listChallenges"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/challenges/{challenge}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                challenge: components["parameters"]["Challenge"];
+            };
+            cookie?: never;
+        };
+        /** One challenge, with the story's claims and every publication a correction would cover */
+        get: operations["getChallenge"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/challenges/{challenge}/acknowledge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                challenge: components["parameters"]["Challenge"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Acknowledge a challenge, with an optional note the reader sees */
+        post: operations["acknowledgeChallenge"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/challenges/{challenge}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                challenge: components["parameters"]["Challenge"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Answer a challenge without a correction; the reader sees the answer */
+        post: operations["rejectChallenge"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/challenges/{challenge}/uphold": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                challenge: components["parameters"]["Challenge"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Uphold a challenge, correcting every affected publication and checking the corrected claim (D115, D116) */
+        post: operations["upholdChallenge"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/challenges/{challenge}/issue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                challenge: components["parameters"]["Challenge"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record the issue an upheld challenge's lesson was filed as */
+        post: operations["fileChallengeIssue"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -768,7 +917,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            kind: "budget-warning" | "budget-cap" | "no-leads" | "no-channel" | "no-theme" | "pick-missed" | "plan-failed";
+            kind: "budget-warning" | "budget-cap" | "no-leads" | "no-channel" | "no-theme" | "pick-missed" | "plan-failed" | "challenge-due" | "challenge-overdue";
             key: string;
             detail: unknown;
             /** Format: date-time */
@@ -1035,6 +1184,103 @@ export interface components {
             /** @description Null clears the choice. */
             engine: string | null;
         };
+        ChallengeRequest: {
+            /** @description What the piece gets wrong. */
+            text: string;
+            /** @description Where the reader found the correct information, if anywhere. */
+            source_url?: string;
+        };
+        ChallengeReceipt: {
+            /** Format: uuid */
+            id: string;
+            /** @description Opens the reader's status page; shown once, stored as its hash. */
+            token: string;
+            /** Format: date-time */
+            acknowledge_by: string;
+            /** Format: date-time */
+            answer_by: string;
+        };
+        Challenge: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            publication: string;
+            title: string | null;
+            language: components["schemas"]["Language"];
+            path: string | null;
+            reader_text: string;
+            source_url: string | null;
+            /** @description The newsroom's corrections owner when the challenge came in. */
+            owner: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            acknowledge_by: string;
+            /** Format: date-time */
+            answer_by: string;
+            /** Format: date-time */
+            acknowledged_at: string | null;
+            acknowledgement?: string | null;
+            /** Format: date-time */
+            answered_at: string | null;
+            answer?: string | null;
+            /** @enum {string|null} */
+            outcome: "upheld" | "rejected" | null;
+            /** @description A deadline passed before its step was done. */
+            overdue: boolean;
+            issue_url: string | null;
+            /** Format: date-time */
+            filed_at?: string | null;
+        };
+        ChallengeDetail: components["schemas"]["Challenge"] & {
+            /** @description What the gate should have caught, from the correction's check; null until upheld. */
+            lesson: string | null;
+            /** @description The challenged story's claims; an upheld challenge names the one that was wrong. */
+            claims: {
+                ref: string;
+                /** @enum {string} */
+                kind: "fact" | "quote" | "opinion";
+                text: string;
+                /** @description The languages a correction of this claim needs a notice in. */
+                languages: components["schemas"]["Language"][];
+            }[];
+            /** @description Published publications a correction covers: every language of the story, and episodes whose stories copied its claims (D107). */
+            affected: {
+                /** Format: uuid */
+                id: string;
+                title: string | null;
+                language: components["schemas"]["Language"];
+                path: string | null;
+            }[];
+            corrections: {
+                /** Format: uuid */
+                publication: string;
+                language: components["schemas"]["Language"];
+                notice: string;
+                /** Format: date-time */
+                published_at: string | null;
+            }[];
+        };
+        AcknowledgeRequest: {
+            /** @description Shown to the reader on their status page. */
+            note?: string;
+        };
+        RejectRequest: {
+            /** @description Why the piece stands; the reader sees it. */
+            answer: string;
+        };
+        UpholdRequest: {
+            /** @description The reader sees it. */
+            answer: string;
+            /** @description The ref of the claim that was wrong. */
+            claim: string;
+            /** @description What the gate should have caught; stored on the correction's check and filed as an issue. */
+            lesson: string;
+            /** @description The published correction notice per language; one for each language of `affected`. */
+            notices: {
+                [key: string]: string;
+            };
+        };
     };
     responses: {
         /** @description The request body is not valid. */
@@ -1082,11 +1328,21 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
+        /** @description Too many challenges from this reader, or to this piece, today. */
+        TooManyRequests: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
     };
     parameters: {
         /** @description The newsroom's slug. */
         Newsroom: string;
         Publication: string;
+        Challenge: string;
     };
     requestBodies: never;
     headers: never;
@@ -1966,6 +2222,221 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    submitChallenge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                publication: components["parameters"]["Publication"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChallengeRequest"];
+            };
+        };
+        responses: {
+            /** @description Received; owned by the newsroom's corrections owner. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChallengeReceipt"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    listChallenges: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Challenges. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Challenge"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getChallenge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                challenge: components["parameters"]["Challenge"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The challenge. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChallengeDetail"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    acknowledgeChallenge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                challenge: components["parameters"]["Challenge"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcknowledgeRequest"];
+            };
+        };
+        responses: {
+            /** @description Done. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChallengeDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    rejectChallenge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                challenge: components["parameters"]["Challenge"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectRequest"];
+            };
+        };
+        responses: {
+            /** @description Done. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChallengeDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    upholdChallenge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                challenge: components["parameters"]["Challenge"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpholdRequest"];
+            };
+        };
+        responses: {
+            /** @description Done. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChallengeDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    fileChallengeIssue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                challenge: components["parameters"]["Challenge"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IssueRequest"];
+            };
+        };
+        responses: {
+            /** @description Done. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChallengeDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
 }

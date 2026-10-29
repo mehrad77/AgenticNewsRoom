@@ -230,6 +230,25 @@ describe("weekly episodes (D107)", () => {
 
   it("builds the episode story from the week's published stories, then writes each language", async () => {
     const t = await setup();
+    // Neither an opinion (speech carries no label, D117) nor a corrected claim (D116) is copied.
+    const [lead] = await t.q<{ lead_id: string }>(
+      "select lead_id from claims where newsroom_id = $1 and story_id = $2 limit 1",
+      [t.stories.classic],
+    );
+    await pools.system.query(
+      `insert into claims (newsroom_id, story_id, ref, kind, text) values ($1, $2, 'c3', 'opinion', 'Elegant.')`,
+      [t.newsroomId, t.stories.classic],
+    );
+    await pools.system.query(
+      `with c as (
+         insert into claims (newsroom_id, story_id, ref, kind, text, lead_id, quoted_passage)
+         values ($1, $2, 'c4', 'fact', 'Wrong.', $3, 'Vaswani and colleagues proposed the Transformer')
+         returning id
+       )
+       insert into checks (newsroom_id, claim_id, kind, name, result)
+       select $1, id, 'correction', 'correction', 'fail' from c`,
+      [t.newsroomId, t.stories.classic, lead?.lead_id],
+    );
     const assigned = await assignEpisode(
       pools.app,
       t.boss,

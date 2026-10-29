@@ -5,7 +5,13 @@
 import type { AgentRole, CheckResult, GateJob, Language } from "@anr/core";
 import { auditedUpdate, type Client, type Pool, withNewsroom } from "@anr/db";
 import { AllModelsExhausted, ModelCallFailed } from "@anr/models";
-import { type createRenderer, introProblems } from "@anr/render";
+import {
+  type createRenderer,
+  introProblems,
+  occurrences,
+  opinionItems,
+  unmarkOpinion,
+} from "@anr/render";
 import { budgetState, mayStart, noticeBudget } from "../budget.ts";
 import { formatMeta } from "../context.ts";
 import { newMeter, type RunModel, TokenCapReached } from "../model.ts";
@@ -298,7 +304,11 @@ export async function runGate(deps: GateDeps, job: GateJob): Promise<string> {
           .map(([kind]) => kind);
         try {
           const label = await deps.renderer.disclosureLabel(r.language);
+          // Each item marked opinion shows the opinion label on every channel (D117).
+          const opinions = opinionItems(r.body);
+          const opinion = opinions > 0 ? await deps.renderer.opinionLabel(r.language) : "";
           const missing: string[] = [];
+          const unlabelled: string[] = [];
           for (const kind of kinds) {
             const parts = await deps.renderer.renderParts(story.format, kind, r.language, {
               rendition: r.body,
@@ -308,14 +318,33 @@ export async function runGate(deps: GateDeps, job: GateJob): Promise<string> {
               leads: {},
             });
             if (!parts.every((p) => p.includes(label))) missing.push(kind);
+            if (opinions > 0) {
+              // The label's own occurrences: the output with the marks, against the same output
+              // without them, so the word inside a sentence never counts as a label.
+              const unmarked = await deps.renderer.renderParts(story.format, kind, r.language, {
+                rendition: unmarkOpinion(r.body),
+                edited: false,
+                site_url: "https://example.invalid/",
+                ai_policy_url: "/ai-policy",
+                leads: {},
+              });
+              const labels =
+                occurrences(parts.join("\n"), opinion) - occurrences(unmarked.join("\n"), opinion);
+              if (labels < opinions) unlabelled.push(kind);
+            }
           }
-          const result = kinds.length > 0 && missing.length === 0 ? "pass" : "fail";
+          const result =
+            kinds.length > 0 && missing.length === 0 && unlabelled.length === 0 ? "pass" : "fail";
           await storeCheck(c, {
             kind: "code",
             name: "disclosure",
             result,
             renditionId: r.id,
-            detail: { channels: kinds, missing_label: missing },
+            detail: {
+              channels: kinds,
+              missing_label: missing,
+              ...(opinions > 0 && { opinion_items: opinions, missing_opinion_label: unlabelled }),
+            },
           });
         } catch (error) {
           await storeCheck(c, {

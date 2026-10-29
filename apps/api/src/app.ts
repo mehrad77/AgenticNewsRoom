@@ -6,6 +6,16 @@ import type { PgBoss } from "pg-boss";
 import { ACCESS_HEADER, type VerifyAccess } from "./desk/access.ts";
 import { budget } from "./desk/budget.ts";
 import {
+  acknowledgeChallenge,
+  fileChallengeIssue,
+  getChallenge,
+  listChallenges,
+  readerAddress,
+  rejectChallenge,
+  submitChallenge,
+  upholdChallenge,
+} from "./desk/challenges.ts";
+import {
   addChannel,
   listChannels,
   replaceCredentials,
@@ -68,6 +78,14 @@ function secrets(v: unknown): Record<string, string> | undefined {
     : undefined;
 }
 
+/** Correction notices by language: an object of texts of at most 2,000 characters. */
+function noticeTexts(v: unknown): Record<string, string> | undefined {
+  if (typeof v !== "object" || v === null || Array.isArray(v)) return undefined;
+  return Object.values(v).every((x) => text(x, 2000) !== undefined)
+    ? (v as Record<string, string>)
+    : undefined;
+}
+
 /** A whole-number query parameter within bounds, or its default. */
 function count(c: Context, name: string, fallback: number, max: number): number {
   const raw = c.req.query(name);
@@ -98,6 +116,26 @@ export function createApp(deps?: DeskDeps) {
   if (!deps) return app;
   const { pool, boss, platform, verify, site } = deps;
   const renderer = deps.renderer ?? createRenderer();
+
+  // A reader's challenge, posted by the newsroom's site for its form (D114). Public: no sign-in.
+  app.post("/reader/newsrooms/:newsroom/publications/:publication/challenges", async (c) => {
+    const newsroom = c.req.param("newsroom");
+    if (!/^[a-z][a-z0-9-]*$/.test(newsroom)) throw new DeskError(404, "no such newsroom");
+    const b = await body(c);
+    const said = text(b.text, 4000)?.trim();
+    if (!said || said.length < 20) throw new DeskError(400, "text: 20 to 4,000 characters");
+    const source = b.source_url === undefined ? undefined : text(b.source_url, 500)?.trim();
+    if (source !== undefined && !/^https?:\/\/\S+$/.test(source))
+      throw new DeskError(400, "source_url: an http or https address");
+    const receipt = await submitChallenge(pool, boss, {
+      newsroom,
+      publicationId: id(c, "publication"),
+      text: said,
+      sourceUrl: source || undefined,
+      address: readerAddress(c.req.header("x-forwarded-for")),
+    });
+    return c.json(receipt, 201);
+  });
 
   // Every desk request: a verified Access JWT whose email is a user (D95).
   app.use("/desk/*", async (c, next) => {
@@ -296,6 +334,54 @@ export function createApp(deps?: DeskDeps) {
     if (engine === undefined) throw new DeskError(400, "engine: an engine id, or null to clear");
     return c.json(
       await inNewsroom(c, (db, actor) => setNewsroomTts(db, actor, tts, language, engine), chief),
+    );
+  });
+
+  // Readers' challenges and corrections (D114–D116): any member of the newsroom handles them.
+  app.get(`${base}/challenges`, async (c) =>
+    c.json(await inNewsroom(c, (db) => listChallenges(db))),
+  );
+  app.get(`${base}/challenges/:challenge`, async (c) =>
+    c.json(await inNewsroom(c, (db) => getChallenge(db, id(c, "challenge")))),
+  );
+  app.post(`${base}/challenges/:challenge/acknowledge`, async (c) => {
+    const note = (await body(c)).note;
+    if (note !== undefined && text(note, 2000) === undefined)
+      throw new DeskError(400, "note: at most 2,000 characters");
+    return c.json(
+      await inNewsroom(c, (db, actor) =>
+        acknowledgeChallenge(db, actor, id(c, "challenge"), note as string | undefined),
+      ),
+    );
+  });
+  app.post(`${base}/challenges/:challenge/reject`, async (c) => {
+    const answer = text((await body(c)).answer, 4000)?.trim();
+    if (!answer) throw new DeskError(400, "answer: why the piece stands");
+    return c.json(
+      await inNewsroom(c, (db, actor) => rejectChallenge(db, actor, id(c, "challenge"), answer)),
+    );
+  });
+  app.post(`${base}/challenges/:challenge/uphold`, async (c) => {
+    const b = await body(c);
+    const answer = text(b.answer, 4000)?.trim();
+    const lesson = text(b.lesson, 2000)?.trim();
+    const claim = typeof b.claim === "string" && /^c[0-9]+$/.test(b.claim) ? b.claim : undefined;
+    const notices = noticeTexts(b.notices);
+    if (!answer || !lesson || !claim || !notices)
+      throw new DeskError(
+        400,
+        "answer, the wrong claim, the lesson and a notice per language (at most 2,000 characters)",
+      );
+    return c.json(
+      await inNewsroom(c, (db, actor) =>
+        upholdChallenge(db, boss, actor, id(c, "challenge"), { answer, claim, lesson, notices }),
+      ),
+    );
+  });
+  app.post(`${base}/challenges/:challenge/issue`, async (c) => {
+    const url = text((await body(c)).url, 500) ?? "";
+    return c.json(
+      await inNewsroom(c, (db, actor) => fileChallengeIssue(db, actor, id(c, "challenge"), url)),
     );
   });
 
