@@ -5,8 +5,8 @@ from typing import Any
 import pytest
 
 from anr_verifier import claims, items, rendition
-from anr_verifier.bundle import Bundle, CheckOut, Claim, Lead, Policy, Rendition, Source
-from anr_verifier.verify import item_leads, run_checks
+from anr_verifier.bundle import Bundle, CheckOut, Claim, Lead, Media, Policy, Rendition, Source
+from anr_verifier.verify import item_leads, item_media, run_checks
 
 CONFIG = Path(__file__).resolve().parents[3] / "config"
 
@@ -261,6 +261,27 @@ def test_article_items_name_live_leads() -> None:
     }
     unknown = article | {"lead_id": "nope"}
     assert [c.result for c in item_leads(bundle([claim()], [article, unknown]))] == ["fail", "fail"]
+
+
+def test_items_show_only_licensed_credited_media() -> None:
+    shown = [
+        news("c1") | {"media_id": "m-ok"},
+        news("c1") | {"media_id": "m-bare"},
+        news("c1") | {"media_id": "m-other-newsroom"},
+        news("c1"),
+    ]
+    b = replace(
+        bundle([claim()], shown),
+        media={
+            "m-ok": Media("m-ok", "CC BY-SA 4.0", "Ada, Wikimedia Commons"),
+            "m-bare": Media("m-bare", None, None),
+        },
+    )
+    assert [(c.item, c.result) for c in item_media(b)] == [
+        ("items.0", "pass"),
+        ("items.1", "fail"),
+        ("items.2", "fail"),
+    ]
 
 
 def test_schema_and_style_lint() -> None:

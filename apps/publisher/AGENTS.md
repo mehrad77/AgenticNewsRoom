@@ -8,4 +8,5 @@ Rules (see `docs/technical-design.md#publishing`):
 - Template context comes from `@anr/render` (`templateContext`, `editedByPerson`), shared with the desk's preview.
 - Templates come from `config/formats/<format>/templates/<channel>.liquid`; the disclosure partial is mandatory.
 - An upheld challenge's corrections are published by the `publish-correction` job (`src/corrections.ts`, D115): notice live, piece Corrected; nothing is re-sent.
+- Images (`src/media.ts`, D120): before anything is sent, a piece whose image lacks a licence or credit is held; each licensed image is written once (exiftool XMP, then c2patool with the source as parent) to `m/<id>.<ext>` in the media store. Tests use `unchangedForTests` where the tools are missing.
 - Commands: `pnpm --filter @anr/publisher test`.

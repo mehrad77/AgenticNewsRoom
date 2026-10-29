@@ -48,6 +48,13 @@ class Claim:
 
 
 @dataclass(frozen=True)
+class Media:
+    id: str
+    licence: str | None
+    credit_line: str | None
+
+
+@dataclass(frozen=True)
 class Rendition:
     id: str
     language: str
@@ -75,6 +82,8 @@ class Bundle:
     policy: Policy
     series: dict[str, Any] = field(default_factory=dict)
     """The story's series config (hosts, narrator, segments), for format rules."""
+    media: dict[str, Media] = field(default_factory=dict)
+    """The media items the renditions show, found in this newsroom (D119)."""
 
 
 @dataclass

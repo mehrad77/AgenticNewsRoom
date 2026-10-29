@@ -8,6 +8,8 @@ import { AllModelsExhausted, ModelCallFailed } from "@anr/models";
 import {
   type createRenderer,
   introProblems,
+  mediaContext,
+  mediaIds,
   occurrences,
   opinionItems,
   unmarkOpinion,
@@ -359,7 +361,58 @@ export async function runGate(deps: GateDeps, job: GateJob): Promise<string> {
     });
   }
 
-  // 2b. AI voices: a series with hosts opens every episode with code-rendered lines in which each
+  // 2b. Credits: every image an item shows is licensed, and every channel's output carries its
+  // credit (D16, D119). The verifier checked the media rows; this checks what readers see.
+  if (!checks.some((c) => c.name === "media-credit")) {
+    await inStory(async (c) => {
+      for (const r of story.renditions) {
+        const shown = mediaIds(r.body);
+        if (shown.length === 0) continue;
+        const kinds = Object.entries(story.channels)
+          .filter(([, languages]) => languages.includes(r.language))
+          .map(([kind]) => kind);
+        try {
+          const media = await mediaContext(c, r.body, "https://example.invalid");
+          const unlicensed = shown.filter((id) => !media[id]);
+          const uncredited: string[] = [];
+          for (const kind of kinds) {
+            const out = (
+              await deps.renderer.renderParts(story.format, kind, r.language, {
+                rendition: r.body,
+                edited: false,
+                site_url: "https://example.invalid/",
+                ai_policy_url: "/ai-policy",
+                leads: {},
+                media,
+              })
+            ).join("\n");
+            for (const m of Object.values(media))
+              if (!out.includes(await deps.renderer.escaped(m.credit))) uncredited.push(kind);
+          }
+          await storeCheck(c, {
+            kind: "code",
+            name: "media-credit",
+            result:
+              kinds.length > 0 && unlicensed.length === 0 && uncredited.length === 0
+                ? "pass"
+                : "fail",
+            renditionId: r.id,
+            detail: { media: shown, unlicensed, missing_credit: [...new Set(uncredited)] },
+          });
+        } catch (error) {
+          await storeCheck(c, {
+            kind: "code",
+            name: "media-credit",
+            result: "error",
+            renditionId: r.id,
+            detail: { error: (error as Error).message },
+          });
+        }
+      }
+    });
+  }
+
+  // 2c. AI voices: a series with hosts opens every episode with code-rendered lines in which each
   // host and the narrator says they are AI; the audio pipeline voices exactly these lines.
   if (story.series.hosts && !checks.some((c) => c.name === "ai-voices")) {
     await inStory(async (c) => {

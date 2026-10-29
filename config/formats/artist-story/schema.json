@@ -118,6 +118,11 @@
                 "type": "boolean",
                 "default": false
               },
+              "media_id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "id of a licensed image listed with the leads, or leave out; code writes its caption and credit"
+              },
               "claim_ids": {
                 "$ref": "#/$defs/claim_ids"
               }

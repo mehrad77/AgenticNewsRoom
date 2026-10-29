@@ -1,0 +1,16 @@
+{%- comment -%}
+  A licensed image (D16, D119). Every template of a format whose items can carry `media_id`
+  renders this for each such item, with `image` from the template context's `media`: the alt text,
+  credit and licence come from the media item, never from a model; an image whose recorded source
+  type is AI-made is labelled. The gate checks the credit.
+{%- endcomment -%}
+{%- if image -%}
+<figure class="anr-media"><img src="{{ image.url }}" alt="{{ image.alt }}" loading="lazy"><figcaption>
+{%- if image.ai_made -%}
+  {%- case language -%}
+    {%- when "fa" -%}تصویر ساخته‌شده با هوش مصنوعی
+    {%- when "tr" -%}Yapay zekâ ile üretilmiş görsel
+    {%- else -%}AI-generated image
+  {%- endcase %} · {% endif -%}
+{{ image.credit }} · <a href="{{ image.licence_url }}" rel="license">{{ image.licence }}</a></figcaption></figure>
+{%- endif -%}

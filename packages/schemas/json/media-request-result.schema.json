@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anr.local/schemas/media-request-result.schema.json",
+  "title": "MediaRequestResult",
+  "description": "The media item an image URL resolved to: newly stored, or already in this newsroom.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["media_id", "created", "licence"],
+  "properties": {
+    "media_id": { "type": "string", "format": "uuid" },
+    "created": { "type": "boolean", "description": "False when the same file was already stored." },
+    "licence": {
+      "type": ["string", "null"],
+      "description": "The free Commons licence code recorded; null until a person records a press kit's."
+    }
+  }
+}

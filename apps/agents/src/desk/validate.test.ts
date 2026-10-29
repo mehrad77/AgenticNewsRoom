@@ -166,6 +166,22 @@ describe("submit validation (D77)", () => {
     ]);
   });
 
+  it("lets an item show only a licensed image of the run's leads (D119)", () => {
+    const story = { ...ctx, format: "artist-story", language: "en", media: new Set(["m1"]) };
+    const piece = (media_id: string) => ({
+      story: { summary: "s", beat: "labs", claims: [claim()] },
+      rendition: {
+        language: "en",
+        title: "t",
+        items: [{ paragraphs: ["p"], claim_ids: ["c1"], media_id }],
+      },
+    });
+    expect(validateDraft(piece("m1"), story)).toMatchObject({ rendition: {} });
+    expect(validateDraft(piece("m2"), story)).toEqual([
+      "rendition.items.0: image m2 is not a licensed image of the leads",
+    ]);
+  });
+
   it("finds the JSON object in a model's answer", () => {
     expect(parseJson('Here it is:\n```json\n{"a": 1}\n```')).toEqual({ a: 1 });
     expect(parseJson("no json")).toBe("the answer has no JSON object");

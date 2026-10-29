@@ -20,11 +20,13 @@ export type AdminTts = S["AdminTts"];
 export type NewsroomTts = S["NewsroomTts"];
 export type Challenge = S["Challenge"];
 export type ChallengeDetail = S["ChallengeDetail"];
+export type MediaItem = S["MediaItem"];
 
 /** Pages that list or show one newsroom's things, under `/<newsroom>/<page>`. */
 const PAGES = [
   "plan",
   "challenges",
+  "media",
   "voices",
   "channels",
   "samples",
@@ -107,6 +109,7 @@ export function deskApi(base: string, token: string | null, fetchFn: typeof fetc
     challenges: (newsroom: string) => call<Challenge[]>(`${n(newsroom)}/challenges`),
     challenge: (newsroom: string, id: string) =>
       call<ChallengeDetail>(`${n(newsroom)}/challenges/${id}`),
+    media: (newsroom: string) => call<MediaItem[]>(`${n(newsroom)}/media`),
     adminTts: () => call<AdminTts>("/desk/admin/tts"),
     newsroomTts: (newsroom: string) => call<NewsroomTts>(`${n(newsroom)}/tts`),
     /** Runs the action a desk form posted; returns where to go next. */
@@ -221,6 +224,20 @@ export function deskApi(base: string, token: string | null, fetchFn: typeof fetc
         case "file-challenge-issue":
           await call(`${base}/challenges/${id}/issue`, { url: field("url") ?? "" });
           return here;
+        case "add-media":
+          await call(`${base}/media`, {
+            url: field("url") ?? "",
+            source_url: field("source_url"),
+            lead_id: field("lead_id"),
+          });
+          return `/${route.newsroom}/media`;
+        case "record-licence":
+          await call(`${base}/media/${id}/licence`, {
+            licence: field("licence") ?? "",
+            terms_url: field("terms_url") ?? "",
+            credit: field("credit"),
+          });
+          return `/${route.newsroom}/media`;
         case "read-notice":
           await call(`${base}/notices/${id}/read`, {});
           return `/${route.newsroom}/notices`;

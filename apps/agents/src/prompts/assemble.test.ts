@@ -52,8 +52,11 @@ describe("prompt assembly (D75)", () => {
     const story = deskSteps("tr", itemShape(formatSchema(configDir, "artist-story")));
     expect(story.outline).toContain('"opinion": true | false');
     expect(story.draft).toContain(
-      '{"heading": "...", "paragraphs": ["...", ...], "opinion": true | false}',
+      '{"heading": "...", "paragraphs": ["...", ...], "opinion": true | false, "media_id": "<id of a licensed image',
     );
+    // Images only where the format has them (D119).
+    expect(story.draft).toContain("code adds its caption and credit");
+    expect(newsletter.draft).not.toContain("media_id");
     expect(
       deskSteps("en", itemShape(formatSchema(configDir, "classic-article"))).outline,
     ).not.toContain("opinion");

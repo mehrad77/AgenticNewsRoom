@@ -14,6 +14,7 @@ import { runGate, verifierClient } from "./gate/run.ts";
 import { sweepStuck } from "./gate/sweep.ts";
 import { handleIngestSource, ingestionClient } from "./ingest.ts";
 import { registerJobs } from "./jobs.ts";
+import { ingestMedia } from "./media/ingest.ts";
 import { meteredModel } from "./model.ts";
 import { pickDeadline } from "./planner/deadline.ts";
 import { runPlanner } from "./planner/run.ts";
@@ -100,6 +101,10 @@ await registerJobs(boss, {
   "challenge-deadline": async (job) => {
     const outcome = await challengeDeadline(pool, boss, job);
     console.log(`[agents] challenge ${job.challengeId} ${job.step} ${job.at}: ${outcome}`);
+  },
+  "ingest-media": async (job) => {
+    const outcome = await ingestMedia(pool, ingestion, job);
+    console.log(`[agents] media ${job.url}: ${JSON.stringify(outcome)}`);
   },
   "agent-run": dispatchAgentRun({
     pool,

@@ -1,6 +1,6 @@
 # Sources start without terms_checked, so ingestion does not schedule them until a person
-# has read each source's terms and set the date. Milestone 6 adds the Turkish music press,
-# label, venue and festival sources.
+# has read each source's terms (linked above each entry) and set the date (D17). Each URL was
+# checked on 2026-10-29: it answers, and robots.txt lets ANR-Ingestion fetch it.
 - {
     id: musicbrainz,
     kind: api,
@@ -9,4 +9,194 @@
     tier: 2,
     every: 24h,
     use: enrichment,
+  }
+
+# Turkish music and art press: tier 2, every 6 hours, one entry per outlet.
+
+# Terms: none found on bantmag.com. Feed pubDates use "+03", which feedparser leaves undated.
+- {
+    id: bant-mag,
+    kind: rss,
+    url: "https://bantmag.com/feed/",
+    publisher: Bant Mag,
+    tier: 2,
+    every: 6h,
+  }
+# Terms: https://mixmag.com.tr/page/terms-conditions/ (footer link answers 404)
+- {
+    id: mixmag-turkiye,
+    kind: rss,
+    url: "https://mixmag.com.tr/rss.xml",
+    publisher: Mixmag Türkiye,
+    tier: 2,
+    every: 6h,
+  }
+# Terms: https://sanatatak.com/kullanim-kosullari/
+- {
+    id: sanatatak,
+    kind: rss,
+    url: "https://sanatatak.com/feed/",
+    publisher: Sanatatak,
+    tier: 2,
+    every: 6h,
+  }
+# Terms: none found (imprint https://argonotlar.com/kunye/)
+- {
+    id: argonotlar,
+    kind: rss,
+    url: "https://argonotlar.com/feed/",
+    publisher: Argonotlar,
+    tier: 2,
+    every: 6h,
+  }
+# Terms: https://www.unlimitedrag.com/about (imprint: no reproduction or quotation without permission)
+- {
+    id: art-unlimited,
+    kind: rss,
+    url: "https://www.unlimitedrag.com/blog-feed.xml",
+    publisher: Unlimited,
+    tier: 2,
+    every: 6h,
+  }
+# Terms: none found (privacy only: https://www.dailysabah.com/privacy). English.
+- {
+    id: daily-sabah-arts,
+    kind: rss,
+    url: "https://www.dailysabah.com/rss/arts",
+    publisher: Daily Sabah,
+    tier: 2,
+    every: 6h,
+  }
+# Terms: none found (privacy only: https://www.turkiyetoday.com/privacy-policy). English. No feed.
+- {
+    id: turkiye-today-culture,
+    kind: site,
+    url: "https://www.turkiyetoday.com/culture",
+    publisher: Türkiye Today,
+    tier: 2,
+    every: 6h,
+  }
+# Terms: https://kiyimuzik.com/sartlar/
+- {
+    id: kiyi-muzik,
+    kind: rss,
+    url: "https://kiyimuzik.com/feed/",
+    publisher: Kıyı Müzik,
+    tier: 2,
+    every: 6h,
+  }
+
+# Label release pages: tier 1 (the label's own statement), every 12 hours. No label has a feed.
+
+# Terms: none found (www.dmc.com.tr answers every path with the same page)
+- {
+    id: dmc-news,
+    kind: site,
+    url: "https://www.dmc.com.tr/haberler",
+    publisher: DMC,
+    tier: 1,
+    every: 12h,
+  }
+# Terms: none found on kalan.com
+- {
+    id: kalan-muzik,
+    kind: site,
+    url: "https://kalan.com/",
+    publisher: Kalan Müzik,
+    tier: 1,
+    every: 12h,
+  }
+# Terms: https://bandcamp.com/terms_of_use
+- {
+    id: zel-zele-records,
+    kind: site,
+    url: "https://zelzelerecords.bandcamp.com/",
+    publisher: Zel Zele Records,
+    tier: 1,
+    every: 12h,
+  }
+
+# Venue calendars: tier 2, every 24 hours.
+
+# Terms: none found on babylon.com.tr
+- {
+    id: babylon,
+    kind: site,
+    url: "https://www.babylon.com.tr/tr",
+    publisher: Babylon,
+    tier: 2,
+    every: 24h,
+  }
+# Terms: none found on ifperformance.com
+- {
+    id: if-performance-hall,
+    kind: site,
+    url: "https://www.ifperformance.com/",
+    publisher: IF Performance Hall,
+    tier: 2,
+    every: 24h,
+  }
+# Terms: none found (KVKK only: https://saltonline.org/tr/kisisel-verilerin-korunmasi-hakkinda-bilgilendirme-1836)
+- { id: salt, kind: site, url: "https://saltonline.org/tr", publisher: Salt, tier: 2, every: 24h }
+# Terms: https://www.istanbulmodern.org/kurumsal/gizlilik-politikasi-ve-yasal-uyarilar
+- {
+    id: istanbul-modern,
+    kind: site,
+    url: "https://www.istanbulmodern.org/sergi",
+    publisher: İstanbul Modern,
+    tier: 2,
+    every: 24h,
+  }
+# Terms: https://www.peramuzesi.org.tr/kullanim-kosullari
+- {
+    id: pera-muzesi,
+    kind: site,
+    url: "https://www.peramuzesi.org.tr/blog",
+    publisher: Pera Müzesi,
+    tier: 2,
+    every: 24h,
+  }
+# Terms: none found (/tr/kullanim-kosullari is a soft 404). curl and urllib fail its TLS chain; httpx works.
+- {
+    id: borusan-contemporary,
+    kind: site,
+    url: "https://www.borusancontemporary.com/tr/",
+    publisher: Borusan Contemporary,
+    tier: 2,
+    every: 24h,
+  }
+
+# Festival line-ups: tier 2, every 24 hours. Terms (all İKSV sites): https://www.iksv.org/tr/footer-menu/yasal-metinler
+# (KVKK notices only) and https://www.iksv.org/tr/bilet-satis-ve-kullanim-kosullari (ticket terms).
+- {
+    id: istanbul-caz-festivali,
+    kind: site,
+    url: "https://caz.iksv.org/tr",
+    publisher: İKSV,
+    tier: 2,
+    every: 24h,
+  }
+- {
+    id: istanbul-muzik-festivali,
+    kind: site,
+    url: "https://muzik.iksv.org/tr",
+    publisher: İKSV,
+    tier: 2,
+    every: 24h,
+  }
+- {
+    id: istanbul-bienali,
+    kind: site,
+    url: "https://bienal.iksv.org/tr",
+    publisher: İKSV,
+    tier: 2,
+    every: 24h,
+  }
+- {
+    id: istanbul-tasarim-bienali,
+    kind: site,
+    url: "https://tasarimbienali.iksv.org/tr",
+    publisher: İKSV,
+    tier: 2,
+    every: 24h,
   }

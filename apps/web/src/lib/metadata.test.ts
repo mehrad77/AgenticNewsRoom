@@ -43,6 +43,7 @@ const publication: ReaderPublication = {
   mediaTopics: ["medtop:20000763"],
   rendition: { title: "Today in AI", items: [] },
   leads: {},
+  media: {},
   corrections: [],
 };
 const described = {
@@ -70,6 +71,34 @@ describe("ninjs twin", () => {
     });
     const roles = (doc.trustIndicators as { role: string }[]).map((t) => t.role.split("/").at(-1));
     expect(roles).toEqual(["editorialPolicy", "correctionsPolicy", "factCheckingPolicy"]);
+  });
+
+  it("associates each image with its own recorded source type and licence (D45, D119)", () => {
+    const image = {
+      url: "/m/1.jpg",
+      alt: "Ada on stage",
+      credit: "Ada, Wikimedia Commons",
+      licence: "CC BY-SA 4.0",
+      licence_url: "https://creativecommons.org/licenses/by-sa/4.0/",
+      digital_source_type: "http://cv.iptc.org/newscodes/digitalsourcetype/digitalCapture",
+      ai_made: false,
+    };
+    const doc = ninjs({
+      ...described,
+      publication: {
+        ...publication,
+        media: { m1: image, m2: { ...image, digital_source_type: null } },
+      },
+    });
+    expect(validate(doc), JSON.stringify(validate.errors)).toBe(true);
+    const [first, second] = doc.associations as Record<string, unknown>[];
+    expect(first).toMatchObject({
+      name: "m1",
+      rel: "image",
+      type: "picture",
+      digitalSourceType: { uri: image.digital_source_type },
+    });
+    expect(second).not.toHaveProperty("digitalSourceType");
   });
 
   it("is checked by a validator that refuses bad ninjs", () => {

@@ -2,7 +2,8 @@
 tool) call it; it is never exposed publicly.
 
 Errors map onto statuses the caller can act on: 404 unknown ids, 422 never fetched (no terms,
-private address, robots.txt), 429 the run's request cap, 502 the source failed (retry later).
+private address, robots.txt) or not an image, 429 the run's request cap, 502 the source failed
+(retry later).
 """
 
 from collections.abc import AsyncIterator, Callable
@@ -17,6 +18,8 @@ from anr_ingestion.replay import ReplayWeb
 from anr_ingestion.settings import Settings
 from anr_schemas.config.ingest_result import Error, IngestResult
 from anr_schemas.config.ingest_run import IngestRun
+from anr_schemas.config.media_request import MediaRequest
+from anr_schemas.config.media_request_result import MediaRequestResult
 from anr_schemas.config.source_request import SourceRequest
 from anr_schemas.config.source_request_result import SourceRequestResult
 
@@ -107,6 +110,26 @@ def create_app(make_ingestor: Callable[[], Ingestor] = ingestor_from_env) -> Fas
                 "tier": lead["tier"],
                 "created": created,
             }
+        )
+
+    @app.post("/media")
+    def media(body: MediaRequest, request: Request) -> MediaRequestResult:
+        try:
+            media_id, created, licence = ingestor(request).add_media(
+                str(body.newsroom_id),
+                str(body.url),
+                str(body.source_url) if body.source_url is not None else None,
+                str(body.lead_id) if body.lead_id is not None else None,
+                str(body.added_by),
+            )
+        except NotFound as error:
+            raise HTTPException(404, str(error)) from error
+        except Refused as error:
+            raise HTTPException(422, str(error)) from error
+        except FetchError as error:
+            raise HTTPException(502, str(error)) from error
+        return MediaRequestResult.model_validate(
+            {"media_id": media_id, "created": created, "licence": licence}
         )
 
     return app

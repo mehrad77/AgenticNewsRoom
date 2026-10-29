@@ -4,6 +4,7 @@
 import Budget from "../components/desk/Budget.astro";
 import Challenge from "../components/desk/Challenge.astro";
 import Challenges from "../components/desk/Challenges.astro";
+import Media from "../components/desk/Media.astro";
 import Channels from "../components/desk/Channels.astro";
 import Measures from "../components/desk/Measures.astro";
 import Notices from "../components/desk/Notices.astro";
@@ -63,6 +64,7 @@ const publication = r.kind === "publication" ? await load(() => api.publication(
 // A preview needs text; a publication still being written has none yet.
 const preview = r.kind === "publication" && publication?.rendition ? await load(() => api.preview(r.newsroom, r.id)) : undefined;
 const challenges = r.kind === "challenges" ? await load(() => api.challenges(r.newsroom)) : undefined;
+const media = r.kind === "media" ? await load(() => api.media(r.newsroom)) : undefined;
 const challenge = r.kind === "challenge" ? await load(() => api.challenge(r.newsroom, r.id)) : undefined;
 const channels = r.kind === "channels" ? await load(() => api.channels(r.newsroom)) : undefined;
 const samples = r.kind === "samples" ? await load(() => api.samples(r.newsroom)) : undefined;
@@ -83,6 +85,7 @@ const nav = [
   ["/schedule", "Upcoming"],
   ["/samples", "Sample"],
   ["/challenges", "Challenges"],
+  ["/media", "Images"],
   ["/notices", "Notices"],
   ["/measures", "Measures"],
   ["/budget", "Budget"],
@@ -116,6 +119,7 @@ const nav = [
     {r.kind === "admin" && me && !me.platform_admin && <h1>Only the platform admin can open this page.</h1>}
     {channels && <Channels channels={channels} chief={role === "editor-in-chief"} />}
     {n && challenges && <Challenges newsroom={n} challenges={challenges} />}
+    {n && media && <Media media={media} />}
     {n && challenge && <Challenge newsroom={n} challenge={challenge} issuesUrl={issuesUrl} />}
     {n && samples && <Samples newsroom={n} samples={samples} issuesUrl={issuesUrl} />}
     {n && notices && <Notices newsroom={n} notices={notices} />}

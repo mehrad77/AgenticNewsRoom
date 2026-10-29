@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anr.local/schemas/media-request.schema.json",
+  "title": "MediaRequest",
+  "description": "POST /media on the ingestion service: a member adds an image by URL, a Wikimedia Commons file page or an image from a press kit (D119).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["newsroom_id", "url", "added_by"],
+  "properties": {
+    "newsroom_id": { "type": "string", "format": "uuid" },
+    "url": { "type": "string", "format": "uri", "maxLength": 2048 },
+    "source_url": {
+      "type": "string",
+      "format": "uri",
+      "maxLength": 2048,
+      "description": "The page the image comes from (a press kit); a Commons file page is its own source."
+    },
+    "lead_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The lead the image goes with; agents see a lead's licensed images."
+    },
+    "added_by": { "type": "string", "format": "uuid" }
+  }
+}

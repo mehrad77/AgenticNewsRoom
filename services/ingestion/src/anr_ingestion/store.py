@@ -299,3 +299,82 @@ def credit_lead(conn: Conn, lead_id: str, source_id: str, tier: int) -> bool:
         (tier, source_id, lead_id, tier),
     )
     return cur.rowcount == 1
+
+
+def newsroom_exists(conn: Conn) -> bool:
+    row = conn.execute(
+        """select 1 from newsrooms
+           where id = (select anr.current_newsroom_id()) and removed_at is null"""
+    ).fetchone()
+    return row is not None
+
+
+def user_exists(conn: Conn, user_id: str) -> bool:
+    return conn.execute("select 1 from users where id = %s", (user_id,)).fetchone() is not None
+
+
+def lead_exists(conn: Conn, lead_id: str) -> bool:
+    return conn.execute("select 1 from leads where id = %s", (lead_id,)).fetchone() is not None
+
+
+@dataclass(frozen=True)
+class NewMedia:
+    file: str
+    """The raw store's key: content-addressed, so the same image twice is one media item."""
+    lead_id: str | None
+    creator: str | None
+    credit_line: str | None
+    copyright_notice: str | None
+    web_statement: str | None
+    licensor: str | None
+    digital_source_type: str | None
+    description: str | None
+    source_url: str
+    file_url: str
+    content_type: str
+    added_by: str
+    licence: str | None
+    """Only a free Commons licence; a press kit's is recorded by a person in the desk."""
+    licence_url: str | None
+
+
+def insert_media(conn: Conn, newsroom_id: str, media: NewMedia) -> tuple[str, bool, str | None]:
+    """(id, created, licence); an image already stored keeps its row, as it is."""
+    commons = media.licence is not None
+    row = conn.execute(
+        """insert into media
+             (newsroom_id, file, lead_id, creator, credit_line, copyright_notice, web_statement,
+              licensor, digital_source_type, description, source_url, file_url, content_type,
+              added_by, licence, licence_kind, licence_url, licence_recorded_at)
+           values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                   case when %s then now() end)
+           on conflict (newsroom_id, file) do nothing
+           returning id, licence""",
+        (
+            newsroom_id,
+            media.file,
+            media.lead_id,
+            media.creator,
+            media.credit_line,
+            media.copyright_notice,
+            media.web_statement,
+            media.licensor,
+            media.digital_source_type,
+            media.description,
+            media.source_url,
+            media.file_url,
+            media.content_type,
+            media.added_by,
+            media.licence,
+            "commons" if commons else None,
+            media.licence_url,
+            commons,
+        ),
+    ).fetchone()
+    if row is not None:
+        return str(row["id"]), True, row["licence"]
+    existing = conn.execute(
+        "select id, licence from media where file = %s", (media.file,)
+    ).fetchone()
+    assert existing is not None
+    return str(existing["id"]), False, existing["licence"]

@@ -1,7 +1,7 @@
 // Machine-readable descriptions of a publication (docs/technical-design.md#iptc-standards): the
 // schema.org JSON-LD in its page and its ninjs 3.2 twin at the page URL plus `.json`. Both take the
 // digital source type from the one stored `edited` flag, as the visible label does.
-import { digitalSourceType, pageUrl, qcodeToUri, type SiteAddress } from "@anr/core";
+import { digitalSourceType, pageUrl, qcodeToUri, type SiteAddress, siteOrigin } from "@anr/core";
 import { FACT_CHECKING_ANCHOR } from "./i18n.ts";
 import type { ReaderNewsroom, ReaderPublication } from "./reader.ts";
 
@@ -101,6 +101,19 @@ export function ninjs(d: Described): Record<string, unknown> {
     subjects: p.mediaTopics.map((q) => ({ uri: qcodeToUri(q), rel: "about" })),
     genres: p.genres.map((q) => ({ uri: qcodeToUri(q) })),
     digitalSourceType: { uri: digitalSourceType(p.edited).uri },
+    // Each image keeps its own recorded source type, never the publication's (D45).
+    ...(Object.keys(p.media).length > 0 && {
+      associations: Object.entries(p.media).map(([id, m]) => ({
+        name: id,
+        rel: "image",
+        uri: `${siteOrigin(d.site)}${m.url}`,
+        type: "picture",
+        ...(m.alt && { descriptions: [{ role: "alt", value: m.alt }] }),
+        ...(m.digital_source_type && { digitalSourceType: { uri: m.digital_source_type } }),
+        copyrightNotice: m.credit,
+        usageTerms: `${m.licence} (${m.licence_url})`,
+      })),
+    }),
     trustIndicators: [
       trust("editorialPolicy", links.aiPolicy, "AI policy"),
       trust("correctionsPolicy", links.corrections, "Corrections"),

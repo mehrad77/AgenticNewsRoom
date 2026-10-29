@@ -3,6 +3,7 @@
 // newsrooms, not drafts from published pieces.
 import type { Language } from "@anr/core";
 import { type Pool, withNewsroom } from "@anr/db";
+import { type MediaContext, mediaContext } from "@anr/render";
 
 /** The statuses a reader may see; also the predicate of the search and listing indexes. */
 const VISIBLE = "status in ('published', 'corrected')";
@@ -45,6 +46,8 @@ export interface ReaderPublication extends Listed {
   mediaTopics: string[];
   rendition: Record<string, unknown>;
   leads: Record<string, { url: string; headline: string | null }>;
+  /** The licensed images the piece shows, at site-relative URLs (D119). */
+  media: Record<string, MediaContext>;
   corrections: Correction[];
 }
 
@@ -196,6 +199,7 @@ export function publicationByPath(
       mediaTopics: p.media_topics ?? [],
       rendition: p.body,
       leads: Object.fromEntries(leads.map((l) => [l.id, { url: l.uri, headline: l.headline }])),
+      media: await mediaContext(c, p.body, ""),
       corrections: corrections.map((x) => ({
         id: x.id,
         notice: x.notice,

@@ -26,6 +26,7 @@ const lead: LeadText = {
   text: "Example Lab released Orbit today. It is 40 percent faster than Comet.",
   truncated: false,
   withdrawn: null,
+  images: [],
 };
 
 /** Replays answers in order and records what it was sent. */

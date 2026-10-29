@@ -1,1 +1,1 @@
-Partials shared by every format's channel templates. `disclosure.liquid` is mandatory in every template; `opinion.liquid` in every template of a format whose items can be marked opinion.
+Partials shared by every format's channel templates. `disclosure.liquid` is mandatory in every template; `opinion.liquid` in every template of a format whose items can be marked opinion; `media.liquid` in every template of a format whose items can carry `media_id`.

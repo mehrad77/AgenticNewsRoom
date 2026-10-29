@@ -89,6 +89,45 @@ describe("channel templates", () => {
     ).toBe(2);
   });
 
+  it("show a licensed image with its credit and licence, and nothing for an unlicensed one", async () => {
+    const image = {
+      url: "https://kultur.example/m/1.jpg",
+      alt: "Ada on stage",
+      credit: "Ada & Co, Wikimedia Commons",
+      licence: "CC BY-SA 4.0",
+      licence_url: "https://creativecommons.org/licenses/by-sa/4.0/",
+      digital_source_type: null,
+      ai_made: false,
+    };
+    const out = await renderer.render("artist-story", "site", "en", {
+      rendition: {
+        title: "An artist",
+        items: [
+          { paragraphs: ["One."], media_id: "m1", claim_ids: ["c1"] },
+          { paragraphs: ["Two."], media_id: "m2", claim_ids: ["c1"] },
+        ],
+      },
+      edited: false,
+      ai_policy_url: "/ai-policy",
+      media: { m1: image },
+    });
+    expect(out).toContain('<img src="https://kultur.example/m/1.jpg" alt="Ada on stage"');
+    expect(out).toContain(await renderer.escaped(image.credit));
+    expect(out).toContain('rel="license">CC BY-SA 4.0</a>');
+    expect(out.match(/<figure/g)).toHaveLength(1);
+    expect(out).not.toContain("AI-generated image");
+    const made = await renderer.render("artist-story", "site", "tr", {
+      rendition: {
+        title: "Bir sanatçı",
+        items: [{ paragraphs: ["Bir."], media_id: "m1", claim_ids: ["c1"] }],
+      },
+      edited: false,
+      ai_policy_url: "/ai-policy",
+      media: { m1: { ...image, ai_made: true } },
+    });
+    expect(made).toContain("Yapay zekâ ile üretilmiş görsel · ");
+  });
+
   it("escape agent-written text", async () => {
     const out = await renderer.render("newsletter-issue", "telegram", "en", {
       rendition: { ...rendition, title: "<script>x</script>" },

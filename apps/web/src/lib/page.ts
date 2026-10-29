@@ -133,6 +133,7 @@ export async function loadPage(
         edited: publication.edited,
         ai_policy_url: links.aiPolicy,
         leads: publication.leads,
+        media: publication.media,
       });
       const described = { site, newsroom, publication, bodyHtml };
       if (r.kind === "ninjs") return { kind: "ninjs", json: ninjs(described) };

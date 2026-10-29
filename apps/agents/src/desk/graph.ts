@@ -57,6 +57,9 @@ export function assignmentMessage(a: Assignment): string {
         `Headline: ${l.headline ?? "(none)"} | Publisher: ${l.publisher} | Tier: ${l.tier} | Date: ${l.published ?? "unknown"} | Language: ${l.language}`,
         l.withdrawn ? `WITHDRAWN: ${l.withdrawn}. Do not cite.` : "",
         l.summary ? `Summary: ${l.summary}` : "",
+        l.images.length > 0
+          ? `Licensed images: ${l.images.map((m) => `${m.id} (${m.description ?? "no description"}; ${m.credit})`).join(", ")}`
+          : "",
         text,
       ]
         .filter(Boolean)

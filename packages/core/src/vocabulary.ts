@@ -97,8 +97,15 @@ export const NOTICE_KINDS = [
   "challenge-due",
   /** A reader's challenge passed its acknowledgement or answer deadline. */
   "challenge-overdue",
+  /** An image a member added could not be fetched or read (D119). */
+  "media-failed",
 ] as const;
 export type NoticeKind = (typeof NOTICE_KINDS)[number];
+
+/** Where a media item's licence comes from (D16, D119): a press kit, recorded by a person, or a
+ * free Wikimedia Commons licence, recorded by code. */
+export const LICENCE_KINDS = ["press-kit", "commons"] as const;
+export type LicenceKind = (typeof LICENCE_KINDS)[number];
 
 /** An editor's verdict on a sampled auto-published publication (D94). */
 export const SAMPLE_OUTCOMES = ["ok", "miss"] as const;

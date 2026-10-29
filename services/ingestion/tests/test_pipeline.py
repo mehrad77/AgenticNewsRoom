@@ -1,6 +1,7 @@
 """The whole pipeline against anr_test, with the fake web: sources into leads."""
 
 import json
+import uuid
 from datetime import UTC, datetime
 from typing import Any
 
@@ -367,3 +368,147 @@ def test_feed_only_source_never_fetches_pages(
     assert len(report.new_leads) == 3  # the gone page is never asked for, so its item stays
     assert not any("/index/" in u for u in web.urls())
     assert {lead["raw_key"] for lead in leads(database, newsroom)} == {None}
+
+
+# Media (D119)
+
+COMMONS_PAGE = "https://commons.wikimedia.org/wiki/File:North_Hall_concert.jpg"
+PRESS_PAGE = "https://label.example/press"
+
+
+def make_user(db: Database) -> str:
+    row = db.system.execute(
+        "insert into users (email) values (%s) returning id",
+        (f"{uuid.uuid4().hex[:8]}@example.com",),
+    ).fetchone()
+    assert row is not None
+    return str(row["id"])
+
+
+def media(db: Database, n: Newsroom) -> list[dict[str, Any]]:
+    return rows(db, n.id, "select * from media where newsroom_id = %s order by created_at")
+
+
+def test_a_press_kit_image_is_stored_unlicensed_with_its_photo_metadata(
+    ingestor: Ingestor, database: Database, newsroom: Newsroom
+) -> None:
+    user = make_user(database)
+    lead_id = ingestor.ingest_source(newsroom.id, newsroom.sources["lab"]).new_leads[0]
+    media_id, created, licence = ingestor.add_media(
+        newsroom.id, "https://label.example/press/north-tour.jpg", PRESS_PAGE, lead_id, user
+    )
+    assert created and licence is None
+    (row,) = media(database, newsroom)
+    assert str(row["id"]) == media_id and str(row["lead_id"]) == lead_id
+    assert str(row["file"]).startswith("raw/") and row["content_type"] == "image/jpeg"
+    assert row["source_url"] == PRESS_PAGE
+    assert row["file_url"] == "https://label.example/press/north-tour.jpg"
+    assert row["creator"] == "Ada Example, Bo Example"
+    assert row["credit_line"] == "Ada Example / North Label"
+    assert row["copyright_notice"] == "© 2026 North Label"
+    assert row["web_statement"] == "https://label.example/licensing"
+    assert row["licensor"] == "North Label"
+    assert row["digital_source_type"] == (
+        "http://cv.iptc.org/newscodes/digitalsourcetype/digitalCapture"
+    )
+    assert row["description"] == "The band on stage in Oslo"
+    assert row["licence_kind"] is None and row["licence_recorded_at"] is None
+    assert str(row["added_by"]) == user
+
+
+def test_a_commons_file_records_its_free_licence(
+    ingestor: Ingestor, database: Database, newsroom: Newsroom, web: FakeWeb
+) -> None:
+    user = make_user(database)
+    _, created, licence = ingestor.add_media(newsroom.id, COMMONS_PAGE, None, None, user)
+    assert created and licence == "CC BY-SA 4.0"
+    (row,) = media(database, newsroom)
+    assert row["licence_kind"] == "commons" and row["licence_recorded_at"] is not None
+    assert row["licence_recorded_by"] is None
+    assert row["licence_url"] == "https://creativecommons.org/licenses/by-sa/4.0"
+    assert row["source_url"] == COMMONS_PAGE
+    assert row["file_url"] == (
+        "https://upload.wikimedia.org/wikipedia/commons/a/ab/North_Hall_concert.jpg"
+    )
+    # Commons fills what the file leaves empty; the file's own description wins.
+    assert row["credit_line"] == "Dana Example, Wikimedia Commons"
+    assert row["creator"] == "Dana Example"
+    assert row["description"] == "A hall, from Commons"
+    # The API call skips robots.txt (D64); the file itself is fetched under it.
+    assert "https://commons.wikimedia.org/robots.txt" not in web.urls()
+    assert "https://upload.wikimedia.org/robots.txt" in web.urls()
+
+
+def test_a_non_free_commons_file_stays_unlicensed(
+    ingestor: Ingestor, database: Database, newsroom: Newsroom
+) -> None:
+    user = make_user(database)
+    page = "https://commons.wikimedia.org/wiki/File:Backstage_portrait.jpg"
+    _, created, licence = ingestor.add_media(newsroom.id, page, None, None, user)
+    assert created and licence is None
+    (row,) = media(database, newsroom)
+    assert row["licence_kind"] is None and row["credit_line"] == "Eli Example, Wikimedia Commons"
+
+
+def test_the_same_image_twice_is_one_media_item(
+    ingestor: Ingestor, database: Database, newsroom: Newsroom
+) -> None:
+    user = make_user(database)
+    url = "https://label.example/press/cem.png"
+    first, created, _ = ingestor.add_media(newsroom.id, url, PRESS_PAGE, None, user)
+    again, created_again, _ = ingestor.add_media(newsroom.id, url, PRESS_PAGE, None, user)
+    assert created and not created_again and again == first
+    assert len(media(database, newsroom)) == 1
+
+
+def test_media_that_cannot_be_added_is_refused(
+    ingestor: Ingestor, database: Database, newsroom: Newsroom, web: FakeWeb
+) -> None:
+    user = make_user(database)
+    with pytest.raises(Refused, match="not a JPEG, PNG or WebP"):
+        ingestor.add_media(
+            newsroom.id, "https://label.example/press/coming-soon.jpg", PRESS_PAGE, None, user
+        )
+    with pytest.raises(Refused, match=r"robots\.txt"):
+        ingestor.add_media(
+            newsroom.id, "https://private-label.example/press/photo.jpg", PRESS_PAGE, None, user
+        )
+    with pytest.raises(Refused, match="page it comes from"):
+        ingestor.add_media(newsroom.id, "https://label.example/press/cem.png", None, None, user)
+    with pytest.raises(Refused, match="no such file"):
+        ingestor.add_media(
+            newsroom.id,
+            "https://commons.wikimedia.org/wiki/File:Nothing_here.jpg",
+            None,
+            None,
+            user,
+        )
+    with pytest.raises(NotFound, match="no lead"):
+        ingestor.add_media(
+            newsroom.id,
+            "https://label.example/press/cem.png",
+            PRESS_PAGE,
+            "00000000-0000-0000-0000-000000000000",
+            user,
+        )
+    with pytest.raises(NotFound, match="no user"):
+        ingestor.add_media(
+            newsroom.id,
+            "https://label.example/press/cem.png",
+            PRESS_PAGE,
+            None,
+            "00000000-0000-0000-0000-000000000000",
+        )
+    assert media(database, newsroom) == []
+    assert "https://private-label.example/press/photo.jpg" not in web.urls()
+
+
+def test_media_for_an_unknown_newsroom_is_not_found(ingestor: Ingestor, database: Database) -> None:
+    with pytest.raises(NotFound, match="no newsroom"):
+        ingestor.add_media(
+            "00000000-0000-0000-0000-000000000000",
+            "https://label.example/press/cem.png",
+            PRESS_PAGE,
+            None,
+            make_user(database),
+        )

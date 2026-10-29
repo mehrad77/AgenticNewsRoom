@@ -1,5 +1,9 @@
-import { INGEST_TIMEOUT_SECONDS, type IngestSourceJob } from "@anr/core";
-import { IngestResultSchema, SourceRequestResultSchema } from "@anr/schemas";
+import { INGEST_TIMEOUT_SECONDS, type IngestMediaJob, type IngestSourceJob } from "@anr/core";
+import {
+  IngestResultSchema,
+  MediaRequestResultSchema,
+  SourceRequestResultSchema,
+} from "@anr/schemas";
 
 /** A run of one source can fetch dozens of pages at a polite pace; give it time. */
 const INGEST_TIMEOUT_MS = INGEST_TIMEOUT_SECONDS * 1000;
@@ -17,10 +21,17 @@ export type SourceRequestOutcome =
   /** 502 or a network failure: the page could not be fetched now. */
   | { kind: "failed"; detail: string };
 
+export type MediaRequestOutcome =
+  | { kind: "media"; result: MediaRequestResultSchema }
+  /** 404 unknown newsroom or lead, 422 never fetched or not an image, 502 or a network failure. */
+  | { kind: "refused" | "failed"; detail: string };
+
 export interface IngestionClient {
   ingest(job: IngestSourceJob): Promise<IngestOutcome>;
   /** An agent run asks for one page to be fetched and stored (D61); never throws. */
   requestSource(newsroomId: string, agentRunId: string, url: string): Promise<SourceRequestOutcome>;
+  /** A member's image, fetched and read into a media row (D119); never throws. */
+  addMedia(job: IngestMediaJob): Promise<MediaRequestOutcome>;
 }
 
 /** A source request fetches one page at once; it must not hold a run for long. */
@@ -64,6 +75,31 @@ export function ingestionClient(baseUrl: string, fetchImpl: typeof fetch = fetch
         if (!response.ok)
           return { kind: "failed", detail: `ingestion answered ${response.status}` };
         return { kind: "lead", result: SourceRequestResultSchema.parse(await response.json()) };
+      } catch (error) {
+        return { kind: "failed", detail: (error as Error).message };
+      }
+    },
+    async addMedia(job) {
+      try {
+        const response = await fetchImpl(new URL("/media", baseUrl), {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            newsroom_id: job.newsroomId,
+            url: job.url,
+            source_url: job.sourceUrl,
+            lead_id: job.leadId,
+            added_by: job.addedBy,
+          }),
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        });
+        if (response.status === 404 || response.status === 422) {
+          const body = (await response.json().catch(() => ({}))) as { detail?: unknown };
+          return { kind: "refused", detail: String(body.detail ?? "") };
+        }
+        if (!response.ok)
+          return { kind: "failed", detail: `ingestion answered ${response.status}` };
+        return { kind: "media", result: MediaRequestResultSchema.parse(await response.json()) };
       } catch (error) {
         return { kind: "failed", detail: (error as Error).message };
       }

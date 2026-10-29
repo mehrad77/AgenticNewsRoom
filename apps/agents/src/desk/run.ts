@@ -174,6 +174,7 @@ export async function runDesk(deps: RoleDeps, job: AgentRunJob): Promise<string 
           needsStory: true,
           beats,
           leads: citable(),
+          media: new Set([...readLeads.values()].flatMap((l) => l.images.map((m) => m.id))),
         }),
       },
       prompt.system,

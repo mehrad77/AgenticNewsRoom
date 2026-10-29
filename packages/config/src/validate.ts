@@ -17,24 +17,32 @@ interface IptcScheme {
   concepts: { qcode: string; retired?: string }[];
 }
 /** Whether a format's rendition items can be marked `opinion: true` (D117). */
-export function marksOpinion(schema: unknown): boolean {
+/** Whether some kind of the format's rendition items has the `field` property. */
+function itemsHave(schema: unknown, field: string): boolean {
   type Item = { properties?: object; oneOf?: { properties?: object }[] };
   const s = schema as {
     properties?: { rendition?: { properties?: { items?: { items?: Item } } } };
   };
   const items = s.properties?.rendition?.properties?.items?.items ?? {};
-  return (items.oneOf ?? [items]).some((v) => "opinion" in (v.properties ?? {}));
+  return (items.oneOf ?? [items]).some((v) => field in (v.properties ?? {}));
 }
 
+export const marksOpinion = (schema: unknown) => itemsHave(schema, "opinion");
+/** Whether the format's items can show a licensed image (D119). */
+export const showsMedia = (schema: unknown) => itemsHave(schema, "media_id");
+
 /**
- * Every channel template renders the AI-disclosure partial (invariant 8), and the opinion label
- * too when the format's items can be marked opinion (D117). The gate checks the rendered output.
+ * Every channel template renders the AI-disclosure partial (invariant 8), the opinion label when
+ * the format's items can be marked opinion (D117), and the media partial when they can show an
+ * image (D119). The gate checks the rendered output.
  */
 function templateProblems(root: string, format: string): string[] {
   const dir = join(root, "formats", format, "templates");
   const schemaFile = join(root, "formats", format, "schema.json");
   if (!existsSync(dir) || !existsSync(schemaFile)) return [];
-  const opinion = marksOpinion(JSON.parse(readFileSync(schemaFile, "utf8")));
+  const schema = JSON.parse(readFileSync(schemaFile, "utf8"));
+  const opinion = marksOpinion(schema);
+  const media = showsMedia(schema);
   const problems: string[] = [];
   for (const file of readdirSync(dir).filter((f) => f.endsWith(".liquid"))) {
     const text = readFileSync(join(dir, file), "utf8");
@@ -44,6 +52,10 @@ function templateProblems(root: string, format: string): string[] {
     if (opinion && !/\{%-?\s*render\s+"opinion"/.test(text))
       problems.push(
         `${at} does not render the opinion label, and the format's items can be marked opinion`,
+      );
+    if (media && !/\{%-?\s*render\s+"media"/.test(text))
+      problems.push(
+        `${at} does not render the media partial, and the format's items can show images`,
       );
   }
   return problems;

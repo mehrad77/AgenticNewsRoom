@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import type { ModelsSchema } from "@anr/schemas";
 import { describe, expect, it } from "vitest";
 import { loadConfig } from "./load.ts";
-import { marksOpinion, validateConfig } from "./validate.ts";
+import { marksOpinion, showsMedia, validateConfig } from "./validate.ts";
 
 const root = fileURLToPath(new URL("../../../config", import.meta.url));
 
@@ -79,7 +79,12 @@ describe("validateConfig", () => {
     const copy = mkdtempSync(join(tmpdir(), "anr-config-"));
     cpSync(root, copy, { recursive: true });
     const site = join(copy, "formats", "artist-story", "templates", "site.liquid");
-    writeFileSync(site, readFileSync(site, "utf8").replace(/\{% render "opinion"[^%]*%\}/, ""));
+    writeFileSync(
+      site,
+      readFileSync(site, "utf8")
+        .replace(/\{% render "opinion"[^%]*%\}/, "")
+        .replace(/\{% render "media"[^%]*%\}/, ""),
+    );
     const telegram = join(copy, "formats", "newsletter-issue", "templates", "telegram.liquid");
     writeFileSync(
       telegram,
@@ -92,10 +97,17 @@ describe("validateConfig", () => {
     expect(errors).toContain(
       "formats/newsletter-issue/templates/telegram.liquid does not render the disclosure partial",
     );
+    expect(errors).toContain(
+      "formats/artist-story/templates/site.liquid does not render the media partial, and the format's items can show images",
+    );
     const schema = (f: string) =>
       JSON.parse(readFileSync(join(root, "formats", f, "schema.json"), "utf8"));
     expect(marksOpinion(schema("artist-story"))).toBe(true);
     expect(marksOpinion(schema("newsletter-issue"))).toBe(false);
+    expect([showsMedia(schema("artist-story")), showsMedia(schema("classic-article"))]).toEqual([
+      true,
+      false,
+    ]);
   });
 
   it("requires a written name for each host of a right-to-left language", () => {

@@ -21,6 +21,7 @@ describe("deskRoute", () => {
     expect(deskRoute("/ai/p/1")).toEqual({ kind: "not-found" });
     expect(deskRoute(`/kultur/c/${id}`)).toEqual({ kind: "challenge", newsroom: "kultur", id });
     expect(deskRoute("/kultur/challenges")).toEqual({ kind: "challenges", newsroom: "kultur" });
+    expect(deskRoute("/kultur/media")).toEqual({ kind: "media", newsroom: "kultur" });
     expect(deskRoute("/AI")).toEqual({ kind: "not-found" });
     expect(deskRoute("/admin")).toEqual({ kind: "admin" });
     for (const page of ["plan", "voices", "schedule", "budget", "sources", "measures"])

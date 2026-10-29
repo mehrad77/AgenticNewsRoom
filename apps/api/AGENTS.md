@@ -10,6 +10,7 @@ Hono on Node: reads and writes for people (editor's desk, reader sites). Contrac
 - Never sends to a channel and never calls a model: publishing is the publisher's job (a channel test is a `channel-check` job for it, D101), model calls are the agents worker's.
 - The preview (`src/desk/preview.ts`) renders with the publisher's own context from `@anr/render`; `tools.db.test.ts` holds it equal to what the publisher sends (D98).
 - One public write: a reader's challenge (`/reader/...`, D114), posted by the newsroom's site. It stores nothing about the reader and is rate-limited by a daily HMAC key; everything else is under `/desk/`.
+- Media (`src/desk/media.ts`, D119): adding an image queues `ingest-media`; a press kit's licence is recorded once by a member, audited; the database freezes it.
 - Dev: `pnpm --filter @anr/api dev` → http://localhost:8787/healthz. On the test database, signed in as `dev@anr.test`: `pnpm --filter @anr/api dev:test` → :8788 (the web app's `dev:test` desk calls it).
 - First Editor-in-Chief: `pnpm --filter @anr/api desk:grant <newsroom> <email> editor-in-chief`.
 - The one platform admin (TTS engines on offer, D113): `pnpm --filter @anr/api desk:admin <email>`.

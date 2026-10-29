@@ -1011,6 +1011,88 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+  /desk/newsrooms/{newsroom}/media:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+    get:
+      operationId: listMedia
+      summary: The newsroom's images, unlicensed first
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      responses:
+        "200":
+          description: Up to 200 media items.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/MediaItem" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: addMedia
+      summary: Add an image by URL; ingestion fetches it and reads its Photo Metadata
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MediaAddRequest"
+      responses:
+        "202":
+          description: Queued. The item appears once read, or a media-failed notice.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [queued]
+                properties:
+                  queued: { type: boolean }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /desk/newsrooms/{newsroom}/media/{media}/licence:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+      - $ref: "#/components/parameters/Media"
+    post:
+      operationId: recordPressKit
+      summary: Record that a press kit allows press use, with the credit
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PressKitRequest"
+      responses:
+        "200":
+          description: Recorded; it can no longer change.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
 tags:
   - name: ops
     description: Operational endpoints.
@@ -1044,6 +1126,11 @@ components:
       schema: { type: string, format: uuid }
     Challenge:
       name: challenge
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Media:
+      name: media
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -1340,6 +1427,7 @@ components:
               plan-failed,
               challenge-due,
               challenge-overdue,
+              media-failed,
             ]
         key: { type: string }
         detail: {}
@@ -1901,3 +1989,68 @@ components:
           type: object
           description: The published correction notice per language; one for each language of `affected`.
           additionalProperties: { type: string, minLength: 1, maxLength: 2000 }
+    MediaAddRequest:
+      type: object
+      additionalProperties: false
+      required: [url, lead_id]
+      properties:
+        url:
+          {
+            type: string,
+            format: uri,
+            maxLength: 2048,
+            description: "A Wikimedia Commons file page, or an image from a press kit.",
+          }
+        source_url:
+          {
+            type: string,
+            format: uri,
+            maxLength: 2048,
+            description: "The press kit's page; required unless url is a Commons file page.",
+          }
+        lead_id:
+          {
+            type: string,
+            format: uuid,
+            description: "The lead the image goes with; agents see a lead's licensed images.",
+          }
+    PressKitRequest:
+      type: object
+      additionalProperties: false
+      required: [licence, terms_url]
+      properties:
+        licence:
+          {
+            type: string,
+            minLength: 1,
+            maxLength: 200,
+            description: "The kit's words for the use it allows.",
+          }
+        terms_url: { type: string, format: uri, maxLength: 2048 }
+        credit:
+          {
+            type: string,
+            maxLength: 200,
+            description: "Needed when the image's own metadata carries none.",
+          }
+    MediaItem:
+      type: object
+      required: [id, source_url, file_url, licence, licence_kind, credit_line, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        source_url: { type: string }
+        file_url: { type: string }
+        lead_id: { type: [string, "null"], format: uuid }
+        lead_headline: { type: [string, "null"] }
+        description: { type: [string, "null"] }
+        creator: { type: [string, "null"] }
+        credit_line: { type: [string, "null"] }
+        copyright_notice: { type: [string, "null"] }
+        web_statement: { type: [string, "null"] }
+        licensor: { type: [string, "null"] }
+        digital_source_type: { type: [string, "null"] }
+        licence: { type: [string, "null"] }
+        licence_kind: { type: [string, "null"], enum: [press-kit, commons, null] }
+        licence_url: { type: [string, "null"] }
+        licence_recorded_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }

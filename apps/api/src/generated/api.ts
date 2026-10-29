@@ -737,6 +737,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/desk/newsrooms/{newsroom}/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        /** The newsroom's images, unlicensed first */
+        get: operations["listMedia"];
+        put?: never;
+        /** Add an image by URL; ingestion fetches it and reads its Photo Metadata */
+        post: operations["addMedia"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/media/{media}/licence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                media: components["parameters"]["Media"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record that a press kit allows press use, with the credit */
+        post: operations["recordPressKit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -917,7 +959,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            kind: "budget-warning" | "budget-cap" | "no-leads" | "no-channel" | "no-theme" | "pick-missed" | "plan-failed" | "challenge-due" | "challenge-overdue";
+            kind: "budget-warning" | "budget-cap" | "no-leads" | "no-channel" | "no-theme" | "pick-missed" | "plan-failed" | "challenge-due" | "challenge-overdue" | "media-failed";
             key: string;
             detail: unknown;
             /** Format: date-time */
@@ -1281,6 +1323,55 @@ export interface components {
                 [key: string]: string;
             };
         };
+        MediaAddRequest: {
+            /**
+             * Format: uri
+             * @description A Wikimedia Commons file page, or an image from a press kit.
+             */
+            url: string;
+            /**
+             * Format: uri
+             * @description The press kit's page; required unless url is a Commons file page.
+             */
+            source_url?: string;
+            /**
+             * Format: uuid
+             * @description The lead the image goes with; agents see a lead's licensed images.
+             */
+            lead_id: string;
+        };
+        PressKitRequest: {
+            /** @description The kit's words for the use it allows. */
+            licence: string;
+            /** Format: uri */
+            terms_url: string;
+            /** @description Needed when the image's own metadata carries none. */
+            credit?: string;
+        };
+        MediaItem: {
+            /** Format: uuid */
+            id: string;
+            source_url: string;
+            file_url: string;
+            /** Format: uuid */
+            lead_id?: string | null;
+            lead_headline?: string | null;
+            description?: string | null;
+            creator?: string | null;
+            credit_line: string | null;
+            copyright_notice?: string | null;
+            web_statement?: string | null;
+            licensor?: string | null;
+            digital_source_type?: string | null;
+            licence: string | null;
+            /** @enum {string|null} */
+            licence_kind: "press-kit" | "commons" | null;
+            licence_url?: string | null;
+            /** Format: date-time */
+            licence_recorded_at?: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
     };
     responses: {
         /** @description The request body is not valid. */
@@ -1343,6 +1434,7 @@ export interface components {
         Newsroom: string;
         Publication: string;
         Challenge: string;
+        Media: string;
     };
     requestBodies: never;
     headers: never;
@@ -2430,6 +2522,97 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChallengeDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listMedia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Up to 200 media items. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaItem"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    addMedia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MediaAddRequest"];
+            };
+        };
+        responses: {
+            /** @description Queued. The item appears once read, or a media-failed notice. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        queued: boolean;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    recordPressKit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                media: components["parameters"]["Media"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PressKitRequest"];
+            };
+        };
+        responses: {
+            /** @description Recorded; it can no longer change. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaItem"];
                 };
             };
             400: components["responses"]["BadRequest"];

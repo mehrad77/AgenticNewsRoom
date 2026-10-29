@@ -25,6 +25,7 @@ import {
 import { DeskError } from "./desk/errors.ts";
 import { fileIssue, listNotices, listSamples, readNotice, reviewSample } from "./desk/followups.ts";
 import { measures } from "./desk/measures.ts";
+import { addMedia, isHttpUrl, listMedia, recordPressKit } from "./desk/media.ts";
 import { type DeskPerson, deskPerson } from "./desk/people.ts";
 import { approveTheme, choosePick, plan } from "./desk/plan.ts";
 import { type PreviewSite, previewPublication } from "./desk/preview.ts";
@@ -382,6 +383,35 @@ export function createApp(deps?: DeskDeps) {
     const url = text((await body(c)).url, 500) ?? "";
     return c.json(
       await inNewsroom(c, (db, actor) => fileChallengeIssue(db, actor, id(c, "challenge"), url)),
+    );
+  });
+
+  // Media items (D16, D119): any member adds images and records a press kit's licence.
+  app.get(`${base}/media`, async (c) => c.json(await inNewsroom(c, (db) => listMedia(db))));
+  app.post(`${base}/media`, async (c) => {
+    const b = await body(c);
+    const url = text(b.url, 2048)?.trim() ?? "";
+    const sourceUrl = text(b.source_url, 2048)?.trim() || undefined;
+    const leadId = typeof b.lead_id === "string" && UUID.test(b.lead_id) ? b.lead_id : undefined;
+    return c.json(
+      await inNewsroom(c, (db, actor) => addMedia(db, boss, actor, { url, sourceUrl, leadId })),
+      202,
+    );
+  });
+  app.post(`${base}/media/:media/licence`, async (c) => {
+    const b = await body(c);
+    const licence = text(b.licence, 200)?.trim();
+    const termsUrl = text(b.terms_url, 2048)?.trim() ?? "";
+    const credit = text(b.credit, 200)?.trim() || undefined;
+    if (!licence || !isHttpUrl(termsUrl))
+      throw new DeskError(
+        400,
+        "licence: the press kit's terms, and terms_url: the page stating them",
+      );
+    return c.json(
+      await inNewsroom(c, (db, actor) =>
+        recordPressKit(db, actor, id(c, "media"), { licence, termsUrl, credit }),
+      ),
     );
   });
 

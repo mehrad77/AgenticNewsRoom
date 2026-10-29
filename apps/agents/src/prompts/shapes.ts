@@ -18,6 +18,8 @@ export interface ItemShape {
   kinds: string[];
   /** Whether items can be marked opinion (D117). */
   opinion: boolean;
+  /** Whether items can show a licensed image (D119). */
+  media: boolean;
 }
 
 function placeholder(name: string, p: Property): string {
@@ -52,5 +54,6 @@ export function itemShape(schema: unknown): ItemShape {
     variants: shapes,
     kinds,
     opinion: variants.some((v) => v.properties?.opinion !== undefined),
+    media: variants.some((v) => v.properties?.media_id !== undefined),
   };
 }

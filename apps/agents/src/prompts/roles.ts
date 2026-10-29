@@ -35,11 +35,14 @@ export function deskSteps(language: string, shape: ItemShape) {
     outline: `Step 1, outline. Read what you need (read_lead, search_leads, request_source), then plan the piece.
 Answer JSON: {"beat": "<one beat slug>", "summary": "<two sentences on what the piece covers>", "items": [{${plan.join(", ")}}]}`,
     draft: `Step 2, draft. Write each planned item in language "${language}", following the format guide and the style guide.
-Answer JSON: {"language": "${language}", "title": "...", "items": [${shape.variants.join(" | ")}, ...]}`,
+Answer JSON: {"language": "${language}", "title": "...", "items": [${shape.variants.join(" | ")}, ...]}${shape.media ? `\n${MEDIA_RULE}` : ""}`,
     claims: DESK_CLAIMS,
   };
 }
 export type DeskSteps = ReturnType<typeof deskSteps>;
+
+/** Images are chosen, never described: caption, credit and licence come from the media item. */
+export const MEDIA_RULE = `An item may show one image: set "media_id" to the id of a licensed image listed with the leads, or leave it out. Never write about the image; code adds its caption and credit.`;
 
 export const DESK_CLAIMS = `Step 3, claims. List the claims behind every item, then give the final draft with each item's claim_ids. Every item lists at least one claim.
 Answer one JSON object with exactly two top-level keys, "story" and "rendition"; the rendition sits beside the story, not inside it:

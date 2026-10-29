@@ -7,6 +7,7 @@ import { challengeForm, sendChallenge } from "../lib/challenge.ts";
 import { db } from "../lib/db.ts";
 import { scriptJson } from "../lib/metadata.ts";
 import { loadPage } from "../lib/page.ts";
+import { imageResponse, mediaRoute, publishedImage } from "../lib/media.ts";
 import { audioResponse, countDownload, episodeAudio, feedRenderer, listenerAddress, podcastFeed, podcastRoute } from "../lib/podcast.ts";
 import { newsroomBySubdomain } from "../lib/reader.ts";
 import { route } from "../lib/routes.ts";
@@ -37,6 +38,13 @@ if (pod) {
   const feed = await podcastFeed(db(), newsroom, site.language, pod.series, address, label);
   if (!feed) return new Response("Not found", { status: 404 });
   return new Response(feed, { headers: { "content-type": "application/rss+xml; charset=utf-8" } });
+}
+// A published image with its metadata and manifest (src/lib/media.ts).
+const imageId = mediaRoute(site.path);
+if (imageId) {
+  const newsroom = await newsroomBySubdomain(db(), site.newsroom.subdomain);
+  const image = newsroom && (await publishedImage(db(), newsroom, imageId));
+  return image ? imageResponse(image) : new Response("Not found", { status: 404 });
 }
 // A reader's challenge from the form under a piece (D114): passed to the API, then on to the
 // reader's status page. Handled before the page loads, so it is not counted as a view.

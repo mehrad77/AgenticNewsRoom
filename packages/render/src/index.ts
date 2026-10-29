@@ -11,6 +11,10 @@ export {
   editedByPerson,
   isEpisode,
   leadIds,
+  type MediaContext,
+  mediaContext,
+  mediaIds,
+  mediaPath,
   type SitePathInput,
   sitePath,
   templateContext,
@@ -156,6 +160,10 @@ export function createRenderer(root = formatsDir) {
         language,
       });
       return out.trim();
+    },
+    /** `text` as a template outputs it (HTML-escaped): what to look for in rendered output. */
+    async escaped(text: string): Promise<string> {
+      return engine.parseAndRender("{{ text }}", { text });
     },
     render,
     /** The notes line naming an episode's voices as AI (`_partials/ai-voices-notes.liquid`). */

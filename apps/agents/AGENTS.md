@@ -34,4 +34,6 @@ Podcasts (D107):
 
 Challenges (D114): `challenges/deadline.ts` handles the `challenge-deadline` jobs the API queues with each reader's challenge, leaving a `challenge-due` or `challenge-overdue` notice while a step is still open.
 
+Media (D119): `media/ingest.ts` handles `ingest-media`, calling ingestion's `POST /media` and leaving a `media-failed` notice when it refuses or fails. The desk sees each lead's licensed images (`read_lead`, the assignment message) and may set `media_id`; the gate's `media-credit` check requires each image's credit in every channel's output.
+
 Use the `add-agent-role` skill for a new role. Commands: `pnpm --filter @anr/agents test`, `pnpm --filter @anr/agents dev` (needs `pnpm db:up`).
