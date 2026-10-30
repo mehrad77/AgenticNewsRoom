@@ -40,5 +40,9 @@ RUN if [ "$APP" = publisher ]; then \
     fi
 COPY --from=c2patool /c2patool/bin/ /usr/local/bin/
 COPY --from=build /repo /repo
+# What nothing runs at runtime is not shipped, so a scan finds nothing in it (D134): npm (pnpm
+# runs the apps), and dbmate everywhere but the api image, where the migrate job uses it.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx \
+  && if [ "$APP" != api ]; then rm -rf /repo/node_modules/.pnpm/@dbmate*; fi
 WORKDIR /repo/apps/${APP}
 CMD ["pnpm", "start"]

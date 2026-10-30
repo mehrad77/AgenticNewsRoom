@@ -11,6 +11,7 @@ on:
     paths:
       - .dockerignore
       - .github/workflows/release.yml
+      - .trivyignore.yaml
       - infra/docker/**
       - infra/postgres/**
       - package.json
@@ -81,6 +82,8 @@ jobs:
           output: trivy.sarif
           # Without it, a SARIF run drops the severity filter and fails on any finding.
           limit-severities-for-sarif: true
+          # Accepted findings, each scoped to a file and expiring.
+          trivyignores: .trivyignore.yaml
       # A fork's pull request gets a read-only token, so only the repository's own upload results.
       - name: Upload scan results
         if: always() && github.event.pull_request.head.repo.full_name == github.repository
@@ -150,6 +153,8 @@ jobs:
           output: trivy.sarif
           # Without it, a SARIF run drops the severity filter and fails on any finding.
           limit-severities-for-sarif: true
+          # Accepted findings, each scoped to a file and expiring.
+          trivyignores: .trivyignore.yaml
       - name: Upload scan results
         if: always()
         uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
