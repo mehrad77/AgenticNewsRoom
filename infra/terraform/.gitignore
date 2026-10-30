@@ -1,0 +1,8 @@
+# Only the configuration is committed. Plan files and state hold the tunnel token (D136), so
+# anything else written here (a saved plan under any name) stays out of the public repository.
+*
+!.gitignore
+!*.tf
+!.terraform.lock.hcl
+!.tflint.hcl
+!tf.sh

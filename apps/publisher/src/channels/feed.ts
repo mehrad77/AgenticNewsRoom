@@ -7,6 +7,7 @@ export const feedPath = (seriesSlug: string) => `/podcast/${seriesSlug}.xml`;
 
 export function podcastFeed(): ChannelAdapter {
   return {
+    internal: true,
     async send(_target, text) {
       // The item's guid identifies it in the feed; the Post row keeps the text.
       return /<guid[^>]*>([^<]+)<\/guid>/.exec(text)?.[1] ?? "item";

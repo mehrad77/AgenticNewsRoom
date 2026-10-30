@@ -16,6 +16,7 @@
     "@anr/core": "workspace:*",
     "@anr/db": "workspace:*",
     "@anr/render": "workspace:*",
+    "@anr/storage": "workspace:*",
     "@astrojs/node": "11.1.9",
     "astro": "7.4.2"
   },

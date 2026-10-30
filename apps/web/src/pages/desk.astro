@@ -10,6 +10,7 @@ import Measures from "../components/desk/Measures.astro";
 import Notices from "../components/desk/Notices.astro";
 import Plan from "../components/desk/Plan.astro";
 import Admin from "../components/desk/Admin.astro";
+import Ops from "../components/desk/Ops.astro";
 import Voices from "../components/desk/Voices.astro";
 import Publication from "../components/desk/Publication.astro";
 import Queue from "../components/desk/Queue.astro";
@@ -76,6 +77,8 @@ const measures = r.kind === "measures" ? await load(() => api.measures(r.newsroo
 const plan = r.kind === "plan" ? await load(() => api.plan(r.newsroom)) : undefined;
 const voices = r.kind === "voices" ? await load(() => api.newsroomTts(r.newsroom)) : undefined;
 const adminTts = r.kind === "admin" && me?.platform_admin ? await load(() => api.adminTts()) : undefined;
+const ops = r.kind === "ops" && me?.platform_admin ? await load(() => api.ops()) : undefined;
+const grafana = `https://ops.${process.env.ANR_ROOT_DOMAIN ?? "localhost"}`;
 const role = me?.memberships.find((m) => m.newsroom === n)?.role;
 if (r.kind === "not-found") Astro.response.status = 404;
 const nav = [
@@ -98,6 +101,7 @@ const nav = [
     <strong><a href="/">Editor's desk</a></strong>
     {n && <nav>{nav.map(([path, label]) => <a href={`/${n}${path}`} aria-current={Astro.locals.path === `/${n}${path}` ? "page" : undefined}>{label}</a>)}</nav>}
     {me?.platform_admin && <a href="/admin" aria-current={r.kind === "admin" ? "page" : undefined}>Admin</a>}
+    {me?.platform_admin && <a href="/ops" aria-current={r.kind === "ops" ? "page" : undefined}>Ops</a>}
     {me && <small>{me.email}</small>}
   </header>
   <main>
@@ -117,6 +121,8 @@ const nav = [
     {voices && <Voices tts={voices} chief={role === "editor-in-chief"} />}
     {adminTts && <Admin tts={adminTts} />}
     {r.kind === "admin" && me && !me.platform_admin && <h1>Only the platform admin can open this page.</h1>}
+    {ops && <Ops ops={ops} grafana={grafana} />}
+    {r.kind === "ops" && me && !me.platform_admin && <h1>Only the platform admin can open this page.</h1>}
     {channels && <Channels channels={channels} chief={role === "editor-in-chief"} />}
     {n && challenges && <Challenges newsroom={n} challenges={challenges} />}
     {n && media && <Media media={media} />}

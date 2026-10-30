@@ -2,3 +2,4 @@
 genre: genre:Summary # Briefing: a summary of a number of news items
 ninjs_type: text
 run_tokens: 250000 # input + output over all model calls of one agent run (D76)
+grace: 30m # how late a send may still start; later it is held for an editor (D129)

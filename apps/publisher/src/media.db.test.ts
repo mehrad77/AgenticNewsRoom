@@ -120,7 +120,7 @@ const deps = (now: Date) => ({
   random: () => 0.5,
   media: {
     writer: tools ? exiftoolWriter() : unchangedForTests,
-    raw: rawReader(rawDir),
+    raw: rawReader(localStore(rawDir)),
     store,
     workDir: () => {
       const dir = mkdtempSync(join(tmpdir(), "anr-work-"));

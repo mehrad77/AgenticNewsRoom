@@ -60,7 +60,7 @@ Dev ports: web 4321 (override with `WEB_PORT`), api 8787, ingestion 8101, verifi
 4. Write the change with tests. Logic goes in plain modules; framework files stay thin.
 5. `pnpm check`.
 6. Update the docs, tick the build-plan task, record any new decision in [decisions](decisions.md).
-7. Commit with a conventional message (`feat(publisher): idempotent Telegram send`).
+7. Commit with a conventional message (`feat(publisher): idempotent Telegram send`). Once per clone, `git config core.hooksPath .githooks` makes every commit refuse a file in `infra/secrets/` that is not SOPS-encrypted (D125).
 
 ## Conventions
 
@@ -70,7 +70,7 @@ Dev ports: web 4321 (override with `WEB_PORT`), api 8787, ingestion 8101, verifi
 - **Generated code** is committed and never edited by hand; `pnpm gen:check` fails if it is stale.
 - **Config** changes are validated by `pnpm config:check`; a new rule goes into `packages/config/src/validate.ts` with a test.
 - **Secrets** only in the environment; the list is `.env.example`. A dev `.env` is never committed; the production values are committed only SOPS-encrypted, in `infra/secrets/prod.env` (D125).
-- **Dev and prod** are Compose projects `anr` (Postgres on 5432) and `anr-prod` (5433), so they can share one machine, as on the operator's laptop; a dedicated server runs only `anr-prod`. Dev never sends to a real channel: the publisher needs `ANR_PUBLISH=live`, which only production sets (D126). Use `ANR_MODELS=free` and `ANR_TTS=fake` in dev so it never spends production's quotas.
+- **Dev and prod** are Compose projects `anr` (`infra/compose.yaml`, Postgres on 5432) and `anr-prod` (`infra/compose.prod.yaml`, 5433; `ANR_PG_PORT` moves either), so they can share one machine, as on the operator's laptop; a dedicated server runs only `anr-prod`. Dev never sends to a real channel: the publisher needs `ANR_PUBLISH=live`, which only production sets (D126). Use `ANR_MODELS=free` and `ANR_TTS=fake` in dev so it never spends production's quotas.
 - **Docs** describe settled design. Anything undecided is a GitHub issue until decided, then a row in [decisions](decisions.md).
 
 ## Free models

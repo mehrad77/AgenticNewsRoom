@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
 # Restores the latest backup (and all archived WAL) into an empty Postgres volume, starts it
 # with WAL archiving off, and waits until recovery has finished. Run on a fresh machine, from the
-# repo root, with the production .env (the same role passwords, R2 keys and backup passphrase).
+# repo root, with the production env (the same role passwords, R2 keys and backup passphrase) and
+# ANR_VERSION set to the tag whose Postgres image to use.
 #   infra/backup/restore.sh                       latest state
 #   ANR_RESTORE_TARGET="2026-11-02 09:00:00+03" infra/backup/restore.sh   point in time
+# shellcheck source=lib.sh
 source "$(dirname "$0")/lib.sh"
-# Exported, so it beats ANR_WAL_ARCHIVE=on in the production .env for every compose call here.
+# shellcheck source=../env.sh
+source infra/env.sh
+load_prod_env || die "could not load the production env"
+# After the env, which turns archiving on: exported, it beats the env file for every compose call.
 archive_off
+[[ -n "${ANR_VERSION:-}" ]] || die "set ANR_VERSION to the release tag"
 
 if [[ -n "$(docker compose ps --status running -q postgres)" ]]; then
   die "postgres is running; a restore needs it stopped and its volume empty"
@@ -28,9 +34,12 @@ for _ in $(seq 1 120); do
     assert_archive_off
     # The publisher holds every slot already past due at this moment (D90).
     psql_super -d anr -c "insert into restores (note) values ('restore.sh')" >/dev/null
+    # deploy.sh refuses this copy until a person promotes it, so it never archives into production.
+    psql_super -d anr -c "insert into platform_settings (key, value) values ('restore.unpromoted', 'true')
+      on conflict (key) do update set value = excluded.value, updated_at = now()" >/dev/null
     echo "restored: $(psql_super -d anr -c "select count(*) || ' newsrooms' from newsrooms"), WAL archiving off"
     exit 0
   fi
   sleep 2
 done
-die "recovery did not finish within 4 minutes; see: docker compose logs postgres"
+die "recovery did not finish within 4 minutes; see: docker compose -p $COMPOSE_PROJECT_NAME logs postgres"

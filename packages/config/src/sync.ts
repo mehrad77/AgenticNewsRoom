@@ -175,11 +175,11 @@ async function syncFormats(
   for (const slug of config.formats) {
     const meta = config.formatMeta[slug] as FormatSchema;
     const { rows } = await client.query<Row>(
-      `insert into formats (slug, genre, ninjs_type) values ($1, $2, $3)
+      `insert into formats (slug, genre, ninjs_type, grace) values ($1, $2, $3, $4::interval)
        on conflict (slug) do update set genre = excluded.genre, ninjs_type = excluded.ninjs_type,
-         updated_at = now(), removed_at = null
+         grace = excluded.grace, updated_at = now(), removed_at = null
        ${RETURNING}`,
-      [slug, meta.genre, meta.ninjs_type],
+      [slug, meta.genre, meta.ninjs_type, interval(meta.grace)],
     );
     ids.set(slug, tally(c, rows[0]));
   }

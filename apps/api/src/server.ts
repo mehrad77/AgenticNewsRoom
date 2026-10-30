@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import { createBoss, createPool, platformKey } from "@anr/db";
+import { createBoss, createPool, platformKey, startHeartbeat } from "@anr/db";
 import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
 import { accessVerifier } from "./desk/access.ts";
@@ -11,8 +11,10 @@ if (!connectionString) throw new Error("DATABASE_URL is not set");
 const boss = createBoss(connectionString, "api", { supervise: false, schedule: false });
 await boss.start();
 
+const pool = createPool(connectionString);
+startHeartbeat(pool, "api");
 const app = createApp({
-  pool: createPool(connectionString),
+  pool,
   boss,
   platform: platformKey(),
   verify: accessVerifier({

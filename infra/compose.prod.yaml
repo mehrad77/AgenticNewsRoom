@@ -1,0 +1,201 @@
+# Production (D126, D134): project anr-prod with its own volumes and images from GHCR by tag. The
+# server never builds; `infra/deploy.sh <tag>` pulls and starts this file with the decrypted env as
+# Compose's --env-file, which only fills in the ${...} below.
+# A local trial builds the same images with infra/compose.build.yaml (infra/AGENTS.md).
+# The one-shot `migrate` and `config-sync` jobs finish before any app starts.
+name: anr-prod
+
+# Docker's default json-file log grows without bound; the collector (milestone 7b) reads these files.
+x-logging: &logging
+  driver: json-file
+  options: { max-size: 10m, max-file: "5" }
+
+# Every app: restarts with Docker, starts after both jobs. Each gets only the variables it reads,
+# never the whole env: the superuser password, the backup passphrase and the tunnel token stay with
+# the one container that needs each. Apps reach Postgres as anr_app, at host `postgres`.
+x-app: &app
+  restart: unless-stopped
+  logging: *logging
+  depends_on:
+    postgres: { condition: service_healthy }
+    migrate: { condition: service_completed_successfully }
+    config-sync: { condition: service_completed_successfully }
+
+x-database: &database postgres://anr_app:${ANR_APP_DB_PASSWORD:-}@postgres:5432/anr
+
+services:
+  postgres:
+    image: ${ANR_IMAGES:-ghcr.io/mehrad77}/anr-postgres:${ANR_VERSION:?deploy.sh sets ANR_VERSION}
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      # No defaults: deploy.sh refuses a weak or missing password before anything starts.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+      ANR_MIGRATOR_DB_PASSWORD: ${ANR_MIGRATOR_DB_PASSWORD:-}
+      ANR_APP_DB_PASSWORD: ${ANR_APP_DB_PASSWORD:-}
+      ANR_SYSTEM_DB_PASSWORD: ${ANR_SYSTEM_DB_PASSWORD:-}
+      ANR_DATABASES: ${ANR_DATABASES:-anr}
+      # pgBackRest (infra/backup/): every option as an environment variable; the repository is
+      # the R2 bucket, encrypted with the backup passphrase.
+      PGBACKREST_STANZA: anr
+      PGBACKREST_PG1_PATH: /var/lib/postgresql/data
+      PGBACKREST_REPO1_TYPE: s3
+      PGBACKREST_REPO1_PATH: /pgbackrest
+      PGBACKREST_REPO1_S3_BUCKET: ${ANR_BACKUP_BUCKET:-}
+      PGBACKREST_REPO1_S3_ENDPOINT: ${ANR_BACKUP_S3_ENDPOINT:-${R2_ACCOUNT_ID:-}.r2.cloudflarestorage.com}
+      PGBACKREST_REPO1_S3_REGION: ${ANR_BACKUP_S3_REGION:-auto}
+      PGBACKREST_REPO1_S3_URI_STYLE: path
+      # Its own R2 token, scoped to the backups bucket: no app can reach the backups.
+      PGBACKREST_REPO1_S3_KEY: ${R2_BACKUP_ACCESS_KEY_ID:-}
+      PGBACKREST_REPO1_S3_KEY_SECRET: ${R2_BACKUP_SECRET_ACCESS_KEY:-}
+      PGBACKREST_REPO1_CIPHER_TYPE: aes-256-cbc
+      PGBACKREST_REPO1_CIPHER_PASS: ${ANR_BACKUP_PASSPHRASE:-}
+      PGBACKREST_REPO1_RETENTION_FULL: "4"
+      PGBACKREST_COMPRESS_TYPE: zst
+      PGBACKREST_START_FAST: "y"
+      PGBACKREST_LOG_LEVEL_FILE: "off"
+    # WAL archiving: on in production, off on a restored copy, which must never push into the
+    # production repository (the restore scripts export ANR_WAL_ARCHIVE=off). archive_timeout
+    # bounds data loss to 5 minutes.
+    command:
+      - postgres
+      - -c
+      - archive_mode=${ANR_WAL_ARCHIVE:-off}
+      - -c
+      - archive_command=pgbackrest archive-push %p
+      - -c
+      - archive_timeout=300
+    # The only published port, on loopback. Where dev shares the machine, its project `anr` has
+    # another port (D126).
+    ports: ["127.0.0.1:${ANR_PG_PORT:-5433}:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # Over TCP: during first-start init the server listens on its unix socket only.
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "postgres"]
+      interval: 5s
+      retries: 10
+
+  # One-shot deploy jobs, in the api image (it holds the whole workspace, dbmate included). No
+  # restart policy: they run once per deploy.
+  migrate:
+    image: ${ANR_IMAGES:-ghcr.io/mehrad77}/anr-api:${ANR_VERSION:?deploy.sh sets ANR_VERSION}
+    logging: *logging
+    working_dir: /repo/packages/db
+    environment:
+      DATABASE_URL: postgres://anr_migrator:${ANR_MIGRATOR_DB_PASSWORD:-}@postgres:5432/anr?sslmode=disable
+    command: [pnpm, exec, dbmate, --wait, --migrations-dir, migrations, --no-dump-schema, up]
+    depends_on: { postgres: { condition: service_healthy } }
+
+  config-sync:
+    image: ${ANR_IMAGES:-ghcr.io/mehrad77}/anr-api:${ANR_VERSION:?deploy.sh sets ANR_VERSION}
+    logging: *logging
+    working_dir: /repo
+    environment:
+      DATABASE_MIGRATION_URL: postgres://anr_migrator:${ANR_MIGRATOR_DB_PASSWORD:-}@postgres:5432/anr
+      DATABASE_SYSTEM_URL: postgres://anr_system:${ANR_SYSTEM_DB_PASSWORD:-}@postgres:5432/anr
+    command:
+      [sh, -c, "pnpm --filter @anr/db tenancy:check && pnpm config:check && pnpm config:sync"]
+    depends_on: { migrate: { condition: service_completed_successfully } }
+
+  api:
+    <<: *app
+    image: ${ANR_IMAGES:-ghcr.io/mehrad77}/anr-api:${ANR_VERSION:?deploy.sh sets ANR_VERSION}
+    environment:
+      DATABASE_URL: *database
+      ANR_ROOT_DOMAIN: ${ANR_ROOT_DOMAIN:-}
+      ANR_PLATFORM_KEY: ${ANR_PLATFORM_KEY:-}
+      CF_ACCESS_TEAM_DOMAIN: ${CF_ACCESS_TEAM_DOMAIN:-}
+      CF_ACCESS_AUD: ${CF_ACCESS_AUD:-}
+      ANR_MODELS: ${ANR_MODELS:-}
+
+  web:
+    <<: *app
+    image: ${ANR_IMAGES:-ghcr.io/mehrad77}/anr-web:${ANR_VERSION:?deploy.sh sets ANR_VERSION}
+    environment:
+      DATABASE_URL: *database
+      ANR_ROOT_DOMAIN: ${ANR_ROOT_DOMAIN:-}
+      # The desk pages and the reader's challenge form call the API server-side (D95, D122).
+      ANR_API_URL: http://api:8787
+      ANR_ISSUES_URL: ${ANR_ISSUES_URL:-}
+      # The daily secret behind download counting (D110).
+      ANR_PLATFORM_KEY: ${ANR_PLATFORM_KEY:-}
+      # Presigned links to audio and images (D132).
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      ANR_MEDIA_BUCKET: ${ANR_MEDIA_BUCKET:-}
+      ANR_S3_ENDPOINT: ${ANR_S3_ENDPOINT:-}
+
+  agents:
+    <<: *app
+    image: ${ANR_IMAGES:-ghcr.io/mehrad77}/anr-agents:${ANR_VERSION:?deploy.sh sets ANR_VERSION}
+    environment:
+      DATABASE_URL: *database
+      ANR_INGESTION_URL: http://ingestion:8000
+      ANR_VERIFIER_URL: http://verifier:8000
+      ANR_SUMMARISER_RPM: ${ANR_SUMMARISER_RPM:-10}
+      ANR_MODELS: ${ANR_MODELS:-}
+      # The keys config/models.yaml names (key_env).
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+
+  publisher:
+    <<: *app
+    image: ${ANR_IMAGES:-ghcr.io/mehrad77}/anr-publisher:${ANR_VERSION:?deploy.sh sets ANR_VERSION}
+    environment:
+      DATABASE_URL: *database
+      ANR_ROOT_DOMAIN: ${ANR_ROOT_DOMAIN:-}
+      ANR_PLATFORM_KEY: ${ANR_PLATFORM_KEY:-}
+      ANR_PUBLISH: ${ANR_PUBLISH:-}
+      ANR_MODELS: ${ANR_MODELS:-}
+      ANR_TTS: ${ANR_TTS:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      ANR_RAW_BUCKET: ${ANR_RAW_BUCKET:-}
+      ANR_MEDIA_BUCKET: ${ANR_MEDIA_BUCKET:-}
+      ANR_S3_ENDPOINT: ${ANR_S3_ENDPOINT:-}
+
+  ingestion:
+    <<: *app
+    image: ${ANR_IMAGES:-ghcr.io/mehrad77}/anr-ingestion:${ANR_VERSION:?deploy.sh sets ANR_VERSION}
+    environment:
+      DATABASE_URL: *database
+      ANR_ROOT_DOMAIN: ${ANR_ROOT_DOMAIN:-}
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      ANR_RAW_BUCKET: ${ANR_RAW_BUCKET:-}
+      ANR_S3_ENDPOINT: ${ANR_S3_ENDPOINT:-}
+
+  verifier:
+    <<: *app
+    image: ${ANR_IMAGES:-ghcr.io/mehrad77}/anr-verifier:${ANR_VERSION:?deploy.sh sets ANR_VERSION}
+    environment:
+      DATABASE_URL: *database
+
+  # Plain HTTP router behind the tunnel (D122); no host port. Stock image: no TLS, so no modules.
+  caddy:
+    image: caddy:2.11.7@sha256:36c24ad91a7ff7bc4c87fe22bfa8df3c4b18da0773d73fc12ee2c52b98c0bb7e
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      ANR_ROOT_DOMAIN: ${ANR_ROOT_DOMAIN:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on: [api, web]
+
+  # Outbound-only connections to Cloudflare (D122). Its ingress lives in Terraform, so the token is
+  # all it needs; deploy.sh refuses to start without one.
+  cloudflared:
+    image: cloudflare/cloudflared:2026.10.2@sha256:0e56c13c7058fcef9c4f0e7d83372f82330548dbf8f8b366f3d8b506526d93b2
+    restart: unless-stopped
+    logging: *logging
+    command: [tunnel, --no-autoupdate, run]
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on: [caddy]
+
+volumes:
+  pgdata:

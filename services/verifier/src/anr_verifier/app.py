@@ -15,6 +15,7 @@ from psycopg_pool import ConnectionPool
 from anr_schemas.config.verify_request import VerifyRequest
 from anr_schemas.config.verify_result import VerifyResult
 from anr_verifier.db import Conn, create_pool
+from anr_verifier.heartbeat import start_heartbeat
 from anr_verifier.verify import StoryNotFound, verify
 
 REPO = Path(__file__).resolve().parents[4]
@@ -31,7 +32,11 @@ def create_app(pool: ConnectionPool[Conn] | None = None, config_dir: Path | None
         else:
             app.state.pool = pool
         app.state.pool.open()
+        # Only the service's own run beats (D128); tests bring their own pool.
+        stop_heartbeat = start_heartbeat(app.state.pool, "verifier") if pool is None else None
         yield
+        if stop_heartbeat:
+            stop_heartbeat()
         if pool is None:
             app.state.pool.close()
 

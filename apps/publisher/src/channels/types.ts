@@ -38,6 +38,11 @@ export interface ChannelCheck {
 }
 
 export interface ChannelAdapter {
+  /**
+   * The platform's own channel (the podcast feed): a send never leaves ANR. Any other adapter
+   * reaches the outside world, and sends only where ANR_PUBLISH is `live` (D126).
+   */
+  internal?: boolean;
   /** Sends one message; returns the channel's id for it. Throws SendError, nothing else. */
   send(target: ChannelTarget, text: string): Promise<string>;
   /** Current subscriber count, for the daily audience snapshot. */

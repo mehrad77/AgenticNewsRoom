@@ -1,0 +1,10 @@
+[Unit]
+Description=ANR: weekly full backup, Sunday 03:00
+
+[Timer]
+OnCalendar=Sun *-*-* 03:00:00
+# A run missed while the host was down or asleep runs once when it is back (D131).
+Persistent=true
+
+[Install]
+WantedBy=timers.target

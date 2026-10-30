@@ -1,0 +1,23 @@
+# Local builds of the production images, for a trial of anr-prod or the restore drill on this
+# machine; the server only pulls (D134). With ANR_IMAGES=local and ANR_VERSION=local:
+#   docker compose -f infra/compose.prod.yaml -f infra/compose.build.yaml build
+# Releases are built by .github/workflows/release.yml from the same Dockerfiles.
+x-node: &node { context: .., dockerfile: infra/docker/node.Dockerfile }
+x-python: &python { context: .., dockerfile: infra/docker/python.Dockerfile }
+
+services:
+  postgres:
+    build: { context: .., dockerfile: infra/docker/postgres.Dockerfile }
+  # migrate and config-sync run in the api image, so build before `up`.
+  api:
+    build: { <<: *node, args: { APP: api } }
+  web:
+    build: { <<: *node, args: { APP: web } }
+  agents:
+    build: { <<: *node, args: { APP: agents } }
+  publisher:
+    build: { <<: *node, args: { APP: publisher } }
+  ingestion:
+    build: { <<: *python, args: { SERVICE: ingestion } }
+  verifier:
+    build: { <<: *python, args: { SERVICE: verifier } }

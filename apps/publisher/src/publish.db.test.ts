@@ -39,6 +39,7 @@ const deps = (adapter: ChannelAdapter, more: Partial<PublishDeps> = {}): Publish
   adapters: { telegram: adapter },
   platform,
   rootDomain: "example.test",
+  live: true,
   now: () => NOW,
   random: () => 0.5,
   ...more,
@@ -343,6 +344,8 @@ describe("publishing a scheduled publication", () => {
   it("holds a channel still unreachable an hour after the slot", async () => {
     const { newsroomId, publicationId } = await scheduled();
     const tg = fakeTelegram(() => new SendError("retry", "unreachable"));
+    // Tried at its slot, so the send started: it keeps D89's hour of retries, not the grace.
+    expect(await publishOne(deps(tg.adapter), newsroomId, publicationId)).toBe("retry");
     const late = new Date(SLOT.getTime() + 61 * 60_000);
     expect(await publishOne(deps(tg.adapter, { now: () => late }), newsroomId, publicationId)).toBe(
       "held",
@@ -442,7 +445,7 @@ describe("a channel check", () => {
 });
 
 describe("an unexpected publisher error", () => {
-  it("is retried while the slot is fresh, then held for a person", async () => {
+  it("is retried within the grace, then held as a missed slot for a person", async () => {
     // Year 2000 again: no other test's fixtures are due at this clock.
     const slot = new Date("2000-01-02T00:00:00Z");
     const { publicationId } = await scheduled({ slot });
@@ -462,8 +465,146 @@ describe("an unexpected publisher error", () => {
       );
     await run(5);
     expect((await publication(publicationId))?.status).toBe("scheduled");
-    await run(61);
+    await run(25);
+    expect((await publication(publicationId))?.status).toBe("scheduled");
+    // Nothing went out within the newsletter's 30 minutes (D129); the log keeps the error.
+    await run(31);
     expect((await publication(publicationId))?.status).toBe("with-editor");
-    expect(await holds(publicationId)).toEqual(["publisher-error"]);
+    expect(await holds(publicationId)).toEqual(["missed-slot"]);
+  });
+});
+
+describe("dev never publishes (D126)", () => {
+  const dryRuns = async (id: string) =>
+    (
+      await pools.system.query<{ status: string; dry_run: boolean; external_id: string | null }>(
+        `select p.status, p.dry_run, p.external_id from posts p
+         join channels c on c.id = p.channel_id
+         where p.publication_id = $1 and c.kind = 'telegram' order by p.part`,
+        [id],
+      )
+    ).rows;
+
+  it("records each part as a dry run and never calls an external channel unless live", async () => {
+    const { newsroomId, publicationId } = await scheduled();
+    const tg = fakeTelegram();
+    expect(await publishOne(deps(tg.adapter, { live: false }), newsroomId, publicationId)).toBe(
+      "published",
+    );
+    expect(tg.calls()).toBe(0);
+    const rows = await dryRuns(publicationId);
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((r) => r.status === "sent" && r.dry_run && r.external_id === null)).toBe(
+      true,
+    );
+  });
+
+  it("sends for real when live", async () => {
+    const { newsroomId, publicationId } = await scheduled();
+    const tg = fakeTelegram();
+    expect(await publishOne(deps(tg.adapter, { live: true }), newsroomId, publicationId)).toBe(
+      "published",
+    );
+    expect(tg.calls()).toBeGreaterThan(0);
+    expect((await dryRuns(publicationId)).every((r) => !r.dry_run && r.external_id)).toBe(true);
+  });
+});
+
+describe("missed slots (D129)", () => {
+  const notices = async (id: string) =>
+    (
+      await pools.system.query<{ late: string }>(
+        "select detail->>'late_minutes' as late from notices where kind = 'slot-missed' and key = $1",
+        [id],
+      )
+    ).rows;
+
+  it("sends a newsletter whose slot is just inside its 30 minutes of grace", async () => {
+    const { newsroomId, publicationId } = await scheduled();
+    const tg = fakeTelegram();
+    const at = new Date(SLOT.getTime() + 30 * 60_000 - 1000);
+    expect(await publishOne(deps(tg.adapter, { now: () => at }), newsroomId, publicationId)).toBe(
+      "published",
+    );
+    expect(tg.calls()).toBeGreaterThan(0);
+    expect(await notices(publicationId)).toEqual([]);
+  });
+
+  it("holds one just past its grace, sends nothing and tells the editor", async () => {
+    const { newsroomId, publicationId } = await scheduled();
+    const tg = fakeTelegram();
+    const at = new Date(SLOT.getTime() + 30 * 60_000 + 1000);
+    expect(await publishOne(deps(tg.adapter, { now: () => at }), newsroomId, publicationId)).toBe(
+      "held",
+    );
+    expect(tg.calls()).toBe(0);
+    expect((await publication(publicationId))?.status).toBe("with-editor");
+    expect(await holds(publicationId)).toEqual(["missed-slot"]);
+    expect(await notices(publicationId)).toEqual([{ late: "30" }]);
+  });
+});
+
+describe("after a 3-hour gap (D130)", () => {
+  it("runs the sweep once: sends a slot within its grace, holds an older one as missed", async () => {
+    // Asleep from 18:00 to 21:00, in 1999 so no other test's fixtures are due at this clock.
+    const back = new Date("1999-06-01T21:00:00Z");
+    const early = await scheduled({ slot: new Date("1999-06-01T18:30:00Z") });
+    const recent = await scheduled({ slot: new Date("1999-06-01T20:45:00Z") });
+    const tg = fakeTelegram();
+    const sweep = (now: Date) => sweepDue(deps(tg.adapter, { now: () => now }));
+    expect(await sweep(back)).toEqual({ held: 1, published: 1 });
+    expect((await publication(early.publicationId))?.status).toBe("with-editor");
+    expect(await holds(early.publicationId)).toEqual(["missed-slot"]);
+    expect((await publication(recent.publicationId))?.status).toBe("published");
+    // The sweep replays nothing: a minute later there is nothing left to send.
+    expect(await sweep(new Date(back.getTime() + 60_000))).toEqual({});
+  });
+});
+
+describe("a publishing pause (D144)", () => {
+  const admin = async () =>
+    (
+      await pools.system.query<{ id: string }>(
+        "insert into users (email) values ($1) returning id",
+        [`ops-${crypto.randomUUID()}@example.invalid`],
+      )
+    ).rows[0]?.id ?? "";
+  const pause = (newsroomId: string, by: string) =>
+    pools.system.query("insert into publishing_pauses (newsroom_id, paused_by) values ($1, $2)", [
+      newsroomId,
+      by,
+    ]);
+  const resume = (newsroomId: string) =>
+    pools.system.query("delete from publishing_pauses where newsroom_id = $1", [newsroomId]);
+
+  it("sends nothing while the newsroom is paused, and holds nothing either", async () => {
+    const { newsroomId, publicationId } = await scheduled();
+    await pause(newsroomId, await admin());
+    const tg = fakeTelegram();
+    expect(await publishOne(deps(tg.adapter), newsroomId, publicationId)).toBe("paused");
+    expect(tg.calls()).toBe(0);
+    expect((await publication(publicationId))?.status).toBe("scheduled");
+    await resume(newsroomId);
+    expect(await publishOne(deps(tg.adapter), newsroomId, publicationId)).toBe("published");
+  });
+
+  it("stops before the next part, and finishes after resuming within the grace", async () => {
+    const { newsroomId, publicationId } = await scheduled({ items: 12 });
+    const by = await admin();
+    const tg = fakeTelegram();
+    const pausing: ChannelAdapter = {
+      async send(target, text) {
+        const id = await tg.adapter.send(target, text);
+        if (tg.sent.length === 1) await pause(newsroomId, by);
+        return id;
+      },
+    };
+    expect(await publishOne(deps(pausing), newsroomId, publicationId)).toBe("paused");
+    expect(tg.sent).toHaveLength(1);
+    await resume(newsroomId);
+    expect(await publishOne(deps(tg.adapter), newsroomId, publicationId)).toBe("published");
+    const telegram = (await posts(publicationId)).filter((r) => r.kind === "telegram");
+    expect(telegram.every((r) => r.status === "sent")).toBe(true);
+    expect(tg.sent.length).toBe(telegram.length);
   });
 });

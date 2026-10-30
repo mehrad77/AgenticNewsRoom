@@ -24,3 +24,7 @@ class FormatConfig(BaseModel):
         ...,
         description="Most tokens (input plus output, over all its model calls) one agent run on this format may use; a run that reaches it ends and its publications are held (D76).",
     )
+    grace: constr(pattern=r"^[1-9][0-9]*[mh]$") = Field(
+        ...,
+        description="How late past its slot a send may still start (30m, 2h); later, the publication is held as a missed slot for an editor (D129).",
+    )

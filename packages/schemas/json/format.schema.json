@@ -5,7 +5,7 @@
   "description": "config/formats/<format>/format.yaml: how a format is described to the outside world.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["genre", "ninjs_type", "run_tokens"],
+  "required": ["genre", "ninjs_type", "run_tokens", "grace"],
   "properties": {
     "genre": {
       "type": "string",
@@ -20,6 +20,11 @@
       "type": "integer",
       "minimum": 1000,
       "description": "Most tokens (input plus output, over all its model calls) one agent run on this format may use; a run that reaches it ends and its publications are held (D76)."
+    },
+    "grace": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]*[mh]$",
+      "description": "How late past its slot a send may still start (30m, 2h); later, the publication is held as a missed slot for an editor (D129)."
     }
   }
 }

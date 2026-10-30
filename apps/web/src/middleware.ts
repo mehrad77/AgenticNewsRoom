@@ -1,9 +1,17 @@
 import { defineMiddleware } from "astro:middleware";
+import { startHeartbeat } from "@anr/db";
 import { db } from "./lib/db.ts";
+import { healthResponse } from "./lib/health.ts";
 import { rootDomain, siteNewsrooms } from "./lib/newsrooms.ts";
 import { resolveSite } from "./lib/site.ts";
 
+// Started by the first request, not at import, so a build never needs a database (D128).
+let heartbeat: (() => void) | undefined;
+
 export const onRequest = defineMiddleware(async (context, next) => {
+  heartbeat ??= startHeartbeat(db(), "web");
+  // Before host routing: the uptime check asks the root host, which is no newsroom (D141).
+  if (context.url.pathname === "/healthz") return healthResponse(db());
   // Astro only trusts Host headers listed in security.allowedDomains, which is fixed at build time.
   // resolveSite is itself an allow-list (root domain + synced newsrooms), so read Host directly.
   const host = context.request.headers.get("host") ?? context.url.host;
