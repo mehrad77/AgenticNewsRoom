@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
 
 from anr_ingestion.db import create_pool
+from anr_ingestion.heartbeat import start_heartbeat
 from anr_ingestion.net import Fetcher, FetchError, GuardedTransport, Refused
 from anr_ingestion.pipeline import HOST_DELAYS, CapReached, Ingestor, NotFound
 from anr_ingestion.replay import ReplayWeb
@@ -42,14 +43,19 @@ def ingestor_from_env() -> Ingestor:
     return Ingestor(pool, fetcher, settings.raw_store())
 
 
-def create_app(make_ingestor: Callable[[], Ingestor] = ingestor_from_env) -> FastAPI:
+def create_app(make_ingestor: Callable[[], Ingestor] | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        ingestor = make_ingestor()
+        ingestor = (make_ingestor or ingestor_from_env)()
         app.state.ingestor = ingestor
+        # Only the service's own run beats (D128); tests bring their own ingestor.
+        own = make_ingestor is None
+        stop_heartbeat = start_heartbeat(ingestor.pool, "ingestion") if own else None
         try:
             yield
         finally:
+            if stop_heartbeat:
+                stop_heartbeat()
             ingestor.fetcher.close()
             ingestor.pool.close()
 

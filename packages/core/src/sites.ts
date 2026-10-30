@@ -1,5 +1,8 @@
 import type { Language } from "./languages.ts";
 
+/** The platform's own subdomains, the desk's and Grafana's; no newsroom may take one (D123). */
+export const RESERVED_SUBDOMAINS = ["desk", "ops"] as const;
+
 /** Where a newsroom's site lives (docs/technical-design.md#tenancy-and-configuration). */
 export interface SiteAddress {
   subdomain: string;
