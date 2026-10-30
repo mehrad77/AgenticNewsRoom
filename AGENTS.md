@@ -20,6 +20,7 @@ ANR (Agentic News Room): a platform for running publications where humans set th
 | `packages/config`    | Loads and validates `config/`                                               | TS               |
 | `packages/models`    | Model catalog, provider clients, fallback gateway, `models:probe`           | TS               |
 | `packages/schemas`   | JSON Schema source → generated zod + pydantic                               | TS/Python        |
+| `packages/storage`   | Object storage: R2 buckets or a local directory, presigned links (D132)    | TS               |
 | `packages/render`    | Channel templates rendered with LiquidJS (publisher and the gate)          | TS               |
 | `packages/db`        | SQL migrations (dbmate), Postgres client, `withNewsroom()`                  | TS/SQL           |
 | `packages/telemetry` | Planned in milestone 7b: OpenTelemetry setup for the TS apps and Python services | TS/Python |

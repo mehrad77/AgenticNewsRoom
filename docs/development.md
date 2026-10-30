@@ -60,7 +60,7 @@ Dev ports: web 4321 (override with `WEB_PORT`), api 8787, ingestion 8101, verifi
 4. Write the change with tests. Logic goes in plain modules; framework files stay thin.
 5. `pnpm check`.
 6. Update the docs, tick the build-plan task, record any new decision in [decisions](decisions.md).
-7. Commit with a conventional message (`feat(publisher): idempotent Telegram send`).
+7. Commit with a conventional message (`feat(publisher): idempotent Telegram send`). Once per clone, `git config core.hooksPath .githooks` makes every commit refuse a file in `infra/secrets/` that is not SOPS-encrypted (D125).
 
 ## Conventions
 

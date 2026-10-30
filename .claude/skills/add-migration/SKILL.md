@@ -34,4 +34,9 @@ Migrations are plain SQL in `packages/db/migrations/`, applied with dbmate, one 
 5. Index `newsroom_id` (usually as the first column of a composite index; `unique (newsroom_id, id)` already gives one).
 6. Status and kind columns use the values in `packages/core/src/vocabulary.ts` as a `check` constraint; `vocabulary.db.test.ts` compares them.
 7. Never store channel credentials unencrypted; they are sealed with the platform key (`sealCredentials()`).
-8. `pnpm db:up && pnpm db:migrate`, then `pnpm check` (the tenancy check and RLS tests run against `anr_test`). Update the data-model table in `docs/technical-design.md` if entities or key fields changed.
+8. **Expand, then contract** (D134). Production rolls back by deploying the previous tag on the same database, and never runs a down migration, so a migration must not break the code of the previous tag:
+   - Add freely: a table, a nullable column or one with a default, an index, a looser check.
+   - A drop or rename waits for the release after the code stopped using it. Renaming `notes` to `note_text`: release 1 adds `note_text`, writes both and backfills; release 2 reads and writes only `note_text`; release 3 drops `notes`.
+   - A new `not null` column gets a default, so the previous tag's inserts still work.
+   - A change that cannot meet this (a destructive rewrite) is undone by a restore, not a down migration: say so in the pull request.
+9. `pnpm db:up && pnpm --filter @anr/db migrate:test` (the test database only; `pnpm db:migrate` also migrates dev `anr`), then `pnpm check` (the tenancy check and RLS tests run against `anr_test`). Update the data-model table in `docs/technical-design.md` if entities or key fields changed.
