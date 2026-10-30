@@ -9,6 +9,9 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -34,3 +37,68 @@ jobs:
       - run: pnpm db:up
       - run: pnpm db:migrate
       - run: pnpm check
+
+  # Deploy files (D134–D136), checked without credentials: nothing here reaches Cloudflare.
+  infra:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          # renovate: datasource=github-releases depName=hashicorp/terraform
+          terraform_version: 1.17.0
+          terraform_wrapper: false
+      - name: terraform fmt and validate
+        working-directory: infra/terraform
+        run: |
+          terraform fmt -check -recursive -diff
+          terraform init -backend=false -input=false
+          terraform validate
+      - uses: terraform-linters/setup-tflint@6ffdbaa3be476b3431f7275c26966ef32ff60337 # v6.3.2
+        with:
+          # renovate: datasource=github-releases depName=terraform-linters/tflint
+          tflint_version: v0.65.0
+      - name: tflint
+        working-directory: infra/terraform
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          tflint --init
+          tflint --format compact
+      - name: Compose files
+        run: |
+          export ANR_ENV_FILE="$PWD/.env.example" ANR_VERSION=ci
+          docker compose --env-file .env.example -p anr-prod -f infra/compose.prod.yaml config -q
+          docker compose --env-file .env.example -f infra/compose.prod.yaml -f infra/compose.build.yaml config -q
+      - name: shellcheck
+        run: shellcheck -x infra/*.sh infra/backup/*.sh infra/host/*/install.sh infra/terraform/tf.sh .githooks/pre-commit
+      # Host profiles (D127): the units name /opt/anr, the linux profile's repo path.
+      - name: systemd units
+        run: |
+          sudo ln -s "$GITHUB_WORKSPACE" /opt/anr
+          systemd-analyze verify infra/host/linux/*.service infra/host/linux/*.timer
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - name: Renovate config
+        env:
+          # renovate: datasource=npm depName=renovate
+          RENOVATE_VERSION: 44.181.0
+        run: npx --yes --package "renovate@$RENOVATE_VERSION" -- renovate-config-validator --strict
+
+  # The macos host profile's launchd agents (D127).
+  host-macos:
+    runs-on: macos-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: plutil -lint infra/host/macos/*.plist
