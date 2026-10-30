@@ -1,13 +1,14 @@
 // A reader challenge's reminders and deadlines (D114): four jobs queued with the challenge. Each
 // finds the challenge's step done, or leaves the owner a notice in the desk: `challenge-due` a few
 // hours before the deadline, `challenge-overdue` once it passed. A graph never waits for a person;
-// these are rows and jobs.
+// these are rows and jobs. After a gap a reminder whose deadline also passed is skipped, so the
+// owner is told once, that it is overdue (D130).
 import { type ChallengeDeadlineJob, QUEUES, REMINDER_HOURS } from "@anr/core";
 import { type Pool, withNewsroom } from "@anr/db";
 import type { PgBoss } from "pg-boss";
 import { onClient } from "../runs.ts";
 
-export type ChallengeDeadlineOutcome = "noticed" | "done" | "early" | "gone";
+export type ChallengeDeadlineOutcome = "noticed" | "done" | "early" | "gone" | "stale";
 
 export async function challengeDeadline(
   pool: Pool,
@@ -32,6 +33,7 @@ export async function challengeDeadline(
     const c = rows[0];
     if (!c) return "gone";
     if (c.done) return "done";
+    if (job.at === "due" && now >= c.deadline) return "stale";
     const when =
       job.at === "due" ? new Date(c.deadline.getTime() - REMINDER_HOURS * 3_600_000) : c.deadline;
     if (now < when) {

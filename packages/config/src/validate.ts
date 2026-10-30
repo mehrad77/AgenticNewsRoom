@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { directionOf, type Language } from "@anr/core";
+import { directionOf, type Language, RESERVED_SUBDOMAINS } from "@anr/core";
 import { type ModelsSchema, roleChains } from "@anr/schemas";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import addFormatsModule from "ajv-formats";
@@ -223,6 +223,8 @@ export function validateConfig(config: RawConfig): string[] {
     }
     const other = subdomains.get(newsroom.subdomain);
     if (other) errors.push(`${at} reuses subdomain of newsrooms/${other}`);
+    if ((RESERVED_SUBDOMAINS as readonly string[]).includes(newsroom.subdomain))
+      errors.push(`${at}/newsroom.yaml subdomain ${newsroom.subdomain} is the platform's (D123)`);
     subdomains.set(newsroom.subdomain, n.slug);
 
     const sources = (Array.isArray(n.sources) ? n.sources : []) as { id: string; every: string }[];

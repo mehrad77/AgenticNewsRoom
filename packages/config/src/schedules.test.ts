@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { cronDaily, cronEvery, cronWeekly, newsroomSchedules } from "./schedules.ts";
+import {
+  cronDaily,
+  cronEvery,
+  cronWeekly,
+  newsroomSchedules,
+  platformSchedules,
+} from "./schedules.ts";
 
 describe("cronEvery", () => {
   it.each([
@@ -77,4 +83,29 @@ describe("newsroomSchedules", () => {
 describe("cronWeekly", () => {
   it("maps a weekday and time", () => expect(cronWeekly("sun 23:30")).toBe("30 23 * * 0"));
   it("rejects a bare time", () => expect(() => cronWeekly("08:00")).toThrow("weekday"));
+});
+
+describe("after a gap (D130)", () => {
+  it("runs each schedule that came due once, for its latest period; sweeps and fetches never replay", () => {
+    const policies = Object.fromEntries(
+      [
+        ...newsroomSchedules(
+          "n1",
+          "UTC",
+          [{ id: "s1", every: "1h", terms_checked: "2026-10-01" }],
+          [{ id: "d1", cadence: { daily: "21:00" }, assignment_at: "16:00" }],
+        ),
+        ...platformSchedules(),
+      ].map((d) => [d.queue, d.missed]),
+    );
+    expect(policies).toEqual({
+      // The daily assignment then notices a slot it is too late for (assign.ts).
+      assign: "once",
+      plan: "once",
+      "channel-stats": "once",
+      // Each source's next run fetches what it missed; the sweep holds what is past its grace.
+      "ingest-source": "skip",
+      "publish-sweep": "skip",
+    });
+  });
 });

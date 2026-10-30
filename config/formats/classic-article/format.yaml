@@ -2,3 +2,4 @@
 genre: genre:Feature # Feature: one paper's story, not breaking news
 ninjs_type: text
 run_tokens: 200000 # input + output over all model calls of one agent run (D76)
+grace: 2h # how late a send may still start; later it is held for an editor (D129)

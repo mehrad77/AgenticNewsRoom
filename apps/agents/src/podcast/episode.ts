@@ -7,7 +7,7 @@
 import { type AssignJob, localDay, nextWeekly } from "@anr/core";
 import { type Client, type Pool, withNewsroom } from "@anr/db";
 import type { PgBoss } from "pg-boss";
-import type { AssignOutcome } from "../assign.ts";
+import { type AssignOutcome, noticeUnassigned } from "../assign.ts";
 import type { ModelRouter } from "../router.ts";
 import { createRun } from "../runs.ts";
 import type { SegmentPlan } from "./script.ts";
@@ -120,6 +120,7 @@ export async function assignEpisode(
       );
       if (now < due) {
         const passed = nextWeekly(series.weekly, new Date(slot.getTime() - week), series.timezone);
+        await noticeUnassigned(client, job.seriesId, series.slug, passed.toISOString());
         return { kind: "slot-passed", slot: passed.toISOString() };
       }
     }
