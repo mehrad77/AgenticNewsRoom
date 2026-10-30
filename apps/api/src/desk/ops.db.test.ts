@@ -199,6 +199,25 @@ describe("cancel and drain (D144)", () => {
     expect(rows).toEqual([{ outcome: "error", finished: true }]);
   });
 
+  it("refuses to cancel a summariser run, whose lead would never be summarised", async () => {
+    const run = (
+      await pools.system.query<{ id: string }>(
+        `insert into agent_runs (newsroom_id, role, provider, model, prompt_version, input_hash)
+         values ($1, 'summariser', 'p', 'm', 'v', '\\x00') returning id`,
+        [newsroomId],
+      )
+    ).rows[0]?.id;
+    const job = (await boss.send(QUEUES.agentRun, { newsroomId, agentRunId: run })) ?? "";
+    await expect(cancelJob(pools.app, boss, actor, QUEUES.agentRun, job)).rejects.toMatchObject({
+      status: 409,
+    });
+    const { rows } = await pools.system.query("select state::text from pgboss.job where id = $1", [
+      job,
+    ]);
+    expect(rows).toEqual([{ state: "created" }]);
+    await boss.cancel(QUEUES.agentRun, job);
+  });
+
   it("drains an allowed queue and lifts it, audited each way", async () => {
     await setDrain(pools.app, actor, QUEUES.ingestMedia, true);
     expect(

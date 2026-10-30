@@ -244,11 +244,26 @@ export async function cancelJob(pool: Pool, boss: Boss, actor: Actor, queue: unk
     // pg-boss would cancel a running job too; the Ops page never does.
     if (state !== "created" && state !== "retry")
       throw new DeskError(409, "only a job that has not started can be cancelled");
-    await boss.cancel(name, job, { db: onClient(c) });
-    // Nothing is suppressed in silence: the work ends as a failure its newsroom sees.
+    // Nothing is suppressed in silence: the work ends as a failure its newsroom sees. The newsroom
+    // is set on this transaction as withNewsroom() would, so the pg-boss cancel and its effects
+    // commit together.
     const data = rows[0]?.data ?? {};
-    if (data.newsroomId) {
+    if (data.newsroomId)
       await c.query("select set_config('anr.newsroom_id', $1, true)", [data.newsroomId]);
+    if (name === QUEUES.agentRun && data.newsroomId && data.agentRunId) {
+      const { rows: run } = await c.query<{ role: string }>(
+        "select role from agent_runs where id = $1",
+        [data.agentRunId],
+      );
+      // A closed summariser run is never redone, so its lead would stay unsummarised for good.
+      if (run[0]?.role === "summariser")
+        throw new DeskError(
+          409,
+          "a summariser run cannot be cancelled: its lead would never be summarised; drain agent-run instead",
+        );
+    }
+    await boss.cancel(name, job, { db: onClient(c) });
+    if (data.newsroomId) {
       if (name === QUEUES.ingestMedia && data.url)
         // The member is told, as when the image could not be fetched (D119).
         await c.query(
