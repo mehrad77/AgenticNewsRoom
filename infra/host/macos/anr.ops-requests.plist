@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Backup checks asked for in the desk, picked up every 30 seconds (D144). install.sh fills in the repo and home paths. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>anr.ops-requests</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>__ANR_DIR__/infra/backup/backup.sh</string>
+    <string>requests</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>__ANR_DIR__</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <!-- launchd's PATH lacks Docker Desktop's and Homebrew's. -->
+    <key>PATH</key>
+    <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+  <key>StartInterval</key>
+  <integer>30</integer>
+  <key>StandardOutPath</key>
+  <string>__HOME__/Library/Logs/anr/ops-requests.log</string>
+  <key>StandardErrorPath</key>
+  <string>__HOME__/Library/Logs/anr/ops-requests.log</string>
+</dict>
+</plist>

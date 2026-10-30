@@ -1,0 +1,11 @@
+[Unit]
+Description=ANR: pick up the desk's backup checks every 30 seconds (D144)
+
+[Timer]
+# Every 30 seconds while the host is up; a missed tick needs no catch-up.
+OnBootSec=30s
+OnUnitActiveSec=30s
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target
