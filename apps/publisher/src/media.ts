@@ -5,11 +5,12 @@
 // ingredient so a manifest the source already had stays valid inside ours. Signing comes last:
 // it hashes the file.
 import { execFile } from "node:child_process";
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { promisify } from "node:util";
 import type { Client } from "@anr/db";
 import { mediaIds, mediaPath } from "@anr/render";
+import type { ObjectStore } from "@anr/storage";
 import type { MediaStore } from "./podcast/store.ts";
 
 const run = promisify(execFile);
@@ -117,19 +118,17 @@ export const unchangedForTests: ImageWriter = {
   },
 };
 
-/** Where ingestion keeps source images: its raw store (D55), a local directory until R2. */
-export function rawReader(dir: string) {
-  const root = resolve(dir);
-  return (key: string): Buffer | null => {
+/** Source images as ingestion stored them, content-addressed in the raw store (D55, D132). */
+export function rawReader(store: ObjectStore) {
+  return (key: string): Promise<Buffer | null> => {
     if (!/^raw\/[0-9a-f]{2}\/[0-9a-f]{64}$/.test(key)) throw new Error(`bad raw key ${key}`);
-    const file = join(root, key);
-    return existsSync(file) ? readFileSync(file) : null;
+    return store.get(key);
   };
 }
 
 export interface MediaDeps {
   writer: ImageWriter;
-  raw: (key: string) => Buffer | null;
+  raw: (key: string) => Promise<Buffer | null>;
   store: MediaStore;
   workDir: () => string;
 }
@@ -166,7 +165,7 @@ export async function prepareMedia(
   for (const m of rows.filter((r) => !r.published_file)) {
     const workDir = deps.workDir();
     try {
-      const source = deps.raw(m.file);
+      const source = await deps.raw(m.file);
       if (!source) throw new Error(`source image ${m.file} is missing`);
       const { data } = await deps.writer.write(source, m, workDir);
       const key = mediaPath(m.id, m.content_type).slice(1);

@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { type Pool, withNewsroom } from "@anr/db";
 import type { ReaderNewsroom } from "./reader.ts";
+import { mediaRedirect } from "./storage.ts";
 
 const IMAGE =
   /^\/m\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.(jpg|png|webp)$/;
@@ -28,10 +29,13 @@ export async function publishedImage(
   });
 }
 
-/** From object storage's public URL, or the local store; a copy never changes once written. */
-export function imageResponse(image: { key: string; contentType: string }): Response {
-  const base = process.env.ANR_MEDIA_URL;
-  if (base) return Response.redirect(`${base.replace(/\/$/, "")}/${image.key}`, 302);
+/** A redirect into the media bucket, or the local store; a copy never changes once written. */
+export async function imageResponse(image: {
+  key: string;
+  contentType: string;
+}): Promise<Response> {
+  const redirect = await mediaRedirect(image.key);
+  if (redirect) return redirect;
   const dir = process.env.ANR_MEDIA_DIR ?? join(process.cwd(), "../../.data/media");
   return new Response(readFileSync(join(dir, image.key)), {
     headers: {

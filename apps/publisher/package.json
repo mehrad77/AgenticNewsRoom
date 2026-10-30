@@ -19,6 +19,7 @@
     "@anr/db": "workspace:*",
     "@anr/models": "workspace:*",
     "@anr/render": "workspace:*",
+    "@anr/storage": "workspace:*",
     "pg-boss": "12.38.0",
     "yaml": "2.9.1"
   },
