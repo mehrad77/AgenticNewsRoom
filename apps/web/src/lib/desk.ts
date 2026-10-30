@@ -17,6 +17,7 @@ export type SourceHealth = S["SourceHealth"];
 export type Measures = S["Measures"];
 export type Plan = S["Plan"];
 export type AdminTts = S["AdminTts"];
+export type OpsState = S["OpsState"];
 export type NewsroomTts = S["NewsroomTts"];
 export type Challenge = S["Challenge"];
 export type ChallengeDetail = S["ChallengeDetail"];
@@ -42,6 +43,8 @@ export type DeskRoute =
   | { kind: "home" }
   /** The platform admin's page, above every newsroom. */
   | { kind: "admin" }
+  /** The platform admin's operations controls (D144). */
+  | { kind: "ops" }
   | { kind: "queue"; newsroom: string }
   | { kind: "publication"; newsroom: string; id: string }
   | { kind: "challenge"; newsroom: string; id: string }
@@ -55,6 +58,7 @@ export function deskRoute(path: string): DeskRoute {
   const p = path.length > 1 ? path.replace(/\/+$/, "") : path;
   if (p === "/" || p === "") return { kind: "home" };
   if (p === "/admin") return { kind: "admin" };
+  if (p === "/ops") return { kind: "ops" };
   let m = new RegExp(`^/(${SLUG})$`).exec(p);
   if (m?.[1]) return { kind: "queue", newsroom: m[1] };
   m = new RegExp(`^/(${SLUG})/p/(${UUID})$`).exec(p);
@@ -111,6 +115,7 @@ export function deskApi(base: string, token: string | null, fetchFn: typeof fetc
       call<ChallengeDetail>(`${n(newsroom)}/challenges/${id}`),
     media: (newsroom: string) => call<MediaItem[]>(`${n(newsroom)}/media`),
     adminTts: () => call<AdminTts>("/desk/admin/tts"),
+    ops: () => call<OpsState>("/desk/admin/ops"),
     newsroomTts: (newsroom: string) => call<NewsroomTts>(`${n(newsroom)}/tts`),
     /** Runs the action a desk form posted; returns where to go next. */
     async act(route: DeskRoute, form: FormData): Promise<string> {
@@ -119,6 +124,28 @@ export function deskApi(base: string, token: string | null, fetchFn: typeof fetc
         const engines = form.getAll("engine").filter((v): v is string => typeof v === "string");
         await call("/desk/admin/tts", { engines });
         return "/admin";
+      }
+      if (route.kind === "ops") {
+        const value = (name: string) => {
+          const v = form.get(name);
+          return typeof v === "string" && v ? v : undefined;
+        };
+        // No newsroom means every newsroom.
+        const scope = { newsroom: value("newsroom") };
+        const job = { queue: value("queue"), id: value("id") };
+        const paths: Record<string, [string, unknown]> = {
+          pause: ["/desk/admin/ops/pause", scope],
+          resume: ["/desk/admin/ops/resume", scope],
+          drain: ["/desk/admin/ops/drain", { queue: value("queue"), drained: true }],
+          undrain: ["/desk/admin/ops/drain", { queue: value("queue"), drained: false }],
+          retry: ["/desk/admin/ops/jobs/retry", job],
+          cancel: ["/desk/admin/ops/jobs/cancel", job],
+          "backup-check": ["/desk/admin/ops/backup-check", {}],
+        };
+        const target = paths[String(form.get("action") ?? "")];
+        if (!target) throw new DeskApiError(400, "unknown action");
+        await call(...target);
+        return "/ops";
       }
       if (route.kind === "home" || route.kind === "not-found")
         throw new DeskApiError(404, "nothing to do here");

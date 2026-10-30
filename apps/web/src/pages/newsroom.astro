@@ -8,7 +8,7 @@ import { db } from "../lib/db.ts";
 import { scriptJson } from "../lib/metadata.ts";
 import { loadPage } from "../lib/page.ts";
 import { imageResponse, mediaRoute, publishedImage } from "../lib/media.ts";
-import { audioResponse, countDownload, episodeAudio, feedRenderer, listenerAddress, podcastFeed, podcastRoute } from "../lib/podcast.ts";
+import { audioResponse, countDownload, episodeAudio, feedRenderer, podcastFeed, readerAddress, podcastRoute } from "../lib/podcast.ts";
 import { newsroomBySubdomain } from "../lib/reader.ts";
 import { route } from "../lib/routes.ts";
 
@@ -24,9 +24,10 @@ if (pod) {
     const key = await episodeAudio(db(), newsroom, pod.publicationId);
     if (!key) return new Response("Not found", { status: 404 });
     const headers = Astro.request.headers;
-    const listener = listenerAddress(headers.get("x-forwarded-for"), Astro.clientAddress);
+    const listener = readerAddress(headers.get("cf-connecting-ip"), Astro.clientAddress);
     await countDownload(db(), newsroom, pod.publicationId, listener, headers.get("user-agent"));
-    return audioResponse(key, headers.get("range"));
+    // Counted above, before the redirect into the bucket (D110, D132).
+    return await audioResponse(key, headers.get("range"));
   }
   const address = {
     subdomain: newsroom.subdomain,
@@ -44,7 +45,7 @@ const imageId = mediaRoute(site.path);
 if (imageId) {
   const newsroom = await newsroomBySubdomain(db(), site.newsroom.subdomain);
   const image = newsroom && (await publishedImage(db(), newsroom, imageId));
-  return image ? imageResponse(image) : new Response("Not found", { status: 404 });
+  return image ? await imageResponse(image) : new Response("Not found", { status: 404 });
 }
 // A reader's challenge from the form under a piece (D114): passed to the API, then on to the
 // reader's status page. Handled before the page loads, so it is not counted as a view.
@@ -60,7 +61,7 @@ if (Astro.request.method === "POST" && route(site.path).kind === "publication") 
     String(form.get("publication") ?? ""),
     body,
     {
-      address: listenerAddress(headers.get("x-forwarded-for"), Astro.clientAddress),
+      address: readerAddress(headers.get("cf-connecting-ip"), Astro.clientAddress),
       userAgent: headers.get("user-agent") ?? "",
     },
   );

@@ -40,7 +40,7 @@ describe("a reader's challenge", () => {
     expect(ok).toEqual({ ok: true, id: "c", token: "t" });
     expect(calls[0]?.url).toBe("http://api/reader/newsrooms/kultur/publications/p-1/challenges");
     expect(
-      (calls[0]?.init.headers as Record<string, string> | undefined)?.["x-forwarded-for"],
+      (calls[0]?.init.headers as Record<string, string> | undefined)?.["cf-connecting-ip"],
     ).toBe("203.0.113.7");
     const busy = await sendChallenge(
       "http://api",

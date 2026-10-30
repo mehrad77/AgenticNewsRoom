@@ -764,6 +764,180 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+  /desk/admin/ops:
+    get:
+      operationId: getOps
+      summary: Publishing pauses, queues, failed and waiting jobs, backups and heartbeats
+      description: Platform admin only (D144). Grafana shows history; this page acts.
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      responses:
+        "200":
+          description: The platform's state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpsState"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /desk/admin/ops/pause:
+    post:
+      operationId: pauseOps
+      summary: Pause publishing in one newsroom, or in every newsroom without one
+      description: Platform admin only; audited in the platform audit log. The publisher stops before its next send or part (D144).
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OpsPauseRequest"
+      responses:
+        "200":
+          description: Done.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpsDone"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /desk/admin/ops/resume:
+    post:
+      operationId: resumeOps
+      summary: Resume publishing in one newsroom, or everywhere
+      description: Platform admin only; audited. A scheduled publication now past its slot by more than its format's grace is held as a missed slot; the rest send (D129, D144).
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OpsPauseRequest"
+      responses:
+        "200":
+          description: Done.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpsResumed"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /desk/admin/ops/drain:
+    post:
+      operationId: drainOpsQueue
+      summary: Drain a queue, or lift its drain
+      description: Platform admin only; audited. Workers take no new job from a drained queue within 30 seconds; running ones finish and nothing is deleted. Only queues whose work ends in a hold or is done again (D144).
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OpsDrainRequest"
+      responses:
+        "200":
+          description: Done.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpsDone"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /desk/admin/ops/jobs/retry:
+    post:
+      operationId: retryOpsJob
+      summary: Retry a failed job
+      description: Platform admin only; audited. A part recorded as unknown is still never re-sent (D89).
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OpsJobRequest"
+      responses:
+        "200":
+          description: Done.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpsDone"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /desk/admin/ops/jobs/cancel:
+    post:
+      operationId: cancelOpsJob
+      summary: Cancel a job that has not started
+      description: Platform admin only; audited. Refused for the deadline queues, publish-correction, assign, redraft and publish-sweep (D144).
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OpsJobRequest"
+      responses:
+        "200":
+          description: Done.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpsDone"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /desk/admin/ops/backup-check:
+    post:
+      operationId: requestBackupCheck
+      summary: Ask the host for a backup check now
+      description: Platform admin only; audited. The host's job runs it within 30 seconds and records it in backup_runs (D131, D144).
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      responses:
+        "200":
+          description: Done.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpsRequested"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
   /desk/newsrooms/{newsroom}/tts:
     parameters:
       - $ref: "#/components/parameters/Newsroom"
@@ -817,7 +991,7 @@ paths:
       summary: A reader challenges a published piece (D114)
       description: >-
         Public: called by the newsroom's site for its reader form. Nothing about the reader is stored; the
-        rate limit keys on an HMAC of the reader's network (the last X-Forwarded-For entry, an IPv6 /64)
+        rate limit keys on an HMAC of the reader's network (CF-Connecting-IP, an IPv6 /64; never X-Forwarded-For)
         under a random secret dropped after the day. The receipt's token opens the reader's status page
         and is stored only as its hash.
       tags: [reader]
@@ -1183,6 +1357,140 @@ components:
       required: [error]
       properties:
         error: { type: string }
+    OpsDone:
+      type: object
+      additionalProperties: false
+      required: [ok]
+      properties:
+        ok: { type: boolean }
+    OpsPauseRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        newsroom: { type: string, description: "A newsroom's slug; without one, every newsroom." }
+    OpsResumed:
+      type: object
+      additionalProperties: false
+      required: [held]
+      properties:
+        held:
+          type: array
+          description: Publications held as missed slots on resuming.
+          items: { type: string, format: uuid }
+    OpsDrainRequest:
+      type: object
+      additionalProperties: false
+      required: [queue, drained]
+      properties:
+        queue: { type: string }
+        drained: { type: boolean }
+    OpsJobRequest:
+      type: object
+      additionalProperties: false
+      required: [queue, id]
+      properties:
+        queue: { type: string }
+        id: { type: string, format: uuid }
+    OpsRequested:
+      type: object
+      additionalProperties: false
+      required: [id]
+      properties:
+        id: { type: string, format: uuid }
+    OpsJob:
+      type: object
+      additionalProperties: false
+      required: [id, queue, newsroom, at]
+      properties:
+        id: { type: string, format: uuid }
+        queue: { type: string }
+        newsroom: { type: [string, "null"] }
+        at: { type: string, format: date-time }
+        error: { type: [string, "null"] }
+    OpsState:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          paused_everywhere,
+          pauses,
+          queues,
+          failed,
+          waiting,
+          backups,
+          backup_requests,
+          heartbeats,
+          outages,
+        ]
+      properties:
+        paused_everywhere: { type: boolean }
+        pauses:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [newsroom, paused_at]
+            properties:
+              newsroom: { type: string }
+              paused_at: { type: [string, "null"], format: date-time }
+        queues:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [name, drainable, drained_at, waiting, active, failed]
+            properties:
+              name: { type: string }
+              drainable: { type: boolean }
+              drained_at: { type: [string, "null"], format: date-time }
+              waiting: { type: integer }
+              active: { type: integer }
+              failed: { type: integer }
+        failed: { type: array, items: { $ref: "#/components/schemas/OpsJob" } }
+        waiting: { type: array, items: { $ref: "#/components/schemas/OpsJob" } }
+        backups:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [kind, started_at, finished_at, ok]
+            properties:
+              kind: { type: string, enum: [init, full, diff, incr, check] }
+              started_at: { type: string, format: date-time }
+              finished_at: { type: [string, "null"], format: date-time }
+              ok: { type: [boolean, "null"] }
+        backup_requests:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, requested_at, picked_at, done_at]
+            properties:
+              id: { type: string, format: uuid }
+              requested_at: { type: string, format: date-time }
+              picked_at: { type: [string, "null"], format: date-time }
+              done_at: { type: [string, "null"], format: date-time }
+        heartbeats:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [worker, beat_at, late]
+            properties:
+              worker: { type: string }
+              beat_at: { type: string, format: date-time }
+              late: { type: boolean }
+        outages:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [kind, worker, started_at, ended_at]
+            properties:
+              kind: { type: string, enum: [worker, host] }
+              worker: { type: [string, "null"] }
+              started_at: { type: string, format: date-time }
+              ended_at: { type: string, format: date-time }
     StatusResult:
       type: object
       additionalProperties: false
@@ -1428,6 +1736,7 @@ components:
               challenge-due,
               challenge-overdue,
               media-failed,
+              slot-missed,
             ]
         key: { type: string }
         detail: {}

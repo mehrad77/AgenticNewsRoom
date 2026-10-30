@@ -18,7 +18,7 @@ describe("a reader's network (D114)", () => {
   });
 
   it("falls back to the connection's address, and only then to one shared key", () => {
-    expect(readerAddress("10.0.0.1, 203.0.113.5", "10.0.0.2")).toBe("203.0.113.5");
+    expect(readerAddress("203.0.113.5", "10.0.0.2")).toBe("203.0.113.5");
     expect(readerAddress(undefined, "::ffff:203.0.113.5")).toBe("::ffff:203.0.113.5");
     expect(readerAddress(undefined)).toBe("unknown");
   });
