@@ -64,15 +64,16 @@ key_bytes=$({ printf %s "${ANR_PLATFORM_KEY:-}" | base64 --decode 2>/dev/null ||
 
 # The host (D127, D132).
 docker info >/dev/null 2>&1 || die "Docker is not running"
-percent_free() { awk 'NR == 2 { printf "%d", $4 * 100 / ($3 + $4) }'; }
+# Free space in whole GB from `df -Pk`; the floor is absolute, since headroom does not grow with the disk (D151).
+gb_free() { awk 'NR == 2 { printf "%d", $4 / 1048576 }'; }
 # The disk Docker's volumes live on, seen from a container: the host's on Linux, the VM's on macOS.
 probe=$(sed -n 's/^ *image: \(caddy:.*\)$/\1/p' infra/compose.prod.yaml)
-free=$(docker run --rm --network none --entrypoint df "$probe" -P / | percent_free)
-((free >= 10)) || problems+=("Docker's disk has ${free}% free; at least 10% is needed (D132)")
+free=$(docker run --rm --network none --entrypoint df "$probe" -Pk / | gb_free)
+((free >= 20)) || problems+=("Docker's disk has ${free} GB free; at least 20 GB is needed (D151)")
 if [[ "$(uname -s)" == Darwin ]]; then
   # Docker's VM disk is a file on the Mac's own disk.
-  free=$(df -P "$HOME" | percent_free)
-  ((free >= 10)) || problems+=("the Mac's disk has ${free}% free; at least 10% is needed (D132)")
+  free=$(df -Pk "$HOME" | gb_free)
+  ((free >= 20)) || problems+=("the Mac's disk has ${free} GB free; at least 20 GB is needed (D151)")
   ac_sleep=$(pmset -g custom | awk '/^AC Power/ { ac = 1 } /^Battery Power/ { ac = 0 } ac && $1 == "sleep" { print $2 }')
   [[ "${ac_sleep:-0}" == 0 ]] ||
     warnings+=("sleep is on for AC power ($ac_sleep min): sudo pmset -c sleep 0 disksleep 0 (D127)")
