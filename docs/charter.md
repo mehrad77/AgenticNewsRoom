@@ -64,7 +64,7 @@ These words mean one thing each, in code, in the data model and in conversation.
 | Series          | A named recurring output with its own identity, such as a specific podcast or newsletter                                |
 | Channel         | Where a publication goes out: a site, a Telegram channel, a podcast feed; later email or X. Set up in the editor's desk |
 
-**Roles.** Humans are the Editor-in-Chief and editors, and one platform admin, an operator role with no editorial authority, who chooses which text-to-speech engines newsrooms may use. Agents are the planner, the desk (research and writing), the renderer, the fact-checker, the item matcher and the summariser. Code is the producer and the publisher.
+**Roles.** Humans are the Editor-in-Chief and editors, and one platform admin, an operator role with no editorial authority, who chooses which text-to-speech engines newsrooms may use and holds the platform's operational controls (pausing publishing, retrying, cancelling or draining work that ends in a hold or reruns, a backup check), which can never approve, publish or suppress anything. Agents are the planner, the desk (research and writing), the renderer, the fact-checker, the item matcher and the summariser. Code is the producer and the publisher.
 
 ## Architecture direction
 

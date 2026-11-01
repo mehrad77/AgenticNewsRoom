@@ -60,12 +60,12 @@ export function readerKey(address: string, now: Date) {
 export const tokenHash = (token: string) => createHash("sha256").update(token).digest();
 
 /**
- * The reader's address behind the site's proxy: the last X-Forwarded-For entry (D110), else the
- * connection's own address. Only a request with neither shares the "unknown" key.
+ * The reader's address: CF-Connecting-IP, which Cloudflare sets and the site passes on (D122),
+ * else the connection's own address; X-Forwarded-For is never read. Only a request with neither
+ * shares the "unknown" key.
  */
-export function readerAddress(forwarded: string | undefined, connection?: string): string {
-  const last = forwarded?.split(",").at(-1)?.trim();
-  return last || connection || "unknown";
+export function readerAddress(cfConnectingIp: string | undefined, connection?: string): string {
+  return cfConnectingIp?.trim() || connection || "unknown";
 }
 
 export interface ChallengeInput {

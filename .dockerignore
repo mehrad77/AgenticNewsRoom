@@ -1,6 +1,6 @@
 .git
-.env
-.env.*
+**/.env
+**/.env.*
 !.env.example
 **/node_modules
 **/.venv
@@ -12,3 +12,12 @@
 **/.mypy_cache
 **/.ruff_cache
 .claude/settings.local.json
+# Images are public on GHCR (D134): nothing local, secret or unused at runtime goes in.
+.data
+infra/secrets
+infra/terraform
+**/.terraform
+**/*.tfstate*
+tools/tts-eval
+.claude
+.github

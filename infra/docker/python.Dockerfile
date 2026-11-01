@@ -5,5 +5,6 @@ ARG SERVICE
 ENV SERVICE=${SERVICE}
 WORKDIR /repo
 COPY . .
-RUN uv sync --frozen --no-dev --package anr-${SERVICE}
+# uv installs everything; pip and the packages it vendors are not shipped (D134).
+RUN uv sync --frozen --no-dev --package anr-${SERVICE} && python -m pip uninstall -y pip
 CMD ["sh", "-c", "uv run --frozen --no-dev uvicorn anr_${SERVICE}.app:app --host 0.0.0.0 --port 8000"]

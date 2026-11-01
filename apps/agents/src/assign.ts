@@ -147,6 +147,30 @@ export async function assignPick(
   });
 }
 
+/**
+ * A slot whose assignment time went by while the server was down or asleep, now past, with no
+ * assignment: the editor is told once per series and slot (D129, D130). One assigned on time, met
+ * again by a late firing, is no miss.
+ */
+export async function noticeUnassigned(
+  client: Client,
+  seriesId: string,
+  series: string,
+  slot: string,
+): Promise<void> {
+  const { rowCount } = await client.query(
+    "select from assignments where series_id = $1 and slot = $2",
+    [seriesId, slot],
+  );
+  if (rowCount) return;
+  await client.query(
+    `insert into notices (newsroom_id, kind, key, detail)
+     values (anr.current_newsroom_id(), 'slot-missed', $1, $2)
+     on conflict (newsroom_id, kind, key) do nothing`,
+    [`${series}:${slot}`, JSON.stringify({ series, slot, reason: "not assigned" })],
+  );
+}
+
 export async function assignDaily(
   pool: Pool,
   boss: Pick<PgBoss, "send">,
@@ -175,7 +199,10 @@ export async function assignDaily(
     const series = rows[0];
     if (!series?.slot) return { kind: "not-daily" };
     const slot = series.slot.toISOString();
-    if (series.passed) return { kind: "slot-passed", slot };
+    if (series.passed) {
+      await noticeUnassigned(client, job.seriesId, series.slug, slot);
+      return { kind: "slot-passed", slot };
+    }
     // Before choosing leads: this slot's own leads are already used, so a second firing would
     // otherwise find none and report no leads.
     const { rowCount: exists } = await client.query(

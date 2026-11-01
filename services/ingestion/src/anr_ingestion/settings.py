@@ -38,17 +38,23 @@ class Settings:
         return f"ANR-Ingestion/0.1 (+https://{self.root_domain}/)"
 
     def raw_store(self) -> RawStore:
-        """R2 when a bucket is set (production, milestone 7), else a local directory (D55)."""
+        """The raw bucket when one is set (production, D132), else a local directory (D55).
+
+        The apps' R2 token, never the backups bucket's (D149); ANR_S3_ENDPOINT names a stand-in.
+        """
         if not self.raw_bucket:
             return LocalRawStore(self.raw_dir)
         import boto3
+        from botocore.config import Config
 
         account = os.environ.get("R2_ACCOUNT_ID")
         client = boto3.client(
             "s3",
-            endpoint_url=f"https://{account}.r2.cloudflarestorage.com",
+            endpoint_url=os.environ.get("ANR_S3_ENDPOINT")
+            or f"https://{account}.r2.cloudflarestorage.com",
             aws_access_key_id=os.environ.get("R2_ACCESS_KEY_ID"),
             aws_secret_access_key=os.environ.get("R2_SECRET_ACCESS_KEY"),
             region_name="auto",
+            config=Config(s3={"addressing_style": "path"}),
         )
         return S3RawStore(client, self.raw_bucket)

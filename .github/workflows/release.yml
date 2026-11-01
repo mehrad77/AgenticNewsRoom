@@ -1,0 +1,210 @@
+name: release
+
+# Images (D134): a version tag builds every image for linux/amd64 and linux/arm64 on native
+# runners, pushes each by digest, scans that digest with Trivy, then tags the multi-arch index with
+# the version and the commit SHA, so the image that was scanned is the image that runs. A pull
+# request that changes what goes into an image builds and scans only, and pushes nothing.
+on:
+  push:
+    tags: ["v*"]
+  pull_request:
+    paths:
+      - .dockerignore
+      - .github/workflows/release.yml
+      - .trivyignore.yaml
+      - infra/docker/**
+      - infra/postgres/**
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - pyproject.toml
+      - uv.lock
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    if: github.event_name == 'pull_request'
+    name: scan ${{ matrix.image }} (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [api, web, agents, publisher, ingestion, verifier, postgres]
+        arch: [amd64, arm64]
+        include: &images
+          - { arch: amd64, runner: ubuntu-24.04 }
+          - { arch: arm64, runner: ubuntu-24.04-arm }
+          - { image: api, dockerfile: infra/docker/node.Dockerfile, args: APP=api }
+          - { image: web, dockerfile: infra/docker/node.Dockerfile, args: APP=web }
+          - { image: agents, dockerfile: infra/docker/node.Dockerfile, args: APP=agents }
+          - { image: publisher, dockerfile: infra/docker/node.Dockerfile, args: APP=publisher }
+          - {
+              image: ingestion,
+              dockerfile: infra/docker/python.Dockerfile,
+              args: SERVICE=ingestion,
+            }
+          - { image: verifier, dockerfile: infra/docker/python.Dockerfile, args: SERVICE=verifier }
+          - { image: postgres, dockerfile: infra/docker/postgres.Dockerfile, args: "" }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          build-args: ${{ matrix.args }}
+          platforms: linux/${{ matrix.arch }}
+          load: true
+          tags: anr-${{ matrix.image }}:scan
+          cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}-${{ matrix.arch }}
+      - name: Scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: anr-${{ matrix.image }}:scan
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          format: sarif
+          output: trivy.sarif
+          # Without it, a SARIF run drops the severity filter and fails on any finding.
+          limit-severities-for-sarif: true
+          # Accepted findings, each scoped to a file and expiring.
+          trivyignores: .trivyignore.yaml
+      # A fork's pull request gets a read-only token, so only the repository's own upload results.
+      - name: Upload scan results
+        if: always() && github.event.pull_request.head.repo.full_name == github.repository
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          sarif_file: trivy.sarif
+          category: trivy-${{ matrix.image }}-${{ matrix.arch }}
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    name: release ${{ matrix.image }} (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+    strategy:
+      fail-fast: true
+      matrix:
+        image: [api, web, agents, publisher, ingestion, verifier, postgres]
+        arch: [amd64, arm64]
+        include: *images
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Image name
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/anr-${{ matrix.image }}" >> "$GITHUB_ENV"
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # Pushed by digest only, with an SBOM and build provenance attached as attestations; the
+      # version tag is added once every architecture has passed its scan.
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          build-args: ${{ matrix.args }}
+          platforms: linux/${{ matrix.arch }}
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          sbom: true
+          provenance: mode=max
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ github.ref_name }}
+          cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}-${{ matrix.arch }}
+      - name: Scan the pushed digest
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+          TRIVY_PLATFORM: linux/${{ matrix.arch }}
+        with:
+          image-ref: ${{ env.IMAGE }}@${{ steps.build.outputs.digest }}
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          format: sarif
+          output: trivy.sarif
+          # Without it, a SARIF run drops the severity filter and fails on any finding.
+          limit-severities-for-sarif: true
+          # Accepted findings, each scoped to a file and expiring.
+          trivyignores: .trivyignore.yaml
+      - name: Upload scan results
+        if: always()
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          sarif_file: trivy.sarif
+          category: trivy-${{ matrix.image }}-${{ matrix.arch }}
+      - name: Keep the digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: mkdir -p digests && touch "digests/${DIGEST#sha256:}"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: digests-${{ matrix.image }}-${{ matrix.arch }}
+          path: digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: release
+    name: publish ${{ matrix.image }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        image: [api, web, agents, publisher, ingestion, verifier, postgres]
+    steps:
+      - name: Image name
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/anr-${{ matrix.image }}" >> "$GITHUB_ENV"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: digests-${{ matrix.image }}-*
+          merge-multiple: true
+          path: digests
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # One index per image holding both architectures (and their attestations), tagged with the
+      # version and the commit it was built from.
+      - name: Tag the multi-arch index
+        working-directory: digests
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          sources=()
+          for digest in *; do sources+=("$IMAGE@sha256:$digest"); done
+          docker buildx imagetools create -t "$IMAGE:$TAG" -t "$IMAGE:sha-$GITHUB_SHA" "${sources[@]}"
+          docker buildx imagetools inspect "$IMAGE:$TAG"

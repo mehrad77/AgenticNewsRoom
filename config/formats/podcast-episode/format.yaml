@@ -2,3 +2,4 @@
 genre: genre:Feature # Feature: the week retold, and one story as a narrative
 ninjs_type: audio
 run_tokens: 250000 # input + output over all model calls of one agent run (D76)
+grace: 1h # how late a send may still start; later it is held for an editor (D129)

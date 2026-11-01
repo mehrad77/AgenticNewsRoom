@@ -16,7 +16,8 @@
       "!**/*.md",
       "!pnpm-lock.yaml",
       "!.vscode",
-      "!**/*.build.css"
+      "!**/*.build.css",
+      "!infra/secrets"
     ]
   },
   "formatter": {

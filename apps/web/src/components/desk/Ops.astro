@@ -1,0 +1,176 @@
+---
+// The platform admin's Ops page (D144): switches the workers and the host obey within 30 seconds,
+// each audited. Grafana (ops.) is for looking at history; this page is for acting.
+import type { OpsState } from "../../lib/desk.ts";
+
+interface Props {
+  ops: OpsState;
+  grafana: string;
+}
+const { ops, grafana } = Astro.props;
+const when = (iso: string | null) =>
+  iso ? new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }).format(new Date(iso)) + " UTC" : "—";
+---
+<h1>Operations</h1>
+<p class="meta">Every action here is recorded in the platform audit log. Workers and the host follow it within 30 seconds. History and alerts are in <a href={grafana}>Grafana</a>.</p>
+
+<section class="card">
+  <h2>Publishing</h2>
+  {ops.paused_everywhere ? (
+    <p><strong>Paused in every newsroom.</strong> Nothing goes out; on resuming, a slot still within its grace sends and any other is held for an editor.</p>
+  ) : (
+    <p>Publishing runs. A pause stops the publisher before its next send or part.</p>
+  )}
+  <form method="post" class="actions" onsubmit={ops.paused_everywhere ? undefined : "return confirm('Pause publishing in every newsroom?')"}>
+    <input type="hidden" name="action" value={ops.paused_everywhere ? "resume" : "pause"} />
+    <button class={ops.paused_everywhere ? "primary" : ""}>{ops.paused_everywhere ? "Resume everywhere" : "Pause everywhere"}</button>
+  </form>
+  <div class="scroll">
+    <table>
+      <tr><th>Newsroom</th><th>Paused since</th><th></th></tr>
+      {ops.pauses.map((p) => (
+        <tr>
+          <td>{p.newsroom}</td>
+          <td>{when(p.paused_at)}</td>
+          <td>
+            <form method="post" class="inline">
+              <input type="hidden" name="newsroom" value={p.newsroom} />
+              <input type="hidden" name="action" value={p.paused_at ? "resume" : "pause"} />
+              <button>{p.paused_at ? "Resume" : "Pause"}</button>
+            </form>
+          </td>
+        </tr>
+      ))}
+    </table>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Queues</h2>
+  <p class="meta">Only queues whose work ends in a hold or runs again can be drained; deadlines, corrections, assignments and redrafts never can.</p>
+  <div class="scroll">
+    <table>
+      <tr><th>Queue</th><th>Waiting</th><th>Running</th><th>Failed</th><th>Drained</th><th></th></tr>
+      {ops.queues.map((q) => (
+        <tr>
+          <td>{q.name}</td>
+          <td>{q.waiting}</td>
+          <td>{q.active}</td>
+          <td class={q.failed > 0 ? "fail" : ""}>{q.failed}</td>
+          <td>{q.drained_at ? when(q.drained_at) : "—"}</td>
+          <td>
+            {q.drainable && (
+              <form method="post" class="inline">
+                <input type="hidden" name="queue" value={q.name} />
+                <input type="hidden" name="action" value={q.drained_at ? "undrain" : "drain"} />
+                <button>{q.drained_at ? "Lift drain" : "Drain"}</button>
+              </form>
+            )}
+          </td>
+        </tr>
+      ))}
+    </table>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Failed jobs</h2>
+  {ops.failed.length === 0 ? <p>None.</p> : (
+    <div class="scroll">
+      <table>
+        <tr><th>Queue</th><th>Newsroom</th><th>Failed</th><th>Error</th><th></th></tr>
+        {ops.failed.map((j) => (
+          <tr>
+            <td>{j.queue}</td>
+            <td>{j.newsroom ?? "—"}</td>
+            <td>{when(j.at)}</td>
+            <td><small>{j.error}</small></td>
+            <td>
+              <form method="post" class="inline">
+                <input type="hidden" name="queue" value={j.queue} />
+                <input type="hidden" name="id" value={j.id} />
+                <input type="hidden" name="action" value="retry" />
+                <button>Retry</button>
+              </form>
+            </td>
+          </tr>
+        ))}
+      </table>
+    </div>
+  )}
+</section>
+
+<section class="card">
+  <h2>Waiting jobs</h2>
+  <p class="meta">Not started yet, on the queues that may be cancelled.</p>
+  {ops.waiting.length === 0 ? <p>None.</p> : (
+    <div class="scroll">
+      <table>
+        <tr><th>Queue</th><th>Newsroom</th><th>Starts</th><th></th></tr>
+        {ops.waiting.map((j) => (
+          <tr>
+            <td>{j.queue}</td>
+            <td>{j.newsroom ?? "—"}</td>
+            <td>{when(j.at)}</td>
+            <td>
+              <form method="post" class="inline" onsubmit="return confirm('Cancel this job?')">
+                <input type="hidden" name="queue" value={j.queue} />
+                <input type="hidden" name="id" value={j.id} />
+                <input type="hidden" name="action" value="cancel" />
+                <button>Cancel</button>
+              </form>
+            </td>
+          </tr>
+        ))}
+      </table>
+    </div>
+  )}
+</section>
+
+<section class="card">
+  <h2>Backups</h2>
+  <form method="post" class="actions">
+    <input type="hidden" name="action" value="backup-check" />
+    <button>Check backups now</button>
+  </form>
+  {ops.backup_requests.length > 0 && (
+    <ul>
+      {ops.backup_requests.map((r) => (
+        <li>Asked {when(r.requested_at)}: {r.done_at ? `done ${when(r.done_at)}` : r.picked_at ? "running" : "waiting for the host"}</li>
+      ))}
+    </ul>
+  )}
+  <div class="scroll">
+    <table>
+      <tr><th>Run</th><th>Started</th><th>Finished</th><th>Result</th></tr>
+      {ops.backups.map((b) => (
+        <tr>
+          <td>{b.kind}</td>
+          <td>{when(b.started_at)}</td>
+          <td>{when(b.finished_at)}</td>
+          <td class={b.ok === false ? "fail" : b.ok ? "pass" : ""}>{b.ok === null ? "running" : b.ok ? "ok" : "failed"}</td>
+        </tr>
+      ))}
+    </table>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Workers</h2>
+  <div class="scroll">
+    <table>
+      <tr><th>Worker</th><th>Last beat</th></tr>
+      {ops.heartbeats.map((h) => (
+        <tr><td>{h.worker}</td><td class={h.late ? "fail" : "pass"}>{when(h.beat_at)}{h.late && " (late)"}</td></tr>
+      ))}
+    </table>
+  </div>
+  <h3>Recent outages</h3>
+  {ops.outages.length === 0 ? <p>None.</p> : (
+    <ul>
+      {ops.outages.map((o) => (
+        <li>{o.kind === "host" ? "Host" : o.worker}: {when(o.started_at)} to {when(o.ended_at)}</li>
+      ))}
+    </ul>
+  )}
+</section>

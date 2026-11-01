@@ -50,4 +50,15 @@ export {
   sealCredentials,
 } from "./credentials.ts";
 export { loadRootEnv } from "./env.ts";
+export {
+  beat,
+  HEARTBEAT_MS,
+  type Health,
+  health,
+  STALE_MINUTES,
+  startHeartbeat,
+  WORKERS,
+  type Worker,
+} from "./heartbeat.ts";
+export { DRAIN_POLL_MS, drainControl, isPaused } from "./ops.ts";
 export { findTenancyProblems, PLATFORM_TABLES } from "./tenancy.ts";

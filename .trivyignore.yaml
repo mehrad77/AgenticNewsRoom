@@ -1,0 +1,197 @@
+# Trivy findings accepted for now (D134), each scoped to the vendor binary it is in and expiring,
+# so the release scan fails again unless a person looks once more. Both binaries are statically
+# linked Go with no newer release built on a fixed toolchain (2026-10-31):
+# - gosu (in the official postgres image) only drops root to the postgres user at container start:
+#   it opens no connection and parses no certificate or archive.
+# - dbmate 2.37.0 runs once per deploy, in the api image only, against Postgres on the Compose
+#   network without TLS. Its path names the version, so a dbmate bump drops these entries.
+vulnerabilities:
+  - id: CVE-2025-61726
+    paths:
+      - "usr/local/bin/gosu"
+      - "repo/node_modules/.pnpm/@dbmate+linux-x64@2.37.0/node_modules/@dbmate/linux-x64/bin/dbmate"
+      - "repo/node_modules/.pnpm/@dbmate+linux-arm64@2.37.0/node_modules/@dbmate/linux-arm64/bin/dbmate"
+    statement: Go toolchain or library finding in a vendor binary that never reaches the affected code path; see above.
+    expired_at: 2026-12-01
+  - id: CVE-2025-61729
+    paths:
+      - "usr/local/bin/gosu"
+      - "repo/node_modules/.pnpm/@dbmate+linux-x64@2.37.0/node_modules/@dbmate/linux-x64/bin/dbmate"
+      - "repo/node_modules/.pnpm/@dbmate+linux-arm64@2.37.0/node_modules/@dbmate/linux-arm64/bin/dbmate"
+    statement: Go toolchain or library finding in a vendor binary that never reaches the affected code path; see above.
+    expired_at: 2026-12-01
+  - id: CVE-2025-68121
+    paths:
+      - "usr/local/bin/gosu"
+      - "repo/node_modules/.pnpm/@dbmate+linux-x64@2.37.0/node_modules/@dbmate/linux-x64/bin/dbmate"
+      - "repo/node_modules/.pnpm/@dbmate+linux-arm64@2.37.0/node_modules/@dbmate/linux-arm64/bin/dbmate"
+    statement: Go toolchain or library finding in a vendor binary that never reaches the affected code path; see above.
+    expired_at: 2026-12-01
+  - id: CVE-2026-111943
+    paths:
+      - "usr/local/bin/gosu"
+      - "repo/node_modules/.pnpm/@dbmate+linux-x64@2.37.0/node_modules/@dbmate/linux-x64/bin/dbmate"
+      - "repo/node_modules/.pnpm/@dbmate+linux-arm64@2.37.0/node_modules/@dbmate/linux-arm64/bin/dbmate"
+    statement: Go toolchain or library finding in a vendor binary that never reaches the affected code path; see above.
+    expired_at: 2026-12-01
+  - id: CVE-2026-25679
+    paths:
+      - "usr/local/bin/gosu"
+      - "repo/node_modules/.pnpm/@dbmate+linux-x64@2.37.0/node_modules/@dbmate/linux-x64/bin/dbmate"
+      - "repo/node_modules/.pnpm/@dbmate+linux-arm64@2.37.0/node_modules/@dbmate/linux-arm64/bin/dbmate"
+    statement: Go toolchain or library finding in a vendor binary that never reaches the affected code path; see above.
+    expired_at: 2026-12-01
+  - id: CVE-2026-27145
+    paths:
+      - "usr/local/bin/gosu"
+      - "repo/node_modules/.pnpm/@dbmate+linux-x64@2.37.0/node_modules/@dbmate/linux-x64/bin/dbmate"
+      - "repo/node_modules/.pnpm/@dbmate+linux-arm64@2.37.0/node_modules/@dbmate/linux-arm64/bin/dbmate"
+    statement: Go toolchain or library finding in a vendor binary that never reaches the affected code path; see above.
+    expired_at: 2026-12-01
+  - id: CVE-2026-32280
+    paths:
+      - "usr/local/bin/gosu"
+      - "repo/node_modules/.pnpm/@dbmate+linux-x64@2.37.0/node_modules/@dbmate/linux-x64/bin/dbmate"
+      - "repo/node_modules/.pnpm/@dbmate+linux-arm64@2.37.0/node_modules/@dbmate/linux-arm64/bin/dbmate"
+    statement: Go toolchain or library finding in a vendor binary that never reaches the affected code path; see above.
+    expired_at: 2026-12-01
+  - id: CVE-2026-32281
+    paths:
+      - "usr/local/bin/gosu"
+      - "repo/node_modules/.pnpm/@dbmate+linux-x64@2.37.0/node_modules/@dbmate/linux-x64/bin/dbmate"
+      - "repo/node_modules/.pnpm/@dbmate+linux-arm64@2.37.0/node_modules/@dbmate/linux-arm64/bin/dbmate"
+    statement: Go toolchain or library finding in a vendor binary that never reaches the affected code path; see above.
+    expired_at: 2026-12-01
+  - id: CVE-2026-32283
+    paths:
+      - "usr/local/bin/gosu"
+      - "repo/node_modules/.pnpm/@dbmate+linux-x64@2.37.0/node_modules/@dbmate/linux-x64/bin/dbmate"
+      - "repo/node_modules/.pnpm/@dbmate+linux-arm64@2.37.0/node_modules/@dbmate/linux-arm64/bin/dbmate"
+    statement: Go toolchain or library finding in a vendor binary that never reaches the affected code path; see above.
+    expired_at: 2026-12-01
+  - id: CVE-2026-33811
+    paths:
+      - "usr/local/bin/gosu"
+      - "repo/node_modules/.pnpm/@dbmate+linux-x64@2.37.0/node_modules/@dbmate/linux-x64/bin/dbmate"
+      - "repo/node_modules/.pnpm/@dbmate+linux-arm64@2.37.0/node_modules/@dbmate/linux-arm64/bin/dbmate"
+    statement: Go toolchain or library finding in a vendor binary that never reaches the affected code path; see above.
+    expired_at: 2026-12-01
+  - id: CVE-2026-33814
+    paths:
+      - "usr/local/bin/gosu"
+      - "repo/node_modules/.pnpm/@dbmate+linux-x64@2.37.0/node_modules/@dbmate/linux-x64/bin/dbmate"
+      - "repo/node_modules/.pnpm/@dbmate+linux-arm64@2.37.0/node_modules/@dbmate/linux-arm64/bin/dbmate"
+    statement: Go toolchain or library finding in a vendor binary that never reaches the affected code path; see above.
+    expired_at: 2026-12-01
+  - id: CVE-2026-33818
+    paths:
+      - "usr/local/bin/gosu"
+      - "repo/node_modules/.pnpm/@dbmate+linux-x64@2.37.0/node_modules/@dbmate/linux-x64/bin/dbmate"
+      - "repo/node_modules/.pnpm/@dbmate+linux-arm64@2.37.0/node_modules/@dbmate/linux-arm64/bin/dbmate"
+    statement: Go toolchain or library finding in a vendor binary that never reaches the affected code path; see above.
+    expired_at: 2026-12-01
+  - id: CVE-2026-39820
+    paths:
+      - "usr/local/bin/gosu"
+      - "repo/node_modules/.pnpm/@dbmate+linux-x64@2.37.0/node_modules/@dbmate/linux-x64/bin/dbmate"
+      - "repo/node_modules/.pnpm/@dbmate+linux-arm64@2.37.0/node_modules/@dbmate/linux-arm64/bin/dbmate"
+    statement: Go toolchain or library finding in a vendor binary that never reaches the affected code path; see above.
+    expired_at: 2026-12-01
+  - id: CVE-2026-39821
+    paths:
+      - "usr/local/bin/gosu"
+      - "repo/node_modules/.pnpm/@dbmate+linux-x64@2.37.0/node_modules/@dbmate/linux-x64/bin/dbmate"
+      - "repo/node_modules/.pnpm/@dbmate+linux-arm64@2.37.0/node_modules/@dbmate/linux-arm64/bin/dbmate"
+    statement: Go toolchain or library finding in a vendor binary that never reaches the affected code path; see above.
+    expired_at: 2026-12-01
+  - id: CVE-2026-39822
+    paths:
+      - "usr/local/bin/gosu"
+      - "repo/node_modules/.pnpm/@dbmate+linux-x64@2.37.0/node_modules/@dbmate/linux-x64/bin/dbmate"
+      - "repo/node_modules/.pnpm/@dbmate+linux-arm64@2.37.0/node_modules/@dbmate/linux-arm64/bin/dbmate"
+    statement: Go toolchain or library finding in a vendor binary that never reaches the affected code path; see above.
+    expired_at: 2026-12-01
+  - id: CVE-2026-39836
+    paths:
+      - "usr/local/bin/gosu"
+      - "repo/node_modules/.pnpm/@dbmate+linux-x64@2.37.0/node_modules/@dbmate/linux-x64/bin/dbmate"
+      - "repo/node_modules/.pnpm/@dbmate+linux-arm64@2.37.0/node_modules/@dbmate/linux-arm64/bin/dbmate"
+    statement: Go toolchain or library finding in a vendor binary that never reaches the affected code path; see above.
+    expired_at: 2026-12-01
+  - id: CVE-2026-42499
+    paths:
+      - "usr/local/bin/gosu"
+      - "repo/node_modules/.pnpm/@dbmate+linux-x64@2.37.0/node_modules/@dbmate/linux-x64/bin/dbmate"
+      - "repo/node_modules/.pnpm/@dbmate+linux-arm64@2.37.0/node_modules/@dbmate/linux-arm64/bin/dbmate"
+    statement: Go toolchain or library finding in a vendor binary that never reaches the affected code path; see above.
+    expired_at: 2026-12-01
+  - id: CVE-2026-42504
+    paths:
+      - "usr/local/bin/gosu"
+      - "repo/node_modules/.pnpm/@dbmate+linux-x64@2.37.0/node_modules/@dbmate/linux-x64/bin/dbmate"
+      - "repo/node_modules/.pnpm/@dbmate+linux-arm64@2.37.0/node_modules/@dbmate/linux-arm64/bin/dbmate"
+    statement: Go toolchain or library finding in a vendor binary that never reaches the affected code path; see above.
+    expired_at: 2026-12-01
+  - id: CVE-2026-56853
+    paths:
+      - "usr/local/bin/gosu"
+      - "repo/node_modules/.pnpm/@dbmate+linux-x64@2.37.0/node_modules/@dbmate/linux-x64/bin/dbmate"
+      - "repo/node_modules/.pnpm/@dbmate+linux-arm64@2.37.0/node_modules/@dbmate/linux-arm64/bin/dbmate"
+    statement: Go toolchain or library finding in a vendor binary that never reaches the affected code path; see above.
+    expired_at: 2026-12-01
+  - id: CVE-2026-56858
+    paths:
+      - "usr/local/bin/gosu"
+      - "repo/node_modules/.pnpm/@dbmate+linux-x64@2.37.0/node_modules/@dbmate/linux-x64/bin/dbmate"
+      - "repo/node_modules/.pnpm/@dbmate+linux-arm64@2.37.0/node_modules/@dbmate/linux-arm64/bin/dbmate"
+    statement: Go toolchain or library finding in a vendor binary that never reaches the affected code path; see above.
+    expired_at: 2026-12-01
+  - id: CVE-2026-56859
+    paths:
+      - "usr/local/bin/gosu"
+      - "repo/node_modules/.pnpm/@dbmate+linux-x64@2.37.0/node_modules/@dbmate/linux-x64/bin/dbmate"
+      - "repo/node_modules/.pnpm/@dbmate+linux-arm64@2.37.0/node_modules/@dbmate/linux-arm64/bin/dbmate"
+    statement: Go toolchain or library finding in a vendor binary that never reaches the affected code path; see above.
+    expired_at: 2026-12-01
+  - id: CVE-2026-56860
+    paths:
+      - "usr/local/bin/gosu"
+      - "repo/node_modules/.pnpm/@dbmate+linux-x64@2.37.0/node_modules/@dbmate/linux-x64/bin/dbmate"
+      - "repo/node_modules/.pnpm/@dbmate+linux-arm64@2.37.0/node_modules/@dbmate/linux-arm64/bin/dbmate"
+    statement: Go toolchain or library finding in a vendor binary that never reaches the affected code path; see above.
+    expired_at: 2026-12-01
+  - id: CVE-2026-56862
+    paths:
+      - "usr/local/bin/gosu"
+      - "repo/node_modules/.pnpm/@dbmate+linux-x64@2.37.0/node_modules/@dbmate/linux-x64/bin/dbmate"
+      - "repo/node_modules/.pnpm/@dbmate+linux-arm64@2.37.0/node_modules/@dbmate/linux-arm64/bin/dbmate"
+    statement: Go toolchain or library finding in a vendor binary that never reaches the affected code path; see above.
+    expired_at: 2026-12-01
+  - id: CVE-2026-63209
+    paths:
+      - "usr/local/bin/gosu"
+      - "repo/node_modules/.pnpm/@dbmate+linux-x64@2.37.0/node_modules/@dbmate/linux-x64/bin/dbmate"
+      - "repo/node_modules/.pnpm/@dbmate+linux-arm64@2.37.0/node_modules/@dbmate/linux-arm64/bin/dbmate"
+    statement: Go toolchain or library finding in a vendor binary that never reaches the affected code path; see above.
+    expired_at: 2026-12-01
+  - id: CVE-2026-78667
+    paths:
+      - "usr/local/bin/gosu"
+      - "repo/node_modules/.pnpm/@dbmate+linux-x64@2.37.0/node_modules/@dbmate/linux-x64/bin/dbmate"
+      - "repo/node_modules/.pnpm/@dbmate+linux-arm64@2.37.0/node_modules/@dbmate/linux-arm64/bin/dbmate"
+    statement: Go toolchain or library finding in a vendor binary that never reaches the affected code path; see above.
+    expired_at: 2026-12-01
+  - id: CVE-2026-78669
+    paths:
+      - "usr/local/bin/gosu"
+      - "repo/node_modules/.pnpm/@dbmate+linux-x64@2.37.0/node_modules/@dbmate/linux-x64/bin/dbmate"
+      - "repo/node_modules/.pnpm/@dbmate+linux-arm64@2.37.0/node_modules/@dbmate/linux-arm64/bin/dbmate"
+    statement: Go toolchain or library finding in a vendor binary that never reaches the affected code path; see above.
+    expired_at: 2026-12-01
+  - id: CVE-2026-97031
+    paths:
+      - "usr/local/bin/gosu"
+      - "repo/node_modules/.pnpm/@dbmate+linux-x64@2.37.0/node_modules/@dbmate/linux-x64/bin/dbmate"
+      - "repo/node_modules/.pnpm/@dbmate+linux-arm64@2.37.0/node_modules/@dbmate/linux-arm64/bin/dbmate"
+    statement: Go toolchain or library finding in a vendor binary that never reaches the affected code path; see above.
+    expired_at: 2026-12-01

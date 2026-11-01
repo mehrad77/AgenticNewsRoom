@@ -2,7 +2,7 @@
 // one submit. The daily assignment and the verifier gate run here too.
 import { fileURLToPath } from "node:url";
 import type { AgentRole } from "@anr/core";
-import { createBoss, createPool, withNewsroom } from "@anr/db";
+import { createBoss, createPool, drainControl, startHeartbeat, withNewsroom } from "@anr/db";
 import { buildCatalog, loadModelsConfig, ModelGateway, missingKeys, modelsFile } from "@anr/models";
 import { createRenderer } from "@anr/render";
 import { assignDaily, assignPick } from "./assign.ts";
@@ -41,6 +41,7 @@ const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error("DATABASE_URL is not set");
 
 const pool = createPool(connectionString);
+const stopHeartbeat = startHeartbeat(pool, "agents");
 const boss = createBoss(connectionString, "agents");
 await boss.start();
 const ingestion = ingestionClient(process.env.ANR_INGESTION_URL ?? "http://127.0.0.1:8101");
@@ -70,7 +71,9 @@ const run =
     if (outcome) console.log(`[agents] run ${job.agentRunId}: ${outcome}`);
   };
 
-await registerJobs(boss, {
+// Handlers are registered through the drain control, which works only undrained queues (D144).
+const drains = drainControl(pool, boss);
+await registerJobs(drains.boss, {
   "ingest-source": async (job) => {
     await handleIngestSource(job, {
       ingestion,
@@ -146,6 +149,8 @@ await registerJobs(boss, {
   },
 });
 
+await drains.start();
+
 /** Holds whatever is still being written or checked shortly before its slot (D80). */
 const SWEEP_EVERY_MS = 5 * 60_000;
 const sweep = async () => {
@@ -174,6 +179,8 @@ for (const role of [
 console.log(`agents worker started (${modelsFile(configDir)})`);
 
 const stop = async () => {
+  stopHeartbeat();
+  drains.stop();
   clearInterval(sweeper);
   await boss.stop();
   await pool.end();

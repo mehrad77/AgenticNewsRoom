@@ -1,11 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { byteRange, listenerAddress } from "./podcast.ts";
+import { byteRange, readerAddress } from "./podcast.ts";
 
-describe("listenerAddress", () => {
-  it("takes the address the proxy wrote last, else the connection's", () => {
-    expect(listenerAddress("198.51.100.1, 203.0.113.7", "172.18.0.2")).toBe("203.0.113.7");
-    expect(listenerAddress(null, "203.0.113.7")).toBe("203.0.113.7");
-    expect(listenerAddress("", "203.0.113.7")).toBe("203.0.113.7");
+describe("readerAddress", () => {
+  it("takes Cloudflare's CF-Connecting-IP, else the connection's address", () => {
+    expect(readerAddress("203.0.113.7", "172.18.0.2")).toBe("203.0.113.7");
+    expect(readerAddress(null, "203.0.113.7")).toBe("203.0.113.7");
+    expect(readerAddress("", "203.0.113.7")).toBe("203.0.113.7");
+  });
+
+  it("never reads X-Forwarded-For, which a reader can forge", () => {
+    const headers = new Headers({
+      "x-forwarded-for": "198.51.100.66",
+      "cf-connecting-ip": "203.0.113.7",
+    });
+    expect(readerAddress(headers.get("cf-connecting-ip"), "172.18.0.2")).toBe("203.0.113.7");
+    const forgedOnly = new Headers({ "x-forwarded-for": "198.51.100.66" });
+    expect(readerAddress(forgedOnly.get("cf-connecting-ip"), "172.18.0.2")).toBe("172.18.0.2");
   });
 });
 

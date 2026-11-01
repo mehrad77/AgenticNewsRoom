@@ -37,6 +37,26 @@ export const QUEUES = {
 } as const;
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
 
+/**
+ * Queues the platform admin may drain, or cancel a job on that has not started (D144): their work
+ * ends in a hold or is done again on the next run. Never a deadline, a correction, an assignment,
+ * a redraft or the publish sweep (which a pause covers), so nothing editorial can be suppressed.
+ * `queue_drains` checks the same list.
+ */
+export const DRAINABLE_QUEUES: readonly QueueName[] = [
+  QUEUES.ingestSource,
+  QUEUES.ingestMedia,
+  QUEUES.agentRun,
+  QUEUES.gate,
+  QUEUES.podcastAudio,
+  QUEUES.plan,
+  QUEUES.channelCheck,
+  QUEUES.channelStats,
+];
+
+/** The platform setting that pauses publishing in every newsroom (D144). */
+export const PUBLISHING_PAUSED_KEY = "publishing.paused";
+
 /** How long the agents worker waits for one source's ingest run (polite fetching is slow). */
 export const INGEST_TIMEOUT_SECONDS = 15 * 60;
 

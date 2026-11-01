@@ -11,6 +11,7 @@ import { type Language, pageUrl, type SiteAddress } from "@anr/core";
 import { type Pool, withNewsroom } from "@anr/db";
 import { createRenderer } from "@anr/render";
 import type { ReaderNewsroom } from "./reader.ts";
+import { mediaRedirect } from "./storage.ts";
 
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const AUDIO = new RegExp(`^/a/(${UUID})\\.mp3$`);
@@ -60,12 +61,12 @@ export async function episodeAudio(
 }
 
 /**
- * The listener's address: behind the site's proxy (Caddy), the last X-Forwarded-For entry, which
- * the proxy itself wrote; without the header, the connection's own address.
+ * A reader's address: CF-Connecting-IP, which Cloudflare sets and a reader cannot forge since the
+ * tunnel is the only way in (D122); without it (development), the connection's own address.
+ * X-Forwarded-For is never read: anyone can write it.
  */
-export function listenerAddress(forwardedFor: string | null, connection: string): string {
-  const last = forwardedFor?.split(",").at(-1)?.trim();
-  return last || connection;
+export function readerAddress(cfConnectingIp: string | null, connection: string): string {
+  return cfConnectingIp?.trim() || connection;
 }
 
 /** Counts one download per listener, episode and day in the newsroom's timezone. */
@@ -109,12 +110,15 @@ export function byteRange(header: string | null, size: number): [number, number]
 }
 
 /**
- * Where a stored episode is fetched from: object storage's public URL, or the local store,
- * streamed and with byte ranges, as podcast apps ask for them.
+ * Where a stored episode is fetched from: a presigned redirect into the media bucket, which
+ * serves byte ranges itself, or the local store, streamed with byte ranges as podcast apps ask.
  */
-export function audioResponse(mediaKey: string, range: string | null = null): Response {
-  const base = process.env.ANR_MEDIA_URL;
-  if (base) return Response.redirect(`${base.replace(/\/$/, "")}/${mediaKey}`, 302);
+export async function audioResponse(
+  mediaKey: string,
+  range: string | null = null,
+): Promise<Response> {
+  const redirect = await mediaRedirect(mediaKey);
+  if (redirect) return redirect;
   const dir = process.env.ANR_MEDIA_DIR ?? join(process.cwd(), "../../.data/media");
   const file = join(dir, mediaKey);
   const size = statSync(file).size;

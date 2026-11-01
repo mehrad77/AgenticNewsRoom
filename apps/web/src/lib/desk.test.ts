@@ -24,6 +24,7 @@ describe("deskRoute", () => {
     expect(deskRoute("/kultur/media")).toEqual({ kind: "media", newsroom: "kultur" });
     expect(deskRoute("/AI")).toEqual({ kind: "not-found" });
     expect(deskRoute("/admin")).toEqual({ kind: "admin" });
+    expect(deskRoute("/ops")).toEqual({ kind: "ops" });
     for (const page of ["plan", "voices", "schedule", "budget", "sources", "measures"])
       expect(deskRoute(`/ai/${page}/`)).toEqual({ kind: page, newsroom: "ai" });
   });
@@ -84,6 +85,40 @@ describe("deskApi", () => {
       url: "http://api.test/desk/newsrooms/ai/picks/p1/choose",
       body: { candidate: 2 },
     });
+  });
+
+  it("posts the Ops page's actions to the admin's routes (D144)", async () => {
+    const calls: { url: string; body: unknown }[] = [];
+    const fetchFn = (async (url: string, init: RequestInit) => {
+      calls.push({ url, body: JSON.parse(String(init.body)) });
+      return new Response("{}");
+    }) as unknown as typeof fetch;
+    const api = deskApi("http://api.test", null, fetchFn);
+    const form = (fields: Record<string, string>) => {
+      const f = new FormData();
+      for (const [k, v] of Object.entries(fields)) f.set(k, v);
+      return f;
+    };
+    const id = "0b1c2d3e-0000-4000-8000-000000000000";
+    const forms: Record<string, string>[] = [
+      { action: "pause", newsroom: "ai" },
+      { action: "resume" },
+      { action: "drain", queue: "ingest-source" },
+      { action: "cancel", queue: "gate", id },
+      { action: "backup-check" },
+    ];
+    for (const f of forms) expect(await api.act({ kind: "ops" }, form(f))).toBe("/ops");
+    expect(calls).toEqual([
+      { url: "http://api.test/desk/admin/ops/pause", body: { newsroom: "ai" } },
+      { url: "http://api.test/desk/admin/ops/resume", body: {} },
+      {
+        url: "http://api.test/desk/admin/ops/drain",
+        body: { queue: "ingest-source", drained: true },
+      },
+      { url: "http://api.test/desk/admin/ops/jobs/cancel", body: { queue: "gate", id } },
+      { url: "http://api.test/desk/admin/ops/backup-check", body: {} },
+    ]);
+    await expect(api.act({ kind: "ops" }, form({ action: "delete" }))).rejects.toThrow("unknown");
   });
 
   it("posts the admin's checked engines, and a newsroom's engine or none", async () => {

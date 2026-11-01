@@ -10,6 +10,11 @@ export const PLATFORM_TABLES: Readonly<Record<string, string>> = {
   restores: "a database restore is platform-wide; the publisher holds past-due slots after one",
   platform_settings: "settings of the platform, above every newsroom (the TTS engines on offer)",
   platform_audit_log: "who changed a platform setting; a newsroom's changes go to audit_log",
+  heartbeats: "a worker serves every newsroom; its liveness belongs to none (D128)",
+  outages: "a worker's or the host's downtime, shared by every newsroom (D128)",
+  backup_runs: "one backup holds every newsroom's data (D131)",
+  ops_requests: "the platform admin's requests to the host, such as a backup check (D144)",
+  queue_drains: "a pg-boss queue serves every newsroom (D144)",
 };
 
 const TENANT_FUNCTION = "anr.current_newsroom_id()";

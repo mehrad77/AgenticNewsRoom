@@ -1,0 +1,10 @@
+[Unit]
+Description=ANR: daily differential backup, 03:00 except Sunday
+
+[Timer]
+OnCalendar=Mon..Sat *-*-* 03:00:00
+# A run missed while the host was down or asleep runs once when it is back (D131).
+Persistent=true
+
+[Install]
+WantedBy=timers.target

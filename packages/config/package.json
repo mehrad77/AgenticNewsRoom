@@ -11,7 +11,8 @@
     "check": "node src/cli.ts",
     "typecheck": "tsc -p .",
     "test": "vitest run",
-    "sync": "node src/sync-cli.ts"
+    "sync": "node src/sync-cli.ts",
+    "sync:test": "node src/sync-test-cli.ts"
   },
   "dependencies": {
     "@anr/core": "workspace:*",

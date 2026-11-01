@@ -480,7 +480,7 @@ describe("episode audio (D109)", () => {
     expect(item?.body).toMatch(/length="[1-9][0-9]+"/);
   }, 120_000);
 
-  it("holds an episode whose audio never came, an hour past its slot", async () => {
+  it("holds an episode whose audio never came as a missed slot past its grace", async () => {
     const { newsroomId, publicationId } = await scheduledEpisode();
     const deps = {
       pool: pools.app,
@@ -492,11 +492,11 @@ describe("episode audio (D109)", () => {
     };
     expect(await publishOne(deps, newsroomId, publicationId)).toBe("held");
     const checks = (
-      await pools.system.query<{ name: string }>(
-        "select name from checks where publication_id = $1",
+      await pools.system.query<{ name: string; waiting_for: string }>(
+        "select name, detail->>'waiting_for' as waiting_for from checks where publication_id = $1",
         [publicationId],
       )
     ).rows;
-    expect(checks).toEqual([{ name: "audio-missing" }]);
+    expect(checks).toEqual([{ name: "missed-slot", waiting_for: "audio" }]);
   });
 });

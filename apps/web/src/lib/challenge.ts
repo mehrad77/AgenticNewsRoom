@@ -21,7 +21,10 @@ export type ChallengeSent =
   | { ok: true; id: string; token: string }
   | { ok: false; status: number; error: string };
 
-/** Sends the challenge to the API with the reader's address and agent, for its rate limit only. */
+/**
+ * Sends the challenge to the API with the reader's address and agent, for its rate limit only. The
+ * address goes on as CF-Connecting-IP, the one header the API reads it from (D122).
+ */
 export async function sendChallenge(
   apiBase: string,
   newsroom: string,
@@ -35,7 +38,7 @@ export async function sendChallenge(
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "x-forwarded-for": reader.address,
+      "cf-connecting-ip": reader.address,
       "user-agent": reader.userAgent,
     },
     body: JSON.stringify(body),

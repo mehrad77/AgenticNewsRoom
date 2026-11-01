@@ -1,6 +1,6 @@
 // Every minute: each newsroom's scheduled publications whose slot has come, oldest first. Each one
 // is published under its own lock, so overlapping sweeps never send a part twice.
-import { type Pool, withNewsroom } from "@anr/db";
+import { isPaused, type Pool, withNewsroom } from "@anr/db";
 import { holdPublication } from "./hold.ts";
 import { type PublishDeps, type PublishOutcome, publishOne, RETRY_WINDOW_MS } from "./publish.ts";
 
@@ -15,6 +15,8 @@ export async function sweepDue(
   const counts: Partial<Record<PublishOutcome, number>> = {};
   for (const { id: newsroomId } of newsrooms) {
     const due = await withNewsroom(pool, newsroomId, async (c) => {
+      // A paused newsroom sends nothing; resuming decides what is still on time (D144).
+      if (await isPaused(c)) return [];
       const { rows } = await c.query<{ id: string; slot: Date }>(
         "select id, slot from publications where status = 'scheduled' and slot <= $1 order by slot",
         [now],

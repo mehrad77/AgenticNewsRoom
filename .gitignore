@@ -16,3 +16,9 @@ coverage/
 .claude/settings.local.json
 .claude/worktrees/
 .data/
+# Terraform: providers and any local state (state holds the tunnel token; it lives in R2, D136)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log

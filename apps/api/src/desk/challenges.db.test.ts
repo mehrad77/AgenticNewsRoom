@@ -136,11 +136,18 @@ const post = (path: string, body: unknown, headers: Record<string, string> = {})
     headers: { "content-type": "application/json", ...headers },
     body: JSON.stringify(body),
   });
+let forged = 0;
+/** As the site sends it: the reader's address as CF-Connecting-IP, plus a forged X-Forwarded-For
+ * that differs every time, so a reader rotating it would escape the limit if the API read it. */
 const challenge = (publication: string, address = "203.0.113.7") =>
   post(
     `/reader/newsrooms/${slug}/publications/${publication}/challenges`,
     { text: "The album came out in 2021, not 2019.", source_url: "https://label.example/album" },
-    { "x-forwarded-for": `10.0.0.1, ${address}`, "user-agent": "Reader" },
+    {
+      "cf-connecting-ip": address,
+      "x-forwarded-for": `198.51.100.${++forged % 250}`,
+      "user-agent": "Reader",
+    },
   );
 
 describe("readers' challenges (D114)", () => {
@@ -173,6 +180,7 @@ describe("readers' challenges (D114)", () => {
     });
     expect(short.status).toBe(400);
     expect((await challenge("00000000-0000-0000-0000-000000000000")).status).toBe(404);
+    // A forged X-Forwarded-For, different on every request, does not change the rate key (D122).
     const address = "198.51.100.9";
     for (let i = 0; i < PER_READER_PER_DAY; i++)
       expect((await challenge(pubs.en as string, address)).status).toBe(201);

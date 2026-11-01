@@ -140,6 +140,9 @@ async function approveAndPublish(id: string) {
   const adapter: ChannelAdapter = {
     send: async (_t, text) => (texts.push(text), String(texts.length)),
   };
+  const slot = (
+    await pools.system.query<{ slot: Date }>("select slot from publications where id = $1", [id])
+  ).rows[0]?.slot as Date;
   const outcome = await publishOne(
     {
       pool: pools.app,
@@ -147,7 +150,9 @@ async function approveAndPublish(id: string) {
       adapters: { telegram: adapter },
       platform,
       rootDomain: site.rootDomain,
-      now: () => new Date(),
+      live: true,
+      // At its slot: the fixtures' slots are in 2001, long past any grace (D129).
+      now: () => slot,
     },
     newsroomId,
     id,

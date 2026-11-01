@@ -1,15 +1,26 @@
-# TLS for the root domain and every newsroom subdomain, via a Cloudflare DNS-01 wildcard cert.
-*.{$ANR_ROOT_DOMAIN}, {$ANR_ROOT_DOMAIN} {
-	tls {
-		dns cloudflare {$CLOUDFLARE_DNS_API_TOKEN}
-	}
+# Plain HTTP behind the Cloudflare Tunnel (D122): Cloudflare terminates TLS and cloudflared sends
+# every host here. No access log: telemetry carries no reader data (D137).
+{
+	auto_https off
+	admin off
+}
 
-	# Only the web app and the API are public. Ingestion, verifier, agents and publisher are internal.
-	handle /api/* {
-		uri strip_prefix /api
+# Grafana, behind Access (D123); milestone 7b adds it to the prod project.
+http://ops.{$ANR_ROOT_DOMAIN} {
+	reverse_proxy grafana:3000
+}
+
+# The desk, behind Access; its pages call the API at /api/* (the prefix is stripped).
+http://desk.{$ANR_ROOT_DOMAIN} {
+	handle_path /api/* {
 		reverse_proxy api:8787
 	}
 	handle {
 		reverse_proxy web:4321
 	}
+}
+
+# The root and every newsroom's site. Reader sites reach the API only server-side, from the web app.
+:80 {
+	reverse_proxy web:4321
 }

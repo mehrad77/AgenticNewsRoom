@@ -1,0 +1,7 @@
+[Unit]
+Description=ANR: WAL archiving check (D131)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/anr
+ExecStart=/opt/anr/infra/backup/backup.sh check

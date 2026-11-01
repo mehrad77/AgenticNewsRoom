@@ -5,6 +5,7 @@ import { type Language, pageUrl, type SiteAddress } from "@anr/core";
 import {
   auditedUpdate,
   type Client,
+  isPaused,
   openCredentials,
   type PlatformKey,
   type Pool,
@@ -29,7 +30,10 @@ export const PUBLISHER = { kind: "code", name: "publisher" } as const;
 /** Share of auto-published publications an editor reviews afterwards (charter: approval). */
 export const SAMPLE_RATE = 0.1;
 
-/** How long past its slot a rate-limited or unreachable channel is retried before a hold. */
+/**
+ * How long past its slot a send already started is retried (a rate-limited or unreachable channel,
+ * D89) before a hold. A send not yet started has its format's grace instead (D129).
+ */
 export const RETRY_WINDOW_MS = 60 * 60_000;
 
 export interface PublishDeps {
@@ -42,11 +46,16 @@ export interface PublishDeps {
   media?: MediaDeps;
   rootDomain: string;
   devPort?: number;
+  /**
+   * ANR_PUBLISH=live. Otherwise a part for an external channel is recorded as a dry run and the
+   * channel is never called, so dev cannot post even with a real token in its database (D126).
+   */
+  live?: boolean;
   now?: () => Date;
   random?: () => number;
 }
 
-export type PublishOutcome = "published" | "held" | "retry" | "busy" | "not-due";
+export type PublishOutcome = "published" | "held" | "retry" | "busy" | "not-due" | "paused";
 
 interface PublicationRow {
   id: string;
@@ -60,6 +69,7 @@ interface PublicationRow {
   subdomain: string;
   languages: Language[];
   timezone: string;
+  grace_ms: number;
 }
 
 interface PostRow {
@@ -139,7 +149,8 @@ async function prepare(
   const { rows } = await client.query<PublicationRow>(
     `select p.id, p.status, p.slot, p.language, p.updated_at, s.slug as series_slug,
             coalesce(s.config->'channels', '{}') as channels, f.slug as format,
-            n.subdomain, n.languages, n.timezone
+            n.subdomain, n.languages, n.timezone,
+            extract(epoch from f.grace)::float8 * 1000 as grace_ms
      from publications p
      join series s on s.id = p.series_id
      join formats f on f.id = s.format_id
@@ -150,6 +161,8 @@ async function prepare(
   );
   const p = rows[0];
   if (p?.status !== "scheduled" || p.slot > now) return { kind: "done", outcome: "not-due" };
+  // Paused by the platform admin (D144): nothing is sent or held until a person resumes.
+  if (await isPaused(client)) return { kind: "done", outcome: "paused" };
   const hold = async (name: string, detail: unknown): Promise<Prepared> => {
     await holdPublication(client, id, { name, result: "fail", detail });
     return { kind: "done", outcome: "held" };
@@ -191,6 +204,50 @@ async function prepare(
   );
   const first = renditions[0];
   if (!first) return hold("no-rendition", {});
+
+  // An episode goes out only with audio made after the publication last changed: its approval,
+  // or an edit before it (D109).
+  const audioReady =
+    p.format !== "podcast-episode" ||
+    ((
+      await client.query(
+        "select from episodes where publication_id = $1 and rendition_id = $2 and created_at >= $3",
+        [id, first.id, p.updated_at],
+      )
+    ).rowCount ?? 0) > 0;
+  // A send starts only within its format's grace of the slot; later the slot is missed and a
+  // person decides (D129). A send already started keeps its retries (D89).
+  const started = posts.some((x) => x.status !== "pending" || x.attempted_at !== null);
+  const late = now.getTime() - p.slot.getTime();
+  if (!started && late > p.grace_ms) {
+    const lateMinutes = Math.floor(late / 60_000);
+    await client.query(
+      `insert into notices (newsroom_id, kind, key, detail)
+       values (anr.current_newsroom_id(), 'slot-missed', $1, $2)
+       on conflict (newsroom_id, kind, key) do nothing`,
+      [
+        id,
+        JSON.stringify({
+          publication: id,
+          series: p.series_slug,
+          language: p.language,
+          slot: p.slot.toISOString(),
+          late_minutes: lateMinutes,
+        }),
+      ],
+    );
+    await holdPublication(client, id, {
+      name: "missed-slot",
+      result: "timed-out",
+      detail: {
+        slot: p.slot,
+        grace_minutes: p.grace_ms / 60_000,
+        late_minutes: lateMinutes,
+        ...(audioReady ? {} : { waiting_for: "audio" }),
+      },
+    });
+    return { kind: "done", outcome: "held" };
+  }
   const media = await prepareMedia(
     client,
     deps.media,
@@ -238,17 +295,8 @@ async function prepare(
   const edited = await editedByPerson(client, id, base.renditionIds);
   let voicesNote: string | undefined;
   if (p.format === "podcast-episode") {
-    // Nothing goes out before the audio made from this version of the script (D109): audio made
-    // after the publication last changed (its approval, or an edit before it).
-    const { rowCount: ready } = await client.query(
-      "select from episodes where publication_id = $1 and rendition_id = $2 and created_at >= $3",
-      [id, first.id, p.updated_at],
-    );
-    if (!ready) {
-      if (now.getTime() - p.slot.getTime() <= RETRY_WINDOW_MS)
-        return { kind: "done", outcome: "retry" };
-      return hold("audio-missing", { reason: "no audio was made for the approved script" });
-    }
+    // Within its grace, an episode waits for its audio; past it, the slot is missed (above).
+    if (!audioReady) return { kind: "done", outcome: "retry" };
     voicesNote = await seriesVoicesNote(client, deps.renderer, p.series_slug, p.language);
   }
   const context = await templateContext(client, {
@@ -343,8 +391,10 @@ async function send(
     for (const post of posts) {
       if (post.status === "sent") continue;
       // Committed before the call: from here a crash leaves evidence the part may have gone out.
-      // Only while the publication is still scheduled: an editor may have held it mid-send.
+      // Only while the publication is still scheduled: an editor may have held it mid-send. A
+      // pause stops before the next part, as a pull-back does (D100, D144).
       const started = await withNewsroom(deps.pool, newsroomId, async (c) => {
+        if (await isPaused(c)) return "paused" as const;
         const { rowCount } = await c.query(
           `update posts set status = 'pending', attempted_at = now(), updated_at = now()
            where id = $1 and status in ('pending', 'failed')
@@ -353,7 +403,13 @@ async function send(
         );
         return rowCount === 1;
       });
+      if (started === "paused") return "paused";
       if (!started) return "not-due";
+      if (!adapter.internal && !deps.live) {
+        console.log(`[publisher] dry run: ${target.kind} ${target.id} part ${post.part} not sent`);
+        await recordSent(deps, newsroomId, post.id, null);
+        continue;
+      }
       let messageId: string;
       try {
         messageId = await adapter.send(target, post.body);
@@ -396,24 +452,24 @@ async function send(
 }
 
 /**
- * Stores a delivered part. Retried, since the message is out and its id is the only way to find
- * it; if the database stays away the row is later held as unknown, never re-sent, and the log
- * keeps the id for the editor.
+ * Stores a delivered part, or a dry run's (no message id). Retried, since the message is out and
+ * its id is the only way to find it; if the database stays away the row is later held as unknown,
+ * never re-sent, and the log keeps the id for the editor.
  */
 async function recordSent(
   deps: PublishDeps,
   newsroomId: string,
   postId: string,
-  messageId: string,
+  messageId: string | null,
 ) {
   for (let attempt = 1; ; attempt++) {
     try {
       await withNewsroom(deps.pool, newsroomId, (c) =>
         c.query(
-          `update posts set status = 'sent', external_id = $2, sent_at = now(), error = null,
-             updated_at = now()
+          `update posts set status = 'sent', external_id = $2, dry_run = $3, sent_at = now(),
+             error = null, updated_at = now()
            where id = $1`,
-          [postId, messageId],
+          [postId, messageId, messageId === null],
         ),
       );
       return;

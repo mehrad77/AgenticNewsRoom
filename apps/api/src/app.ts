@@ -27,6 +27,15 @@ import { DeskError } from "./desk/errors.ts";
 import { fileIssue, listNotices, listSamples, readNotice, reviewSample } from "./desk/followups.ts";
 import { measures } from "./desk/measures.ts";
 import { addMedia, isHttpUrl, listMedia, recordPressKit } from "./desk/media.ts";
+import {
+  cancelJob,
+  opsState,
+  pause,
+  requestBackupCheck,
+  resume,
+  retryJob,
+  setDrain,
+} from "./desk/ops.ts";
 import { type DeskPerson, deskPerson } from "./desk/people.ts";
 import { approveTheme, choosePick, plan } from "./desk/plan.ts";
 import { type PreviewSite, previewPublication } from "./desk/preview.ts";
@@ -48,7 +57,8 @@ type Health = components["schemas"]["Health"];
 
 export interface DeskDeps {
   pool: Pool;
-  boss: Pick<PgBoss, "send">;
+  /** Sends jobs; retries and cancels them for the Ops page (D144). */
+  boss: Pick<PgBoss, "send" | "retry" | "cancel">;
   platform: PlatformKey;
   verify: VerifyAccess;
   /** Where the newsroom sites are, for the preview's links (as the publisher has them). */
@@ -143,7 +153,7 @@ export function createApp(deps?: DeskDeps) {
       publicationId: id(c, "publication"),
       text: said,
       sourceUrl: source || undefined,
-      address: readerAddress(c.req.header("x-forwarded-for"), connectionAddress(c)),
+      address: readerAddress(c.req.header("cf-connecting-ip"), connectionAddress(c)),
     });
     return c.json(receipt, 201);
   });
@@ -337,6 +347,41 @@ export function createApp(deps?: DeskDeps) {
     const actor = admin(c);
     return c.json(await setAdminTts(pool, actor, tts, (await body(c)).engines));
   });
+  // Ops controls, for the platform admin only (D144); every action is in platform_audit_log.
+  app.get("/desk/admin/ops", async (c) => {
+    admin(c);
+    return c.json(await opsState(pool));
+  });
+  const newsroomOrAll = (b: Record<string, unknown>) => {
+    if (b.newsroom === undefined || b.newsroom === null) return undefined;
+    if (typeof b.newsroom !== "string") throw new DeskError(400, "newsroom: a slug, or none");
+    return b.newsroom;
+  };
+  app.post("/desk/admin/ops/pause", async (c) => {
+    await pause(pool, admin(c), newsroomOrAll(await body(c)));
+    return c.json({ ok: true });
+  });
+  app.post("/desk/admin/ops/resume", async (c) => {
+    return c.json(await resume(pool, admin(c), newsroomOrAll(await body(c))));
+  });
+  app.post("/desk/admin/ops/drain", async (c) => {
+    const b = await body(c);
+    await setDrain(pool, admin(c), b.queue, b.drained);
+    return c.json({ ok: true });
+  });
+  app.post("/desk/admin/ops/jobs/retry", async (c) => {
+    const b = await body(c);
+    await retryJob(pool, boss, admin(c), b.queue, b.id);
+    return c.json({ ok: true });
+  });
+  app.post("/desk/admin/ops/jobs/cancel", async (c) => {
+    const b = await body(c);
+    await cancelJob(pool, boss, admin(c), b.queue, b.id);
+    return c.json({ ok: true });
+  });
+  app.post("/desk/admin/ops/backup-check", async (c) =>
+    c.json(await requestBackupCheck(pool, admin(c))),
+  );
   app.get(`${base}/tts`, async (c) => c.json(await inNewsroom(c, (db) => newsroomTts(db, tts))));
   app.post(`${base}/tts`, async (c) => {
     const b = await body(c);

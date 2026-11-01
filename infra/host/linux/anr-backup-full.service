@@ -1,0 +1,7 @@
+[Unit]
+Description=ANR: weekly full backup (D51, D131)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/anr
+ExecStart=/opt/anr/infra/backup/backup.sh full

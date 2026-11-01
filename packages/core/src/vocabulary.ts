@@ -99,6 +99,8 @@ export const NOTICE_KINDS = [
   "challenge-overdue",
   /** An image a member added could not be fetched or read (D119). */
   "media-failed",
+  /** A slot went by unsent: held past its format's grace, or never assigned (D129, D130). */
+  "slot-missed",
 ] as const;
 export type NoticeKind = (typeof NOTICE_KINDS)[number];
 

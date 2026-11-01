@@ -564,6 +564,146 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/desk/admin/ops": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Publishing pauses, queues, failed and waiting jobs, backups and heartbeats
+         * @description Platform admin only (D144). Grafana shows history; this page acts.
+         */
+        get: operations["getOps"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/admin/ops/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pause publishing in one newsroom, or in every newsroom without one
+         * @description Platform admin only; audited in the platform audit log. The publisher stops before its next send or part (D144).
+         */
+        post: operations["pauseOps"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/admin/ops/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resume publishing in one newsroom, or everywhere
+         * @description Platform admin only; audited. A scheduled publication now past its slot by more than its format's grace is held as a missed slot; the rest send (D129, D144).
+         */
+        post: operations["resumeOps"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/admin/ops/drain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Drain a queue, or lift its drain
+         * @description Platform admin only; audited. Workers take no new job from a drained queue within 30 seconds; running ones finish and nothing is deleted. Only queues whose work ends in a hold or is done again (D144).
+         */
+        post: operations["drainOpsQueue"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/admin/ops/jobs/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry a failed job
+         * @description Platform admin only; audited. A part recorded as unknown is still never re-sent (D89).
+         */
+        post: operations["retryOpsJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/admin/ops/jobs/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a job that has not started
+         * @description Platform admin only; audited. Refused for the deadline queues, publish-correction, assign, redraft and publish-sweep (D144).
+         */
+        post: operations["cancelOpsJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/admin/ops/backup-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask the host for a backup check now
+         * @description Platform admin only; audited. The host's job runs it within 30 seconds and records it in backup_runs (D131, D144).
+         */
+        post: operations["requestBackupCheck"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/desk/newsrooms/{newsroom}/tts": {
         parameters: {
             query?: never;
@@ -603,7 +743,7 @@ export interface paths {
         put?: never;
         /**
          * A reader challenges a published piece (D114)
-         * @description Public: called by the newsroom's site for its reader form. Nothing about the reader is stored; the rate limit keys on an HMAC of the reader's network (the last X-Forwarded-For entry, an IPv6 /64) under a random secret dropped after the day. The receipt's token opens the reader's status page and is stored only as its hash.
+         * @description Public: called by the newsroom's site for its reader form. Nothing about the reader is stored; the rate limit keys on an HMAC of the reader's network (CF-Connecting-IP, an IPv6 /64; never X-Forwarded-For) under a random secret dropped after the day. The receipt's token opens the reader's status page and is stored only as its hash.
          */
         post: operations["submitChallenge"];
         delete?: never;
@@ -792,6 +932,92 @@ export interface components {
         Error: {
             error: string;
         };
+        OpsDone: {
+            ok: boolean;
+        };
+        OpsPauseRequest: {
+            /** @description A newsroom's slug; without one, every newsroom. */
+            newsroom?: string;
+        };
+        OpsResumed: {
+            /** @description Publications held as missed slots on resuming. */
+            held: string[];
+        };
+        OpsDrainRequest: {
+            queue: string;
+            drained: boolean;
+        };
+        OpsJobRequest: {
+            queue: string;
+            /** Format: uuid */
+            id: string;
+        };
+        OpsRequested: {
+            /** Format: uuid */
+            id: string;
+        };
+        OpsJob: {
+            /** Format: uuid */
+            id: string;
+            queue: string;
+            newsroom: string | null;
+            /** Format: date-time */
+            at: string;
+            error?: string | null;
+        };
+        OpsState: {
+            paused_everywhere: boolean;
+            pauses: {
+                newsroom: string;
+                /** Format: date-time */
+                paused_at: string | null;
+            }[];
+            queues: {
+                name: string;
+                drainable: boolean;
+                /** Format: date-time */
+                drained_at: string | null;
+                waiting: number;
+                active: number;
+                failed: number;
+            }[];
+            failed: components["schemas"]["OpsJob"][];
+            waiting: components["schemas"]["OpsJob"][];
+            backups: {
+                /** @enum {string} */
+                kind: "init" | "full" | "diff" | "incr" | "check";
+                /** Format: date-time */
+                started_at: string;
+                /** Format: date-time */
+                finished_at: string | null;
+                ok: boolean | null;
+            }[];
+            backup_requests: {
+                /** Format: uuid */
+                id: string;
+                /** Format: date-time */
+                requested_at: string;
+                /** Format: date-time */
+                picked_at: string | null;
+                /** Format: date-time */
+                done_at: string | null;
+            }[];
+            heartbeats: {
+                worker: string;
+                /** Format: date-time */
+                beat_at: string;
+                late: boolean;
+            }[];
+            outages: {
+                /** @enum {string} */
+                kind: "worker" | "host";
+                worker: string | null;
+                /** Format: date-time */
+                started_at: string;
+                /** Format: date-time */
+                ended_at: string;
+            }[];
+        };
         StatusResult: {
             /** Format: uuid */
             id: string;
@@ -959,7 +1185,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            kind: "budget-warning" | "budget-cap" | "no-leads" | "no-channel" | "no-theme" | "pick-missed" | "plan-failed" | "challenge-due" | "challenge-overdue" | "media-failed";
+            kind: "budget-warning" | "budget-cap" | "no-leads" | "no-channel" | "no-theme" | "pick-missed" | "plan-failed" | "challenge-due" | "challenge-overdue" | "media-failed" | "slot-missed";
             key: string;
             detail: unknown;
             /** Format: date-time */
@@ -2257,6 +2483,189 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getOps: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The platform's state. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpsState"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    pauseOps: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpsPauseRequest"];
+            };
+        };
+        responses: {
+            /** @description Done. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpsDone"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    resumeOps: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpsPauseRequest"];
+            };
+        };
+        responses: {
+            /** @description Done. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpsResumed"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    drainOpsQueue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpsDrainRequest"];
+            };
+        };
+        responses: {
+            /** @description Done. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpsDone"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    retryOpsJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpsJobRequest"];
+            };
+        };
+        responses: {
+            /** @description Done. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpsDone"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    cancelOpsJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpsJobRequest"];
+            };
+        };
+        responses: {
+            /** @description Done. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpsDone"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    requestBackupCheck: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Done. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpsRequested"];
+                };
+            };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
         };

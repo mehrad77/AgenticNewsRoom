@@ -4,9 +4,10 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createBoss, createPool, platformKey } from "@anr/db";
+import { createBoss, createPool, drainControl, platformKey, startHeartbeat } from "@anr/db";
 import { buildCatalog, loadModelsConfig, modelsFile } from "@anr/models";
 import { createRenderer } from "@anr/render";
+import { objectStore } from "@anr/storage";
 import { podcastFeed } from "./channels/feed.ts";
 import { telegramChannel } from "./channels/telegram.ts";
 import { checkChannel } from "./check.ts";
@@ -16,7 +17,6 @@ import { exiftoolWriter, rawReader } from "./media.ts";
 import { type AudioDeps, produceEpisode } from "./podcast/produce.ts";
 import { queueAudio } from "./podcast/queue.ts";
 import { c2paSigner } from "./podcast/sign.ts";
-import { localStore } from "./podcast/store.ts";
 import { cachedTts, fakeTts, ttsFor } from "./podcast/tts.ts";
 import type { PublishDeps } from "./publish.ts";
 import { snapshotSubscribers } from "./stats.ts";
@@ -26,6 +26,7 @@ const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error("DATABASE_URL is not set");
 
 const pool = createPool(connectionString);
+const stopHeartbeat = startHeartbeat(pool, "publisher");
 const deps: PublishDeps = {
   pool,
   renderer: createRenderer(),
@@ -33,17 +34,25 @@ const deps: PublishDeps = {
   platform: platformKey(),
   rootDomain: process.env.ANR_ROOT_DOMAIN ?? "localhost",
   devPort: Number(process.env.WEB_PORT ?? 4321),
+  live: process.env.ANR_PUBLISH === "live",
 };
+if (!deps.live)
+  console.warn("[publisher] ANR_PUBLISH is not live: sends to external channels are dry runs");
 
 const configDir =
   process.env.ANR_CONFIG_DIR ?? fileURLToPath(new URL("../../../config", import.meta.url));
-const mediaDir =
-  process.env.ANR_MEDIA_DIR ?? fileURLToPath(new URL("../../../.data/media", import.meta.url));
-const store = localStore(mediaDir);
+// The media and raw buckets in production; local directories where none is set (D132).
+const store = objectStore(
+  process.env.ANR_MEDIA_BUCKET,
+  process.env.ANR_MEDIA_DIR ?? fileURLToPath(new URL("../../../.data/media", import.meta.url)),
+);
 deps.media = {
   writer: exiftoolWriter(),
   raw: rawReader(
-    process.env.ANR_RAW_DIR ?? fileURLToPath(new URL("../../../.data/raw", import.meta.url)),
+    objectStore(
+      process.env.ANR_RAW_BUCKET,
+      process.env.ANR_RAW_DIR ?? fileURLToPath(new URL("../../../.data/raw", import.meta.url)),
+    ),
   ),
   store,
   workDir: () => mkdtempSync(join(tmpdir(), "anr-media-")),
@@ -67,7 +76,9 @@ const audioDeps: AudioDeps = {
 
 const boss = createBoss(connectionString, "publisher");
 await boss.start();
-await registerJobs(boss, {
+// Handlers are registered through the drain control, which works only undrained queues (D144).
+const drains = drainControl(pool, boss);
+await registerJobs(drains.boss, {
   sweep: async () => {
     await queueAudio(pool, boss);
     const counts = await sweepDue(deps);
@@ -89,9 +100,12 @@ await registerJobs(boss, {
     console.log(`[publisher] challenge ${job.challengeId}: ${count} corrections published`);
   },
 });
+await drains.start();
 console.log("publisher worker started");
 
 const stop = async () => {
+  stopHeartbeat();
+  drains.stop();
   await boss.stop();
   await pool.end();
   process.exit(0);

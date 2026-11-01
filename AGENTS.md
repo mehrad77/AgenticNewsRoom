@@ -20,11 +20,12 @@ ANR (Agentic News Room): a platform for running publications where humans set th
 | `packages/config`    | Loads and validates `config/`                                               | TS               |
 | `packages/models`    | Model catalog, provider clients, fallback gateway, `models:probe`           | TS               |
 | `packages/schemas`   | JSON Schema source → generated zod + pydantic                               | TS/Python        |
+| `packages/storage`   | Object storage: R2 buckets or a local directory, presigned links (D132)    | TS               |
 | `packages/render`    | Channel templates rendered with LiquidJS (publisher and the gate)          | TS               |
 | `packages/db`        | SQL migrations (dbmate), Postgres client, `withNewsroom()`                  | TS/SQL           |
 | `packages/telemetry` | Planned in milestone 7b: OpenTelemetry setup for the TS apps and Python services | TS/Python |
 | `config/`            | Models, formats, newsrooms (versioned configuration)                        | YAML/JSON/Liquid |
-| `infra/`             | Docker Compose, Dockerfiles, Caddy, backups; planned in milestone 7a: `terraform/` (Cloudflare), `secrets/` (SOPS), `host/` (systemd and launchd profiles); in 7b: `observability/`, `drills/` | Shell/HCL |
+| `infra/`             | Docker Compose (dev, prod), Dockerfiles, Caddy, deploy, backups, `terraform/` (Cloudflare), `secrets/` (SOPS), `host/` (systemd and launchd profiles); planned in 7b: `observability/`, `drills/` | Shell/HCL |
 | `tools/tts-eval`     | Local TTS comparison kit (Chatterbox, XTTS-v2, Dia) for English and Turkish | Python/HTML      |
 | `tools/load`         | Planned in milestone 7b: k6 load tests against the reader site | JS |
 | `docs/`              | Charter, technical design, first newsrooms, decisions, build plan, postmortems | Markdown |
@@ -37,7 +38,7 @@ Each app, service and package has its own short `AGENTS.md` with its boundaries.
 pnpm install && uv sync      # install everything (Node 24, pnpm 11, Python 3.13, uv)
 cp .env.example .env         # dev settings (set ANR_PG_PORT and the URLs if 5432 is taken)
 pnpm db:up                   # Postgres 17 in Docker (dev)
-pnpm db:migrate              # apply SQL migrations to anr and the test database anr_test
+pnpm db:migrate              # apply SQL migrations to anr and anr_test, and load formats into anr_test
 pnpm check                   # lint, typecheck, test (database tests need db:up), config:check, codegen drift — must pass
 pnpm gen                     # regenerate zod/pydantic from JSON Schema and API types from openapi.yaml
 pnpm config:sync             # load config/ into Postgres

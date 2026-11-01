@@ -1,0 +1,64 @@
+{
+  // Dependency updates (D135): grouped, three days old before they are proposed, Actions and
+  // image digests pinned, a dependency dashboard issue, every manager ANR uses.
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  extends: [
+    "config:recommended",
+    ":dependencyDashboard",
+    "helpers:pinGitHubActionDigests",
+    "docker:pinDigests",
+  ],
+  enabledManagers: [
+    "npm", // package.json and pnpm-lock.yaml (pnpm 11)
+    "pep621", // pyproject.toml and uv.lock
+    "dockerfile",
+    "docker-compose",
+    "github-actions",
+    "terraform", // provider and the lock file's hashes
+    "custom.regex",
+  ],
+  minimumReleaseAge: "3 days",
+  // Renovate waits for every check itself; GitHub's own auto-merge would not without required checks.
+  platformAutomerge: false,
+  packageRules: [
+    { matchManagers: ["github-actions"], groupName: "GitHub Actions" },
+    { matchManagers: ["dockerfile", "docker-compose"], groupName: "container images" },
+    { matchManagers: ["terraform"], groupName: "Terraform" },
+    {
+      matchManagers: ["npm"],
+      matchUpdateTypes: ["minor", "patch"],
+      groupName: "Node dependencies (non-major)",
+    },
+    {
+      matchManagers: ["pep621"],
+      matchUpdateTypes: ["minor", "patch"],
+      groupName: "Python dependencies (non-major)",
+    },
+    // Last, so it takes these out of the groups above: only dev-dependency patches merge alone.
+    {
+      matchDepTypes: ["devDependencies", "dependency-groups"],
+      matchUpdateTypes: ["patch"],
+      groupName: "dev dependencies (patch)",
+      automerge: true,
+    },
+  ],
+  // Tool versions in workflows and Dockerfile build arguments, each marked
+  // `# renovate: datasource=… depName=…` on the line above.
+  customManagers: [
+    {
+      customType: "regex",
+      managerFilePatterns: ["/^\\.github/workflows/[^/]+\\.ya?ml$/"],
+      matchStrings: [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+[A-Za-z_]+: v?(?<currentValue>\\S+)",
+      ],
+      extractVersionTemplate: "^v?(?<version>.*)$",
+    },
+    {
+      customType: "regex",
+      managerFilePatterns: ["/^infra/docker/[^/]+\\.Dockerfile$/"],
+      matchStrings: [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+ARG [A-Z_]+=(?<currentValue>\\S+)",
+      ],
+    },
+  ],
+}

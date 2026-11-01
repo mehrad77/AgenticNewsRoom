@@ -14,6 +14,25 @@ describe("validateConfig", () => {
     expect(validateConfig(loadConfig(root))).toEqual([]);
   });
 
+  it("requires every format's grace (D129)", () => {
+    const config = loadConfig(root);
+    delete (config.formatMeta["newsletter-issue"] as { grace?: string }).grace;
+    (config.formatMeta["podcast-episode"] as { grace?: string }).grace = "90s";
+    const errors = validateConfig(config).join("\n");
+    expect(errors).toMatch(/formats\/newsletter-issue\/format\.yaml.*grace/);
+    expect(errors).toMatch(/formats\/podcast-episode\/format\.yaml.*grace/);
+  });
+
+  it.each(["desk", "ops"])("rejects a newsroom at the reserved subdomain %s", (subdomain) => {
+    const config = loadConfig(root);
+    const ai = config.newsrooms.find((n) => n.slug === "ai");
+    if (!ai) throw new Error("ai newsroom missing");
+    (ai.newsroom as { subdomain: string }).subdomain = subdomain;
+    expect(validateConfig(config)).toContain(
+      `newsrooms/ai/newsroom.yaml subdomain ${subdomain} is the platform's (D123)`,
+    );
+  });
+
   it("rejects a series in a language its newsroom does not write", () => {
     const config = loadConfig(root);
     const ai = config.newsrooms.find((n) => n.slug === "ai");
@@ -221,6 +240,7 @@ describe("validateConfig", () => {
       genre: "genre:Wrapup",
       ninjs_type: "text",
       run_tokens: 200_000,
+      grace: "2h",
     };
     delete config.formatMeta["artist-story"];
     const errors = validateConfig(config);

@@ -1,23 +1,6 @@
-# Dev: `pnpm db:up` starts Postgres only; run the apps with `pnpm dev`.
-# Production (one server): `infra/deploy.sh`, which checks .env and then runs
-# `docker compose --env-file .env -f infra/compose.yaml --profile prod up`. The one-shot `migrate`
-# and `config-sync` jobs finish before any app starts.
+# Dev: `pnpm db:up` starts Postgres only (project `anr`); run the apps with `pnpm dev`.
+# Production is its own project, anr-prod, in infra/compose.prod.yaml (D126).
 name: anr
-
-# Every production app: the whole env file (ANR_ENV_FILE, absolute, as deploy.sh exports it; else
-# .env), with database URLs rebuilt for host `postgres` (inside a container, localhost is the
-# container itself); `environment` overrides the dev URLs in it.
-x-app: &app
-  profiles: [prod]
-  restart: unless-stopped
-  env_file: ${ANR_ENV_FILE:-../.env}
-  environment:
-    DATABASE_URL: postgres://anr_app:${ANR_APP_DB_PASSWORD:-anr_app}@postgres:5432/anr
-    DATABASE_SYSTEM_URL: postgres://anr_system:${ANR_SYSTEM_DB_PASSWORD:-anr_system}@postgres:5432/anr
-  depends_on:
-    postgres: { condition: service_healthy }
-    migrate: { condition: service_completed_successfully }
-    config-sync: { condition: service_completed_successfully }
 
 services:
   postgres:
@@ -41,8 +24,8 @@ services:
       PGBACKREST_REPO1_S3_ENDPOINT: ${ANR_BACKUP_S3_ENDPOINT:-${R2_ACCOUNT_ID:-}.r2.cloudflarestorage.com}
       PGBACKREST_REPO1_S3_REGION: ${ANR_BACKUP_S3_REGION:-auto}
       PGBACKREST_REPO1_S3_URI_STYLE: path
-      PGBACKREST_REPO1_S3_KEY: ${R2_ACCESS_KEY_ID:-}
-      PGBACKREST_REPO1_S3_KEY_SECRET: ${R2_SECRET_ACCESS_KEY:-}
+      PGBACKREST_REPO1_S3_KEY: ${R2_BACKUP_ACCESS_KEY_ID:-}
+      PGBACKREST_REPO1_S3_KEY_SECRET: ${R2_BACKUP_SECRET_ACCESS_KEY:-}
       PGBACKREST_REPO1_CIPHER_TYPE: aes-256-cbc
       PGBACKREST_REPO1_CIPHER_PASS: ${ANR_BACKUP_PASSPHRASE:-}
       PGBACKREST_REPO1_RETENTION_FULL: "4"
@@ -72,90 +55,5 @@ services:
       interval: 5s
       retries: 10
 
-  # One-shot deploy jobs, in the api image (it holds the whole workspace, dbmate included).
-  migrate:
-    profiles: [prod]
-    image: anr-api
-    pull_policy: never
-    working_dir: /repo/packages/db
-    environment:
-      DATABASE_URL: postgres://anr_migrator:${ANR_MIGRATOR_DB_PASSWORD:-anr_migrator}@postgres:5432/anr?sslmode=disable
-    command: [pnpm, exec, dbmate, --wait, --migrations-dir, migrations, --no-dump-schema, up]
-    depends_on: { postgres: { condition: service_healthy } }
-
-  config-sync:
-    profiles: [prod]
-    image: anr-api
-    pull_policy: never
-    working_dir: /repo
-    environment:
-      DATABASE_MIGRATION_URL: postgres://anr_migrator:${ANR_MIGRATOR_DB_PASSWORD:-anr_migrator}@postgres:5432/anr
-      DATABASE_SYSTEM_URL: postgres://anr_system:${ANR_SYSTEM_DB_PASSWORD:-anr_system}@postgres:5432/anr
-    command:
-      [sh, -c, "pnpm --filter @anr/db tenancy:check && pnpm config:check && pnpm config:sync"]
-    depends_on: { migrate: { condition: service_completed_successfully } }
-
-  api:
-    <<: *app
-    image: anr-api
-    build: { context: .., dockerfile: infra/docker/node.Dockerfile, args: { APP: api } }
-
-  web:
-    <<: *app
-    image: anr-web
-    # Replaces the anchor's environment (a shallow merge), so DATABASE_URL is repeated.
-    environment:
-      DATABASE_URL: postgres://anr_app:${ANR_APP_DB_PASSWORD:-anr_app}@postgres:5432/anr
-      # The desk pages call the API's desk routes (D95).
-      ANR_API_URL: http://api:8787
-    build: { context: .., dockerfile: infra/docker/node.Dockerfile, args: { APP: web } }
-
-  agents:
-    <<: *app
-    image: anr-agents
-    environment:
-      DATABASE_URL: postgres://anr_app:${ANR_APP_DB_PASSWORD:-anr_app}@postgres:5432/anr
-      DATABASE_SYSTEM_URL: postgres://anr_system:${ANR_SYSTEM_DB_PASSWORD:-anr_system}@postgres:5432/anr
-      ANR_INGESTION_URL: http://ingestion:8000
-      ANR_VERIFIER_URL: http://verifier:8000
-    build: { context: .., dockerfile: infra/docker/node.Dockerfile, args: { APP: agents } }
-
-  publisher:
-    <<: *app
-    image: anr-publisher
-    build: { context: .., dockerfile: infra/docker/node.Dockerfile, args: { APP: publisher } }
-
-  ingestion:
-    <<: *app
-    image: anr-ingestion
-    build: { context: .., dockerfile: infra/docker/python.Dockerfile, args: { SERVICE: ingestion } }
-    environment:
-      DATABASE_URL: postgres://anr_app:${ANR_APP_DB_PASSWORD:-anr_app}@postgres:5432/anr
-      # Raw pages on a volume until they go to R2 (ANR_RAW_BUCKET, milestone 7).
-      ANR_RAW_DIR: /data/raw
-    volumes:
-      - rawpages:/data/raw
-
-  verifier:
-    <<: *app
-    image: anr-verifier
-    build: { context: .., dockerfile: infra/docker/python.Dockerfile, args: { SERVICE: verifier } }
-
-  caddy:
-    profiles: [prod]
-    build: { context: .., dockerfile: infra/docker/caddy.Dockerfile }
-    restart: unless-stopped
-    # Only what Caddy needs, not the whole .env.
-    environment:
-      ANR_ROOT_DOMAIN: ${ANR_ROOT_DOMAIN:-localhost}
-      CLOUDFLARE_DNS_API_TOKEN: ${CLOUDFLARE_DNS_API_TOKEN:-}
-    ports: ["80:80", "443:443"]
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy:/data
-    depends_on: [api, web]
-
 volumes:
   pgdata:
-  caddy:
-  rawpages:

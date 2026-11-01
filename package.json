@@ -2,14 +2,14 @@
   "name": "agentic-newsroom",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@11.28.2",
+  "packageManager": "pnpm@11.28.9",
   "engines": {
     "node": ">=24"
   },
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
-    "lint": "biome check . && turbo run lint",
+    "lint": "biome check . && turbo run lint && node infra/check.ts",
     "format": "biome check --write .",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
@@ -20,7 +20,7 @@
     "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm config:check && pnpm gen:check",
     "db:up": "docker compose --env-file .env -f infra/compose.yaml up -d --build --wait postgres",
     "db:down": "docker compose --env-file .env -f infra/compose.yaml down",
-    "db:migrate": "pnpm --filter @anr/db run migrate && pnpm --filter @anr/db run migrate:test",
+    "db:migrate": "pnpm --filter @anr/db run migrate && pnpm --filter @anr/db run migrate:test && pnpm --filter @anr/config run sync:test",
     "db:roles": "docker compose --env-file .env -f infra/compose.yaml exec postgres anr-roles",
     "config:sync": "pnpm --filter @anr/config run sync",
     "models:probe": "pnpm --filter @anr/models run probe",

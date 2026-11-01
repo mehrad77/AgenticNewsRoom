@@ -1,0 +1,7 @@
+# SOPS (D125): every file in infra/secrets/ is encrypted to the operator's age key. Values are
+# encrypted, names stay visible, and a MAC covers the whole file. Edit in place with
+# `sops infra/secrets/prod.env`; the private key is ~/.config/sops/age/keys.txt on the server and
+# a copy in the password manager, never in the repository.
+creation_rules:
+  - path_regex: infra/secrets/[^/]+\.(env|json)$
+    age: age14slk253yhl2m84kgjtq8quxd68gd2x5k34g8jk8rzknl96uzzcksglxtw3
