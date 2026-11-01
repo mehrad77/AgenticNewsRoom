@@ -38,7 +38,7 @@ Each app, service and package has its own short `AGENTS.md` with its boundaries.
 pnpm install && uv sync      # install everything (Node 24, pnpm 11, Python 3.13, uv)
 cp .env.example .env         # dev settings (set ANR_PG_PORT and the URLs if 5432 is taken)
 pnpm db:up                   # Postgres 17 in Docker (dev)
-pnpm db:migrate              # apply SQL migrations to anr and the test database anr_test
+pnpm db:migrate              # apply SQL migrations to anr and anr_test, and load formats into anr_test
 pnpm check                   # lint, typecheck, test (database tests need db:up), config:check, codegen drift — must pass
 pnpm gen                     # regenerate zod/pydantic from JSON Schema and API types from openapi.yaml
 pnpm config:sync             # load config/ into Postgres

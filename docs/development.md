@@ -41,7 +41,7 @@ docs/           design docs (settled decisions only); postmortems/
 | `pnpm gen`                         | Regenerate zod and pydantic from JSON Schema, and API types from `openapi.yaml`                                        |
 | `pnpm format`                      | Apply Biome formatting (Python: `uv run ruff format .`)                                                                |
 | `pnpm db:up` / `pnpm db:down`      | Start or stop Postgres 17 in Docker                                                                                    |
-| `pnpm db:migrate`                  | Apply SQL migrations to `anr` and to `anr_test`, the database the integration tests use (reads `DATABASE_MIGRATION_URL` from `.env`) |
+| `pnpm db:migrate`                  | Apply SQL migrations to `anr` and to `anr_test`, the database the integration tests use, and load `config/formats` into `anr_test` (reads `DATABASE_MIGRATION_URL` and `DATABASE_SYSTEM_URL` from `.env`) |
 | `pnpm db:roles` | Re-apply the role passwords from `.env` to a running Postgres |
 | `pnpm config:sync` | Load `config/` into Postgres (as at deploy) |
 | `infra/backup/drill-local.sh` | Rehearse backup, WAL replay and restore locally |

@@ -20,7 +20,7 @@
     "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm config:check && pnpm gen:check",
     "db:up": "docker compose --env-file .env -f infra/compose.yaml up -d --build --wait postgres",
     "db:down": "docker compose --env-file .env -f infra/compose.yaml down",
-    "db:migrate": "pnpm --filter @anr/db run migrate && pnpm --filter @anr/db run migrate:test",
+    "db:migrate": "pnpm --filter @anr/db run migrate && pnpm --filter @anr/db run migrate:test && pnpm --filter @anr/config run sync:test",
     "db:roles": "docker compose --env-file .env -f infra/compose.yaml exec postgres anr-roles",
     "config:sync": "pnpm --filter @anr/config run sync",
     "models:probe": "pnpm --filter @anr/models run probe",
