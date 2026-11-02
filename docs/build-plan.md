@@ -120,7 +120,7 @@ Operator tasks (accounts, keys and anything run against Cloudflare; an agent can
 - [x] GitHub: install the Renovate app on the repository; push the first version tag; make the GHCR packages public. *Done when Renovate opens its dependency dashboard and an anonymous `docker pull` of a tagged image works.*
 - [x] First deploy: `infra/deploy.sh <tag>`, then `infra/backup/backup.sh full`. *Done when the AI newsroom's site answers through the tunnel and `/healthz` is 200.*
 - [ ] Kültür goes live: a person reads each source's terms and sets `terms_checked` (milestone 6), and its channels are set up in the desk; the wildcard record already covers its subdomain (D122). *Done when `kultur.$ANR_ROOT_DOMAIN` answers through the tunnel.*
-- [ ] Gate: `infra/backup/restore-drill.sh` on a fresh machine (age key and passphrase from the password manager), then `pnpm config:check` and config sync against the restored database.
+- [ ] Gate (deferred, D152): `infra/backup/restore-drill.sh` on a fresh machine (age key and passphrase from the password manager), then `pnpm config:check` and config sync against the restored database.
 
 Agent tasks:
 
@@ -145,7 +145,7 @@ Agent tasks:
 
 ## 7b. Observability
 
-Gate: **a simulated outage shows in Grafana and fires its alert: the host down across a slot, a killed worker and a filled disk, each with a postmortem.** Starts after 7a's gate (D133). Design: [Operations and observability](technical-design.md#operations-and-observability).
+Gate: **a simulated outage shows in Grafana and fires its alert: the host down across a slot, a killed worker and a filled disk, each with a postmortem.** Starts without 7a's gate, which is deferred (D152). Design: [Operations and observability](technical-design.md#operations-and-observability).
 
 Operator tasks:
 
