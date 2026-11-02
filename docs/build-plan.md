@@ -109,16 +109,16 @@ Gate: **a backup restores onto a fresh machine, and `pnpm config:check` and conf
 
 Operator tasks (accounts, keys and anything run against Cloudflare; an agent cannot do these):
 
-- [ ] Cloudflare: the root domain's zone on Cloudflare (nameservers moved), a Zero Trust team, R2 enabled. *Done when the zone is active.*
-- [ ] Terraform bootstrap: a private R2 bucket for Terraform state and an R2 token scoped to it; a Cloudflare API token for Terraform (DNS, Tunnel, Access and R2 edit on this account and zone). Both in the password manager (D136). *Done when `terraform init` connects to the state bucket.*
+- [x] Cloudflare: the root domain's zone on Cloudflare (nameservers moved), a Zero Trust team, R2 enabled. *Done when the zone is active.*
+- [x] Terraform bootstrap: a private R2 bucket for Terraform state and an R2 token scoped to it; a Cloudflare API token for Terraform (DNS, Tunnel, Access and R2 edit on this account and zone). Both in the password manager (D136). *Done when `terraform init` connects to the state bucket.*
 - [ ] age key: `age-keygen` on the server, as the deploying user, into `~/.config/sops/age/keys.txt` (mode 600), a copy in the password manager; give the public key to the `.sops.yaml` task (D125).
-- [ ] Access allow-lists: the desk's email list and the operator's own for `ops.`, entered with `sops infra/secrets/terraform.tfvars.json`. *Done when the file is committed encrypted.*
-- [ ] `terraform plan` and `apply` in `infra/terraform/`. *Done when the tunnel, DNS records, Access apps and R2 buckets exist, a second `plan` shows no changes, and a `plan` run while another holds the lock is refused.*
-- [ ] Two R2 API tokens, made by hand: one for the raw and media buckets (the apps'), one for the backups bucket alone (pgBackRest's) (D149). *Done when `infra/backup/backup.sh check` reaches the backups bucket.*
-- [ ] Production env: `sops infra/secrets/prod.env` with every value: role passwords (`openssl rand -hex 32`), platform key (`openssl rand -base64 32`, different from dev), backup passphrase (`openssl rand -base64 48`), both R2 tokens, model keys, the tunnel token from Terraform's output, `ANR_PUBLISH=live`, `ANR_WAL_ARCHIVE=on`, `ANR_DATABASES=anr`. Platform key and backup passphrase also in the password manager. *Done when `infra/deploy.sh --check` passes.*
+- [x] Access allow-lists: the desk's email list and the operator's own for `ops.`, entered with `sops infra/secrets/terraform.tfvars.json`. *Done when the file is committed encrypted.*
+- [x] `terraform plan` and `apply` in `infra/terraform/`. *Done when the tunnel, DNS records, Access apps and R2 buckets exist, a second `plan` shows no changes, and a `plan` run while another holds the lock is refused.*
+- [x] Two R2 API tokens, made by hand: one for the raw and media buckets (the apps'), one for the backups bucket alone (pgBackRest's) (D149). *Done when `infra/backup/backup.sh check` reaches the backups bucket.*
+- [x] Production env: `sops infra/secrets/prod.env` with every value: role passwords (`openssl rand -hex 32`), platform key (`openssl rand -base64 32`, different from dev), backup passphrase (`openssl rand -base64 48`), both R2 tokens, model keys, the tunnel token from Terraform's output, `ANR_PUBLISH=live`, `ANR_WAL_ARCHIVE=on`, `ANR_DATABASES=anr`. Platform key and backup passphrase also in the password manager. *Done when `infra/deploy.sh --check` passes.*
 - [ ] The server, by its host profile (D127). Linux: Docker Engine with the Compose plugin, the repo at `/opt/anr`, the units from `infra/host/linux/` enabled, Docker enabled at boot. macOS: `sudo pmset -c sleep 0 disksleep 0`, the agents from `infra/host/macos/` loaded, Docker set to start at login. *Done when `infra/deploy.sh --check` passes with no warning and the backup timers or agents are listed.*
 - [ ] GitHub: install the Renovate app on the repository; push the first version tag; make the GHCR packages public. *Done when Renovate opens its dependency dashboard and an anonymous `docker pull` of a tagged image works.*
-- [ ] First deploy: `infra/deploy.sh <tag>`, then `infra/backup/backup.sh full`. *Done when the AI newsroom's site answers through the tunnel and `/healthz` is 200.*
+- [x] First deploy: `infra/deploy.sh <tag>`, then `infra/backup/backup.sh full`. *Done when the AI newsroom's site answers through the tunnel and `/healthz` is 200.*
 - [ ] Kültür goes live: a person reads each source's terms and sets `terms_checked` (milestone 6), and its channels are set up in the desk; the wildcard record already covers its subdomain (D122). *Done when `kultur.$ANR_ROOT_DOMAIN` answers through the tunnel.*
 - [ ] Gate: `infra/backup/restore-drill.sh` on a fresh machine (age key and passphrase from the password manager), then `pnpm config:check` and config sync against the restored database.
 
@@ -141,7 +141,7 @@ Agent tasks:
 - [x] Backups from the host's scheduler: timers and agents in `infra/host/` for the weekly full, daily differential and 30-minute check, and a 30-second job for the desk's check requests (D150); `backup.sh` writes `backup_runs`; `infra/AGENTS.md`'s cron lines replaced (D131). *Done when a local run against the S3 stand-in writes a `backup_runs` row.*
 - [x] Object storage: raw pages to `ANR_RAW_BUCKET` (D55), episode audio and published images to the media bucket (D109, D120); `/a/` and `/m/` redirect to presigned URLs valid for an hour (D132). *Done when an episode download and an image are served from R2 in a local run against a test bucket.*
 - [x] Desk Ops page for the platform admin: pause publishing per newsroom (`publishing_pauses`, tenant table with forced RLS) or everywhere (a `platform_settings` key); retry a failed job; cancel a not-yet-started job or drain a queue only on the allowed queues in D144; run a backup check now (`ops_requests`); drains in `queue_drains`; every action in `platform_audit_log`; the publisher, workers and backup agent obey within 30 seconds; a resumed publication sends only within its grace (D144). *Done when tests show a paused newsroom sends nothing, a drained queue takes no new job, cancel and drain are refused for `publish-correction`, `assign`, `redraft` and the deadline queues, and each action is audited.*
-- [ ] Docs: `infra/AGENTS.md` describes the deployed system. *Done when its first-deploy steps were followed as written.*
+- [x] Docs: `infra/AGENTS.md` describes the deployed system. *Done when its first-deploy steps were followed as written.*
 
 ## 7b. Observability
 
