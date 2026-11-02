@@ -150,7 +150,15 @@
     terms_checked: 2026-11-02,
   }
 # Terms: none found (KVKK only: https://saltonline.org/tr/kisisel-verilerin-korunmasi-hakkinda-bilgilendirme-1836)
-- { id: salt, kind: site, url: "https://saltonline.org/tr", publisher: Salt, tier: 2, every: 24h, terms_checked: 2026-11-02 }
+- {
+    id: salt,
+    kind: site,
+    url: "https://saltonline.org/tr",
+    publisher: Salt,
+    tier: 2,
+    every: 24h,
+    terms_checked: 2026-11-02,
+  }
 # Terms: https://www.istanbulmodern.org/kurumsal/gizlilik-politikasi-ve-yasal-uyarilar
 - {
     id: istanbul-modern,
