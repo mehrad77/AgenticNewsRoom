@@ -10,6 +10,7 @@ from psycopg.types.json import Jsonb
 
 from anr_ingestion.db import Conn
 from anr_ingestion.dedupe import NEAR_DUPLICATE_BITS
+from anr_telemetry import traceparent
 
 NEAR_DUPLICATE_DAYS = 30
 
@@ -184,8 +185,9 @@ def insert_lead(conn: Conn, newsroom_id: str, lead: NewLead) -> str | None:
     row = conn.execute(
         """insert into leads
              (newsroom_id, source_id, uri, headline, body, language, byline, first_created,
-              version_created, content_hash, simhash, tier, raw_key, links, requested_by_run)
-           values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+              version_created, content_hash, simhash, tier, raw_key, links, requested_by_run,
+              traceparent)
+           values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
            on conflict (newsroom_id, uri) do nothing
            returning id""",
         (
@@ -204,6 +206,8 @@ def insert_lead(conn: Conn, newsroom_id: str, lead: NewLead) -> str | None:
             lead.raw_key,
             Jsonb(lead.links),
             lead.requested_by_run,
+            # The span that stored it, for span links from the publications citing it (D137).
+            traceparent(),
         ),
     ).fetchone()
     if row is None:

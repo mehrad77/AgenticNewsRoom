@@ -2,7 +2,7 @@
 // by tier become an assignment for that evening's slot, with one publication per language and a
 // desk run. Code only; nothing here asks a model.
 import type { AssignJob } from "@anr/core";
-import { type Client, type Pool, withNewsroom } from "@anr/db";
+import { type Client, type Pool, traceparent, withNewsroom } from "@anr/db";
 import type { PgBoss } from "pg-boss";
 import type { ModelRouter } from "./router.ts";
 import { createRun } from "./runs.ts";
@@ -63,9 +63,10 @@ export async function createAssignment(
     [assignmentId, a.leadIds],
   );
   await client.query(
-    `insert into publications (newsroom_id, series_id, assignment_id, slot, language)
-     select anr.current_newsroom_id(), $1, $2, $3, unnest($4::text[])`,
-    [a.seriesId, assignmentId, a.slot, a.languages],
+    // The publication's trace starts here (D137): later jobs and the publisher continue it.
+    `insert into publications (newsroom_id, series_id, assignment_id, slot, language, traceparent)
+     select anr.current_newsroom_id(), $1, $2, $3, unnest($4::text[]), $5`,
+    [a.seriesId, assignmentId, a.slot, a.languages, traceparent()],
   );
   const [first] = router.resolve("desk", { format: a.format });
   if (!first) throw new Error("the desk chain is empty");
