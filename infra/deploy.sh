@@ -112,6 +112,11 @@ compose exec -T postgres anr-roles
 if [[ "$restored" == true ]]; then
   compose exec -T postgres psql -U postgres -d anr -c "delete from platform_settings where key = 'restore.unpromoted'"
 fi
+# A new volume has no schema yet, and backup.sh records every run in backup_runs: migrate first.
+# An existing one keeps the order below, so a broken archive stops the deploy before any migration.
+if [[ "$(compose exec -T postgres psql -U postgres -d anr -tAc "select to_regclass('backup_runs') is null")" == t ]]; then
+  compose run --rm migrate
+fi
 # Creates the backup stanza if needed and fails the deploy if WAL archiving to R2 is broken.
 infra/backup/backup.sh init
 compose up -d --remove-orphans
