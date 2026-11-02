@@ -47,12 +47,26 @@ export interface NewChannel {
   credentials?: Record<string, string>;
 }
 
+/**
+ * A Telegram chat as the Bot API takes it: a numeric id stays, a public channel's name becomes
+ * `@name` whether typed bare, with `@` or as a t.me link. Null when it is neither.
+ */
+export function telegramChat(raw: string): string | null {
+  const s = raw.trim();
+  if (/^-?\d+$/.test(s)) return s;
+  const name = s
+    .replace(/^(?:https?:\/\/)?(?:www\.)?(?:t\.me|telegram\.me)\//i, "")
+    .replace(/^@/, "");
+  return /^[a-z][a-z0-9_]{3,31}$/i.test(name) ? `@${name}` : null;
+}
+
 /** What each kind needs before the publisher can use it. */
 function requirements(c: NewChannel): string | null {
   if (!(CHANNEL_KINDS as readonly string[]).includes(c.kind)) return "unknown channel kind";
   if (!(LANGUAGES as readonly string[]).includes(c.language)) return "unknown language";
   if (c.kind === "telegram") {
     if (!c.external_id?.trim()) return "a Telegram channel needs its chat id or @username";
+    if (!telegramChat(c.external_id)) return "a Telegram chat is a numeric id or @username";
     if (!c.credentials?.bot_token?.trim()) return "a Telegram channel needs its bot token";
   }
   return null;
@@ -66,6 +80,9 @@ export async function addChannel(
 ): Promise<Row> {
   const problem = requirements(input);
   if (problem) throw new DeskError(400, problem);
+  if (input.kind === "telegram" && input.external_id) {
+    input = { ...input, external_id: telegramChat(input.external_id) ?? input.external_id };
+  }
   const { rows } = await client.query<{ id: string; newsroom_id: string }>(
     `insert into channels (newsroom_id, kind, language, external_id)
      values (anr.current_newsroom_id(), $1, $2, $3) returning id, newsroom_id`,
