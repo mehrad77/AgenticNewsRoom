@@ -1,6 +1,5 @@
-# Sources start without terms_checked, so ingestion does not schedule them until a person
-# has read each source's terms (linked above each entry) and set the date (D17). Each URL was
-# checked on 2026-10-29: it answers, and robots.txt lets ANR-Ingestion fetch it.
+# The operator read each source's terms (linked above each entry) and set terms_checked (D17).
+# Each URL was checked on 2026-10-29: it answers, and robots.txt lets ANR-Ingestion fetch it.
 - {
     id: musicbrainz,
     kind: api,
@@ -9,6 +8,7 @@
     tier: 2,
     every: 24h,
     use: enrichment,
+    terms_checked: 2026-11-02,
   }
 
 # Turkish music and art press: tier 2, every 6 hours, one entry per outlet.
@@ -21,6 +21,7 @@
     publisher: Bant Mag,
     tier: 2,
     every: 6h,
+    terms_checked: 2026-11-02,
   }
 # Terms: https://mixmag.com.tr/page/terms-conditions/ (footer link answers 404)
 - {
@@ -30,6 +31,7 @@
     publisher: Mixmag Türkiye,
     tier: 2,
     every: 6h,
+    terms_checked: 2026-11-02,
   }
 # Terms: https://sanatatak.com/kullanim-kosullari/
 - {
@@ -39,6 +41,7 @@
     publisher: Sanatatak,
     tier: 2,
     every: 6h,
+    terms_checked: 2026-11-02,
   }
 # Terms: none found (imprint https://argonotlar.com/kunye/)
 - {
@@ -48,6 +51,7 @@
     publisher: Argonotlar,
     tier: 2,
     every: 6h,
+    terms_checked: 2026-11-02,
   }
 # Terms: https://www.unlimitedrag.com/about (imprint: no reproduction or quotation without permission)
 - {
@@ -57,6 +61,7 @@
     publisher: Unlimited,
     tier: 2,
     every: 6h,
+    terms_checked: 2026-11-02,
   }
 # Terms: none found (privacy only: https://www.dailysabah.com/privacy). English.
 - {
@@ -66,6 +71,7 @@
     publisher: Daily Sabah,
     tier: 2,
     every: 6h,
+    terms_checked: 2026-11-02,
   }
 # Terms: none found (privacy only: https://www.turkiyetoday.com/privacy-policy). English. No feed.
 - {
@@ -75,6 +81,7 @@
     publisher: Türkiye Today,
     tier: 2,
     every: 6h,
+    terms_checked: 2026-11-02,
   }
 # Terms: https://kiyimuzik.com/sartlar/
 - {
@@ -84,6 +91,7 @@
     publisher: Kıyı Müzik,
     tier: 2,
     every: 6h,
+    terms_checked: 2026-11-02,
   }
 
 # Label release pages: tier 1 (the label's own statement), every 12 hours. No label has a feed.
@@ -96,6 +104,7 @@
     publisher: DMC,
     tier: 1,
     every: 12h,
+    terms_checked: 2026-11-02,
   }
 # Terms: none found on kalan.com
 - {
@@ -105,6 +114,7 @@
     publisher: Kalan Müzik,
     tier: 1,
     every: 12h,
+    terms_checked: 2026-11-02,
   }
 # Terms: https://bandcamp.com/terms_of_use
 - {
@@ -114,6 +124,7 @@
     publisher: Zel Zele Records,
     tier: 1,
     every: 12h,
+    terms_checked: 2026-11-02,
   }
 
 # Venue calendars: tier 2, every 24 hours.
@@ -126,6 +137,7 @@
     publisher: Babylon,
     tier: 2,
     every: 24h,
+    terms_checked: 2026-11-02,
   }
 # Terms: none found on ifperformance.com
 - {
@@ -135,9 +147,10 @@
     publisher: IF Performance Hall,
     tier: 2,
     every: 24h,
+    terms_checked: 2026-11-02,
   }
 # Terms: none found (KVKK only: https://saltonline.org/tr/kisisel-verilerin-korunmasi-hakkinda-bilgilendirme-1836)
-- { id: salt, kind: site, url: "https://saltonline.org/tr", publisher: Salt, tier: 2, every: 24h }
+- { id: salt, kind: site, url: "https://saltonline.org/tr", publisher: Salt, tier: 2, every: 24h, terms_checked: 2026-11-02 }
 # Terms: https://www.istanbulmodern.org/kurumsal/gizlilik-politikasi-ve-yasal-uyarilar
 - {
     id: istanbul-modern,
@@ -146,6 +159,7 @@
     publisher: İstanbul Modern,
     tier: 2,
     every: 24h,
+    terms_checked: 2026-11-02,
   }
 # Terms: https://www.peramuzesi.org.tr/kullanim-kosullari
 - {
@@ -155,6 +169,7 @@
     publisher: Pera Müzesi,
     tier: 2,
     every: 24h,
+    terms_checked: 2026-11-02,
   }
 # Terms: none found (/tr/kullanim-kosullari is a soft 404). curl and urllib fail its TLS chain; httpx works.
 - {
@@ -164,6 +179,7 @@
     publisher: Borusan Contemporary,
     tier: 2,
     every: 24h,
+    terms_checked: 2026-11-02,
   }
 
 # Festival line-ups: tier 2, every 24 hours. Terms (all İKSV sites): https://www.iksv.org/tr/footer-menu/yasal-metinler
@@ -175,6 +191,7 @@
     publisher: İKSV,
     tier: 2,
     every: 24h,
+    terms_checked: 2026-11-02,
   }
 - {
     id: istanbul-muzik-festivali,
@@ -183,6 +200,7 @@
     publisher: İKSV,
     tier: 2,
     every: 24h,
+    terms_checked: 2026-11-02,
   }
 - {
     id: istanbul-bienali,
@@ -191,6 +209,7 @@
     publisher: İKSV,
     tier: 2,
     every: 24h,
+    terms_checked: 2026-11-02,
   }
 - {
     id: istanbul-tasarim-bienali,
@@ -199,4 +218,5 @@
     publisher: İKSV,
     tier: 2,
     every: 24h,
+    terms_checked: 2026-11-02,
   }
