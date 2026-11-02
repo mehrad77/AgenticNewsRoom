@@ -5,6 +5,7 @@ import type { AgentRole } from "@anr/core";
 import { createBoss, createPool, drainControl, startHeartbeat, withNewsroom } from "@anr/db";
 import { buildCatalog, loadModelsConfig, ModelGateway, missingKeys, modelsFile } from "@anr/models";
 import { createRenderer } from "@anr/render";
+import { shutdownTelemetry } from "@anr/telemetry";
 import { assignDaily, assignPick } from "./assign.ts";
 import { challengeDeadline } from "./challenges/deadline.ts";
 import type { RoleDeps } from "./desk/run.ts";
@@ -184,6 +185,7 @@ const stop = async () => {
   clearInterval(sweeper);
   await boss.stop();
   await pool.end();
+  await shutdownTelemetry();
   process.exit(0);
 };
 process.on("SIGINT", stop);

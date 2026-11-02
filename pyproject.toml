@@ -7,7 +7,7 @@ requires-python = ">=3.13"
 package = false
 
 [tool.uv.workspace]
-members = ["services/*", "packages/schemas/python"]
+members = ["services/*", "packages/schemas/python", "packages/telemetry/python"]
 
 [dependency-groups]
 dev = [
@@ -33,7 +33,7 @@ strict = true
 python_version = "3.13"
 
 [tool.ruff.lint.isort]
-known-first-party = ["anr_ingestion", "anr_verifier", "anr_schemas"]
+known-first-party = ["anr_ingestion", "anr_verifier", "anr_schemas", "anr_telemetry"]
 
 # Libraries without type information; their values are Any at the boundary and checked there.
 [[tool.mypy.overrides]]

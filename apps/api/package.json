@@ -7,8 +7,8 @@
     "./types": "./src/generated/api.ts"
   },
   "scripts": {
-    "dev": "node --env-file-if-exists=../../.env --watch src/server.ts",
-    "start": "node --env-file-if-exists=../../.env src/server.ts",
+    "dev": "node --env-file-if-exists=../../.env --import @anr/telemetry/register --watch src/server.ts",
+    "start": "node --env-file-if-exists=../../.env --import @anr/telemetry/register src/server.ts",
     "gen": "openapi-typescript openapi.yaml -o src/generated/api.ts",
     "lint": "redocly lint openapi.yaml",
     "typecheck": "tsc -p .",
@@ -23,6 +23,7 @@
     "@anr/models": "workspace:*",
     "@anr/render": "workspace:*",
     "@anr/schemas": "workspace:*",
+    "@anr/telemetry": "workspace:*",
     "@hono/node-server": "2.1.5",
     "hono": "4.13.14",
     "jose": "6.2.12",

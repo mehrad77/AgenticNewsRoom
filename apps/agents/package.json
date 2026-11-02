@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --env-file-if-exists=../../.env --watch src/worker.ts",
-    "start": "node --env-file-if-exists=../../.env src/worker.ts",
+    "dev": "node --env-file-if-exists=../../.env --import @anr/telemetry/register --watch src/worker.ts",
+    "start": "node --env-file-if-exists=../../.env --import @anr/telemetry/register src/worker.ts",
     "typecheck": "tsc -p .",
     "test": "vitest run"
   },
@@ -15,6 +15,7 @@
     "@anr/models": "workspace:*",
     "@anr/render": "workspace:*",
     "@anr/schemas": "workspace:*",
+    "@anr/telemetry": "workspace:*",
     "@langchain/core": "1.3.0",
     "@langchain/langgraph": "1.5.2",
     "pg-boss": "12.38.0",
@@ -23,6 +24,7 @@
   },
   "devDependencies": {
     "@anr/config": "workspace:*",
+    "@anr/telemetry": "workspace:*",
     "@types/node": "24.19.2",
     "typescript": "5.9.3",
     "vitest": "5.0.5"

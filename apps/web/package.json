@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --env-file-if-exists=../../.env node_modules/astro/bin/astro.mjs dev --port ${WEB_PORT:-4321}",
+    "dev": "node --env-file-if-exists=../../.env --import @anr/telemetry/register node_modules/astro/bin/astro.mjs dev --port ${WEB_PORT:-4321}",
     "build": "astro build",
-    "start": "node --env-file-if-exists=../../.env dist/server/entry.mjs",
+    "start": "node --env-file-if-exists=../../.env --import @anr/telemetry/register dist/server/entry.mjs",
     "typecheck": "tsc -p .",
     "test": "vitest run",
     "dev:test": "node scripts/dev-test.ts",
@@ -17,6 +17,7 @@
     "@anr/db": "workspace:*",
     "@anr/render": "workspace:*",
     "@anr/storage": "workspace:*",
+    "@anr/telemetry": "workspace:*",
     "@astrojs/node": "11.1.9",
     "astro": "7.4.2"
   },

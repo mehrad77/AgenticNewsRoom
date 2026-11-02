@@ -14,6 +14,9 @@ from psycopg_pool import ConnectionPool
 
 from anr_verifier.db import Conn, create_pool
 
+# Tests never export telemetry, whatever the shell sets (D137); they record it in memory.
+os.environ.pop("OTEL_EXPORTER_OTLP_ENDPOINT", None)
+
 REPO = Path(__file__).resolve().parents[3]
 MIGRATIONS = REPO / "packages/db/migrations"
 

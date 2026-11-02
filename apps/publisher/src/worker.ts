@@ -8,6 +8,7 @@ import { createBoss, createPool, drainControl, platformKey, startHeartbeat } fro
 import { buildCatalog, loadModelsConfig, modelsFile } from "@anr/models";
 import { createRenderer } from "@anr/render";
 import { objectStore } from "@anr/storage";
+import { shutdownTelemetry } from "@anr/telemetry";
 import { podcastFeed } from "./channels/feed.ts";
 import { telegramChannel } from "./channels/telegram.ts";
 import { checkChannel } from "./check.ts";
@@ -108,6 +109,7 @@ const stop = async () => {
   drains.stop();
   await boss.stop();
   await pool.end();
+  await shutdownTelemetry();
   process.exit(0);
 };
 process.on("SIGINT", stop);

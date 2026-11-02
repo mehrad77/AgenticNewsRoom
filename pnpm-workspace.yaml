@@ -11,3 +11,5 @@ allowBuilds:
   sharp: true
   dbmate: true
   "@parcel/watcher": false
+  # Via the OTLP exporters (@anr/telemetry): its postinstall only checks its optional CLI's versions.
+  protobufjs: false

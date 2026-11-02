@@ -23,6 +23,7 @@ from anr_schemas.config.media_request import MediaRequest
 from anr_schemas.config.media_request_result import MediaRequestResult
 from anr_schemas.config.source_request import SourceRequest
 from anr_schemas.config.source_request_result import SourceRequestResult
+from anr_telemetry import setup as setup_telemetry
 
 
 def ingestor_from_env() -> Ingestor:
@@ -60,6 +61,9 @@ def create_app(make_ingestor: Callable[[], Ingestor] | None = None) -> FastAPI:
             ingestor.pool.close()
 
     app = FastAPI(title="ANR ingestion", docs_url=None, redoc_url=None, lifespan=lifespan)
+    # Only the service's own run is traced (D137); tests instrument their app themselves.
+    if make_ingestor is None:
+        setup_telemetry("ingestion", app)
 
     def ingestor(request: Request) -> Ingestor:
         value: Ingestor = request.app.state.ingestor

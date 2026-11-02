@@ -25,6 +25,9 @@ from anr_ingestion.pipeline import Ingestor
 from anr_ingestion.rawstore import LocalRawStore
 from anr_ingestion.replay import ReplayWeb
 
+# Tests never export telemetry, whatever the shell sets (D137); they record it in memory.
+os.environ.pop("OTEL_EXPORTER_OTLP_ENDPOINT", None)
+
 FIXTURES = Path(__file__).parent / "fixtures"
 REPO = Path(__file__).resolve().parents[3]
 MIGRATIONS = REPO / "packages/db/migrations"
