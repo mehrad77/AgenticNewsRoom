@@ -5,10 +5,27 @@
 # The one-shot `migrate` and `config-sync` jobs finish before any app starts.
 name: anr-prod
 
-# Docker's default json-file log grows without bound; the collector (milestone 7b) reads these files.
+# Docker's default json-file log grows without bound.
 x-logging: &logging
   driver: json-file
   options: { max-size: 10m, max-file: "5" }
+
+# The containers ANR does not write (Postgres, Caddy, cloudflared): Docker sends their lines to the
+# collector, which listens on loopback only; `docker logs` still works from Docker's local cache.
+# Asynchronous, so a container starts and runs while the collector is down (D155).
+x-fluent-logging: &fluent-logging
+  driver: fluentd
+  options:
+    fluentd-address: 127.0.0.1:${ANR_FLUENT_PORT:-24224}
+    fluentd-async: "true"
+    labels: com.docker.compose.project,com.docker.compose.service
+
+# Every app sends traces, metrics and logs over OTLP to the collector (D137).
+x-otel: &otel
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+  OTEL_RESOURCE_ATTRIBUTES: service.version=${ANR_VERSION:-},deployment.environment.name=prod
+  # W3C trace context only: no Baggage, and Caddy drops what a reader sends.
+  OTEL_PROPAGATORS: tracecontext
 
 # Every app: restarts with Docker, starts after both jobs. Each gets only the variables it reads,
 # never the whole env: the superuser password, the backup passphrase and the tunnel token stay with
@@ -27,7 +44,7 @@ services:
   postgres:
     image: ${ANR_IMAGES:-ghcr.io/mehrad77}/anr-postgres:${ANR_VERSION:?deploy.sh sets ANR_VERSION}
     restart: unless-stopped
-    logging: *logging
+    logging: *fluent-logging
     environment:
       # No defaults: deploy.sh refuses a weak or missing password before anything starts.
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
@@ -65,6 +82,11 @@ services:
       - archive_command=pgbackrest archive-push %p
       - -c
       - archive_timeout=300
+      # Errors without the row's values or the statement, which the collector would otherwise ship.
+      - -c
+      - log_error_verbosity=terse
+      - -c
+      - log_min_error_statement=panic
     # The only published port, on loopback. Where dev shares the machine, its project `anr` has
     # another port (D126).
     ports: ["127.0.0.1:${ANR_PG_PORT:-5433}:5432"]
@@ -102,6 +124,8 @@ services:
     <<: *app
     image: ${ANR_IMAGES:-ghcr.io/mehrad77}/anr-api:${ANR_VERSION:?deploy.sh sets ANR_VERSION}
     environment:
+      <<: *otel
+      OTEL_SERVICE_NAME: api
       DATABASE_URL: *database
       ANR_ROOT_DOMAIN: ${ANR_ROOT_DOMAIN:-}
       ANR_PLATFORM_KEY: ${ANR_PLATFORM_KEY:-}
@@ -113,6 +137,8 @@ services:
     <<: *app
     image: ${ANR_IMAGES:-ghcr.io/mehrad77}/anr-web:${ANR_VERSION:?deploy.sh sets ANR_VERSION}
     environment:
+      <<: *otel
+      OTEL_SERVICE_NAME: web
       DATABASE_URL: *database
       ANR_ROOT_DOMAIN: ${ANR_ROOT_DOMAIN:-}
       # The desk pages and the reader's challenge form call the API server-side (D95, D122).
@@ -131,6 +157,8 @@ services:
     <<: *app
     image: ${ANR_IMAGES:-ghcr.io/mehrad77}/anr-agents:${ANR_VERSION:?deploy.sh sets ANR_VERSION}
     environment:
+      <<: *otel
+      OTEL_SERVICE_NAME: agents
       DATABASE_URL: *database
       ANR_INGESTION_URL: http://ingestion:8000
       ANR_VERIFIER_URL: http://verifier:8000
@@ -143,6 +171,8 @@ services:
     <<: *app
     image: ${ANR_IMAGES:-ghcr.io/mehrad77}/anr-publisher:${ANR_VERSION:?deploy.sh sets ANR_VERSION}
     environment:
+      <<: *otel
+      OTEL_SERVICE_NAME: publisher
       DATABASE_URL: *database
       ANR_ROOT_DOMAIN: ${ANR_ROOT_DOMAIN:-}
       ANR_PLATFORM_KEY: ${ANR_PLATFORM_KEY:-}
@@ -161,6 +191,8 @@ services:
     <<: *app
     image: ${ANR_IMAGES:-ghcr.io/mehrad77}/anr-ingestion:${ANR_VERSION:?deploy.sh sets ANR_VERSION}
     environment:
+      <<: *otel
+      OTEL_SERVICE_NAME: ingestion
       DATABASE_URL: *database
       ANR_ROOT_DOMAIN: ${ANR_ROOT_DOMAIN:-}
       R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
@@ -173,17 +205,21 @@ services:
     <<: *app
     image: ${ANR_IMAGES:-ghcr.io/mehrad77}/anr-verifier:${ANR_VERSION:?deploy.sh sets ANR_VERSION}
     environment:
+      <<: *otel
+      OTEL_SERVICE_NAME: verifier
       DATABASE_URL: *database
 
   # Plain HTTP router behind the tunnel (D122); no host port. Stock image: no TLS, so no modules.
   caddy:
     image: caddy:2.11.7@sha256:36c24ad91a7ff7bc4c87fe22bfa8df3c4b18da0773d73fc12ee2c52b98c0bb7e
     restart: unless-stopped
-    logging: *logging
+    logging: *fluent-logging
     environment:
       ANR_ROOT_DOMAIN: ${ANR_ROOT_DOMAIN:-localhost}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    # The telemetry network reaches Grafana for `ops.`.
+    networks: [default, telemetry]
     depends_on: [api, web]
 
   # Outbound-only connections to Cloudflare (D122). Its ingress lives in Terraform, so the token is
@@ -191,11 +227,79 @@ services:
   cloudflared:
     image: cloudflare/cloudflared:2026.10.2@sha256:0e56c13c7058fcef9c4f0e7d83372f82330548dbf8f8b366f3d8b506526d93b2
     restart: unless-stopped
-    logging: *logging
-    command: [tunnel, --no-autoupdate, run]
+    logging: *fluent-logging
+    # Metrics for the collector: its connections to Cloudflare's edge (D140).
+    command: [tunnel, --no-autoupdate, --metrics, 0.0.0.0:2000, run]
     environment:
       TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
     depends_on: [caddy]
 
+  # Between the apps and otel-lgtm: scrubs reader data, takes the log lines of postgres, caddy and
+  # cloudflared from Docker's fluentd driver (loopback only), reports the disks and memory, scrapes
+  # cloudflared (observability/collector.yaml). Not root, no capabilities, a read-only root
+  # filesystem, nothing of Docker's mounted. The empty `disk` volume is on the disk every volume is
+  # on; /hostfs/host is a host directory, whose filesystem on macOS is the host's own disk, which
+  # Docker's VM disk is a file on (D153).
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.164.0@sha256:340c9ca6a36617084c6661bdc4f0fe92b7cda5a805d61673ec8db375fddc522b
+    restart: unless-stopped
+    logging: *logging
+    command: [--config=/etc/anr/collector.yaml]
+    cap_drop: [ALL]
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    environment:
+      ANR_COMPOSE_PROJECT: anr-prod
+    volumes:
+      - ./observability/collector.yaml:/etc/anr/collector.yaml:ro
+      - disk:/hostfs/volumes:ro
+      - ./observability:/hostfs/host:ro
+    ports: ["127.0.0.1:${ANR_FLUENT_PORT:-24224}:24224"]
+    networks: [default, telemetry]
+    mem_limit: 256m
+    depends_on: [lgtm]
+
+  # Grafana, Prometheus, Tempo and Loki in one container, on their own volume and network: only the
+  # collector writes to it, only Caddy reaches Grafana, and Grafana never reaches Postgres (D139).
+  # Sign-in is the Access JWT alone (observability/grafana/start.sh); dashboards, rules and
+  # datasources are provisioned read-only. Metrics are kept 30 days, logs and traces 7.
+  lgtm:
+    image: grafana/otel-lgtm:0.39.0@sha256:4c8056c9c05fcb3c8fd93800e85334bfd79b4d0271b47a54a121a64af41fe1fe
+    restart: unless-stopped
+    logging: *logging
+    entrypoint: [/etc/anr/grafana/start.sh]
+    environment:
+      GF_SERVER_ROOT_URL: https://ops.${ANR_ROOT_DOMAIN:-localhost}/
+      CF_ACCESS_TEAM_DOMAIN: ${CF_ACCESS_TEAM_DOMAIN:-}
+      CF_ACCESS_OPS_AUD: ${CF_ACCESS_OPS_AUD:-}
+      # The ops bot, for Grafana's Telegram contact point only (D140); not a newsroom Channel.
+      ANR_OPS_TELEGRAM_BOT_TOKEN: ${ANR_OPS_TELEGRAM_BOT_TOKEN:-}
+      ANR_OPS_TELEGRAM_CHAT_ID: ${ANR_OPS_TELEGRAM_CHAT_ID:-}
+      ANR_DESK_URL: https://desk.${ANR_ROOT_DOMAIN:-localhost}
+      PROMETHEUS_EXTRA_ARGS: --storage.tsdb.retention.time=30d
+      # Retention, and no usage reports to Grafana Labs.
+      TEMPO_EXTRA_ARGS: -backend-worker.compaction.block-retention=168h -backend-scheduler.provider.work.compaction.block-retention=168h -reporting.enabled=false
+      LOKI_EXTRA_ARGS: -compactor.retention-enabled=true -store.retention=168h -compactor.delete-request-store=filesystem -reporting.enabled=false
+    volumes:
+      - lgtm:/data
+      - ./observability/grafana/start.sh:/etc/anr/grafana/start.sh:ro
+      - ./observability/grafana/provisioning:/etc/anr/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/etc/anr/grafana/dashboards:ro
+      - ./observability/prometheus/prometheus.yaml:/otel-lgtm/prometheus.yaml:ro
+      - ./observability/prometheus/rules:/etc/anr/prometheus/rules:ro
+    networks: [telemetry]
+    mem_limit: 1792m
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/ready"]
+      interval: 10s
+      retries: 30
+
+networks:
+  default:
+  # Not internal: Grafana fetches Access's signing keys and sends to Telegram.
+  telemetry:
+
 volumes:
   pgdata:
+  lgtm:
+  disk:

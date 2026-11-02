@@ -3,15 +3,39 @@
 {
 	auto_https off
 	admin off
+	# Caddy's own log (errors, such as an upstream that is down) names the request: its headers carry
+	# the Access JWT, an address and a user agent, and its URI a query string. None are logged.
+	log default {
+		format filter {
+			wrap json
+			fields {
+				request>headers delete
+				request>remote_ip delete
+				request>remote_port delete
+				request>client_ip delete
+				request>uri regexp \?.*$ ""
+			}
+		}
+	}
 }
 
-# Grafana, behind Access (D123); milestone 7b adds it to the prod project.
+# Trace context is the platform's own: a reader cannot pick a trace, keep requests out of traces or
+# plant text that is stored with jobs and sent on (D155).
+(no_trace_headers) {
+	request_header -traceparent
+	request_header -tracestate
+	request_header -baggage
+}
+
+# Grafana in the lgtm container, behind Access (D123, D139).
 http://ops.{$ANR_ROOT_DOMAIN} {
-	reverse_proxy grafana:3000
+	import no_trace_headers
+	reverse_proxy lgtm:3000
 }
 
 # The desk, behind Access; its pages call the API at /api/* (the prefix is stripped).
 http://desk.{$ANR_ROOT_DOMAIN} {
+	import no_trace_headers
 	handle_path /api/* {
 		reverse_proxy api:8787
 	}
@@ -22,5 +46,6 @@ http://desk.{$ANR_ROOT_DOMAIN} {
 
 # The root and every newsroom's site. Reader sites reach the API only server-side, from the web app.
 :80 {
+	import no_trace_headers
 	reverse_proxy web:4321
 }

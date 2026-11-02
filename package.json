@@ -24,7 +24,9 @@
     "db:roles": "docker compose --env-file .env -f infra/compose.yaml exec postgres anr-roles",
     "config:sync": "pnpm --filter @anr/config run sync",
     "models:probe": "pnpm --filter @anr/models run probe",
-    "css:tools": "tailwindcss -i packages/schemas/viewer/tags.src.css -o packages/schemas/viewer/tags.build.css --minify && tailwindcss -i tools/tts-eval/tags.src.css -o tools/tts-eval/tags.build.css --minify"
+    "css:tools": "tailwindcss -i packages/schemas/viewer/tags.src.css -o packages/schemas/viewer/tags.build.css --minify && tailwindcss -i tools/tts-eval/tags.src.css -o tools/tts-eval/tags.build.css --minify",
+    "telemetry:up": "docker compose --env-file .env -f infra/compose.yaml --profile telemetry up -d --wait otel-collector lgtm",
+    "telemetry:down": "docker compose --env-file .env -f infra/compose.yaml --profile telemetry stop otel-collector lgtm"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.3",

@@ -1,6 +1,13 @@
 # Dev: `pnpm db:up` starts Postgres only (project `anr`); run the apps with `pnpm dev`.
+# `pnpm telemetry:up` adds the collector and otel-lgtm (profile `telemetry`): Grafana on
+# http://localhost:3000 (read-only viewer), OTLP on localhost:4318 (OTEL_EXPORTER_OTLP_ENDPOINT).
+# Dev Postgres keeps Docker's json-file log: dev telemetry has the apps' logs only.
 # Production is its own project, anr-prod, in infra/compose.prod.yaml (D126).
 name: anr
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: 10m, max-file: "5" }
 
 services:
   postgres:
@@ -55,5 +62,51 @@ services:
       interval: 5s
       retries: 10
 
+  # The same collector and otel-lgtm as production (compose.prod.yaml), with a read-only anonymous
+  # viewer instead of the Access sign-in and no Telegram contact point.
+  otel-collector:
+    profiles: [telemetry]
+    image: otel/opentelemetry-collector-contrib:0.164.0@sha256:340c9ca6a36617084c6661bdc4f0fe92b7cda5a805d61673ec8db375fddc522b
+    command: [--config=/etc/anr/collector.yaml]
+    cap_drop: [ALL]
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    environment:
+      ANR_COMPOSE_PROJECT: anr
+    volumes:
+      - ./observability/collector.yaml:/etc/anr/collector.yaml:ro
+      - disk:/hostfs/volumes:ro
+      - ./observability:/hostfs/host:ro
+    ports: ["127.0.0.1:4318:4318", "127.0.0.1:24225:24224"]
+    depends_on: [lgtm]
+    restart: unless-stopped
+    logging: *logging
+
+  lgtm:
+    profiles: [telemetry]
+    image: grafana/otel-lgtm:0.39.0@sha256:4c8056c9c05fcb3c8fd93800e85334bfd79b4d0271b47a54a121a64af41fe1fe
+    entrypoint: [/etc/anr/grafana/start.sh]
+    environment:
+      ANR_GRAFANA_ANONYMOUS: Viewer
+      PROMETHEUS_EXTRA_ARGS: --storage.tsdb.retention.time=30d
+      TEMPO_EXTRA_ARGS: -backend-worker.compaction.block-retention=168h -backend-scheduler.provider.work.compaction.block-retention=168h -reporting.enabled=false
+      LOKI_EXTRA_ARGS: -compactor.retention-enabled=true -store.retention=168h -compactor.delete-request-store=filesystem -reporting.enabled=false
+    volumes:
+      - lgtm:/data
+      - ./observability/grafana/start.sh:/etc/anr/grafana/start.sh:ro
+      - ./observability/grafana/provisioning:/etc/anr/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/etc/anr/grafana/dashboards:ro
+      - ./observability/prometheus/prometheus.yaml:/otel-lgtm/prometheus.yaml:ro
+      - ./observability/prometheus/rules:/etc/anr/prometheus/rules:ro
+    ports: ["127.0.0.1:3000:3000"]
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/ready"]
+      interval: 10s
+      retries: 30
+    restart: unless-stopped
+    logging: *logging
+
 volumes:
   pgdata:
+  lgtm:
+  disk:

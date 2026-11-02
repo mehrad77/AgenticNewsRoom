@@ -1,0 +1,14 @@
+# Dashboards are files in infra/observability/grafana/dashboards, generated from
+# infra/observability/src (pnpm gen); the UI cannot save or delete them (D139).
+apiVersion: 1
+
+providers:
+  - name: anr
+    type: file
+    folder: ANR
+    folderUid: anr
+    allowUiUpdates: false
+    disableDeletion: true
+    updateIntervalSeconds: 60
+    options:
+      path: /etc/anr/grafana/dashboards
