@@ -1,5 +1,7 @@
 // The summariser graph: summarise → validate, with one retry carrying the errors. It never
 // writes; the caller stores a valid result (summary and beats) as the run's submit.
+
+import { tracedNode } from "@anr/models";
 import { AIMessage, type BaseMessage, HumanMessage } from "@langchain/core/messages";
 import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
 import { z } from "zod";
@@ -76,23 +78,29 @@ export function summariserGraph(
 ) {
   const slugs = beats.map((b) => b.slug);
   return new StateGraph(State)
-    .addNode("summarise", async (state) => {
-      const ask = state.attempts === 0 ? [] : [new HumanMessage(retryPrompt(state.errors))];
-      await beforeCall();
-      const reply = await model.invoke([...state.messages, ...ask]);
-      const usage = reply instanceof AIMessage ? reply.usage_metadata : undefined;
-      return {
-        messages: [...ask, reply],
-        attempts: state.attempts + 1,
-        tokensIn: usage?.input_tokens ?? 0,
-        tokensOut: usage?.output_tokens ?? 0,
-      };
-    })
-    .addNode("validate", async (state) => {
-      const last = state.messages.at(-1);
-      const parsed = last ? parseAnswer(text(last), slugs) : ["no answer"];
-      return Array.isArray(parsed) ? { errors: parsed } : { errors: [], result: parsed };
-    })
+    .addNode(
+      "summarise",
+      tracedNode("summariser", "summarise", async (state: typeof State.State) => {
+        const ask = state.attempts === 0 ? [] : [new HumanMessage(retryPrompt(state.errors))];
+        await beforeCall();
+        const reply = await model.invoke([...state.messages, ...ask]);
+        const usage = reply instanceof AIMessage ? reply.usage_metadata : undefined;
+        return {
+          messages: [...ask, reply],
+          attempts: state.attempts + 1,
+          tokensIn: usage?.input_tokens ?? 0,
+          tokensOut: usage?.output_tokens ?? 0,
+        };
+      }),
+    )
+    .addNode(
+      "validate",
+      tracedNode("summariser", "validate", async (state: typeof State.State) => {
+        const last = state.messages.at(-1);
+        const parsed = last ? parseAnswer(text(last), slugs) : ["no answer"];
+        return Array.isArray(parsed) ? { errors: parsed } : { errors: [], result: parsed };
+      }),
+    )
     .addEdge(START, "summarise")
     .addEdge("summarise", "validate")
     .addConditionalEdges("validate", (state) =>

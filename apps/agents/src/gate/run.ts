@@ -4,7 +4,7 @@
 // and holds (invariant 5); the gate never waits for a person.
 import type { AgentRole, CheckResult, GateJob, Language } from "@anr/core";
 import { auditedUpdate, type Client, type Pool, withNewsroom } from "@anr/db";
-import { AllModelsExhausted, ModelCallFailed } from "@anr/models";
+import { AllModelsExhausted, inAgent, ModelCallFailed } from "@anr/models";
 import {
   type createRenderer,
   introProblems,
@@ -618,32 +618,34 @@ async function factCheck(deps: GateDeps, job: GateJob, story: GateStory, checks:
       }),
     story.format,
   );
-  await runChecker(
-    deps,
-    job,
-    started,
-    pending,
-    async ({ claim, source, index }, model) => {
-      const verdict = await askVerdict(
-        model,
-        FACT_CHECKER_ROLE,
-        factQuestion(claim.text, source.quoted_passage),
-        parseFact,
-      );
-      return {
+  await inAgent("fact-checker", "runId" in started ? started.runId : undefined, () =>
+    runChecker(
+      deps,
+      job,
+      started,
+      pending,
+      async ({ claim, source, index }, model) => {
+        const verdict = await askVerdict(
+          model,
+          FACT_CHECKER_ROLE,
+          factQuestion(claim.text, source.quoted_passage),
+          parseFact,
+        );
+        return {
+          kind: "fact-check",
+          name: "fact-check",
+          claimId: claim.id,
+          verdict,
+          detail: { lead_id: source.lead_id, position: index },
+        };
+      },
+      ({ claim, source, index }) => ({
         kind: "fact-check",
         name: "fact-check",
         claimId: claim.id,
-        verdict,
         detail: { lead_id: source.lead_id, position: index },
-      };
-    },
-    ({ claim, source, index }) => ({
-      kind: "fact-check",
-      name: "fact-check",
-      claimId: claim.id,
-      detail: { lead_id: source.lead_id, position: index },
-    }),
+      }),
+    ),
   );
 }
 
@@ -665,35 +667,37 @@ async function itemMatch(deps: GateDeps, job: GateJob, story: GateStory, checks:
     async () => deps.router.resolve("item-matcher"),
     story.format,
   );
-  await runChecker(
-    deps,
-    job,
-    started,
-    pending,
-    async ({ rendition, path, item }, model) => {
-      const listed = ((item.claim_ids as string[] | undefined) ?? []).map(
-        (ref) => byRef.get(ref)?.text ?? `(unknown claim ${ref})`,
-      );
-      const verdict = await askVerdict(
-        model,
-        ITEM_MATCHER_ROLE,
-        itemQuestion(itemText(item), listed),
-        parseItem,
-      );
-      return {
+  await inAgent("item-matcher", "runId" in started ? started.runId : undefined, () =>
+    runChecker(
+      deps,
+      job,
+      started,
+      pending,
+      async ({ rendition, path, item }, model) => {
+        const listed = ((item.claim_ids as string[] | undefined) ?? []).map(
+          (ref) => byRef.get(ref)?.text ?? `(unknown claim ${ref})`,
+        );
+        const verdict = await askVerdict(
+          model,
+          ITEM_MATCHER_ROLE,
+          itemQuestion(itemText(item), listed),
+          parseItem,
+        );
+        return {
+          kind: "item-match",
+          name: "item-match",
+          renditionId: rendition.id,
+          item: path,
+          verdict,
+        };
+      },
+      ({ rendition, path }) => ({
         kind: "item-match",
         name: "item-match",
         renditionId: rendition.id,
         item: path,
-        verdict,
-      };
-    },
-    ({ rendition, path }) => ({
-      kind: "item-match",
-      name: "item-match",
-      renditionId: rendition.id,
-      item: path,
-    }),
+      }),
+    ),
   );
 }
 

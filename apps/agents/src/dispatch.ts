@@ -2,7 +2,7 @@
 // whose chain has no model with a key waits, re-queued, rather than failing its run.
 import { type AgentRole, type AgentRunJob, QUEUES } from "@anr/core";
 import { type Pool, withNewsroom } from "@anr/db";
-import { AllModelsExhausted } from "@anr/models";
+import { AllModelsExhausted, inAgent } from "@anr/models";
 import type { PgBoss } from "pg-boss";
 import { rateLimitDelayMs } from "./throttle.ts";
 
@@ -45,7 +45,7 @@ export function dispatchAgentRun(deps: DispatchDeps): (job: AgentRunJob) => Prom
       return;
     }
     try {
-      await handler(job);
+      await inAgent(role, job.agentRunId, () => handler(job));
     } catch (error) {
       // The whole chain rate-limited or down: try later, without using up a pg-boss retry.
       const delay =

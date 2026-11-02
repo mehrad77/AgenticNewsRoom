@@ -1,6 +1,8 @@
 // One turn of a run's conversation: ask, let the model call its research tools a bounded number of
 // times, return every message of the turn. A tool name outside the bound list gets an error answer;
 // nothing else can run (invariant 2).
+
+import { executeTool } from "@anr/models";
 import { AIMessage, type BaseMessage, HumanMessage, ToolMessage } from "@langchain/core/messages";
 import type { StructuredToolInterface } from "@langchain/core/tools";
 import type { ChatLike } from "./model.ts";
@@ -48,7 +50,7 @@ export async function converse(
         });
       } else {
         try {
-          content = String(await found.invoke(call.args));
+          content = String(await executeTool(call.name, call.id, () => found.invoke(call.args)));
         } catch (error) {
           content = JSON.stringify({ error: (error as Error).message });
         }

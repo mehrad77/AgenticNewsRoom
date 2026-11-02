@@ -1,6 +1,8 @@
 // The desk graph (D77): read → outline → draft → claims → validate, one retry of the claims step
 // with the errors, then the run ends with a valid draft or none. It never writes: the run calls
 // the submit tool with a valid draft, or holds the assignment.
+
+import { tracedNode } from "@anr/models";
 import { type BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { StructuredToolInterface } from "@langchain/core/tools";
 import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
@@ -93,23 +95,29 @@ export function deskGraph(deps: DeskGraphDeps) {
     messages: await converse(deps.model, state.messages, ask, deps.tools),
   });
   return new StateGraph(State)
-    .addNode("outline", turn(deps.steps.outline))
-    .addNode("draft", turn(deps.steps.draft))
-    .addNode("claims", async (state) => ({
-      messages: await converse(
-        deps.model,
-        state.messages,
-        state.attempts === 0 ? deps.steps.claims : retryPrompt(state.errors),
-        deps.tools,
-      ),
-      attempts: state.attempts + 1,
-    }))
-    .addNode("validate", async (state) => {
-      const parsed = parseJson(textOf(state.messages.at(-1)), { closeBrackets: true });
-      if (typeof parsed === "string") return { errors: [parsed] };
-      const result = validateDraft(parsed, deps.validation());
-      return Array.isArray(result) ? { errors: result } : { errors: [], result };
-    })
+    .addNode("outline", tracedNode("desk", "outline", turn(deps.steps.outline)))
+    .addNode("draft", tracedNode("desk", "draft", turn(deps.steps.draft)))
+    .addNode(
+      "claims",
+      tracedNode("desk", "claims", async (state: typeof State.State) => ({
+        messages: await converse(
+          deps.model,
+          state.messages,
+          state.attempts === 0 ? deps.steps.claims : retryPrompt(state.errors),
+          deps.tools,
+        ),
+        attempts: state.attempts + 1,
+      })),
+    )
+    .addNode(
+      "validate",
+      tracedNode("desk", "validate", async (state: typeof State.State) => {
+        const parsed = parseJson(textOf(state.messages.at(-1)), { closeBrackets: true });
+        if (typeof parsed === "string") return { errors: [parsed] };
+        const result = validateDraft(parsed, deps.validation());
+        return Array.isArray(result) ? { errors: result } : { errors: [], result };
+      }),
+    )
     .addEdge(START, "outline")
     .addEdge("outline", "draft")
     .addEdge("draft", "claims")
