@@ -4,7 +4,7 @@ import { type Language, pageUrl, type SiteAddress, siteOrigin } from "@anr/core"
 import type { Pool } from "@anr/db";
 import { audioPath, chapterTitles, createRenderer } from "@anr/render";
 import { type ChallengeStatus, challengeStatus } from "./challenge.ts";
-import { type EpisodeView, episodeView } from "./episode.ts";
+import { type EpisodeView, episodeView, type Picture, portraitsOf } from "./episode.ts";
 import { WORDS, type Words } from "./i18n.ts";
 import { jsonLd, ninjs, policyUrls } from "./metadata.ts";
 import { episodeFacts } from "./podcast.ts";
@@ -38,6 +38,7 @@ import {
 } from "./reference-page.ts";
 import { REFERENCE_WORDS, type ReferenceWords } from "./reference-words.ts";
 import { route } from "./routes.ts";
+import { artwork, coverOf } from "./series.ts";
 import { TIMELINE_ITEM } from "./timeline.ts";
 
 let renderer: ReturnType<typeof createRenderer> | undefined;
@@ -55,7 +56,7 @@ export function showNotes(rendition: Record<string, unknown>): string {
     .join("\n\n");
 }
 
-/** The format whose publications are episodes, drawn with a player (D180). */
+/** The format whose publications are episodes, drawn with a player (D181). */
 const EPISODE_FORMAT = "podcast-episode";
 
 /** How many news items a news home lists before its link to the whole timeline. */
@@ -112,10 +113,20 @@ export type Page =
       ninjsUrl: string;
       digitalSourceType: string;
       /**
-       * An episode with audio, drawn by EpisodePage.astro instead of the body (D180): its player,
+       * An episode with audio, drawn by EpisodePage.astro instead of the body (D181): its player,
        * transcript, AI label (edited or not) and the series' feed.
        */
-      episode: (EpisodeView & { label: string; feedUrl: string }) | null;
+      episode:
+        | (EpisodeView & {
+            label: string;
+            feedUrl: string;
+            /** Its cover, else the show art; the show art is also the player's artwork (D180). */
+            cover: Picture | null;
+            showArt: Picture | null;
+            /** Each speaker's portrait, when the series has one for them. */
+            portraits: Record<string, Picture>;
+          })
+        | null;
     } & Common)
   | { kind: "ninjs"; json: Record<string, unknown> };
 
@@ -306,11 +317,23 @@ export async function loadPage(
         publication.format === EPISODE_FORMAT
           ? await episodeFacts(deps.pool, newsroom, publication.id)
           : null;
-      const episode = facts && {
-        ...episodeView({ rendition: publication.rendition, audioUrl, ...facts }),
-        label: await renderer.disclosureLabel(language, publication.edited),
-        feedUrl: pageUrl(site, language, `/podcast/${publication.series}.xml`),
-      };
+      let episode: (Page & { kind: "publication" })["episode"] = null;
+      if (facts) {
+        const view = episodeView({ rendition: publication.rendition, audioUrl, ...facts });
+        const [art, cover] = await Promise.all([
+          artwork(deps.pool, newsroom.id, `series/${publication.series}/`),
+          coverOf(deps.pool, newsroom.id, publication.rendition),
+        ]);
+        const showArt = art.get("show") ?? null;
+        episode = {
+          ...view,
+          label: await renderer.disclosureLabel(language, publication.edited),
+          feedUrl: pageUrl(site, language, `/podcast/${publication.series}.xml`),
+          cover: cover ?? showArt,
+          showArt,
+          portraits: portraitsOf(art, Object.keys(view.speakers)),
+        };
+      }
       return {
         kind: "publication",
         publication,

@@ -1,4 +1,4 @@
-// An episode's page (D180): its chapters, its transcript as speaker turns under chapter headings,
+// An episode's page (D181): its chapters, its transcript as speaker turns under chapter headings,
 // and when each turn is spoken, for the player and the transcript sync. Ported from the old
 // archive's episode page (D177); plain TypeScript, so EpisodePage.astro only lays it out.
 import type { Language } from "@anr/core";
@@ -200,3 +200,29 @@ export function episodeView(input: {
 /** A speaker's initial for their avatar, without its diacritics: «اِبی» -> «ا». */
 export const initial = (speaker: string) =>
   speaker.normalize("NFD").replace(/\p{M}/gu, "").charAt(0);
+
+/** A published image of the newsroom's own (D180): its address, alt text and credit. */
+export interface Picture {
+  src: string;
+  alt: string;
+  credit: string;
+}
+
+/**
+ * Each speaker's portrait among a series' artwork (`host/<id>` roles): the one whose alt text is
+ * the speaker's name as the transcript writes it, so no newsroom's hosts are named in code.
+ */
+export function portraitsOf(
+  art: ReadonlyMap<string, Picture>,
+  speakers: Iterable<string>,
+): Record<string, Picture> {
+  const byName = new Map<string, Picture>();
+  for (const [role, picture] of art)
+    if (role.startsWith("host/") && picture.alt.trim()) byName.set(picture.alt.trim(), picture);
+  const out: Record<string, Picture> = {};
+  for (const s of speakers) {
+    const p = byName.get(s);
+    if (p) out[s] = p;
+  }
+  return out;
+}

@@ -6,6 +6,7 @@ import {
   initial,
   localDigits,
   parseTranscript,
+  portraitsOf,
   sectionTitle,
   speakerColours,
   timeTurns,
@@ -148,5 +149,20 @@ describe("initial", () => {
   it("is the speaker's first letter without diacritics", () => {
     expect(initial("اِبی")).toBe("ا");
     expect(initial("Maya")).toBe("M");
+  });
+});
+
+describe("portraitsOf", () => {
+  it("finds each speaker's portrait by its alt text, and skips other artwork", () => {
+    const pic = (alt: string) => ({ src: `/m/${alt}.jpg`, alt, credit: "AI Newsroom (AI-made)" });
+    const art = new Map([
+      ["show", pic("نیلوفر")],
+      ["host/niloofar", pic("نیلوفر")],
+      ["host/ebi", pic("اِبی")],
+    ]);
+    expect(portraitsOf(art, ["نیلوفر", "فرزاد", "اِبی"])).toEqual({
+      نیلوفر: pic("نیلوفر"),
+      اِبی: pic("اِبی"),
+    });
   });
 });

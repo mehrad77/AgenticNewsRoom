@@ -1,5 +1,5 @@
 ---
-// An episode's audio player, from the old archive's episode page (D177, D180). The HTML ships the
+// An episode's audio player, from the old archive's episode page (D177, D181). The HTML ships the
 // native <audio controls>, so the page plays without JS; the script hides it and shows these
 // controls: play/pause, 15 s back and forward, a scrubber with chapter notches, the current
 // chapter, the time and the speed. Once playback has started and the player scrolls out of view it
@@ -18,13 +18,15 @@ interface Props {
   src: string;
   title: string;
   artist: string;
+  /** The show art, for the system's media controls. */
+  artwork: string | null;
   seconds: number;
   chapters: Chapter[];
   language: Language;
   words: Words["episode"]["player"];
   id?: string;
 }
-const { src, title, artist, seconds, chapters, language, words: w, id = "player" } = Astro.props;
+const { src, title, artist, artwork, seconds, chapters, language, words: w, id = "player" } = Astro.props;
 const d = localDigits(language);
 const marks = chapters
   .filter((c) => c.start > 0 && c.start < seconds)
@@ -38,7 +40,7 @@ const scriptWords = {
   speed: w.speed("{rate}"),
 };
 ---
-<div class="pplayer" data-pplayer data-title={title} data-artist={artist} data-duration={seconds}
+<div class="pplayer" data-pplayer data-title={title} data-artist={artist} data-artwork={artwork ?? undefined} data-duration={seconds}
   data-chapters={JSON.stringify(chapters.map((c) => [c.start, c.title]))} data-words={JSON.stringify(scriptWords)}>
   <div class="pplayer__bar">
     <audio id={id} class="episode-player episode-player--page" controls preload="none" src={src} aria-label={`${w.play}: ${title}`}></audio>
@@ -240,8 +242,14 @@ const scriptWords = {
       root.classList.add("is-playing");
       play.setAttribute("aria-label", words.pause);
       dock();
-      if ("mediaSession" in navigator)
-        navigator.mediaSession.metadata = new MediaMetadata({ title: root.dataset.title, artist: root.dataset.artist });
+      if ("mediaSession" in navigator) {
+        const art = root.dataset.artwork ? new URL(root.dataset.artwork, location.href).href : null;
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: root.dataset.title,
+          artist: root.dataset.artist,
+          artwork: art ? [{ src: art }] : [],
+        });
+      }
     });
     audio.addEventListener("pause", () => {
       root.classList.remove("is-playing");

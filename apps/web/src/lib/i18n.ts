@@ -27,7 +27,7 @@ export interface Words {
   }[];
   /** The corrections page: who owns corrections and how a reader challenges a piece. */
   correctionsBody: (o: { owner: string }) => string;
-  /** An episode's page (D180): its facts, chapters, transcript and player. */
+  /** An episode's page (D181): its facts, chapters, transcript and player. */
   episode: {
     date: string;
     length: string;

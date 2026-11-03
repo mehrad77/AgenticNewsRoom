@@ -1,17 +1,18 @@
 ---
-// An episode's page (D180), from the old archive's episode page (D177): the series, title and
+// An episode's page (D181), from the old archive's episode page (D177): the series, title and
 // summary, the AI label, the player, the facts, then the transcript (chapter headings with their
 // times, speaker turns) kept in step with the audio, or the chapters when there is no transcript.
-// Covers and host avatars are left out (images need a recorded licence, D119): each speaker gets
-// the old page's initial-letter avatar.
+// Images are the newsroom's own artwork (D180): the cover beside the title, each speaker's
+// portrait on their turns (else the old page's initial-letter avatar), credits in title attributes.
 import type { Language } from "@anr/core";
 import Labels from "../reference/Labels.astro";
 import PodcastPlayer from "./PodcastPlayer.astro";
-import { clock, type EpisodeView, initial, localDigits } from "../../lib/episode.ts";
+import { clock, initial, localDigits } from "../../lib/episode.ts";
 import type { Words } from "../../lib/i18n.ts";
+import type { Page } from "../../lib/page.ts";
 
 interface Props {
-  episode: EpisodeView & { label: string; feedUrl: string };
+  episode: NonNullable<(Page & { kind: "publication" })["episode"]>;
   title: string;
   series: string;
   publishedAt: Date;
@@ -33,7 +34,10 @@ const date = new Intl.DateTimeFormat(language, { dateStyle: "long", calendar: "g
 // chapters with a transcript section to link to
 const inTranscript = new Set(ep.sections.map((s) => s.chapter));
 ---
-<header class="podcast-show episode-header">
+<header class:list={["podcast-show episode-header", { "podcast-show--with-cover": ep.cover }]}>
+  {ep.cover && (
+    <img class="podcast-cover podcast-cover--lg" src={ep.cover.src} alt={ep.cover.alt} title={ep.cover.credit || undefined} width="192" height="192" decoding="async" />
+  )}
   <div>
     <p class="eyebrow">{series}</p>
     <h1 class="page-title" dir="auto">{title}</h1>
@@ -42,7 +46,7 @@ const inTranscript = new Set(ep.sections.map((s) => s.chapter));
 </header>
 <Labels label={ep.label} aiPolicy={aiPolicy} imported={imported} />
 
-<PodcastPlayer src={ep.audioUrl} title={title} artist={series} seconds={ep.seconds} chapters={ep.chapters} language={language} words={w.player} />
+<PodcastPlayer src={ep.audioUrl} title={title} artist={series} artwork={ep.showArt?.src ?? null} seconds={ep.seconds} chapters={ep.chapters} language={language} words={w.player} />
 
 <dl class="facts">
   <dt>{w.date}</dt><dd><time datetime={publishedAt.toISOString()}>{date}</time></dd>
@@ -81,7 +85,11 @@ const inTranscript = new Set(ep.sections.map((s) => s.chapter));
               )}
               {s.turns.map((t) => (
                 <div class="turn" data-start={t.start ?? undefined} data-end={t.end ?? undefined}>
-                  <span class="host-avatar host-avatar--xs host-avatar--initial" data-speaker={ep.speakers[t.speaker]} aria-hidden="true">{initial(t.speaker)}</span>
+                  {ep.portraits[t.speaker] ? (
+                    <img class="host-avatar host-avatar--xs" src={ep.portraits[t.speaker]?.src} alt="" title={ep.portraits[t.speaker]?.credit || undefined} width="32" height="32" loading="lazy" decoding="async" />
+                  ) : (
+                    <span class="host-avatar host-avatar--xs host-avatar--initial" data-speaker={ep.speakers[t.speaker]} aria-hidden="true">{initial(t.speaker)}</span>
+                  )}
                   <p dir="auto"><strong>{t.speaker}:</strong> {t.text}</p>
                 </div>
               ))}

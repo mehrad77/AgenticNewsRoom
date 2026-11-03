@@ -1,5 +1,5 @@
 /*
- * An episode's page (EpisodePage.astro, D180): the old archive's episode page and player (D177),
+ * An episode's page (EpisodePage.astro, D181): the old archive's episode page and player (D177),
  * copied with its classes. ShabUI's tokens and logical sides throughout, so an English page
  * mirrors a Persian one; the two rules the old page wrote for right-to-left only (the current
  * turn's bar, the follow pill) are written for both directions.
@@ -35,13 +35,33 @@ h2.section-title {
   padding-block-end: var(--space-2);
   border-block-end: 1px solid var(--stroke);
 }
-/* No cover (D119): the head is one column. */
+/* The cover beside the title on a wide screen, above it on a phone. */
 .podcast-show {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-5);
   align-items: start;
   margin-block: var(--space-6) var(--space-4);
+}
+@media (min-width: 52rem) {
+  .podcast-show--with-cover {
+    grid-template-columns: 12rem minmax(0, 1fr);
+  }
+}
+html body > main > .podcast-show--with-cover {
+  max-width: none;
+}
+.podcast-cover {
+  display: block;
+  inline-size: 100%;
+  aspect-ratio: 1 / 1;
+  block-size: auto;
+  object-fit: cover;
+  background: var(--surface-sunken);
+  border-radius: var(--radius);
+}
+.podcast-cover--lg {
+  max-inline-size: 12rem;
 }
 .podcast-show .page-title {
   margin-block-start: 0;
@@ -68,6 +88,7 @@ h2.section-title {
   justify-content: center;
   flex: none;
   border-radius: 50%;
+  object-fit: cover;
   inline-size: 3rem;
   block-size: 3rem;
   background: var(--surface-sunken);
