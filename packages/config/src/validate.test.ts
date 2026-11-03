@@ -209,15 +209,18 @@ describe("validateConfig", () => {
     expect(errors).toContain("models.free.yaml model orphan: unknown provider nowhere");
   });
 
-  it("keeps local servers out of the production models file (D84)", () => {
+  it("reaches a production local server from its container, without a key (D183)", () => {
     const config = loadConfig(root);
     const prod = config.models["models.yaml"] as ModelsSchema;
-    prod.providers.local = { kind: "openai", base_url: "http://127.0.0.1:1234/v1" };
+    prod.providers.loopback = { kind: "openai", base_url: "http://127.0.0.1:1234/v1" };
+    prod.providers.host = { kind: "openai", base_url: "http://host.docker.internal:1234/v1" };
+    prod.providers.cloud = { kind: "openai", base_url: "https://api.example.com/v1" };
     const errors = validateConfig(config);
     expect(errors).toContain(
-      "models.yaml provider local: a local server belongs in a development profile",
+      "models.yaml provider loopback: a local server is reached as host.docker.internal",
     );
-    expect(errors).toContain("models.yaml provider local: needs key_env");
+    expect(errors.filter((e) => e.includes("provider host:"))).toEqual([]);
+    expect(errors).toContain("models.yaml provider cloud: needs key_env");
   });
 
   it("sends reasoning_effort only to OpenAI-compatible providers (D85)", () => {

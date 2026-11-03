@@ -88,12 +88,13 @@ function modelsProblems(m: ModelsSchema, file: string, formats: string[]): strin
     if (p.kind === "openai" && p.base_url.includes("{account}") && !p.account_env) {
       errors.push(`${file} provider ${id}: base_url has {account} but no account_env`);
     }
-    // A local server (plain http, no key) is for development profiles only (D84).
-    if (file === "models.yaml" && p.kind === "openai" && !p.base_url.startsWith("https://")) {
-      errors.push(`${file} provider ${id}: a local server belongs in a development profile`);
+    // Production runs in containers, so a local model server there is the host's (D183).
+    const local = p.kind === "openai" && !p.base_url.startsWith("https://");
+    if (file === "models.yaml" && local && !p.base_url.startsWith("http://host.docker.internal")) {
+      errors.push(`${file} provider ${id}: a local server is reached as host.docker.internal`);
     }
     // A local TTS engine runs on the server itself, which is this laptop (D54, D113).
-    if (file === "models.yaml" && p.kind !== "local-tts" && !p.key_env) {
+    if (file === "models.yaml" && p.kind !== "local-tts" && !local && !p.key_env) {
       errors.push(`${file} provider ${id}: needs key_env`);
     }
   }

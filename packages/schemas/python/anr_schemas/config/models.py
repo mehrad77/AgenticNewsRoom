@@ -51,9 +51,11 @@ class OpenaiProvider(BaseModel):
         extra="forbid",
     )
     kind: Literal["openai"]
-    base_url: constr(pattern=r"^(https://|http://(127\.0\.0\.1|localhost)(:[0-9]+)?(/|$))") = Field(
+    base_url: constr(
+        pattern=r"^(https://|http://(127\.0\.0\.1|localhost|host\.docker\.internal)(:[0-9]+)?(/|$))"
+    ) = Field(
         ...,
-        description="https, or plain http to this machine only (a local server such as LM Studio). May contain {account}, filled from account_env.",
+        description="https, or plain http to this machine only (a local server such as LM Studio), from a container as host.docker.internal. May contain {account}, filled from account_env.",
     )
     key_env: EnvVar | None = Field(
         None, description="Omitted for a local server that needs no key."

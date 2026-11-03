@@ -88,8 +88,8 @@
         },
         "base_url": {
           "type": "string",
-          "pattern": "^(https://|http://(127\\.0\\.0\\.1|localhost)(:[0-9]+)?(/|$))",
-          "description": "https, or plain http to this machine only (a local server such as LM Studio). May contain {account}, filled from account_env."
+          "pattern": "^(https://|http://(127\\.0\\.0\\.1|localhost|host\\.docker\\.internal)(:[0-9]+)?(/|$))",
+          "description": "https, or plain http to this machine only (a local server such as LM Studio), from a container as host.docker.internal. May contain {account}, filled from account_env."
         },
         "key_env": {
           "$ref": "#/$defs/envVar",
