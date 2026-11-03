@@ -50,6 +50,7 @@ const publication: ReaderPublication = {
   media: {},
   corrections: [],
   imported: false,
+  paths: { en: "/daily-newsletter/2026-10-26" },
 };
 const described = {
   site: { ...site, languages: [...site.languages] },

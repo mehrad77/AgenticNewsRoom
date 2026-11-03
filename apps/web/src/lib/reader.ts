@@ -62,6 +62,8 @@ export interface ReaderPublication extends Listed {
   corrections: Correction[];
   /** Imported from the old archive (D172): shown as it was, with the imported label (D164). */
   imported: boolean;
+  /** The same piece's path in each language it is published in: its series' same slot. */
+  paths: Partial<Record<Language, string>>;
 }
 
 export async function newsroomBySubdomain(
@@ -182,8 +184,11 @@ export function publicationByPath(
       media_topics: string[] | null;
       body: Record<string, unknown> | null;
       origin: string;
+      paths: Partial<Record<Language, string>>;
     }>(
       `select p.id, p.title, p.path, p.published_at, p.status, p.edited, p.origin,
+              (select jsonb_object_agg(o.language, o.path) from publications o
+               where o.series_id = p.series_id and o.slot = p.slot and o.${VISIBLE}) as paths,
               s.slug as series, s.config->'name' as series_name,
               f.slug as format, f.genre, f.ninjs_type,
               r.story_id, b.media_topics, r.body
@@ -239,6 +244,7 @@ export function publicationByPath(
       leads: Object.fromEntries(leads.map((l) => [l.id, { url: l.uri, headline: l.headline }])),
       media: await mediaContext(c, p.body, ""),
       imported: p.origin === "imported",
+      paths: p.paths,
       corrections: corrections.map((x) => ({
         id: x.id,
         notice: x.notice,

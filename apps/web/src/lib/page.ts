@@ -169,7 +169,11 @@ export async function loadPage(
   const words = WORDS[language];
   const ref = REFERENCE_WORDS[language];
   const name = newsroom.name[language] ?? newsroom.slug;
-  const common = (title: string, path = "/"): Common => ({
+  /** `path` is this page's path in every language, or per language (a piece's own path in each). */
+  const common = (
+    title: string,
+    path: string | Partial<Record<Language, string>> = "/",
+  ): Common => ({
     newsroom,
     site,
     language,
@@ -214,7 +218,10 @@ export async function loadPage(
       return p ? pageUrl(site, language, p) : null;
     },
     url: (p) => pageUrl(site, language, p),
-    languages: newsroom.languages.map((l) => ({ language: l, url: pageUrl(site, l, path) })),
+    languages: newsroom.languages.map((l) => ({
+      language: l,
+      url: pageUrl(site, l, typeof path === "string" ? path : (path[l] ?? "/")),
+    })),
   });
 
   const r = route(request.path);
@@ -265,7 +272,13 @@ export async function loadPage(
         search(deps.pool, newsroom.id, language, query),
         searchEntries(deps.pool, newsroom.id, query),
       ]);
-      return { kind: "search", query, pieces, entries, ...common(words.search, "/search") };
+      return {
+        kind: "search",
+        query,
+        pieces,
+        entries,
+        ...common(words.search, query ? `/search?q=${encodeURIComponent(query)}` : "/search"),
+      };
     }
     case "section": {
       // A series' own page (D179), else a series' timeline (D173).
@@ -338,7 +351,7 @@ export async function loadPage(
         request.query.get("k") ?? "",
       );
       if (!challenge) return { kind: "not-found", ...common(words.notFound) };
-      return { kind: "challenge", challenge, ...common(words.challenge.status, "/") };
+      return { kind: "challenge", challenge, ...common(words.challenge.status) };
     }
     case "publication":
     case "ninjs": {
@@ -396,8 +409,8 @@ export async function loadPage(
         ninjsUrl: `${pageUrl(site, language, r.path)}.json`,
         digitalSourceType: (ninjs(described).digitalSourceType as { uri: string }).uri,
         episode,
-        // Other languages have their own publication at the same path only by coincidence.
-        ...common(publication.title ?? name, "/"),
+        // The same piece in another language, where it is published; else that language's home.
+        ...common(publication.title ?? name, publication.paths),
       };
     }
     default:
