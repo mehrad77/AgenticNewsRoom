@@ -1,0 +1,72 @@
+---
+// A news home (D176, D182): the newsroom's front page, one place for each kind of content. The
+// newest news items lead; beside them, the newest piece of each series with a page (D179); under
+// those, the Reference entries the recent news names most. On a phone it is one column, news first.
+import type { Page } from "../../lib/page.ts";
+import { nameOf, targetPath } from "../../lib/reference-config.ts";
+import Labels from "../reference/Labels.astro";
+import TimelineItem from "../reference/TimelineItem.astro";
+import PieceTile from "../series/PieceTile.astro";
+
+interface Props {
+  page: Extract<Page, { kind: "home" }> & { news: NonNullable<Extract<Page, { kind: "home" }>["news"]> };
+}
+const { page } = Astro.props;
+const { news, language, words: w } = page;
+const timeline = page.url(targetPath(news.target));
+const filterUrl = (fact: string, value: string) => `${timeline}?${fact}=${encodeURIComponent(value)}`;
+---
+<h1 class="visually-hidden">{page.newsroom.name[language] ?? page.newsroom.slug}</h1>
+<div class="front wide">
+  <section class="front-news" aria-labelledby="front-news">
+    <h2 class="front-title" id="front-news"><a href={timeline}>{nameOf(news.target.kind.name, language)}</a></h2>
+    <Labels label={news.label} aiPolicy={page.links.aiPolicy} imported={news.entries.some((e) => e.origin === "imported") ? page.ref.imported : null} />
+    {news.entries.length === 0 ? <p>{w.nothingYet}</p> : (
+      <ol class="ref-list">
+        {news.entries.map((e) => (
+          <TimelineItem
+            entry={e}
+            language={language}
+            words={page.ref}
+            kind={news.target.kind}
+            outLinks={news.outLinks.get(e.id) ?? []}
+            targetImages={news.targetImages}
+            entryUrl={page.entryUrl}
+            filterUrl={filterUrl}
+            url={page.url}
+            compact
+          />
+        ))}
+      </ol>
+    )}
+    <p class="ref-more"><a href={timeline}>{w.allNews}</a></p>
+  </section>
+
+  <aside class="front-side">
+    {page.blocks.map((b) => (
+      <section class="front-series" aria-label={nameOf(b.index.name, language)}>
+        <h2 class="front-title"><a href={page.url(`/${b.index.series}`)}>{nameOf(b.index.name, language)}</a></h2>
+        <PieceTile piece={b.piece} href={page.url(b.piece.path)} language={language} timezone={page.newsroom.timezone} fallback={b.show} stacked />
+      </section>
+    ))}
+    {news.named.length > 0 && (
+      <section class="front-named" aria-labelledby="front-named">
+        <h2 class="front-title" id="front-named">{w.inTheNews}</h2>
+        <ul>
+          {news.named.map((n) => {
+            const href = page.entryUrl(n.kind, n.slug);
+            const image = news.targetImages.get(`${n.kind}/${n.slug}`);
+            return (
+              <li>
+                <a href={href ?? "#"}>
+                  {image ? <img src={image.src} alt="" title={`${image.credit} · ${image.licence}`} loading="lazy" decoding="async" /> : <span class="front-named__initial" aria-hidden="true">{[...n.label][0]}</span>}
+                  <bdi>{n.label}</bdi>
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+    )}
+  </aside>
+</div>

@@ -81,7 +81,7 @@ html body > footer {
   color: var(--text-muted);
 }
 /* A piece's correction notice and the like. */
-html body > main aside:not(.ref-side) {
+html body > main aside:not(.ref-side, .front-side) {
   margin: var(--space-4) 0;
   padding: var(--space-2) var(--space-4);
   border-inline-start: 4px solid var(--status-warning);

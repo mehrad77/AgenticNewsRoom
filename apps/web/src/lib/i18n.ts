@@ -7,8 +7,9 @@ export interface Words {
   nothingYet: string;
   /** On a news home: the newest pieces of the other series, and the way to the whole timeline. */
   latestPieces: string;
+  /** A front page's list of the Reference entries the recent news names most (D182). */
+  inTheNews: string;
   allNews: string;
-  pages: { label: string; newer: string; older: string; page: (n: string, of: string) => string };
   search: string;
   searchPlaceholder: string;
   noResults: string;
@@ -82,8 +83,8 @@ const en: Words = {
   latest: "Latest",
   nothingYet: "Nothing published yet.",
   latestPieces: "Latest pieces",
+  inTheNews: "In the news",
   allNews: "All news",
-  pages: { label: "Pages", newer: "Newer", older: "Older", page: (n, of) => `Page ${n} of ${of}` },
   search: "Search",
   searchPlaceholder: "Search this site",
   noResults: "No results.",
@@ -158,13 +159,8 @@ const fa: Words = {
   latest: "تازه‌ترین‌ها",
   nothingYet: "هنوز چیزی منتشر نشده است.",
   latestPieces: "تازه‌ترین نوشته‌ها",
+  inTheNews: "در خبرها",
   allNews: "همه‌ی خبرها",
-  pages: {
-    label: "صفحه‌ها",
-    newer: "تازه‌تر",
-    older: "قدیمی‌تر",
-    page: (n, of) => `صفحه‌ی ${n} از ${of}`,
-  },
   search: "جست‌وجو",
   searchPlaceholder: "جست‌وجو در این سایت",
   noResults: "نتیجه‌ای پیدا نشد.",
@@ -239,13 +235,8 @@ const tr: Words = {
   latest: "Son yazılar",
   nothingYet: "Henüz bir şey yayımlanmadı.",
   latestPieces: "Son yazılar",
+  inTheNews: "Haberlerde",
   allNews: "Tüm haberler",
-  pages: {
-    label: "Sayfalar",
-    newer: "Daha yeni",
-    older: "Daha eski",
-    page: (n, of) => `Sayfa ${n} / ${of}`,
-  },
   search: "Ara",
   searchPlaceholder: "Bu sitede ara",
   noResults: "Sonuç yok.",

@@ -76,3 +76,30 @@ describe("linksOf", () => {
     expect(names.get("anthropic pbc")?.slug).toBe("anthropic");
   });
 });
+
+describe("mostNamed", () => {
+  it("counts the entries the items link to, most named first, an org in the page's language", async () => {
+    const { mostNamed } = await import("./reference-page.ts");
+    const [a] = itemsOf(piece, "fa", () => undefined);
+    if (!a) throw new Error("no entry");
+    a.facts.org_names = { fa: "آنتروپیک" };
+    const b = { ...a, id: "p1:9", facts: { ...a.facts } };
+    const links = new Map([
+      [
+        a.id,
+        [
+          { kind: "made-by", label: "Anthropic", toKind: "organisation", toSlug: "anthropic" },
+          { kind: "mentions", label: "Claude Code", toKind: "product", toSlug: "claude-code" },
+        ],
+      ],
+      [
+        b.id,
+        [{ kind: "made-by", label: "Anthropic", toKind: "organisation", toSlug: "anthropic" }],
+      ],
+    ]);
+    expect(mostNamed([a, b], links, "fa")).toEqual([
+      { kind: "organisation", slug: "anthropic", label: "آنتروپیک", count: 2 },
+      { kind: "product", slug: "claude-code", label: "Claude Code", count: 1 },
+    ]);
+  });
+});

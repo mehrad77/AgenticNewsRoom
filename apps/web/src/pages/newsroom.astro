@@ -13,11 +13,8 @@ import EpisodePage from "../components/podcast/EpisodePage.astro";
 import ReferenceHome from "../components/reference/ReferenceHome.astro";
 import ReferenceIndex from "../components/reference/ReferenceIndex.astro";
 import Labels from "../components/reference/Labels.astro";
-import TimelineItem from "../components/reference/TimelineItem.astro";
-import PieceTile from "../components/series/PieceTile.astro";
 import SeriesPage from "../components/series/SeriesPage.astro";
-import { nameOf, targetPath } from "../lib/reference-config.ts";
-import { pageNumbers } from "../lib/reference-page.ts";
+import FrontPage from "../components/home/FrontPage.astro";
 import { directionOf, pageUrl } from "@anr/core";
 import { CHALLENGES_OPEN, challengeForm, sendChallenge } from "../lib/challenge.ts";
 import { db } from "../lib/db.ts";
@@ -132,8 +129,6 @@ const isHere = (href: string) => {
   const path = new URL(href).pathname.replace(/\/+$/, "");
   return path === current || (path.length > 4 && current.startsWith(`${path}/`));
 };
-const num = (n: number) => new Intl.NumberFormat(page.language).format(n);
-const pageHref = (n: number) => (n === 1 ? page.links.home : `${page.links.home}?page=${n}`);
 const date = (d: Date) =>
   new Intl.DateTimeFormat(page.language, { dateStyle: "long", calendar: "gregory", timeZone: page.newsroom.timezone }).format(d);
 ---
@@ -237,53 +232,7 @@ const date = (d: Date) =>
     {page.kind === "reference-index" && <ReferenceIndex page={page} />}
     {page.kind === "reference-entry" && page.target.kind.layout === "document" && <DocumentEntry page={page} />}
     {page.kind === "reference-entry" && page.target.kind.layout === "profile" && <ProfileEntry page={page} />}
-    {page.kind === "home" && page.news && (
-      <>
-        <h1>{w.latest}</h1>
-        <Labels label={page.news.label} aiPolicy={page.links.aiPolicy} imported={page.news.entries.some((e) => e.origin === "imported") ? page.ref.imported : null} />
-        {page.news.entries.length === 0 ? <p>{w.nothingYet}</p> : (
-          <ol class="ref-list">
-            {page.news.entries.map((e) => (
-              <TimelineItem
-                entry={e}
-                language={page.language}
-                words={page.ref}
-                kind={page.news!.target.kind}
-                outLinks={page.news!.outLinks.get(e.id) ?? []}
-                targetImages={page.news!.targetImages}
-                entryUrl={page.entryUrl}
-                filterUrl={(fact, value) => `${page.url(targetPath(page.news!.target))}?${fact}=${encodeURIComponent(value)}`}
-                url={page.url}
-              />
-            ))}
-          </ol>
-        )}
-        {page.news.pages > 1 && (
-          <nav class="ref-pages" aria-label={w.pages.label}>
-            {page.news.page > 1 ? <a rel="prev" href={pageHref(page.news.page - 1)}>{w.pages.newer}</a> : <span />}
-            <ol>
-              {pageNumbers(page.news.page, page.news.pages).map((n) =>
-                n === null ? <li aria-hidden="true">…</li> : (
-                  <li><a href={pageHref(n)} aria-current={n === page.news!.page ? "page" : undefined} aria-label={w.pages.page(num(n), num(page.news!.pages))}>{num(n)}</a></li>
-                ),
-              )}
-            </ol>
-            {page.news.page < page.news.pages ? <a rel="next" href={pageHref(page.news.page + 1)}>{w.pages.older}</a> : <span />}
-          </nav>
-        )}
-        <p class="ref-more"><a href={page.url(targetPath(page.news.target))}>{w.allNews}</a></p>
-        {page.news.page === 1 && page.blocks.length > 0 && (
-          <section class="ref-group wide">
-            <h2>{w.latestPieces}</h2>
-            <ul class="home-blocks">
-              {page.blocks.map((b) => (
-                <li><PieceTile piece={b.piece} href={page.url(b.piece.path)} language={page.language} timezone={page.newsroom.timezone} eyebrow={{ text: nameOf(b.index.name, page.language), href: page.url(`/${b.index.series}`) }} /></li>
-              ))}
-            </ul>
-          </section>
-        )}
-      </>
-    )}
+    {page.kind === "home" && page.news && <FrontPage page={{ ...page, news: page.news }} />}
     {((page.kind === "home" && !page.news) || page.kind === "search") && (
       <>
         <h1>{page.kind === "home" ? w.latest : w.search}</h1>

@@ -138,6 +138,43 @@ export interface HomeNews {
   /** The page shown (from 1) and how many there are. */
   page: number;
   pages: number;
+  /** The Reference entries the recent news names most, most named first (D182). */
+  named: Named[];
+}
+
+/** A Reference entry the recent news names, with how often and its image. */
+export interface Named {
+  kind: string;
+  slug: string;
+  label: string;
+  count: number;
+}
+
+/** How many of the newest items "in the news" counts over, and how many entries it shows. */
+const NAMED_OVER = 60;
+const NAMED_SHOWN = 12;
+
+/** The entries the items link to, most linked first; an org's name in the page's language. */
+export function mostNamed(
+  entries: Entry[],
+  links: Map<string, OutLink[]>,
+  language: Language,
+  shown = NAMED_SHOWN,
+): Named[] {
+  const by = new Map<string, Named>();
+  for (const e of entries) {
+    const orgNames = e.facts.org_names as Record<string, string> | undefined;
+    for (const l of links.get(e.id) ?? []) {
+      const key = `${l.toKind}/${l.toSlug}`;
+      const label = (l.kind === "made-by" && orgNames?.[language]) || l.label;
+      const n = by.get(key) ?? { kind: l.toKind, slug: l.toSlug, label, count: 0 };
+      n.count += 1;
+      by.set(key, n);
+    }
+  }
+  return [...by.values()]
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+    .slice(0, shown);
 }
 
 /** A news home's items (newsroom.yaml `home: {news}`): one page of the timeline, newest first. */
@@ -160,7 +197,14 @@ export async function loadHomeNews(
   const pages = Math.max(1, Math.ceil(all.length / limit));
   const at = Math.min(Math.max(1, page), pages);
   const entries = all.slice((at - 1) * limit, at * limit);
+  const named = mostNamed(all.slice(0, NAMED_OVER), links, language);
   const outLinks = new Map(entries.map((e) => [e.id, links.get(e.id) ?? []]));
+  const namedLinks: OutLink[] = named.map((n) => ({
+    kind: "made-by",
+    label: n.label,
+    toKind: n.kind,
+    toSlug: n.slug,
+  }));
   return {
     target: {
       type: "timeline",
@@ -170,20 +214,11 @@ export async function loadHomeNews(
     },
     entries,
     outLinks,
-    targetImages: await imagesOfTargets(pool, newsroom.id, outLinks.values()),
+    targetImages: await imagesOfTargets(pool, newsroom.id, [...outLinks.values(), namedLinks]),
     page: at,
     pages,
+    named,
   };
-}
-
-/** The page numbers a pager shows: the first, the last, and two either side of the current. */
-export function pageNumbers(page: number, pages: number): (number | null)[] {
-  const out: (number | null)[] = [];
-  for (let n = 1; n <= pages; n++) {
-    if (n === 1 || n === pages || Math.abs(n - page) <= 2) out.push(n);
-    else if (out.at(-1) !== null) out.push(null);
-  }
-  return out;
 }
 
 /** A series' timeline page (D173): its news items, filtered, drawn as a timeline kind's index. */

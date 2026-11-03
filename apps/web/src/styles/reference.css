@@ -27,6 +27,13 @@ main > h1,
 .ref-labels a {
   text-decoration: none;
 }
+/* A long label wraps on a narrow screen instead of widening the page. */
+.ref-labels .badge[data-variant][data-tone] {
+  max-inline-size: 100%;
+  block-size: auto;
+  white-space: normal;
+  text-align: start;
+}
 .ref-eyebrow {
   margin: var(--space-7) 0 var(--space-2);
   font-size: var(--step--1);
@@ -233,49 +240,6 @@ main > h1,
 .ref-news > p {
   margin: 0;
   line-height: 1.7;
-}
-/* A list's pages: newer, the numbers around the current one, older. */
-.ref-pages {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin: var(--space-6) 0 0;
-  padding-block: var(--space-3);
-  border-block: 1px solid var(--stroke);
-  font-variant-numeric: tabular-nums;
-}
-.ref-pages ol {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.ref-pages ol li {
-  min-inline-size: 2.25rem;
-  text-align: center;
-  color: var(--text-muted);
-}
-.ref-pages a {
-  text-decoration: none;
-}
-.ref-pages ol a {
-  display: block;
-  padding: var(--space-1) var(--space-2);
-  border: 1px solid transparent;
-  border-radius: var(--radius);
-}
-.ref-pages ol a:hover {
-  border-color: var(--stroke);
-}
-.ref-pages ol a[aria-current="page"] {
-  border-color: var(--stroke-strong);
-  background: var(--surface-raised);
-  color: var(--text);
-  font-weight: 600;
 }
 .ref-more {
   margin: var(--space-5) 0 0;
@@ -593,15 +557,123 @@ main > h1,
   overflow: hidden;
   line-height: 1.7;
 }
-/* A news home's blocks: the newest piece of each other series, side by side when there is room. */
-.home-blocks {
+[dir="rtl"] .piece-tile h3 {
+  text-align: right;
+}
+
+/* ---------------------------------------------------------------- front page (D182) */
+/* News leads; the series' newest pieces and the names in the news sit beside it on a wide
+   screen, under it on a narrow one. */
+.front {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
-  gap: var(--space-4);
-  margin: var(--space-4) 0 0;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-6) var(--space-7);
+  margin-block-start: var(--space-6);
+}
+@media (min-width: 64rem) {
+  .front {
+    grid-template-columns: minmax(0, 1fr) 20rem;
+    align-items: start;
+  }
+  .front-side {
+    position: sticky;
+    top: 5rem;
+  }
+}
+.front-title {
+  margin: 0 0 var(--space-3);
+  padding-block-end: var(--space-2);
+  border-block-end: 2px solid var(--text);
+  font-size: var(--step-1);
+}
+.front-title a {
+  color: inherit;
+  text-decoration: none;
+}
+.front-news .ref-labels {
+  margin-block-end: var(--space-4);
+}
+.front-side {
+  display: grid;
+  gap: var(--space-6);
+}
+.front-side section {
+  display: grid;
+}
+/* A compact news item: date, maker, kind, title and two lines of text. */
+.ref-news--compact {
+  padding: var(--space-3) var(--space-4);
+  gap: var(--space-1);
+}
+.ref-news--compact h4 {
+  font-size: var(--step-0);
+}
+.ref-news--compact > p {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: var(--step--1);
+  line-height: 1.7;
+  color: var(--text-muted);
+}
+/* A series' newest piece on the front page: its image above its title. */
+.piece-tile--stacked {
+  padding: 0;
+  gap: 0;
+}
+.piece-tile--stacked img {
+  aspect-ratio: 16 / 9;
+  object-position: center 30%;
+}
+.piece-tile--stacked > div {
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+/* The names in the news: logo or initial, then the name. */
+.front-named ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
   padding: 0;
   list-style: none;
 }
-[dir="rtl"] .piece-tile h3 {
-  text-align: right;
+.front-named a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-block: var(--space-1);
+  padding-inline: var(--space-1) var(--space-3);
+  border: 1px solid var(--stroke);
+  background: var(--surface-raised);
+  font-size: var(--step--1);
+  color: var(--text);
+  text-decoration: none;
+}
+.front-named a:hover {
+  border-color: var(--stroke-strong);
+}
+.front-named img,
+.front-named__initial {
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  margin: 0;
+  border-radius: 0;
+  object-fit: contain;
+  background: #fff;
+}
+.front-named__initial {
+  display: grid;
+  place-items: center;
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+}
+.piece-tile--stacked h3 {
+  font-size: var(--step-0);
+  line-height: 1.45;
+}
+.piece-tile--stacked .piece-tile__line {
+  -webkit-line-clamp: 2;
+  font-size: var(--step--1);
+  color: var(--text-muted);
 }

@@ -33,9 +33,21 @@ interface Props {
   filterUrl: (fact: string, value: string) => string;
   /** A path on the page's site as a URL, for the piece a news item belongs to (D173). */
   url?: (path: string) => string;
+  /** On a front page (D182): its text cut to two lines, without its related names and links. */
+  compact?: boolean;
 }
-const { entry: e, language, words: w, kind, outLinks, targetImages, entryUrl, filterUrl, url: siteUrl } =
-  Astro.props;
+const {
+  entry: e,
+  language,
+  words: w,
+  kind,
+  outLinks,
+  targetImages,
+  entryUrl,
+  filterUrl,
+  url: siteUrl,
+  compact = false,
+} = Astro.props;
 const piece = str(e.facts.piece) && siteUrl ? siteUrl(str(e.facts.piece) ?? "/") : null;
 const f = e.facts;
 const text = textIn(e, language);
@@ -60,7 +72,7 @@ const facts = (kind.filters ?? []).flatMap((filter) => {
 const mentions = outLinks.filter((l) => l.kind === "mentions");
 const telegram = strings(f.telegram);
 ---
-<li class="ref-news" id={e.slug}>
+<li class:list={["ref-news", { "ref-news--compact": compact }]} id={compact ? undefined : e.slug}>
   <div class="ref-meta">
     {piece ? (
       <a href={piece}><time datetime={e.date}>{dateLabel(e.date, language)}</time></a>
@@ -86,7 +98,7 @@ const telegram = strings(f.telegram);
   </div>
   <h4 dir="ltr" lang={e.titleLanguage}>{url ? <ExternalLink href={url} newTabLabel={w.newTab}>{e.title}</ExternalLink> : e.title}</h4>
   {text && str(text.body.summary) && <p lang={text.language} dir={directionOf(text.language)}>{str(text.body.summary)}</p>}
-  {mentions.length > 0 && (
+  {!compact && mentions.length > 0 && (
     <p class="ref-meta">
       {w.related}:
       {mentions.map((m) => {
@@ -95,9 +107,9 @@ const telegram = strings(f.telegram);
       })}
     </p>
   )}
-  <div class="ref-links">
+  {!compact && <div class="ref-links">
     {url && <ExternalLink href={url} newTabLabel={w.newTab}>{w.urlTypes[urlType] ?? w.urlTypes.other}</ExternalLink>}
     {links(f.links).map((l) => <ExternalLink href={l.url} newTabLabel={w.newTab}>{l.label}</ExternalLink>)}
     {telegram.map((t) => <ExternalLink href={t} newTabLabel={w.newTab}>{w.telegramPost(numberLabel(Number(t.split("/").pop()), language))}</ExternalLink>)}
-  </div>
+  </div>}
 </li>

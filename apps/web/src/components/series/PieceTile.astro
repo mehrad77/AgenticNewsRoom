@@ -13,12 +13,14 @@ interface Props {
   fallback?: Artwork;
   /** The series' name above the title, on the home. */
   eyebrow?: { text: string; href: string };
+  /** The image above the text, as a front page's card (D182). */
+  stacked?: boolean;
 }
-const { piece: p, href, language, timezone, fallback, eyebrow } = Astro.props;
+const { piece: p, href, language, timezone, fallback, eyebrow, stacked = false } = Astro.props;
 const image = p.cover ?? fallback;
 const date = new Intl.DateTimeFormat(language, { dateStyle: "long", calendar: "gregory", timeZone: timezone }).format(p.publishedAt);
 ---
-<article class:list={["piece-tile", { "piece-tile--image": image }]}>
+<article class:list={["piece-tile", { "piece-tile--image": image && !stacked, "piece-tile--stacked": stacked }]}>
   {image && <img src={image.src} alt="" title={image.credit} loading="lazy" decoding="async" />}
   <div>
     {eyebrow && <p class="piece-tile__series"><a href={eyebrow.href}>{eyebrow.text}</a></p>}

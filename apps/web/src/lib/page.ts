@@ -67,7 +67,7 @@ export function showNotes(rendition: Record<string, unknown>): string {
 const EPISODE_FORMAT = "podcast-episode";
 
 /** How many news items a news home lists before its link to the whole timeline. */
-const HOME_NEWS = 30;
+const HOME_NEWS = 12;
 /** How many of the other series' pieces a news home lists under its news. */
 const HOME_PIECES = 8;
 
@@ -107,7 +107,7 @@ export type Page =
       /** On a news home (newsroom.yaml `home: {news}`): the newest items, the pieces under them. */
       news: (HomeNews & { label: string }) | null;
       /** On a news home: the newest piece of each other series with a page (D179). */
-      blocks: { index: SeriesIndex; piece: SeriesPiece }[];
+      blocks: { index: SeriesIndex; piece: SeriesPiece; show?: Artwork }[];
     } & Common)
   | ({
       kind: "series";
@@ -237,14 +237,7 @@ export async function loadPage(
           ...common(name),
         };
       const [news, pieces, blocks] = await Promise.all([
-        loadHomeNews(
-          deps.pool,
-          newsroom,
-          timeline,
-          language,
-          HOME_NEWS,
-          Number(request.query.get("page")) || 1,
-        ),
+        loadHomeNews(deps.pool, newsroom, timeline, language, HOME_NEWS, 1),
         latest(deps.pool, newsroom.id, language, HOME_PIECES, [timeline.series]),
         Promise.all(
           newsroom.indexes
@@ -252,6 +245,7 @@ export async function loadPage(
             .map(async (index) => ({
               index,
               piece: (await seriesPieces(deps.pool, newsroom.id, index.series, language, 1))[0],
+              show: (await artwork(deps.pool, newsroom.id, `series/${index.series}/`)).get("show"),
             })),
         ),
       ]);
@@ -259,7 +253,9 @@ export async function loadPage(
         kind: "home",
         pieces,
         news: { ...news, label: await label() },
-        blocks: blocks.flatMap((b) => (b.piece ? [{ index: b.index, piece: b.piece }] : [])),
+        blocks: blocks.flatMap((b) =>
+          b.piece ? [{ index: b.index, piece: b.piece, show: b.show }] : [],
+        ),
         ...common(name),
       };
     }
