@@ -150,6 +150,10 @@ const ITEM_SKIP = new Set([
   "direction",
   "speaker",
   "host",
+  "news_kind",
+  "url_type",
+  "anchor",
+  "approximate",
 ]);
 /** An item's own text, nested lists included; a nested object with its own claim_ids is its own item. */
 export function itemText(item: Record<string, unknown>): string {

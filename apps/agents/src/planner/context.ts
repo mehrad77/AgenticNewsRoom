@@ -56,6 +56,7 @@ async function cycleStats(client: Client, span: CycleSpan, timezone: string): Pr
             coalesce(sum((select sum(d.count) from downloads d where d.publication_id = p.id)), 0)::int as downloads
      from series s
      left join publications p on p.series_id = s.id and p.status in ('published', 'corrected')
+       and p.origin = 'pipeline'
        and (p.slot at time zone $3)::date >= $1::date and (p.slot at time zone $3)::date < $2::date
      where s.removed_at is null group by s.slug order by s.slug`,
     [span.starts, span.ends, timezone],
@@ -157,7 +158,12 @@ export interface PickFacts {
   angle: string | null;
   focus: string | null;
   earlier: string[];
+  /** The Reference's entries the pick proposes from (`pick.from`, D175) that nothing covers yet. */
+  waiting: { title: string; year: number | null; url: string | null }[];
 }
+
+/** How many waiting entries the planner is shown up front. */
+export const SHOWN_WAITING = 40;
 
 export async function pickFacts(
   client: Client,
@@ -166,11 +172,25 @@ export async function pickFacts(
   slot: Date,
   timezone: string,
 ): Promise<PickFacts> {
-  const { rows } = await client.query<Omit<PickFacts, "slot" | "focus"> & { calendar: unknown }>(
+  // Earlier picks and every published piece of the series, imported ones too (D172), so the
+  // planner never proposes what the series already covered.
+  const { rows } = await client.query<
+    Omit<PickFacts, "slot" | "focus" | "waiting"> & {
+      calendar: unknown;
+      from: { kind: string; fact: string } | null;
+    }
+  >(
     `select s.slug as series, coalesce(s.config->'name'->>'en', s.slug) as "seriesName", f.slug as format,
-            c.theme, c.angle, c.calendar,
-            array(select p.candidates->(p.chosen::int)->>'title' from picks p
-                  where p.series_id = s.id and p.chosen is not null order by p.week desc limit 12) as earlier
+            c.theme, c.angle, c.calendar, s.config->'pick'->'from' as from,
+            array(select t from (
+                    select p.candidates->(p.chosen::int)->>'title' as t, p.week as at from picks p
+                    where p.series_id = s.id and p.chosen is not null
+                    union
+                    select q.title, (q.slot at time zone 'UTC')::date from publications q
+                    where q.series_id = s.id and q.status in ('published', 'corrected')
+                      and q.title is not null) x
+                  where t is not null
+                  group by t order by max(at) desc limit 60) as earlier
      from series s join formats f on f.id = s.format_id, editorial_cycles c
      where s.id = $1 and c.id = $2`,
     [seriesId, cycleId],
@@ -183,7 +203,31 @@ export async function pickFacts(
     ? (row.calendar as { week: string; focus: string }[])
     : [];
   const focus = calendar.find((c) => c.week === week)?.focus ?? null;
-  return { ...row, slot, focus };
+  const waiting = row.from ? await waitingEntries(client, row.from, row.earlier) : [];
+  return { ...row, slot, focus, waiting };
+}
+
+/**
+ * The Reference entries a pick proposes from that no piece covers yet (D175): of the kind, with
+ * the fact true, listed, without a piece of their own and not among the series' earlier titles.
+ */
+async function waitingEntries(
+  client: Client,
+  from: { kind: string; fact: string },
+  earlier: string[],
+): Promise<PickFacts["waiting"]> {
+  const { rows } = await client.query<{ title: string; year: number | null; url: string | null }>(
+    // Facts are imported JSON (D166): read, never cast, so one odd value cannot fail the pick.
+    `select e.title, e.facts->>'url' as url,
+            case when e.facts->>'year' ~ '^\\d{1,4}$' then (e.facts->>'year')::int end as year
+     from reference_entries e
+     where e.listed and e.kind = $1 and e.facts->$2 = 'true'::jsonb
+       and e.facts->>'piece' is null
+       and not (lower(e.title) = any($3::text[]))
+     order by e.date nulls last, e.title`,
+    [from.kind, from.fact, earlier.map((t) => t.toLowerCase())],
+  );
+  return rows;
 }
 
 export async function candidatesMessage(
@@ -199,6 +243,14 @@ export async function candidatesMessage(
     p.earlier.length > 0
       ? `Earlier picks of this series (do not repeat):\n${p.earlier.map((t) => `- ${t}`).join("\n")}`
       : "Earlier picks: none.",
+    ...(p.waiting.length > 0
+      ? [
+          `Waiting in the newsroom's Reference (propose from these; request each one's URL as a source so its candidate rests on a stored lead), ${p.waiting.length} in all:\n${p.waiting
+            .slice(0, SHOWN_WAITING)
+            .map((w) => `- ${w.title}${w.year ? ` (${w.year})` : ""}${w.url ? ` ${w.url}` : ""}`)
+            .join("\n")}`,
+        ]
+      : []),
     await recentLeads(client, now),
   ].join("\n\n");
 }

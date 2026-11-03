@@ -1,0 +1,115 @@
+---
+// One dated item of a timeline kind (D170) or a series' timeline (D173): its date (linked to its
+// piece, for a news item), its filter facts (a fact that names a linked
+// entry links to it), its title, its text, the entries it mentions and its links.
+import { directionOf, type Language } from "@anr/core";
+import {
+  dateLabel,
+  type Entry,
+  type EntryImage,
+  entryName,
+  linkFor,
+  links,
+  numberLabel,
+  type OutLink,
+  str,
+  strings,
+  textIn,
+} from "../../lib/reference.ts";
+import type { KindConfig } from "../../lib/reference-config.ts";
+import type { ReferenceWords } from "../../lib/reference-words.ts";
+import ExternalLink from "@shabboo/kit/ExternalLink.astro";
+import Tag from "@shabboo/kit/Tag.astro";
+
+interface Props {
+  entry: Entry;
+  language: Language;
+  words: ReferenceWords;
+  kind: KindConfig;
+  outLinks: OutLink[];
+  /** Images of the entries this item links to, by "kind/slug" (a maker's logo). */
+  targetImages: Map<string, EntryImage>;
+  entryUrl: (kind: string, slug: string) => string | null;
+  filterUrl: (fact: string, value: string) => string;
+  /** A path on the page's site as a URL, for the piece a news item belongs to (D173). */
+  url?: (path: string) => string;
+  /** On a front page (D182): its text cut to two lines, without its related names and links. */
+  compact?: boolean;
+}
+const {
+  entry: e,
+  language,
+  words: w,
+  kind,
+  outLinks,
+  targetImages,
+  entryUrl,
+  filterUrl,
+  url: siteUrl,
+  compact = false,
+} = Astro.props;
+const piece = str(e.facts.piece) && siteUrl ? siteUrl(str(e.facts.piece) ?? "/") : null;
+const f = e.facts;
+const text = textIn(e, language);
+const url = str(f.url);
+const urlType = str(f.url_type) ?? "official";
+const facts = (kind.filters ?? []).flatMap((filter) => {
+  const value = str(f[filter.fact]);
+  if (!value) return [];
+  const configured = (filter.values?.[value] as Record<string, string> | undefined)?.[language];
+  const own = (f[`${filter.fact}_names`] as Record<string, string> | undefined)?.[language];
+  const link = linkFor(outLinks, "made-by", value);
+  return [
+    {
+      label: configured ?? own ?? value,
+      href: link ? entryUrl(link.toKind, link.toSlug) : null,
+      image: link ? targetImages.get(`${link.toKind}/${link.toSlug}`) : undefined,
+      chip: !link && !!filter.values,
+      filterHref: filterUrl(filter.fact, value),
+    },
+  ];
+});
+const mentions = outLinks.filter((l) => l.kind === "mentions");
+const telegram = strings(f.telegram);
+---
+<li class:list={["ref-news", { "ref-news--compact": compact }]} id={compact ? undefined : e.slug}>
+  <div class="ref-meta">
+    {piece ? (
+      <a href={piece}><time datetime={e.date}>{dateLabel(e.date, language)}</time></a>
+    ) : (
+      <time datetime={e.date}>{dateLabel(e.date, language)}</time>
+    )}
+    {e.dateStatus === "approximate" && <span>{w.approximate}</span>}
+    {facts.map((x) =>
+      x.chip ? (
+        <Tag href={x.filterHref} variant="chip" size="sm">{x.label}</Tag>
+      ) : (
+        <>
+          <span aria-hidden="true">·</span>
+          {x.href ? <a href={x.href}><b>{x.label}</b></a> : <b>{x.label}</b>}
+          {x.href && x.image && (
+            <a class="ref-logo-link" href={x.href} tabindex="-1" aria-hidden="true">
+              <img class="ref-logo" src={x.image.src} alt="" title={`${x.image.credit} · ${x.image.licence}`} loading="lazy" decoding="async" />
+            </a>
+          )}
+        </>
+      ),
+    )}
+  </div>
+  <h4 dir="ltr" lang={e.titleLanguage}>{url ? <ExternalLink href={url} newTabLabel={w.newTab}>{e.title}</ExternalLink> : e.title}</h4>
+  {text && str(text.body.summary) && <p lang={text.language} dir={directionOf(text.language)}>{str(text.body.summary)}</p>}
+  {!compact && mentions.length > 0 && (
+    <p class="ref-meta">
+      {w.related}:
+      {mentions.map((m) => {
+        const href = entryUrl(m.toKind, m.toSlug);
+        return href ? <Tag href={href} variant="chip" size="sm"><bdi>{m.label}</bdi></Tag> : <Tag as="span" variant="chip" size="sm"><bdi>{m.label}</bdi></Tag>;
+      })}
+    </p>
+  )}
+  {!compact && <div class="ref-links">
+    {url && <ExternalLink href={url} newTabLabel={w.newTab}>{w.urlTypes[urlType] ?? w.urlTypes.other}</ExternalLink>}
+    {links(f.links).map((l) => <ExternalLink href={l.url} newTabLabel={w.newTab}>{l.label}</ExternalLink>)}
+    {telegram.map((t) => <ExternalLink href={t} newTabLabel={w.newTab}>{w.telegramPost(numberLabel(Number(t.split("/").pop()), language))}</ExternalLink>)}
+  </div>}
+</li>

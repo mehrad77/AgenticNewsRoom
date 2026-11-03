@@ -5,7 +5,7 @@ import type { AgentRunJob } from "@anr/core";
 import { withNewsroom } from "@anr/db";
 import { type BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { budgetState, mayStart, noticeBudget } from "../budget.ts";
-import { formatMeta } from "../context.ts";
+import { formatMeta, formatSchema } from "../context.ts";
 import { converse, textOf } from "../converse.ts";
 import { MAX_SUBMITS } from "../desk/graph.ts";
 import { type RoleDeps, runFailure } from "../desk/run.ts";
@@ -14,6 +14,7 @@ import { type Draft, parseJson, validateDraft } from "../desk/validate.ts";
 import { newMeter } from "../model.ts";
 import { assemblePrompt, readGuides } from "../prompts/assemble.ts";
 import { RENDERER_ROLE, retryPrompt } from "../prompts/roles.ts";
+import { codeSetFields } from "../prompts/shapes.ts";
 import { finishRun, holdPublications, recordUsage } from "../runs.ts";
 import { submitTool } from "../tools/tools.ts";
 
@@ -100,6 +101,7 @@ export async function runRenderer(deps: RoleDeps, job: AgentRunJob): Promise<str
               format: loaded.format,
               language: loaded.language,
               needsStory: false,
+              codeSet: codeSetFields(formatSchema(deps.configDir, loaded.format)),
               beats: [],
               leads: new Map(),
               storyClaimIds: loaded.claims.map((c) => c.ref),

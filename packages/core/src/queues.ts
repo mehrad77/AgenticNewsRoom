@@ -26,6 +26,11 @@ export const QUEUES = {
   redraft: "redraft",
   /** Publisher: approved and scheduled publications whose slot has come, every minute. */
   publishSweep: "publish-sweep",
+  /**
+   * Publisher: every five minutes, published copies of the Reference's images and the newsroom's
+   * own artwork (D119, D180); apart from the sweep, so a backlog never delays a slot.
+   */
+  publishImages: "publish-images",
   /** Publisher: once a day, each Telegram channel's subscriber count (audience per language). */
   channelStats: "channel-stats",
   /** Publisher: asks a channel whether it can be posted to, without posting (D101). */

@@ -6,6 +6,7 @@ import {
   countDownload,
   daySecret,
   episodeAudio,
+  episodeFacts,
   listenerKey,
   podcastFeed,
   podcastRoute,
@@ -110,6 +111,15 @@ describe("the podcast on the site (D110)", () => {
       `episodes/${ids.published}/h.mp3`,
     );
     expect(await episodeAudio(pools.app, newsroom, ids.held)).toBeNull();
+  });
+
+  it("gives a published episode's length and chapters to its page", async () => {
+    expect(await episodeFacts(pools.app, newsroom, ids.published)).toEqual({
+      seconds: 60,
+      chapters: [],
+      hostNames: {},
+    });
+    expect(await episodeFacts(pools.app, newsroom, ids.held)).toBeNull();
   });
 
   it("counts a listener once a day, never keeps the address, and ignores crawlers", async () => {

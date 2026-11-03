@@ -1,0 +1,35 @@
+---
+// A document-kind entry in a list (D170): its date, its title as written, and the start of its
+// first configured section.
+import { directionOf, type Language } from "@anr/core";
+import {
+  type DatePrecision,
+  dateLabel,
+  type Entry,
+  sectionsIn,
+  str,
+  teaser,
+} from "../../lib/reference.ts";
+import type { KindConfig } from "../../lib/reference-config.ts";
+
+interface Props {
+  entry: Entry;
+  language: Language;
+  kind: KindConfig;
+  label: string;
+  href: string;
+}
+const { entry: e, language, kind, label, href } = Astro.props;
+const first = sectionsIn(e, language, (kind.sections ?? []).map((s) => s.key))[0];
+const summary = first ? teaser(first.text) : "";
+const precision = (str(e.facts.date_precision) ?? "day") as DatePrecision;
+---
+<li class="ref-tile ref-tile--classic">
+  <div class="ref-meta">
+    {e.date && <time datetime={e.date}>{dateLabel(e.date, language, precision)}</time>}
+    <span aria-hidden="true">·</span>
+    <span>{label}</span>
+  </div>
+  <h3 dir="ltr" lang={e.titleLanguage}><a href={href}>{e.title}</a></h3>
+  {summary && first && <p lang={first.language} dir={directionOf(first.language)}>{summary}</p>}
+</li>

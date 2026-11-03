@@ -26,6 +26,10 @@ const newsroom: ReaderNewsroom = {
   timezone: "Europe/Istanbul",
   editorInChief: "Mehrad Rousta",
   correctionsOwner: "Mehrad Rousta",
+  reference: { kinds: {} },
+  timelines: [],
+  indexes: [],
+  home: "pieces",
 };
 const publication: ReaderPublication = {
   id: "p1",
@@ -45,6 +49,8 @@ const publication: ReaderPublication = {
   leads: {},
   media: {},
   corrections: [],
+  imported: false,
+  paths: { en: "/daily-newsletter/2026-10-26" },
 };
 const described = {
   site: { ...site, languages: [...site.languages] },

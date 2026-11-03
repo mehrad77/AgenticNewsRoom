@@ -13,6 +13,7 @@ resolution-markers = [
 [manifest]
 members = [
     "anr-ingestion",
+    "anr-legacy-import",
     "anr-schemas",
     "anr-telemetry",
     "anr-verifier",
@@ -72,6 +73,21 @@ requires-dist = [
     { name = "tldextract", specifier = ">=5.4.0" },
     { name = "trafilatura", specifier = ">=2.3" },
     { name = "uvicorn", specifier = ">=0.54" },
+]
+
+[[package]]
+name = "anr-legacy-import"
+version = "0.0.0"
+source = { editable = "tools/legacy-import" }
+dependencies = [
+    { name = "anr-ingestion" },
+    { name = "psycopg", extra = ["binary"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "anr-ingestion", editable = "services/ingestion" },
+    { name = "psycopg", extras = ["binary"], specifier = ">=3.3.6" },
 ]
 
 [[package]]

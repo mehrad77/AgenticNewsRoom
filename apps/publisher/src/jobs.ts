@@ -10,6 +10,7 @@ import type { PgBoss } from "pg-boss";
 /** The queues this worker owns (@anr/core QUEUES). */
 export const PUBLISHER_QUEUES: readonly QueueName[] = [
   QUEUES.publishSweep,
+  QUEUES.publishImages,
   QUEUES.channelStats,
   QUEUES.channelCheck,
   QUEUES.podcastAudio,
@@ -19,6 +20,8 @@ export const PUBLISHER_QUEUES: readonly QueueName[] = [
 export interface PublisherHandlers {
   /** Every minute: approved and scheduled publications whose slot has come. */
   sweep: () => Promise<void>;
+  /** Every five minutes: the Reference's images and own artwork not published yet. */
+  images?: () => Promise<void>;
   /** Once a day: each Telegram channel's subscriber count. */
   stats: () => Promise<void>;
   /** When the desk asks: whether one channel can be posted to. */
@@ -40,6 +43,12 @@ export async function registerJobs(
   await boss.work(QUEUES.publishSweep, async () => {
     await handlers.sweep();
   });
+  const images = handlers.images;
+  if (images) {
+    await boss.work(QUEUES.publishImages, async () => {
+      await images();
+    });
+  }
   await boss.work(QUEUES.channelStats, async () => {
     await handlers.stats();
   });

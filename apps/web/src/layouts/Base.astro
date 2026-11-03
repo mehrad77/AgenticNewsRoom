@@ -7,14 +7,17 @@ interface Props {
   direction: Direction;
   /** A class on <body>, for pages with their own styles (the desk). */
   class?: string;
+  /** ShabUI's day theme for the reader sites (D168): `data-theme` and no film grain. */
+  theme?: "light";
 }
-const { title, language, direction, class: bodyClass } = Astro.props;
+const { title, language, direction, class: bodyClass, theme } = Astro.props;
 ---
 <!doctype html>
-<html lang={language} dir={direction}>
+<html lang={language} dir={direction} data-theme={theme} data-grain={theme ? "off" : undefined}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    {theme && <meta name="color-scheme" content={theme} />}
     <title>{title}</title>
     <slot name="head" />
     <style is:global>

@@ -16,7 +16,7 @@ Today's system is a Persian AI news operation: the Telegram channel @singularity
 - **Change.** Rules are enforced by prompt. Every incident adds a paragraph every future run must read, so the rulebook only grows.
 - **Direction.** There is no shared plan, theme or editor. Each routine decides alone, every day, from scratch.
 
-ANR replaces it with a new product in a new repo, AgenticNewsRoom, on a new domain. The old system is retired, not migrated.
+ANR replaces it with a new product in a new repo, AgenticNewsRoom, on a new domain. The old system's routines are retired; its archive (papers, classic papers, lab news, its wiki and podcast episodes) is imported into the AI newsroom once, and its site redirects to ANR.
 
 ## What ANR is
 
@@ -28,6 +28,7 @@ ANR is an editorial operating system that runs the full cycle: plan, assign, res
 - **Source-grounded.** Every factual claim traces back to a lead the system has stored.
 - **Formats and channels, not routines.** Newsletters, articles and podcast episodes are formats; a site, a Telegram channel and a podcast feed are channels. A newsroom can run several of each.
 - **Openly AI-made.** Every publication and every AI host is disclosed as AI-made, on every channel, in a machine-readable way.
+- **A reference beside the publications.** Each newsroom's site has a Reference: pages for the people, organisations, works and events its work touches, of kinds the newsroom configures. Code supplies the facts; any text an agent writes for an entry passes the same gate as a publication.
 
 ## What ANR is not
 
@@ -37,9 +38,9 @@ Each line is a boundary: a feature request that crosses one needs a change to th
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------- |
 | A content farm           | Nothing is published for volume or SEO. Every publication traces to a plan, a pick or a series a human approved. |
 | Autonomous               | Agents propose and write. Humans decide what the newsroom covers.                                                |
-| A general CMS            | It renders its own sites from structured publications. No page builder, no WordPress replacement.                |
+| A general CMS            | It renders its own sites from structured publications and reference entries, whose kinds each newsroom configures and code draws with a fixed set of layouts. No page builder, no WordPress replacement. |
 | A social scheduler       | Channels are outputs of the editorial pipeline, not a calendar of hand-written posts.                            |
-| A public news aggregator | The lead pool is internal input for editors, not a reader product.                                               |
+| A public news aggregator | The lead pool is internal input for editors, never shown to readers. The Reference shows entries built by code and checked text, not raw leads. |
 | A breaking-news wire     | Speed is measured in hours, not minutes.                                                                         |
 | An agent framework       | Agents run on an existing framework (LangGraph.js) as workers on assignments. ANR does not build its own.        |
 
@@ -63,6 +64,8 @@ These words mean one thing each, in code, in the data model and in conversation.
 | Publication     | What goes out in one slot: an article, a newsletter issue or a podcast episode, made of one or more renditions          |
 | Series          | A named recurring output with its own identity, such as a specific podcast or newsletter                                |
 | Channel         | Where a publication goes out: a site, a Telegram channel, a podcast feed; later email or X. Set up in the editor's desk |
+| Reference       | A newsroom's reader-facing reference on its site: all its entries, by kind                                              |
+| Entry           | One reference page of a kind its newsroom configures (the AI newsroom's organisations, people, products and papers; a culture newsroom's artists or venues): facts from code, and text that passed the gate or was imported |
 
 **Roles.** Humans are the Editor-in-Chief and editors, and one platform admin, an operator role with no editorial authority, who chooses which text-to-speech engines newsrooms may use and holds the platform's operational controls (pausing publishing, retrying, cancelling or draining work that ends in a hold or reruns, a backup check), which can never approve, publish or suppress anything. Agents are the planner, the desk (research and writing), the renderer, the fact-checker, the item matcher and the summariser. Code is the producer and the publisher.
 
@@ -115,6 +118,8 @@ Four safeguards are part of the platform, not optional settings. The first three
 3. **Corrections and challenges.** Readers can challenge a publication. A named human owns each newsroom's corrections: the challenge is acknowledged within 24 hours and answered within 48 hours. Every correction is published and becomes a new check.
 4. **AI disclosure.** Mandatory on every channel. Publications carry a visible label and machine-readable metadata (IPTC Digital Source Type, and C2PA for media).
 
+Reference entries carry all four. The one exception is the old system's archive: its news, articles and entries imported from it show as they were, labelled as imported and not checked by ANR's gate, beside the AI disclosure. Readers can challenge it and a correction replaces it with checked text. Nothing written after the import can carry that label.
+
 ## v1 scope
 
 **v1 is done when a second newsroom starts from configuration alone, with no new code.**
@@ -140,7 +145,7 @@ All decisions below are settled. The full log, including technical decisions, is
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Audience            | Our own newsrooms first. The data model is multi-tenant; v1 has no billing, onboarding or external auth.                                                                                 |
 | AI disclosure       | Platform-wide and mandatory, part of ANR's identity, never a per-newsroom setting.                                                                                                       |
-| Old system          | Retired. ANR starts fresh in a new repo on a new domain; nothing is migrated.                                                                                                            |
+| Old system          | Migrated once, then retired. Its routines stop, its archive is imported into the AI newsroom with imported text labelled, and its site redirects to ANR (D161). |
 | Publishing boundary | Only code sends to channels. Agents do curation and editorial work only.                                                                                                                 |
 | Approval            | Themed publications wait for an editor. From day one, daily news publishes on its own when no check holds it; editors review a 10% sample afterwards, and each miss becomes a new check. |
 | Agent runtime       | Agents run as LangGraph.js graphs that the platform triggers, calling models through a router (Gemini by default), not as scheduled coding-agent sessions.                               |

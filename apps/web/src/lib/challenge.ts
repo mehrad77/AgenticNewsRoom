@@ -4,6 +4,12 @@
 import { createHash } from "node:crypto";
 import { type Pool, withNewsroom } from "@anr/db";
 
+/**
+ * Whether readers can send a challenge (D178): closed until the form has a bot check (Cloudflare
+ * Turnstile), so the site shows the form disabled and refuses a post.
+ */
+export const CHALLENGES_OPEN = false;
+
 export interface ChallengeForm {
   text: string;
   source_url?: string;

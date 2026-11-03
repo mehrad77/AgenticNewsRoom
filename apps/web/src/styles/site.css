@@ -1,90 +1,210 @@
 /*
- * Every newsroom's reader site: Tailwind's base, and quiet defaults for plain HTML tags only. No
- * classes are styled here. Spacing and borders use logical sides (start and end), so a Persian
- * page mirrors on its own. Imported by the reader pages alone; Base.astro lays out the page.
+ * Every newsroom's reader site on ShabUI (D168): the kit's fonts, tokens and base styles carry the
+ * type, colours and links (newsroom.astro imports them first, in the day theme). This file only
+ * lays the page out. Logical sides throughout, so a Persian page mirrors on its own. Unlayered,
+ * so it wins over the layout Base.astro gives every page and over the kit's layered base.
  */
-@import "tailwindcss" source(none);
+html body {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  background: var(--surface);
+}
+html body > header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: var(--space-3) max(var(--gutter), calc((100% - var(--wide)) / 2));
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--stroke);
+}
+html body > header strong {
+  margin-inline-end: var(--space-2);
+}
+html body > header strong a {
+  font-size: var(--step-0);
+  color: var(--text-accent);
+  text-decoration: none;
+}
+html body > header nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  font-size: var(--step--1);
+  line-height: 1.4;
+}
+html body > header nav a {
+  color: var(--text-muted);
+  text-decoration: none;
+}
+/* The section the reader is in: its name in full colour and weight, with a bar under it; on the
+   section's own page it is text, not a link. */
+html body > header nav .nav-here {
+  color: var(--text);
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: inset 0 -2px 0 var(--text-accent);
+}
+html body > header form[role="search"] {
+  margin-inline-start: auto;
+}
+html body > header input[type="search"] {
+  min-height: var(--control-h-sm);
+  inline-size: 11rem;
+  max-inline-size: 100%;
+  padding-inline: var(--control-pad-sm);
+  border: 1px solid var(--stroke-control);
+  border-radius: var(--radius);
+  background: var(--field);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--step--1);
+}
+html body > main {
+  max-width: var(--wide);
+  margin: 0 auto;
+  padding: 0 var(--gutter) var(--space-7);
+}
+html body > main > :where(:not(.wide)) {
+  max-width: var(--measure);
+}
+html body > footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  max-width: var(--wide);
+  margin: 0 auto;
+  padding: var(--space-4) var(--gutter);
+  border-top: 1px solid var(--stroke);
+  font-size: var(--step--1);
+  color: var(--text-muted);
+}
+/* A piece's correction notice and the like. */
+html body > main aside:not(.ref-side, .front-side) {
+  margin: var(--space-4) 0;
+  padding: var(--space-2) var(--space-4);
+  border-inline-start: 4px solid var(--status-warning);
+  background: var(--surface-raised);
+}
+/* Links out of a piece's rendered body get the kit's external-link look (external-links.ts). */
+.external-link-icon {
+  display: inline-block;
+  inline-size: 0.85em;
+  block-size: 0.85em;
+  margin-inline-start: 0.25em;
+  vertical-align: -0.05em;
+}
+[dir="rtl"] .external-link-icon {
+  transform: scaleX(-1);
+}
 
-@layer base {
-  html {
-    @apply bg-white text-stone-900 antialiased;
-  }
+/* The language switch sits after the search, at the header's far end. */
+html body > header form[role="search"] + nav {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+}
 
-  header {
-    @apply items-center border-stone-200 py-2;
-  }
-  header strong a {
-    @apply text-lg text-stone-900 no-underline;
-  }
-  nav {
-    @apply flex gap-3 text-sm;
-  }
-  footer {
-    @apply border-stone-200 pt-3 text-stone-500;
-  }
+/* A piece's date and its imported note, under its title and AI label (piece-head.ts). The date
+   sits on the label's line. */
+article > .piece-meta {
+  display: inline;
+  margin-inline-start: var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--step--1);
+}
+article > .piece-imported {
+  margin: var(--space-3) 0 var(--space-5);
+  padding-inline-start: var(--space-3);
+  border-inline-start: 3px solid var(--status-warning);
+  color: var(--text-muted);
+  font-size: var(--step--1);
+  line-height: 1.6;
+}
+main > .eyebrow + article > h1,
+main > article > h1:first-child {
+  margin-block: var(--space-2) var(--space-3);
+  font-size: var(--step-3);
+  line-height: 1.35;
+}
+/* An issue's items: each a block of its own, with room between them. */
+main > article > section {
+  margin-block: var(--space-7) 0;
+}
+main > article > .piece-imported + section,
+main > article > .piece-meta + section {
+  margin-block-start: var(--space-5);
+}
+main > article > section > h2 {
+  margin: 0 0 var(--space-3);
+  font-size: var(--step-1);
+  line-height: 1.5;
+}
+main > article > section > p {
+  margin: 0;
+  line-height: 1.9;
+}
+main > article > section > p + p {
+  margin-block-start: var(--space-3);
+}
+/* A one-item issue's source, under its text. */
+main > article > section > .item-source {
+  margin-block-start: var(--space-3);
+  font-size: var(--step--1);
+}
 
-  h1 {
-    @apply mt-6 mb-3 text-3xl leading-tight font-bold tracking-tight text-balance;
-  }
-  h2 {
-    @apply mt-8 mb-2 text-xl font-semibold;
-  }
-  h3 {
-    @apply mt-6 mb-2 text-lg font-semibold;
-  }
-  p {
-    @apply my-3;
-  }
-  a {
-    @apply text-emerald-800 underline decoration-emerald-800/30 underline-offset-2 hover:decoration-emerald-800;
-  }
-  strong {
-    @apply font-semibold;
-  }
-  ul {
-    @apply my-3 list-disc ps-5;
-  }
-  ol {
-    @apply my-3 list-decimal ps-5;
-  }
-  li {
-    @apply my-1.5;
-  }
-  time {
-    @apply text-sm text-stone-500;
-  }
-  article {
-    @apply my-4;
-  }
-  section {
-    @apply my-6;
-  }
-  aside {
-    @apply my-4 rounded-md border-s-4 border-amber-500 bg-amber-50 px-4 py-2 text-sm;
-  }
-  blockquote {
-    @apply my-4 border-s-4 border-stone-300 ps-4 text-stone-700 italic;
-  }
-  figure {
-    @apply my-4;
-  }
-  figcaption {
-    @apply mt-1 text-sm text-stone-500;
-  }
-  img {
-    @apply h-auto max-w-full rounded-md;
-  }
-  audio {
-    @apply my-3 w-full;
-  }
-  hr {
-    @apply my-6 border-stone-200;
-  }
-
-  form[role="search"] {
-    @apply ms-auto;
-  }
-  input[type="search"] {
-    @apply min-h-10 w-48 rounded-full border border-stone-300 bg-stone-50 px-4 py-1.5 text-sm focus:border-emerald-700 focus:bg-white focus:outline-2 focus:outline-emerald-700/30 max-sm:w-full;
-  }
+/* A piece's challenge form (D114): one field per row, full width. While challenges are closed
+   (D178) only a line says so. */
+#challenge {
+  margin-block-start: var(--space-7);
+  padding-block-start: var(--space-5);
+  border-top: 1px solid var(--stroke);
+}
+#challenge h2 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--step-1);
+}
+#challenge > p {
+  margin: 0 0 var(--space-4);
+  color: var(--text-muted);
+  font-size: var(--step--1);
+  line-height: 1.7;
+}
+.challenge-form {
+  display: grid;
+  gap: var(--space-4);
+}
+.challenge-form label:not(.visually-hidden) {
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--step--1);
+  color: var(--text-muted);
+}
+.challenge-form :is(textarea, input) {
+  inline-size: 100%;
+  padding: var(--space-2) var(--control-pad-md);
+  border: 1px solid var(--stroke-control);
+  border-radius: var(--radius);
+  background: var(--field);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--step-0);
+}
+.challenge-form textarea {
+  resize: vertical;
+}
+.challenge-form button {
+  justify-self: start;
+  min-block-size: var(--control-h-md);
+  padding-inline: var(--space-5);
+  border: 1px solid var(--fill-accent-strong);
+  border-radius: var(--radius);
+  background: var(--fill-accent);
+  color: var(--text-on-fill);
+  font: inherit;
+  cursor: pointer;
 }

@@ -2,6 +2,7 @@ packages:
   - apps/*
   - services/*
   - packages/*
+  - tools/legacy-import
 
 # pnpm 11 fails an install on any dependency build script not decided here: true runs it, false
 # leaves it unrun. @parcel/watcher (via @tailwindcss/cli) only compiles from source when asked to;
@@ -13,3 +14,8 @@ allowBuilds:
   "@parcel/watcher": false
   # Via the OTLP exporters (@anr/telemetry): its postinstall only checks its optional CLI's versions.
   protobufjs: false
+
+# pnpm holds back releases younger than its minimum age. ShabUI (@shabboo/kit) is our own design
+# system, used at its latest release (apps/web).
+minimumReleaseAgeExclude:
+  - "@shabboo/kit"

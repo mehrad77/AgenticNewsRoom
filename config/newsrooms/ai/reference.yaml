@@ -1,0 +1,46 @@
+# The AI newsroom's Reference (D162, D170): the kinds of entry it holds and how the site shows them.
+# Every name covers each of the newsroom's languages.
+intro:
+  fa: مقاله‌ها، سازمان‌ها، افراد و محصول‌هایی که پشت پوشش ما هستند، یک‌جا.
+  en: The papers, organisations, people and products behind our coverage, kept in one place.
+
+kinds:
+  paper:
+    path: papers
+    layout: document
+    name: { fa: مقاله‌ها, en: Papers }
+    one: { fa: مقاله, en: Paper }
+    intro:
+      fa: مقاله‌های پژوهشی که هوش مصنوعی امروز روی آن‌ها ساخته شده، با نویسنده‌ها، تاریخ، محل انتشار و آنچه درباره‌شان نوشته‌ایم.
+      en: The research papers today's AI is built on, with their authors, dates, venues and what we have written about them.
+    grouping: month
+
+  organisation:
+    path: organisations
+    layout: profile
+    name: { fa: سازمان‌ها, en: Organisations }
+    one: { fa: سازمان, en: Organisation }
+    intro:
+      fa: لابراتوارها، شرکت‌ها، دانشگاه‌ها و پژوهشگاه‌هایی که در خبرهای ما و مقاله‌های این مرجع آمده‌اند.
+      en: The labs, companies, universities and research institutes in our news and this Reference's papers.
+    grouping: none
+
+  product:
+    path: products
+    layout: profile
+    name: { fa: محصول‌ها و مدل‌ها, en: Products and models }
+    one: { fa: محصول, en: Product }
+    intro:
+      fa: مدل‌ها و محصول‌هایی که در خبرهای ما آمده‌اند.
+      en: The models and products in our news.
+    grouping: none
+
+  person:
+    path: people
+    layout: profile
+    name: { fa: افراد, en: People }
+    one: { fa: فرد, en: Person }
+    intro:
+      fa: نویسنده‌هایی که بیش از یک مقاله در این مرجع دارند.
+      en: Authors with more than one paper in this Reference.
+    grouping: none

@@ -37,6 +37,8 @@ export interface CitableLead {
 export interface ValidationContext {
   format: string;
   language: string;
+  /** Fields code sets in a rendition or its items (`codeSetFields`); a draft may not carry them. */
+  codeSet?: readonly string[];
   /** A desk submit carries a story; a renderer submit only a rendition. */
   needsStory: boolean;
   /** Beats a story may name: live and not banned. */
@@ -134,6 +136,15 @@ export function validateDraft(value: unknown, ctx: ValidationContext): Draft | s
   }
   const draft = parsed.data as Draft;
   const errors: string[] = [];
+  const codeSet = new Set(ctx.codeSet ?? []);
+  const own = (at: string, value: unknown) => {
+    for (const key of Object.keys((value as Record<string, unknown>) ?? {}))
+      if (codeSet.has(key)) errors.push(`${at}.${key}: code sets this field; leave it out`);
+  };
+  own("rendition", draft.rendition);
+  draft.rendition.items.forEach((item, i) => {
+    own(`rendition.items.${i}`, item);
+  });
   if (draft.rendition.language !== ctx.language) {
     errors.push(`rendition.language must be "${ctx.language}"`);
   }

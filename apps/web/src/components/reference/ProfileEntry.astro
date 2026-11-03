@@ -1,0 +1,103 @@
+---
+// A profile-kind entry's page (D170): its name in each language, its Wikidata description and
+// facts (a founder, parent or employer with its own entry links to it), and everything in the
+// Reference that points at it. Facts come from code; the entry has no text of its own.
+import type { Page } from "../../lib/page.ts";
+import { dateLabel, entryName, str, strings } from "../../lib/reference.ts";
+import { nameOf, targetPath } from "../../lib/reference-config.ts";
+import DescriptionList from "@shabboo/kit/DescriptionList.astro";
+import ExternalLink from "@shabboo/kit/ExternalLink.astro";
+import Incoming from "./Incoming.astro";
+import Labels from "./Labels.astro";
+
+interface Props {
+  page: Extract<Page, { kind: "reference-entry" }>;
+}
+const { page } = Astro.props;
+const { ref: w, language, entry: e, target } = page;
+const f = e.facts;
+const wd = (f.wikidata as Record<string, unknown> | undefined) ?? {};
+const description = (f.description as Record<string, string> | undefined)?.[language];
+const names = (f.names as Record<string, string> | undefined) ?? {};
+const otherNames = [
+  ...new Set([...Object.values(names), ...strings(f.aliases)].filter((n) => n !== entryName(e, language))),
+];
+type Item = { qid?: string; fa?: string | null; en?: string | null };
+const items = (key: string) =>
+  ((Array.isArray(wd[key]) ? wd[key] : []) as Item[])
+    .filter((x) => x && typeof x === "object")
+    .map((x) => {
+      const own = x.qid ? page.byQid.get(x.qid) : undefined;
+      return {
+        label: (language === "fa" ? x.fa : x.en) ?? x.en ?? x.fa ?? "",
+        href: own ? page.entryUrl(own.kind, own.slug) : null,
+      };
+    })
+    .filter((x) => x.label);
+const time = (key: string) => {
+  const t = wd[key] as { time?: string; precision?: number } | undefined;
+  const m = t?.time && /^\+?(\d{4})-(\d{2})-(\d{2})/.exec(t.time);
+  if (!m) return null;
+  const precision = (t?.precision ?? 11) >= 11 ? "day" : t?.precision === 10 ? "month" : "year";
+  return dateLabel(`${m[1]}-${m[2] === "00" ? "01" : m[2]}-${m[3] === "00" ? "01" : m[3]}`, language, precision);
+};
+const rows = (
+  [
+    ["inception", time("inception")],
+    ["dissolved", time("dissolved")],
+  ] as const
+).filter(([, v]) => v);
+const lists = (["founders", "hq", "parent", "developer", "employer", "replaces"] as const)
+  .map((k) => [k, items(k)] as const)
+  .filter(([, v]) => v.length > 0);
+const sep = language === "fa" ? "، " : ", ";
+const website = str(wd.website);
+const qid = str(f.qid);
+const ids = [
+  str(wd.orcid) && { label: "ORCID", url: `https://orcid.org/${str(wd.orcid)}` },
+  str(wd.dblp) && { label: "dblp", url: `https://dblp.org/pid/${str(wd.dblp)}` },
+  str(wd.scholar) && { label: "Google Scholar", url: `https://scholar.google.com/citations?user=${str(wd.scholar)}` },
+].filter((x): x is { label: string; url: string } => !!x);
+---
+<div class="ref-page">
+  <article>
+    <div class="ref-profile-head">
+      <div>
+        <p class="ref-eyebrow"><a href={page.url(targetPath(target))}>{nameOf(target.kind.one, language)}</a></p>
+        <h1><bdi>{entryName(e, language)}</bdi></h1>
+        {description && <p class="ref-lead">{description}</p>}
+        <Labels label={page.label} aiPolicy={page.links.aiPolicy} imported={e.origin === "imported" ? w.importedFacts : null} />
+      </div>
+      {page.image && (
+        <figure class="ref-figure">
+          <img src={page.image.src} alt={page.image.alt} width={page.image.width ?? undefined} height={page.image.height ?? undefined} />
+          <figcaption>
+            {page.image.credit} · {page.image.licenceUrl ? <ExternalLink href={page.image.licenceUrl} rel="license" newTabLabel={w.newTab}>{page.image.licence}</ExternalLink> : page.image.licence}
+            {page.image.sourceUrl && <> · <ExternalLink href={page.image.sourceUrl} newTabLabel={w.newTab}>Wikimedia Commons</ExternalLink></>}
+          </figcaption>
+        </figure>
+      )}
+    </div>
+    {(rows.length > 0 || lists.length > 0 || website || otherNames.length > 0) && (
+      <DescriptionList class="ref-facts">
+        {website && <><dt>{w.wikidata.website}</dt><dd><ExternalLink href={website} newTabLabel={w.newTab} class="ltr">{website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}</ExternalLink></dd></>}
+        {rows.map(([k, v]) => <><dt>{w.wikidata[k]}</dt><dd>{v}</dd></>)}
+        {lists.map(([k, v]) => (
+          <><dt>{w.wikidata[k]}</dt><dd>{v.map((x, i) => <>{i > 0 && sep}{x.href ? <a href={x.href} dir="auto">{x.label}</a> : <bdi>{x.label}</bdi>}</>)}</dd></>
+        ))}
+        {otherNames.length > 0 && <><dt>{w.wikidata.aliases}</dt><dd>{otherNames.map((n, i) => <>{i > 0 && sep}<bdi>{n}</bdi></>)}</dd></>}
+      </DescriptionList>
+    )}
+    <Incoming groups={page.incoming} links={page.incomingLinks} targetImages={page.targetImages} reference={page.reference} language={language} words={w} entryUrl={page.entryUrl} url={page.url} />
+  </article>
+  {(qid || ids.length > 0) && (
+    <aside class="ref-side">
+        <h2>{w.wikidata.ids}</h2>
+        <ul dir="ltr">
+          {qid && <li><ExternalLink href={`https://www.wikidata.org/wiki/${qid}`} newTabLabel={w.newTab}>Wikidata {qid}</ExternalLink></li>}
+          {ids.map((x) => <li><ExternalLink href={x.url} newTabLabel={w.newTab}>{x.label}</ExternalLink></li>)}
+        </ul>
+        {qid && <p class="ref-muted">{w.wikidata.source}</p>}
+    </aside>
+  )}
+</div>

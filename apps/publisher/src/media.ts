@@ -149,9 +149,7 @@ export async function prepareMedia(
   const ids = [...new Set(bodies.flatMap(mediaIds))];
   if (ids.length === 0) return { kind: "ready" };
   const { rows } = await client.query<MediaRow>(
-    `select id, file, content_type, description, creator, credit_line, copyright_notice,
-            web_statement, licensor, digital_source_type, licence, licence_url, published_file
-     from media where id::text = any($1)`,
+    `select ${MEDIA_COLUMNS} from media where id::text = any($1)`,
     [ids],
   );
   const unlicensed = ids.filter((id) => {
@@ -162,7 +160,24 @@ export async function prepareMedia(
     return { kind: "hold", name: "unlicensed-media", detail: { media: unlicensed } };
   if (!deps)
     return { kind: "hold", name: "media", detail: { error: "no image writer configured" } };
-  for (const m of rows.filter((r) => !r.published_file)) {
+  const failed = await publishCopies(client, deps, rows, true);
+  return failed
+    ? { kind: "hold", name: "media", detail: { media: failed.id, error: failed.error } }
+    : { kind: "ready" };
+}
+
+/**
+ * Publishes each licensed image not published yet: its copy with Photo Metadata, signed (D120).
+ * Returns the first failure; with `stopAtFailure` false it goes on to the next image.
+ */
+export async function publishCopies(
+  client: Client,
+  deps: MediaDeps,
+  rows: MediaRow[],
+  stopAtFailure: boolean,
+): Promise<{ id: string; error: string } | null> {
+  let first: { id: string; error: string } | null = null;
+  for (const m of rows.filter((r) => !r.published_file && r.licence && r.credit_line?.trim())) {
     const workDir = deps.workDir();
     try {
       const source = await deps.raw(m.file);
@@ -170,19 +185,29 @@ export async function prepareMedia(
       const { data } = await deps.writer.write(source, m, workDir);
       const key = mediaPath(m.id, m.content_type).slice(1);
       await deps.store.put(key, data, m.content_type);
-      await client.query(
-        "update media set published_file = $2 where id = $1 and published_file is null",
-        [m.id, key],
-      );
+      // Going on after a failure, a savepoint keeps one failed update from aborting the
+      // transaction the rest of the images are recorded in.
+      if (!stopAtFailure) await client.query("savepoint publish_copy");
+      try {
+        await client.query(
+          "update media set published_file = $2 where id = $1 and published_file is null",
+          [m.id, key],
+        );
+      } catch (error) {
+        if (!stopAtFailure) await client.query("rollback to savepoint publish_copy");
+        throw error;
+      }
+      if (!stopAtFailure) await client.query("release savepoint publish_copy");
     } catch (error) {
-      return {
-        kind: "hold",
-        name: "media",
-        detail: { media: m.id, error: (error as Error).message },
-      };
+      first ??= { id: m.id, error: (error as Error).message };
+      if (stopAtFailure) return first;
     } finally {
       rmSync(workDir, { recursive: true, force: true });
     }
   }
-  return { kind: "ready" };
+  return first;
 }
+
+/** The columns publishCopies reads. */
+export const MEDIA_COLUMNS = `id, file, content_type, description, creator, credit_line, copyright_notice,
+  web_statement, licensor, digital_source_type, licence, licence_url, published_file`;

@@ -13,6 +13,10 @@ const TEMPLATES = {
   challenge: "/challenge/:id",
   publication: "/:series/:date",
   ninjs: "/:series/:date.json",
+  reference: "/reference",
+  "reference-index": "/reference/:path",
+  "reference-entry": "/reference/:path/:slug",
+  section: "/:section",
   "not-found": "/*",
 } as const;
 

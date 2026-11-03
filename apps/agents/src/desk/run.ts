@@ -11,7 +11,7 @@ import type { IngestionClient } from "../ingest.ts";
 import { newMeter, type RunModel, TokenCapReached } from "../model.ts";
 import { assemblePrompt, readGuides } from "../prompts/assemble.ts";
 import { deskRole, deskSteps, type OpinionPolicy } from "../prompts/roles.ts";
-import { itemShape } from "../prompts/shapes.ts";
+import { codeSetFields, itemShape } from "../prompts/shapes.ts";
 import type { ModelRouter } from "../router.ts";
 import { assignmentPublications, finishRun, holdPublications, recordUsage } from "../runs.ts";
 import { type LeadText, readLead } from "../tools/leads.ts";
@@ -172,6 +172,7 @@ export async function runDesk(deps: RoleDeps, job: AgentRunJob): Promise<string 
           format: loaded.format,
           language,
           needsStory: true,
+          codeSet: codeSetFields(formatSchema(deps.configDir, loaded.format)),
           beats,
           leads: citable(),
           media: new Set([...readLeads.values()].flatMap((l) => l.images.map((m) => m.id))),

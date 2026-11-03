@@ -13,6 +13,18 @@ describe("route", () => {
     });
   });
 
+  it("knows the Reference's pages", () => {
+    expect(route("/reference")).toEqual({ kind: "reference" });
+    expect(route("/reference/news/")).toEqual({ kind: "reference-index", path: "news" });
+    expect(route("/reference/papers/turing-1936-computable-numbers")).toEqual({
+      kind: "reference-entry",
+      path: "papers",
+      slug: "turing-1936-computable-numbers",
+    });
+    expect(route("/reference/artists/sezen-aksu")).toMatchObject({ kind: "reference-entry" });
+    expect(route("/reference/papers/Bad_Slug")).toEqual({ kind: "not-found" });
+  });
+
   it("finds a publication and its ninjs twin", () => {
     expect(route("/daily-newsletter/2026-10-27")).toEqual({
       kind: "publication",
@@ -25,9 +37,14 @@ describe("route", () => {
     expect(route("/daily-newsletter/2026-10-27-1a2b3c4d")).toMatchObject({ kind: "publication" });
   });
 
+  it("reads one plain segment as a series' timeline or page (the page checks it exists)", () => {
+    expect(route("/news")).toEqual({ kind: "section", path: "news" });
+    expect(route("/weekly-podcast/")).toEqual({ kind: "section", path: "weekly-podcast" });
+  });
+
   it("refuses anything else", () => {
     for (const p of [
-      "/x",
+      "/X",
       "/daily/today",
       "/../etc/passwd",
       "/Daily/2026-10-27",

@@ -1,0 +1,27 @@
+---
+// The Reference's home (D170): a card per kind and list the newsroom configures.
+import type { Page } from "../../lib/page.ts";
+import { numberLabel } from "../../lib/reference.ts";
+import { nameOf, targetNames, targetPath } from "../../lib/reference-config.ts";
+import Labels from "./Labels.astro";
+
+interface Props {
+  page: Extract<Page, { kind: "reference" }>;
+}
+const { page } = Astro.props;
+const { ref: w, language } = page;
+const n = (x: number) => numberLabel(x, language);
+const name = (names: Parameters<typeof nameOf>[0]) => nameOf(names, language);
+---
+<h1>{w.reference}</h1>
+{page.reference.intro && <p class="ref-lead">{name(page.reference.intro)}</p>}
+<Labels label={page.label} aiPolicy={page.links.aiPolicy} imported={w.imported} />
+<ul class="ref-cards wide">
+  {page.sections.map((s) => (
+    <li class={`ref-card${s.target.kind.layout === "document" ? " ref-card--classics" : ""}`}>
+      <span class="ref-muted">{n(s.count)}</span>
+      <h2><a href={page.url(targetPath(s.target))}>{name(targetNames(s.target).name)}</a></h2>
+      {targetNames(s.target).intro && <p>{name(targetNames(s.target).intro)}</p>}
+    </li>
+  ))}
+</ul>

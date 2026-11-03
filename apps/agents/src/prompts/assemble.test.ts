@@ -46,7 +46,12 @@ describe("prompt assembly (D75)", () => {
   it("asks for each format's own items, and opinion only where it can be marked (D117)", () => {
     const newsletter = deskSteps("fa", itemShape(formatSchema(configDir, "newsletter-issue")));
     expect(newsletter.outline).toContain('"kind": "news" | "article"');
-    expect(newsletter.draft).toContain('{"kind": "news", "headline": "...", "body": "..."}');
+    expect(newsletter.draft).toContain(
+      '{"kind": "news", "headline": "...", "body": "...", "org": ',
+    );
+    // The timeline's facts the desk sets (D173), and none that code sets.
+    expect(newsletter.draft).toContain('"news_kind": "model" | "product" |');
+    expect(newsletter.draft).not.toMatch(/"(url|links|anchor|approximate)":/);
     expect(newsletter.draft).toContain('"reason": "<One line: why it is worth reading.>"');
     expect(newsletter.draft).not.toContain("claim_ids");
     const story = deskSteps("tr", itemShape(formatSchema(configDir, "artist-story")));

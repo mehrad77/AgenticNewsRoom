@@ -33,6 +33,37 @@ describe("validateConfig", () => {
     );
   });
 
+  it("takes the home's news from a series of the newsroom that has a timeline", () => {
+    const config = loadConfig(root);
+    const ai = config.newsrooms.find((n) => n.slug === "ai");
+    if (!ai) throw new Error("ai newsroom missing");
+    const newsroom = ai.newsroom as { home?: unknown };
+    newsroom.home = { news: "weekly-classic" };
+    expect(validateConfig(config)).toContain(
+      "newsrooms/ai/newsroom.yaml home names series weekly-classic, which has no timeline",
+    );
+    newsroom.home = { news: "nightly" };
+    expect(validateConfig(config)).toContain(
+      "newsrooms/ai/newsroom.yaml home names unknown series nightly",
+    );
+    newsroom.home = { news: "daily-newsletter" };
+    expect(validateConfig(config)).toEqual([]);
+  });
+
+  it("rejects two series' timelines at one path", () => {
+    const config = loadConfig(root);
+    const ai = config.newsrooms.find((n) => n.slug === "ai");
+    if (!ai) throw new Error("ai newsroom missing");
+    const daily = ai.series["daily-newsletter"] as { timeline: unknown };
+    (ai.series["weekly-classic"] as { timeline?: unknown }).timeline = structuredClone(
+      daily.timeline,
+    );
+    const path = (daily.timeline as { path: string }).path;
+    expect(validateConfig(config)).toContain(
+      `newsrooms/ai/series/weekly-classic.yaml timeline path ${path} is also series daily-newsletter's`,
+    );
+  });
+
   it("rejects a series in a language its newsroom does not write", () => {
     const config = loadConfig(root);
     const ai = config.newsrooms.find((n) => n.slug === "ai");

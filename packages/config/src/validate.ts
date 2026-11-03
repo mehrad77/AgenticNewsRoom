@@ -2,10 +2,11 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { directionOf, type Language, RESERVED_SUBDOMAINS } from "@anr/core";
-import { type ModelsSchema, roleChains } from "@anr/schemas";
+import { type ModelsSchema, type ReferenceSchema, roleChains } from "@anr/schemas";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import addFormatsModule from "ajv-formats";
 import type { RawConfig } from "./load.ts";
+import { referenceProblems } from "./reference.ts";
 import { cronDaily, cronEvery, cronWeekly } from "./schedules.ts";
 
 const require = createRequire(import.meta.url);
@@ -140,7 +141,17 @@ function modelsProblems(m: ModelsSchema, file: string, formats: string[]): strin
   return errors;
 }
 
-/** Returns a list of human-readable problems; empty means the config is valid. */
+/** Site paths a series' timeline cannot take (apps/web/src/lib/routes.ts). */
+const RESERVED_PATHS = new Set([
+  "search",
+  "ai-policy",
+  "corrections",
+  "reference",
+  "challenge",
+  "podcast",
+  "m",
+]);
+
 /** The sound cues every podcast series has, as files in `newsrooms/<slug>/audio/<series>/`. */
 export const CUE_FILES = [
   "sting.flac",
@@ -151,6 +162,7 @@ export const CUE_FILES = [
   "jingle.flac",
 ] as const;
 
+/** Returns a list of human-readable problems; empty means the config is valid. */
 export function validateConfig(config: RawConfig): string[] {
   const ajv = new Ajv2020({ allErrors: true, strict: true });
   addFormats(ajv);
@@ -162,6 +174,7 @@ export function validateConfig(config: RawConfig): string[] {
     policy: validator("policy"),
     sources: validator("sources"),
     series: validator("series"),
+    reference: validator("reference"),
     format: validator("format"),
   };
   const mediaTopics = liveQcodes("mediatopic");
@@ -239,6 +252,15 @@ export function validateConfig(config: RawConfig): string[] {
       }
     }
 
+    if (n.reference !== undefined && check(v.reference, n.reference, `${at}/reference.yaml`))
+      errors.push(
+        ...referenceProblems(
+          n.reference as ReferenceSchema,
+          newsroom.languages,
+          `${at}/reference.yaml`,
+        ),
+      );
+
     if (okPolicy) {
       const beats = (n.policy as { beats: Record<string, { media_topics: string[] }> }).beats;
       for (const [beat, { media_topics }] of Object.entries(beats)) {
@@ -253,6 +275,17 @@ export function validateConfig(config: RawConfig): string[] {
       }
     }
 
+    // The home's news (`home: {news: <series>}`) comes from a series of this newsroom with a timeline.
+    const home = (newsroom as { home?: string | { news: string } }).home;
+    if (home && typeof home === "object") {
+      const series = n.series[home.news] as { timeline?: unknown } | undefined;
+      if (!series) errors.push(`${at}/newsroom.yaml home names unknown series ${home.news}`);
+      else if (!series.timeline)
+        errors.push(`${at}/newsroom.yaml home names series ${home.news}, which has no timeline`);
+    }
+
+    // Timeline paths taken so far, so two series never share one (only the first would show).
+    const timelinePaths = new Map<string, string>();
     for (const [name, s] of Object.entries(n.series)) {
       const where = `${at}/series/${name}.yaml`;
       if (!check(v.series, s, where)) continue;
@@ -266,8 +299,58 @@ export function validateConfig(config: RawConfig): string[] {
         narrator?: Record<string, string>;
         assignment_at?: string;
         cadence: { daily?: string; weekly?: string };
-        pick?: unknown;
+        pick?: { from?: { kind: string; fact: string } };
+        timeline?: {
+          path: string;
+          name: Record<string, string>;
+          intro?: Record<string, string>;
+          filters?: {
+            fact: string;
+            name: Record<string, string>;
+            values?: Record<string, Record<string, string>>;
+          }[];
+        };
       };
+      // A series' page (D179): at /<series>, named in every language.
+      const index = (
+        s as { index?: { name: Record<string, string>; intro?: Record<string, string> } }
+      ).index;
+      if (index) {
+        if (RESERVED_PATHS.has(name))
+          errors.push(`${where} index path ${name} is taken by the site`);
+        for (const [label, names] of [
+          ["name", index.name],
+          ["intro", index.intro],
+        ] as const) {
+          const missing = names ? newsroom.languages.filter((l) => !names[l]) : [];
+          if (missing.length > 0)
+            errors.push(`${where} index ${label} has no ${missing.join(", ")}`);
+        }
+      }
+      // A series' timeline (D173): a page of its own at /<path>, named in every language.
+      if (series.timeline) {
+        const t = series.timeline;
+        if (RESERVED_PATHS.has(t.path) || t.path in n.series)
+          errors.push(`${where} timeline path ${t.path} is taken by the site`);
+        const other = timelinePaths.get(t.path);
+        if (other) errors.push(`${where} timeline path ${t.path} is also series ${other}'s`);
+        timelinePaths.set(t.path, name);
+        const named = [
+          ["name", t.name],
+          ["intro", t.intro],
+          ...(t.filters ?? []).flatMap((f) => [
+            [`filter ${f.fact}`, f.name] as const,
+            ...Object.entries(f.values ?? {}).map(
+              ([v, x]) => [`filter ${f.fact} value ${v}`, x] as const,
+            ),
+          ]),
+        ] as const;
+        for (const [label, names] of named) {
+          const missing = names ? newsroom.languages.filter((l) => !names[l]) : [];
+          if (missing.length > 0)
+            errors.push(`${where} timeline ${label} has no ${missing.join(", ")}`);
+        }
+      }
       // Daily news is assigned at a time of day; an episode built from segments at a weekday and
       // time; a picked series when its pick is chosen (D104).
       const assignAt = series.assignment_at;
@@ -284,6 +367,9 @@ export function validateConfig(config: RawConfig): string[] {
       if (series.segments && !assignAt) errors.push(`${where} has segments but no assignment_at`);
       if (series.segments && series.pick) errors.push(`${where} has both segments and a pick`);
       if (series.pick && !weekly) errors.push(`${where} has a pick but no weekly cadence`);
+      const from = series.pick?.from;
+      if (from && !(n.reference as ReferenceSchema | undefined)?.kinds?.[from.kind])
+        errors.push(`${where} picks from ${from.kind}, which is not a kind in reference.yaml`);
       if (!config.formats.includes(series.format))
         errors.push(`${where} uses unknown format ${series.format}`);
       for (const l of series.languages) {

@@ -1,0 +1,27 @@
+---
+// A series' own page (D179): its name, intro, header image (D180) and every published piece,
+// newest first, each with its cover when it has one and a line about it.
+import type { Page } from "../../lib/page.ts";
+import { nameOf } from "../../lib/reference-config.ts";
+import Labels from "../reference/Labels.astro";
+import PieceTile from "./PieceTile.astro";
+
+interface Props {
+  page: Extract<Page, { kind: "series" }>;
+}
+const { page } = Astro.props;
+const { index, pieces, art, language } = page;
+const hero = art.get("hero");
+const show = art.get("show");
+---
+<header class="series-head">
+  <h1>{nameOf(index.name, language)}</h1>
+  {index.intro && <p class="ref-lead">{nameOf(index.intro, language)}</p>}
+  <Labels label={page.label} aiPolicy={page.links.aiPolicy} imported={pieces.some((p) => p.imported) ? page.ref.imported : null} />
+</header>
+{hero && <img class="series-hero wide" src={hero.src} alt={hero.alt} title={hero.credit} width="1280" height="720" />}
+{pieces.length === 0 ? <p>{page.words.nothingYet}</p> : (
+  <ul class="series-pieces wide">
+    {pieces.map((p) => <li><PieceTile piece={p} href={page.url(p.path)} language={language} timezone={page.newsroom.timezone} fallback={show} /></li>)}
+  </ul>
+)}

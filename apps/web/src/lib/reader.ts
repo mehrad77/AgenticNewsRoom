@@ -4,6 +4,9 @@
 import type { Language } from "@anr/core";
 import { type Pool, withNewsroom } from "@anr/db";
 import { type MediaContext, mediaContext } from "@anr/render";
+import type { ReferenceSchema } from "@anr/schemas";
+import type { SeriesIndex } from "./series.ts";
+import type { Timeline, TimelineConfig } from "./timeline.ts";
 
 /** The statuses a reader may see; also the predicate of the search and listing indexes. */
 const VISIBLE = "status in ('published', 'corrected')";
@@ -17,6 +20,14 @@ export interface ReaderNewsroom {
   timezone: string;
   editorInChief: string;
   correctionsOwner: string;
+  /** The newsroom's Reference config (reference.yaml, D170); no kinds when it has none. */
+  reference: ReferenceSchema;
+  /** The series whose items form a timeline (D173), in the series' order. */
+  timelines: Timeline[];
+  /** The series with a page of their own and a header link (D179), in the series' order. */
+  indexes: SeriesIndex[];
+  /** What the home lists (newsroom.yaml `home`): pieces, or a series' news items. */
+  home: "pieces" | { news: string };
 }
 
 export interface Listed {
@@ -49,6 +60,10 @@ export interface ReaderPublication extends Listed {
   /** The licensed images the piece shows, at site-relative URLs (D119). */
   media: Record<string, MediaContext>;
   corrections: Correction[];
+  /** Imported from the old archive (D172): shown as it was, with the imported label (D164). */
+  imported: boolean;
+  /** The same piece's path in each language it is published in: its series' same slot. */
+  paths: Partial<Record<Language, string>>;
 }
 
 export async function newsroomBySubdomain(
@@ -64,13 +79,27 @@ export async function newsroomBySubdomain(
     timezone: string;
     editor_in_chief: string;
     corrections_owner: string;
+    reference: Partial<ReferenceSchema>;
+    home: "pieces" | { news: string };
   }>(
-    `select id, slug, subdomain, name, languages, timezone, editor_in_chief, corrections_owner
+    `select id, slug, subdomain, name, languages, timezone, editor_in_chief, corrections_owner,
+            reference, home
      from newsrooms where subdomain = $1 and removed_at is null`,
     [subdomain],
   );
   const n = rows[0];
   if (!n) return null;
+  const [timelines, indexes] = await withNewsroom(pool, n.id, async (c) => {
+    const { rows: series } = await c.query<{ series: string; config: TimelineConfig }>(
+      `select slug as series, config->'timeline' as config from series
+       where config ? 'timeline' and removed_at is null order by slug`,
+    );
+    const { rows: pages } = await c.query<{ series: string; index: Omit<SeriesIndex, "series"> }>(
+      `select slug as series, config->'index' as index from series
+       where config ? 'index' and removed_at is null order by slug`,
+    );
+    return [series, pages.map((p) => ({ series: p.series, ...p.index }))] as const;
+  });
   return {
     id: n.id,
     slug: n.slug,
@@ -80,6 +109,10 @@ export async function newsroomBySubdomain(
     timezone: n.timezone,
     editorInChief: n.editor_in_chief,
     correctionsOwner: n.corrections_owner,
+    reference: { ...n.reference, kinds: n.reference.kinds ?? {} },
+    timelines,
+    indexes,
+    home: n.home,
   };
 }
 
@@ -90,14 +123,21 @@ const listed = (r: { id: string; title: string | null; path: string; published_a
   publishedAt: r.published_at,
 });
 
-/** A language's newest publications. */
-export function latest(pool: Pool, newsroomId: string, language: Language, limit = 30) {
+/** A language's newest publications, leaving out the series named in `except`. */
+export function latest(
+  pool: Pool,
+  newsroomId: string,
+  language: Language,
+  limit = 30,
+  except: string[] = [],
+) {
   return withNewsroom(pool, newsroomId, async (c) => {
     const { rows } = await c.query(
-      `select id, title, path, published_at from publications
-       where ${VISIBLE} and language = $1
-       order by published_at desc limit $2`,
-      [language, limit],
+      `select p.id, p.title, p.path, p.published_at from publications p
+       join series s on s.id = p.series_id
+       where p.${VISIBLE} and p.language = $1 and not (s.slug = any($3::text[]))
+       order by p.published_at desc limit $2`,
+      [language, limit, except],
     );
     return rows.map(listed) as Listed[];
   });
@@ -144,8 +184,12 @@ export function publicationByPath(
       story_id: string | null;
       media_topics: string[] | null;
       body: Record<string, unknown> | null;
+      origin: string;
+      paths: Partial<Record<Language, string>>;
     }>(
-      `select p.id, p.title, p.path, p.published_at, p.status, p.edited,
+      `select p.id, p.title, p.path, p.published_at, p.status, p.edited, p.origin,
+              (select jsonb_object_agg(o.language, o.path) from publications o
+               where o.series_id = p.series_id and o.slot = p.slot and o.${VISIBLE}) as paths,
               s.slug as series, s.config->'name' as series_name,
               f.slug as format, f.genre, f.ninjs_type,
               r.story_id, b.media_topics, r.body
@@ -200,6 +244,8 @@ export function publicationByPath(
       rendition: p.body,
       leads: Object.fromEntries(leads.map((l) => [l.id, { url: l.uri, headline: l.headline }])),
       media: await mediaContext(c, p.body, ""),
+      imported: p.origin === "imported",
+      paths: p.paths,
       corrections: corrections.map((x) => ({
         id: x.id,
         notice: x.notice,

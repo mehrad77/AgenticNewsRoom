@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { codeSetFields } from "../prompts/shapes.ts";
 import {
   type CitableLead,
   parseJson,
@@ -66,6 +67,26 @@ const claim = (over: object = {}) => ({
 });
 
 describe("submit validation (D77)", () => {
+  it("refuses the fields code sets, read from the format's schema (D173)", () => {
+    const schema = JSON.parse(
+      readFileSync(
+        fileURLToPath(
+          new URL("../../../../config/formats/newsletter-issue/schema.json", import.meta.url),
+        ),
+        "utf8",
+      ),
+    );
+    const codeSet = codeSetFields(schema);
+    expect(codeSet).toEqual(
+      expect.arrayContaining(["url", "url_type", "links", "anchor", "approximate"]),
+    );
+    expect(codeSet).not.toContain("org");
+    const item = { ...news(["c1"]), org: "Orbit Labs", url: "https://elsewhere.example/x" };
+    expect(validateDraft(draft([claim()], [item]), { ...ctx, codeSet })).toEqual([
+      "rendition.items.0.url: code sets this field; leave it out",
+    ]);
+  });
+
   it("accepts a draft whose claims quote their leads, after normalising whitespace", () => {
     expect(validateDraft(draft([claim()]), ctx)).toMatchObject({ story: { beat: "labs" } });
   });

@@ -1,15 +1,29 @@
 ---
 // Every page of a newsroom site; src/lib/page.ts decides what it shows.
 import Base from "../layouts/Base.astro";
+// ShabUI (D168): its faces, tokens and base styles, then the site's layout.
+import "@shabboo/kit/fonts.css";
+import "@shabboo/kit/styles.css";
 import "../styles/site.css";
+import "../styles/reference.css";
+import "../styles/podcast.css";
+import DocumentEntry from "../components/reference/DocumentEntry.astro";
+import ProfileEntry from "../components/reference/ProfileEntry.astro";
+import EpisodePage from "../components/podcast/EpisodePage.astro";
+import ReferenceHome from "../components/reference/ReferenceHome.astro";
+import ReferenceIndex from "../components/reference/ReferenceIndex.astro";
+import SeriesPage from "../components/series/SeriesPage.astro";
+import FrontPage from "../components/home/FrontPage.astro";
 import { directionOf, pageUrl } from "@anr/core";
-import { challengeForm, sendChallenge } from "../lib/challenge.ts";
+import { CHALLENGES_OPEN, challengeForm, sendChallenge } from "../lib/challenge.ts";
+import { splitHead } from "../lib/piece-head.ts";
 import { db } from "../lib/db.ts";
 import { scriptJson } from "../lib/metadata.ts";
 import { loadPage } from "../lib/page.ts";
 import { imageResponse, mediaRoute, publishedImage } from "../lib/media.ts";
 import { audioResponse, countDownload, episodeAudio, feedRenderer, podcastFeed, readerAddress, podcastRoute } from "../lib/podcast.ts";
 import { newsroomBySubdomain } from "../lib/reader.ts";
+import { markExternalLinks } from "../lib/external-links.ts";
 import { route } from "../lib/routes.ts";
 
 const site = Astro.locals.site;
@@ -50,10 +64,13 @@ if (imageId) {
 // A reader's challenge from the form under a piece (D114): passed to the API, then on to the
 // reader's status page. Handled before the page loads, so it is not counted as a view.
 let challengeFailed = false;
+// Back to the piece at the path the reader asked for (Astro.url is the internal, rewritten one).
+if (Astro.request.method === "POST" && route(site.path).kind === "publication" && !CHALLENGES_OPEN)
+  return Astro.redirect(Astro.locals.path, 303);
 if (Astro.request.method === "POST" && route(site.path).kind === "publication") {
   const form = await Astro.request.formData();
   const body = challengeForm(form);
-  if (!body) return Astro.redirect(Astro.url.pathname, 303);
+  if (!body) return Astro.redirect(Astro.locals.path, 303);
   const headers = Astro.request.headers;
   const sent = await sendChallenge(
     process.env.ANR_API_URL ?? "http://127.0.0.1:8787",
@@ -101,10 +118,41 @@ if (page.kind === "challenge") {
 }
 const name = page.newsroom.name[page.language] ?? page.newsroom.slug;
 const w = page.words;
+// The site's sections: its latest pieces, the Reference's nav (reference.yaml) and the Reference
+// home, when the newsroom has one. The current one is marked for the reader (aria-current).
+// The page as the reader asked for it (Astro.url is the internal, rewritten path).
+const current = new URL(page.url(site.path)).pathname.replace(/\/+$/, "");
+const sections = [
+  { href: page.links.home, label: w.latest },
+  ...page.referenceNav,
+  ...(page.referenceNav.length > 0 ? [{ href: page.links.reference, label: page.ref.reference }] : []),
+];
+// The section the page is (shown as text, not a link) or is inside (a link, marked).
+const placeOf = (href: string): "page" | "inside" | null => {
+  const path = new URL(href).pathname.replace(/\/+$/, "");
+  if (path === current) return "page";
+  return path.length > 4 && current.startsWith(`${path}/`) ? "inside" : null;
+};
+// A piece's head (title, AI label), then its date and labels, then the rest; the eyebrow links to
+// the series' own page or timeline (D179, D173).
+const [pieceHead, pieceRest] =
+  page.kind === "publication" && !page.episode
+    ? splitHead(markExternalLinks(page.bodyHtml, new URL(Astro.url).hostname, w.newTab))
+    : ["", ""];
+const pieceHome = ((): { href: string; label: string } | null => {
+  if (page.kind !== "publication") return null;
+  const { series, seriesName } = page.publication;
+  const index = page.newsroom.indexes.find((i) => i.series === series);
+  if (index) return { href: page.url(`/${series}`), label: index.name[page.language] ?? seriesName[page.language] ?? series };
+  const timeline = page.newsroom.timelines.find((t) => t.series === series);
+  return timeline
+    ? { href: page.url(`/${timeline.config.path}`), label: timeline.config.name[page.language] ?? series }
+    : null;
+})();
 const date = (d: Date) =>
-  new Intl.DateTimeFormat(page.language, { dateStyle: "long", timeZone: page.newsroom.timezone }).format(d);
+  new Intl.DateTimeFormat(page.language, { dateStyle: "long", calendar: "gregory", timeZone: page.newsroom.timezone }).format(d);
 ---
-<Base title={page.title} language={page.language} direction={directionOf(page.language)}>
+<Base title={page.title} language={page.language} direction={directionOf(page.language)} theme="light">
   <Fragment slot="head">
     {page.kind === "publication" && (
       <>
@@ -117,6 +165,16 @@ const date = (d: Date) =>
   </Fragment>
   <header>
     <strong><a href={page.links.home}>{name}</a></strong>
+    <nav aria-label={name}>
+      {sections.map((s) => {
+        const place = placeOf(s.href);
+        return place === "page" ? (
+          <span class="nav-here" aria-current="page">{s.label}</span>
+        ) : (
+          <a href={s.href} class:list={{ "nav-here": place === "inside" }} aria-current={place === "inside" ? "true" : undefined}>{s.label}</a>
+        );
+      })}
+    </nav>
     <form action={page.links.search} method="get" role="search">
       <input type="search" name="q" placeholder={w.searchPlaceholder} value={page.kind === "search" ? page.query : ""} />
     </form>
@@ -132,23 +190,50 @@ const date = (d: Date) =>
     {page.kind === "publication" && (
       <>
         {page.publication.status === "corrected" && <p><a href={page.links.corrections}>{w.corrected}</a></p>}
-        <p><time datetime={page.publication.publishedAt.toISOString()}>{date(page.publication.publishedAt)}</time></p>
-        <Fragment set:html={page.bodyHtml} />
+        {page.episode ? (
+          <EpisodePage
+            episode={page.episode}
+            title={page.publication.title ?? name}
+            series={page.publication.seriesName[page.language] ?? page.publication.series}
+            seriesHref={page.newsroom.indexes.some((i) => i.series === page.publication.series) ? page.url(`/${page.publication.series}`) : null}
+            publishedAt={page.publication.publishedAt}
+            timezone={page.newsroom.timezone}
+            language={page.language}
+            words={w}
+            aiPolicy={page.links.aiPolicy}
+            imported={page.publication.imported ? page.ref.imported : null}
+          />
+        ) : (
+          <>
+            {pieceHome && <p class="eyebrow"><a href={pieceHome.href}>{pieceHome.label}</a></p>}
+            <Fragment set:html={pieceHead} />
+            <p class="piece-meta"><time datetime={page.publication.publishedAt.toISOString()}>{date(page.publication.publishedAt)}</time></p>
+            {page.publication.imported && <p class="piece-imported" role="note">{page.ref.imported}</p>}
+            <Fragment set:html={pieceRest} />
+          </>
+        )}
         {page.publication.corrections.map((c) => (
           <aside id={c.id}><strong>{w.corrected}</strong> ({date(c.publishedAt)}): {c.notice}</aside>
         ))}
-        <section id="challenge">
-          <h2>{w.challenge.heading}</h2>
-          <p>{w.challenge.intro}</p>
-          {challengeFailed && <p role="alert">{w.challenge.failed}</p>}
-          <form method="post" action="#challenge">
-            <input type="hidden" name="publication" value={page.publication.id} />
-            <label>{w.challenge.text}<textarea name="text" required minlength="20" maxlength="4000" rows="4"></textarea></label>
-            <label>{w.challenge.source}<input name="source_url" type="url" maxlength="500" dir="ltr" /></label>
-            <label aria-hidden="true" style="position: absolute; inset-inline-start: -9999px">Website<input name="website" tabindex="-1" autocomplete="off" /></label>
-            <button>{w.challenge.send}</button>
-          </form>
-        </section>
+        {CHALLENGES_OPEN ? (
+          <section id="challenge">
+            <h2>{w.challenge.heading}</h2>
+            <p>{w.challenge.intro}</p>
+            {challengeFailed && <p role="alert">{w.challenge.failed}</p>}
+            <form class="challenge-form" method="post" action="#challenge">
+              <input type="hidden" name="publication" value={page.publication.id} />
+              <label>{w.challenge.text}<textarea name="text" required minlength="20" maxlength="4000" rows="5"></textarea></label>
+              <label>{w.challenge.source}<input name="source_url" type="url" maxlength="500" dir="ltr" placeholder="https://" /></label>
+              <label class="visually-hidden" aria-hidden="true">Website<input name="website" tabindex="-1" autocomplete="off" /></label>
+              <button>{w.challenge.send}</button>
+            </form>
+          </section>
+        ) : (
+          <section id="challenge" class="challenge-closed">
+            <h2>{w.challenge.heading}</h2>
+            <p>{w.challenge.closed} <a href={page.links.corrections}>{w.corrections}</a></p>
+          </section>
+        )}
       </>
     )}
     {page.kind === "challenge" && (
@@ -175,17 +260,33 @@ const date = (d: Date) =>
         {page.challenge.outcome === "upheld" && <p><a href={page.links.corrections}>{w.corrections}</a></p>}
       </>
     )}
-    {(page.kind === "home" || page.kind === "search") && (
+    {page.kind === "series" && <SeriesPage page={page} />}
+    {page.kind === "reference" && <ReferenceHome page={page} />}
+    {page.kind === "reference-index" && <ReferenceIndex page={page} />}
+    {page.kind === "reference-entry" && page.target.kind.layout === "document" && <DocumentEntry page={page} />}
+    {page.kind === "reference-entry" && page.target.kind.layout === "profile" && <ProfileEntry page={page} />}
+    {page.kind === "home" && page.news && <FrontPage page={{ ...page, news: page.news }} />}
+    {((page.kind === "home" && !page.news) || page.kind === "search") && (
       <>
         <h1>{page.kind === "home" ? w.latest : w.search}</h1>
         {page.pieces.length === 0 ? (
-          <p>{page.kind === "home" ? w.nothingYet : page.query ? w.noResults : ""}</p>
+          <p>{page.kind === "home" ? w.nothingYet : page.query && page.entries.length === 0 ? w.noResults : ""}</p>
         ) : (
           <ul>
             {page.pieces.map((p) => (
               <li><a href={page.url(p.path)}>{p.title ?? p.path}</a> · <time datetime={p.publishedAt.toISOString()}>{date(p.publishedAt)}</time></li>
             ))}
           </ul>
+        )}
+        {page.kind === "search" && page.entries.length > 0 && (
+          <>
+            <h2>{page.ref.reference}</h2>
+            <ul>
+              {page.entries.map((e) => (
+                <li><a href={page.entryUrl(e.kind, e.slug) ?? "#"} dir="auto">{e.title}</a>{e.date && <> · <time datetime={e.date}>{e.date}</time></>}</li>
+              ))}
+            </ul>
+          </>
         )}
       </>
     )}

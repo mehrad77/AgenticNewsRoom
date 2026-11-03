@@ -11,6 +11,7 @@ export * from "./NewsletterIssueDraft.ts";
 export * from "./Newsroom.ts";
 export * from "./PodcastEpisodeDraft.ts";
 export * from "./Policy.ts";
+export * from "./Reference.ts";
 export * from "./Series.ts";
 export * from "./SourceRequestResult.ts";
 export * from "./SourceRequest.ts";

@@ -18,6 +18,7 @@ export const SCHEDULED_QUEUES: readonly QueueName[] = [
   QUEUES.assign,
   QUEUES.plan,
   QUEUES.publishSweep,
+  QUEUES.publishImages,
   QUEUES.channelStats,
 ];
 
@@ -125,6 +126,15 @@ export function platformSchedules(): DesiredSchedule[] {
       queue: QUEUES.publishSweep,
       key: "platform",
       cron: "* * * * *",
+      tz: "UTC",
+      data: {},
+      missed: "skip",
+    },
+    // Each run takes up what is still waiting, so a missed one needs no replay.
+    {
+      queue: QUEUES.publishImages,
+      key: "platform",
+      cron: "*/5 * * * *",
       tz: "UTC",
       data: {},
       missed: "skip",

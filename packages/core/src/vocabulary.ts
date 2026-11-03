@@ -106,9 +106,22 @@ export type NoticeKind = (typeof NOTICE_KINDS)[number];
 
 /** Where a media item's licence comes from (D16, D119): a press kit, recorded by a person, or a
  * free Wikimedia Commons licence, recorded by code. */
-export const LICENCE_KINDS = ["press-kit", "commons"] as const;
+export const LICENCE_KINDS = ["press-kit", "commons", "own"] as const;
 export type LicenceKind = (typeof LICENCE_KINDS)[number];
 
 /** An editor's verdict on a sampled auto-published publication (D94). */
 export const SAMPLE_OUTCOMES = ["ok", "miss"] as const;
 export type SampleOutcome = (typeof SAMPLE_OUTCOMES)[number];
+
+/** How one Reference entry points at another (D162): `reference_entry_links.kind`. */
+export const REFERENCE_LINK_KINDS = [
+  "made-by",
+  "mentions",
+  "written-by",
+  "affiliated-with",
+] as const;
+export type ReferenceLinkKind = (typeof REFERENCE_LINK_KINDS)[number];
+
+/** The page layouts the site draws a Reference kind with (D170); kinds are configuration. */
+export const REFERENCE_LAYOUTS = ["profile", "document", "timeline"] as const;
+export type ReferenceLayout = (typeof REFERENCE_LAYOUTS)[number];

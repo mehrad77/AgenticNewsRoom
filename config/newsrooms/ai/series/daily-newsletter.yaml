@@ -7,3 +7,23 @@ items: { news: 5-8, articles: 0-2 }
 channels:
   site: [fa, en]
   telegram: [fa]
+# The news items of every issue, as the lab news timeline (D173).
+timeline:
+  path: news
+  name: { fa: اخبار لابراتوارها, en: Lab news }
+  intro:
+    fa: "خط زمانی خبرهای لابراتوارهای هوش مصنوعی، از تازه‌ترین به قدیمی‌ترین: مدل‌ها، محصول‌ها، ابزارها، انتشارهای متن‌باز، سرمایه‌گذاری‌ها و خبرهای سازمانی. هر خبر پیوند رسمی خودش را دارد."
+    en: "A timeline of what the AI labs released, newest first: models, products, tools, open-source releases, funding and company news. Each item links to its official page."
+  filters:
+    - { fact: org, name: { fa: لابراتوار یا شرکت, en: Lab or company } }
+    - fact: news_kind
+      name: { fa: نوع خبر, en: Kind of news }
+      values:
+        model: { fa: مدل, en: Model }
+        product: { fa: محصول, en: Product }
+        tool: { fa: ابزار, en: Tool }
+        research-blog: { fa: پژوهش, en: Research }
+        open-source: { fa: متن‌باز, en: Open source }
+        funding: { fa: سرمایه‌گذاری, en: Funding }
+        org: { fa: سازمان, en: Organisation }
+        other: { fa: دیگر, en: Other }

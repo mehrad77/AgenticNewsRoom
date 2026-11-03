@@ -5,6 +5,12 @@ import type { Language } from "@anr/core";
 export interface Words {
   latest: string;
   nothingYet: string;
+  /** On a news home: the newest pieces of the other series, and the way to the whole timeline. */
+  latestPieces: string;
+  /** A front page section's link to all of it (D182). */
+  seeMore: string;
+  /** A front page's list of the Reference entries the recent news names most (D182). */
+  inTheNews: string;
   search: string;
   searchPlaceholder: string;
   noResults: string;
@@ -13,6 +19,8 @@ export interface Words {
   correctionsNone: string;
   corrected: string;
   notFound: string;
+  /** Read after a link that opens in a new tab (ShabUI's ExternalLink). */
+  newTab: string;
   /** The AI policy page: why each piece is AI-made, and how claims are checked. */
   aiPolicyBody: (o: { newsroom: string; editor: string }) => {
     heading: string;
@@ -21,6 +29,35 @@ export interface Words {
   }[];
   /** The corrections page: who owns corrections and how a reader challenges a piece. */
   correctionsBody: (o: { owner: string }) => string;
+  /** An episode's page (D181): its facts, chapters, transcript and player. */
+  episode: {
+    date: string;
+    length: string;
+    chapters: string;
+    transcript: string;
+    /** A transcript section without a heading. */
+    part: (n: string) => string;
+    /** The length in minutes and seconds, digits already in the page's language. */
+    duration: (minutes: string | null, seconds: string | null) => string;
+    /** The feed link's heading in the facts. */
+    subscribe: string;
+    feed: string;
+    /** "Play from 05:36", on a chapter's time. */
+    playFrom: (time: string) => string;
+    player: {
+      play: string;
+      pause: string;
+      back: (seconds: string) => string;
+      forward: (seconds: string) => string;
+      /** The scrubber's name, and its spoken value: "05:36 of 11:06". */
+      position: string;
+      of: (now: string, length: string) => string;
+      speed: (rate: string) => string;
+      /** Brings the spoken turn back into view. */
+      follow: string;
+      close: string;
+    };
+  };
   /** A reader's challenge: the form on every piece and the reader's private status page (D114). */
   challenge: {
     heading: string;
@@ -29,6 +66,8 @@ export interface Words {
     source: string;
     send: string;
     failed: string;
+    /** Said where the form is while challenges are closed (D178). */
+    closed: string;
     status: string;
     keep: string;
     received: string;
@@ -44,6 +83,9 @@ export interface Words {
 const en: Words = {
   latest: "Latest",
   nothingYet: "Nothing published yet.",
+  latestPieces: "Latest pieces",
+  seeMore: "See more",
+  inTheNews: "In the news",
   search: "Search",
   searchPlaceholder: "Search this site",
   noResults: "No results.",
@@ -52,6 +94,7 @@ const en: Words = {
   correctionsNone: "No corrections so far.",
   corrected: "Corrected",
   notFound: "Page not found.",
+  newTab: "(opens in a new tab)",
   aiPolicyBody: ({ newsroom, editor }) => [
     {
       heading: "AI-made",
@@ -69,6 +112,28 @@ const en: Words = {
   ],
   correctionsBody: ({ owner }) =>
     `${owner} owns corrections. A challenge is acknowledged within 24 hours and answered within 48. Every correction is published here and becomes a new check.`,
+  episode: {
+    date: "Date",
+    length: "Length",
+    chapters: "Chapters",
+    transcript: "Transcript",
+    part: (n) => `Part ${n}`,
+    duration: (m, s) => [m && `${m} min`, s && `${s} s`].filter(Boolean).join(" "),
+    subscribe: "Subscribe",
+    feed: "Podcast feed (RSS)",
+    playFrom: (t) => `Play from ${t}`,
+    player: {
+      play: "Play",
+      pause: "Pause",
+      back: (s) => `Back ${s} seconds`,
+      forward: (s) => `Forward ${s} seconds`,
+      position: "Position",
+      of: (now, length) => `${now} of ${length}`,
+      speed: (r) => `Playback speed: ${r}×`,
+      follow: "Follow the text",
+      close: "Close the player bar",
+    },
+  },
   challenge: {
     heading: "Is something wrong here?",
     intro:
@@ -77,6 +142,8 @@ const en: Words = {
     source: "Where the correct information is, if anywhere (a link)",
     send: "Send",
     failed: "Your challenge could not be sent. Please try again later.",
+    closed:
+      "Challenges open once this form has spam protection. Until then, see what we have corrected:",
     status: "Your challenge",
     keep: "Keep this page's address: it is the only way to see our answer.",
     received: "Received",
@@ -92,6 +159,9 @@ const en: Words = {
 const fa: Words = {
   latest: "تازه‌ترین‌ها",
   nothingYet: "هنوز چیزی منتشر نشده است.",
+  latestPieces: "تازه‌ترین نوشته‌ها",
+  seeMore: "بیشتر ببینید",
+  inTheNews: "در خبرها",
   search: "جست‌وجو",
   searchPlaceholder: "جست‌وجو در این سایت",
   noResults: "نتیجه‌ای پیدا نشد.",
@@ -100,6 +170,7 @@ const fa: Words = {
   correctionsNone: "تاکنون اصلاحیه‌ای نداشته‌ایم.",
   corrected: "اصلاح‌شده",
   notFound: "صفحه پیدا نشد.",
+  newTab: "(در زبانه‌ی تازه باز می‌شود)",
   aiPolicyBody: ({ newsroom, editor }) => [
     {
       heading: "ساخته‌شده با هوش مصنوعی",
@@ -117,6 +188,28 @@ const fa: Words = {
   ],
   correctionsBody: ({ owner }) =>
     `مسئول اصلاحیه‌ها ${owner} است. هر اعتراض ظرف ۲۴ ساعت تأیید دریافت و ظرف ۴۸ ساعت پاسخ می‌گیرد. هر اصلاحیه اینجا منتشر می‌شود و به یک بررسی تازه تبدیل می‌شود.`,
+  episode: {
+    date: "تاریخ",
+    length: "مدت",
+    chapters: "بخش‌ها",
+    transcript: "متن اپیزود",
+    part: (n) => `بخش ${n}`,
+    duration: (m, s) => [m && `${m} دقیقه`, s && `${s} ثانیه`].filter(Boolean).join(" و "),
+    subscribe: "اشتراک",
+    feed: "فید پادکست (RSS)",
+    playFrom: (t) => `پخش از ${t}`,
+    player: {
+      play: "پخش",
+      pause: "توقف",
+      back: (s) => `${s} ثانیه عقب`,
+      forward: (s) => `${s} ثانیه جلو`,
+      position: "جای پخش",
+      of: (now, length) => `${now} از ${length}`,
+      speed: (r) => `سرعت پخش: ${r} برابر`,
+      follow: "همراه متن",
+      close: "بستن نوار پخش",
+    },
+  },
   challenge: {
     heading: "چیزی در این مطلب نادرست است؟",
     intro:
@@ -125,6 +218,8 @@ const fa: Words = {
     source: "اطلاعات درست کجاست، اگر جایی هست (یک پیوند)",
     send: "ارسال",
     failed: "اعتراض شما فرستاده نشد. لطفاً بعداً دوباره امتحان کنید.",
+    closed:
+      "فرستادن اعتراض پس از راه‌اندازی محافظت این فرم در برابر هرزنامه باز می‌شود. تا آن زمان، اصلاحیه‌های منتشرشده را ببینید:",
     status: "اعتراض شما",
     keep: "نشانی این صفحه را نگه دارید: تنها راه دیدن پاسخ ماست.",
     received: "دریافت",
@@ -140,6 +235,9 @@ const fa: Words = {
 const tr: Words = {
   latest: "Son yazılar",
   nothingYet: "Henüz bir şey yayımlanmadı.",
+  latestPieces: "Son yazılar",
+  seeMore: "Daha fazlası",
+  inTheNews: "Haberlerde",
   search: "Ara",
   searchPlaceholder: "Bu sitede ara",
   noResults: "Sonuç yok.",
@@ -148,6 +246,7 @@ const tr: Words = {
   correctionsNone: "Şu ana kadar düzeltme yok.",
   corrected: "Düzeltildi",
   notFound: "Sayfa bulunamadı.",
+  newTab: "(yeni sekmede açılır)",
   aiPolicyBody: ({ newsroom, editor }) => [
     {
       heading: "Yapay zekâ ile üretildi",
@@ -165,6 +264,28 @@ const tr: Words = {
   ],
   correctionsBody: ({ owner }) =>
     `Düzeltmelerden ${owner} sorumludur. Her itiraz 24 saat içinde alındı olarak bildirilir ve 48 saat içinde yanıtlanır. Her düzeltme burada yayımlanır ve yeni bir kontrole dönüşür.`,
+  episode: {
+    date: "Tarih",
+    length: "Süre",
+    chapters: "Bölümler",
+    transcript: "Döküm",
+    part: (n) => `Bölüm ${n}`,
+    duration: (m, s) => [m && `${m} dk`, s && `${s} sn`].filter(Boolean).join(" "),
+    subscribe: "Abone ol",
+    feed: "Podcast akışı (RSS)",
+    playFrom: (t) => `${t} itibarıyla oynat`,
+    player: {
+      play: "Oynat",
+      pause: "Duraklat",
+      back: (s) => `${s} saniye geri`,
+      forward: (s) => `${s} saniye ileri`,
+      position: "Konum",
+      of: (now, length) => `${now} / ${length}`,
+      speed: (r) => `Oynatma hızı: ${r}×`,
+      follow: "Metni takip et",
+      close: "Oynatıcı çubuğunu kapat",
+    },
+  },
   challenge: {
     heading: "Burada yanlış bir şey mi var?",
     intro:
@@ -173,6 +294,8 @@ const tr: Words = {
     source: "Doğru bilgi nerede, varsa (bir bağlantı)",
     send: "Gönder",
     failed: "İtirazınız gönderilemedi. Lütfen daha sonra yeniden deneyin.",
+    closed:
+      "İtirazlar, form spama karşı korunduğunda açılacak. O zamana kadar yayımlanan düzeltmelere bakın:",
     status: "İtirazınız",
     keep: "Bu sayfanın adresini saklayın: yanıtımızı görmenin tek yolu budur.",
     received: "Alındı",

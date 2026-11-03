@@ -1,0 +1,210 @@
+---
+// An episode's page (D181), from the old archive's episode page (D177): the series, title and
+// summary, the AI label, the player, the facts, then the transcript (chapter headings with their
+// times, speaker turns) kept in step with the audio, or the chapters when there is no transcript.
+// Images are the newsroom's own artwork (D180): the cover beside the title, each speaker's
+// portrait on their turns (else the old page's initial-letter avatar), credits in title attributes.
+import type { Language } from "@anr/core";
+import Labels from "../reference/Labels.astro";
+import PodcastPlayer from "./PodcastPlayer.astro";
+import { clock, initial, localDigits } from "../../lib/episode.ts";
+import type { Words } from "../../lib/i18n.ts";
+import type { Page } from "../../lib/page.ts";
+
+interface Props {
+  episode: NonNullable<(Page & { kind: "publication" })["episode"]>;
+  title: string;
+  series: string;
+  publishedAt: Date;
+  timezone: string;
+  language: Language;
+  words: Words;
+  aiPolicy: string;
+  /** The imported label (D164), on an imported episode. */
+  imported: string | null;
+  /** The series' own page (D179), when it has one: the eyebrow links to it. */
+  seriesHref?: string | null;
+}
+const { episode: ep, title, series, publishedAt, timezone, language, words, aiPolicy, imported, seriesHref } =
+  Astro.props;
+const w = words.episode;
+const d = localDigits(language);
+const time = (sec: number) => d(clock(sec));
+const minutes = Math.floor(ep.seconds / 60);
+const secs = Math.round(ep.seconds % 60);
+const length = w.duration(minutes ? d(minutes) : null, secs || !minutes ? d(secs) : null);
+const date = new Intl.DateTimeFormat(language, { dateStyle: "long", calendar: "gregory", timeZone: timezone }).format(publishedAt);
+// chapters with a transcript section to link to
+const inTranscript = new Set(ep.sections.map((s) => s.chapter));
+---
+<header class:list={["podcast-show episode-header", { "podcast-show--with-cover": ep.cover }]}>
+  {ep.cover && (
+    <img class="podcast-cover podcast-cover--lg" src={ep.cover.src} alt={ep.cover.alt} title={ep.cover.credit || undefined} width="192" height="192" decoding="async" />
+  )}
+  <div>
+    <p class="eyebrow">{seriesHref ? <a href={seriesHref}>{series}</a> : series}</p>
+    <h1 class="page-title" dir="auto">{title}</h1>
+    {ep.summary && <p class="lead" dir="auto">{ep.summary}</p>}
+  </div>
+</header>
+<Labels label={ep.label} aiPolicy={aiPolicy} imported={imported} />
+
+<PodcastPlayer src={ep.audioUrl} title={title} artist={series} artwork={ep.showArt?.src ?? null} seconds={ep.seconds} chapters={ep.chapters} language={language} words={w.player} />
+
+<dl class="facts">
+  <dt>{w.date}</dt><dd><time datetime={publishedAt.toISOString()}>{date}</time></dd>
+  <dt>{w.length}</dt><dd>{length}</dd>
+  <dt>{w.subscribe}</dt><dd><a href={ep.feedUrl}>{w.feed}</a></dd>
+</dl>
+
+<div class="episode-body wide">
+  {ep.chapters.length > 0 && ep.sections.length === 0 && (
+    <section aria-labelledby="ch-h">
+      <h2 class="section-title" id="ch-h">{w.chapters}</h2>
+      <ol class="chapter-list">
+        {ep.chapters.map((c, i) => (
+          <li data-start={c.start}>
+            <button type="button" class="chapter-seek" data-start={c.start} aria-label={`${w.playFrom(time(c.start))}: ${c.title}`}><bdi class="chapter-time" dir="ltr">{time(c.start)}</bdi></button>
+            {inTranscript.has(i) ? <a href={`#part-${i + 1}`} dir="auto">{c.title}</a> : <span dir="auto">{c.title}</span>}
+          </li>
+        ))}
+      </ol>
+    </section>
+  )}
+
+  {ep.sections.length > 0 && (
+    <section aria-labelledby="tr-h" id="transcript">
+      <h2 class="section-title" id="tr-h">{w.transcript}</h2>
+      <div class="transcript">
+        {ep.sections.map((s, i) => {
+          const chapter = s.chapter !== null ? ep.chapters[s.chapter] : undefined;
+          return (
+            <section class="transcript-section" id={s.chapter !== null ? `part-${s.chapter + 1}` : undefined} aria-label={s.title || w.part(d(i + 1))}>
+              {s.title && (
+                <h3 dir="auto">
+                  {chapter && <button type="button" class="chapter-seek" data-start={chapter.start} aria-label={w.playFrom(time(chapter.start))}><bdi class="chapter-time" dir="ltr">{time(chapter.start)}</bdi></button>}
+                  {" "}{s.title}
+                </h3>
+              )}
+              {s.turns.map((t) => (
+                <div class="turn" data-start={t.start ?? undefined} data-end={t.end ?? undefined}>
+                  {ep.portraits[t.speaker] ? (
+                    <img class="host-avatar host-avatar--xs" src={ep.portraits[t.speaker]?.src} alt="" title={ep.portraits[t.speaker]?.credit || undefined} width="32" height="32" loading="lazy" decoding="async" />
+                  ) : (
+                    <span class="host-avatar host-avatar--xs host-avatar--initial" data-speaker={ep.speakers[t.speaker]} aria-hidden="true">{initial(t.speaker)}</span>
+                  )}
+                  <p dir="auto"><strong>{t.speaker}:</strong> {t.text}</p>
+                </div>
+              ))}
+            </section>
+          );
+        })}
+      </div>
+    </section>
+  )}
+</div>
+
+<script>
+  // Transcript sync. Each turn carries its (estimated) span in data-start/data-end; the current one
+  // and its chapter are marked while the player runs. The page follows the current turn only while
+  // the reader is already looking at it and has not scrolled by hand in the last few seconds;
+  // otherwise the player's follow button brings it back. Clicking a turn (outside its links, and
+  // not while selecting text) or a chapter time plays from there.
+  const player = document.getElementById("player") as HTMLAudioElement | null;
+  const transcript = document.querySelector<HTMLElement>(".transcript");
+  const turns = [...document.querySelectorAll<HTMLElement>(".transcript .turn[data-start]")];
+  const starts = turns.map((el) => Number(el.dataset.start));
+  const chapterItems = [...document.querySelectorAll<HTMLElement>(".chapter-list li[data-start]")];
+  const follow = document.querySelector<HTMLButtonElement>("[data-pp-follow]");
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
+  const seek = (t: number) => player?.dispatchEvent(new CustomEvent("pp:seek", { detail: { t } }));
+
+  for (const b of document.querySelectorAll<HTMLButtonElement>(".chapter-seek"))
+    b.addEventListener("click", () => seek(Number(b.dataset.start) || 0));
+
+  if (player && (turns.length || chapterItems.length)) {
+    if (turns.length) transcript?.classList.add("is-synced");
+    let current = -1;
+    let handScrollAt = 0;
+    for (const ev of ["wheel", "touchmove"]) addEventListener(ev, () => (handScrollAt = Date.now()), { passive: true });
+    addEventListener("keydown", (e) => {
+      if ((e.target as HTMLElement).closest?.("button, input, select, textarea")) return; // Space on play, arrows on the scrubber
+      if (["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "].includes(e.key)) handScrollAt = Date.now();
+    });
+
+    const dockH = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--pp-dock-h")) || 0;
+    const visible = (el: HTMLElement) => {
+      const r = el.getBoundingClientRect();
+      return r.bottom > 0 && r.top < innerHeight - dockH();
+    };
+    const bringIntoView = (el: HTMLElement) =>
+      el.scrollIntoView({ block: "center", behavior: reduceMotion.matches ? "auto" : "smooth" });
+
+    // The turn whose span holds t. Sections matched to chapters by title need not be in time
+    // order, so turns are searched by span, not by a binary search over their starts.
+    const ends = turns.map((el) => Number(el.dataset.end));
+    const indexAt = (t: number) =>
+      starts.findIndex((s, k) => s <= t && t < (ends[k] ?? Number.NEGATIVE_INFINITY));
+
+    const updateFollow = () => {
+      const turn = turns[current];
+      if (follow) follow.hidden = !turn || visible(turn);
+    };
+    const update = () => {
+      const t = player.currentTime;
+      const i = indexAt(t); // -1 between untimed sections
+      if (i !== current) {
+        const was = turns[current];
+        const wasWatching = !!was && visible(was);
+        if (was) {
+          was.classList.remove("is-current");
+          was.removeAttribute("aria-current");
+        }
+        current = i;
+        const turn = turns[i];
+        if (turn) {
+          turn.classList.add("is-current");
+          turn.setAttribute("aria-current", "time");
+          if (wasWatching && !player.paused && Date.now() - handScrollAt > 4000) {
+            const r = turn.getBoundingClientRect();
+            if (r.top < 0 || r.bottom > innerHeight - dockH() - 48) bringIntoView(turn); // off screen or under the bar
+          }
+        }
+      }
+      let c = -1;
+      for (const [k, li] of chapterItems.entries()) if (Number(li.dataset.start) <= t + 0.25) c = k;
+      for (const [k, li] of chapterItems.entries()) {
+        li.classList.toggle("is-current", k === c);
+        if (k === c) li.setAttribute("aria-current", "true");
+        else li.removeAttribute("aria-current");
+      }
+      updateFollow();
+    };
+    player.addEventListener("timeupdate", update);
+    player.addEventListener("seeked", update);
+    let raf = 0;
+    addEventListener(
+      "scroll",
+      () => {
+        if (!raf)
+          raf = requestAnimationFrame(() => {
+            raf = 0;
+            updateFollow();
+          });
+      },
+      { passive: true },
+    );
+    follow?.addEventListener("click", () => {
+      handScrollAt = 0;
+      const turn = turns[current];
+      if (turn) bringIntoView(turn);
+    });
+
+    transcript?.addEventListener("click", (e) => {
+      const target = e.target as HTMLElement;
+      if (target.closest("a, button") || String(getSelection() || "")) return;
+      const turn = target.closest<HTMLElement>(".turn[data-start]");
+      if (turn) seek(Number(turn.dataset.start));
+    });
+  }
+</script>

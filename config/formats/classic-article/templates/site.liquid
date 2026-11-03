@@ -4,7 +4,8 @@
   {% for item in rendition.items %}
     <section>
       {% if item.heading %}<h2>{{ item.heading }}</h2>{% endif %}
-      {% for p in item.paragraphs %}<p>{{ p }}</p>{% endfor %}
+      {% comment %}dir="auto": an imported piece may show a section in Persian until it is translated (D169).{% endcomment %}
+      {% for p in item.paragraphs %}<p dir="auto">{{ p }}</p>{% endfor %}
     </section>
   {% endfor %}
 </article>

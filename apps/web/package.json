@@ -16,9 +16,11 @@
     "@anr/core": "workspace:*",
     "@anr/db": "workspace:*",
     "@anr/render": "workspace:*",
+    "@anr/schemas": "workspace:*",
     "@anr/storage": "workspace:*",
     "@anr/telemetry": "workspace:*",
     "@astrojs/node": "11.1.9",
+    "@shabboo/kit": "^0.4.2",
     "astro": "7.4.4"
   },
   "devDependencies": {

@@ -59,7 +59,9 @@ export async function measures(client: Client, weeks: number) {
        from n, generate_series(date_trunc('week', now() at time zone n.tz) - make_interval(weeks => $1 - 1),
                                date_trunc('week', now() at time zone n.tz), interval '7 days') d)
      select w.week::text as week,
-       (select count(*)::int from publications p where ${IN_WEEK("p.published_at")}) as published,
+       -- Imported pieces (D172) never went through the pipeline or the gate.
+       (select count(*)::int from publications p
+        where ${IN_WEEK("p.published_at")} and p.origin = 'pipeline') as published,
        g.gated, g.held,
        (select count(*)::int from sample_reviews s
         where s.outcome is not null and ${IN_WEEK("s.sampled_at")}) as samples_reviewed,
@@ -81,7 +83,8 @@ export async function measures(client: Client, weeks: number) {
      cross join lateral (
        select count(*)::int as gated, count(*) filter (where ${HELD})::int as held
        from publications p
-       where ${IN_WEEK("p.slot")} and p.status not in ('assigned', 'drafted')) g
+       where ${IN_WEEK("p.slot")} and p.status not in ('assigned', 'drafted')
+         and p.origin = 'pipeline') g
      order by w.week desc`,
     [weeks, DECISION_WINDOW_MINUTES],
   );
