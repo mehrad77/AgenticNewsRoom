@@ -1,3 +1,4 @@
+import { itemHash } from "@anr/core";
 import { describe, expect, it } from "vitest";
 import { itemsOf, linksOf, nameIndex, timelineSeriesOf } from "./timeline.ts";
 
@@ -29,6 +30,17 @@ const piece = {
 };
 
 describe("itemsOf", () => {
+  it("label an imported item until the gate checked it as it reads now (D184)", () => {
+    const [first] = piece.items;
+    const checked = { "items.0": itemHash(first as Record<string, unknown>), "items.2": "stale" };
+    const out = itemsOf({ ...piece, checked }, "fa", () => undefined);
+    expect(out.map((e) => e.origin)).toEqual(["pipeline", "imported"]);
+    expect(itemsOf(piece, "fa", () => undefined).map((e) => e.origin)).toEqual([
+      "imported",
+      "imported",
+    ]);
+  });
+
   it("makes each news item a timeline entry linked to its piece", () => {
     const out = itemsOf(piece, "fa", (id) => (id === "c1" ? "https://lead.example/1" : undefined));
     expect(out).toHaveLength(2);

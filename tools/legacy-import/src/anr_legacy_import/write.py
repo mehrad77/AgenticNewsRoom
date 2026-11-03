@@ -11,7 +11,7 @@ from psycopg.types.json import Jsonb
 from .art import Art, store_art
 from .images import store_images
 from .mapping import Entry
-from .pieces import CLASSIC_SERIES, Piece, classic_pieces, news_issues
+from .pieces import CLASSIC_SERIES, Piece, classic_pieces, keep_claims, news_issues
 from .podcasts import Episode, write_episodes
 from .slots import pipeline_holds
 
@@ -186,8 +186,14 @@ def write_pieces(conn: psycopg.Connection[Any], newsroom_id: object, pieces: lis
         assignment = conn.execute(ASSIGNMENT, (newsroom_id, series_id, p.slot)).fetchone()
         assert assignment
         conn.execute(STORY, {"n": newsroom_id, "a": assignment[0]})
+        before = conn.execute(
+            "select r.body from renditions r join stories s on s.id = r.story_id"
+            " where s.assignment_id = %s and r.format_id = %s and r.language = %s",
+            (assignment[0], format_id, p.language),
+        ).fetchone()
+        body = keep_claims(before[0] if before else None, p.body)
         rendition = conn.execute(
-            RENDITION, (newsroom_id, format_id, p.language, Jsonb(p.body), assignment[0])
+            RENDITION, (newsroom_id, format_id, p.language, Jsonb(body), assignment[0])
         ).fetchone()
         assert rendition
         publication = conn.execute(

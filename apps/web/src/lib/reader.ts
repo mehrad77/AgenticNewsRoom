@@ -1,7 +1,7 @@
 // What a reader site reads from Postgres. Every query runs inside withNewsroom() as the app role,
 // and every one is limited to published and corrected publications: row-level security separates
 // newsrooms, not drafts from published pieces.
-import type { Language } from "@anr/core";
+import { itemHash, itemPaths, type Language } from "@anr/core";
 import { type Pool, withNewsroom } from "@anr/db";
 import { type MediaContext, mediaContext } from "@anr/render";
 import type { ReferenceSchema } from "@anr/schemas";
@@ -161,6 +161,15 @@ export function search(pool: Pool, newsroomId: string, language: Language, query
   });
 }
 
+/** Whether the gate checked every item of an imported piece as it reads now (D184). */
+export function allChecked(
+  body: Record<string, unknown>,
+  checked: Record<string, string>,
+): boolean {
+  const items = itemPaths(body);
+  return items.length > 0 && items.every(([path, item]) => checked[path] === itemHash(item));
+}
+
 /** One publication by its path, with everything its page, JSON-LD and ninjs twin need. */
 export function publicationByPath(
   pool: Pool,
@@ -185,9 +194,12 @@ export function publicationByPath(
       media_topics: string[] | null;
       body: Record<string, unknown> | null;
       origin: string;
+      checked: Record<string, string> | null;
       paths: Partial<Record<Language, string>>;
     }>(
       `select p.id, p.title, p.path, p.published_at, p.status, p.edited, p.origin,
+              (select jsonb_object_agg(ci.item, ci.text_hash) from checked_items ci
+               where ci.publication_id = p.id) as checked,
               (select jsonb_object_agg(o.language, o.path) from publications o
                where o.series_id = p.series_id and o.slot = p.slot and o.${VISIBLE}) as paths,
               s.slug as series, s.config->'name' as series_name,
@@ -244,7 +256,7 @@ export function publicationByPath(
       rendition: p.body,
       leads: Object.fromEntries(leads.map((l) => [l.id, { url: l.uri, headline: l.headline }])),
       media: await mediaContext(c, p.body, ""),
-      imported: p.origin === "imported",
+      imported: p.origin === "imported" && !allChecked(p.body, p.checked ?? {}),
       paths: p.paths,
       corrections: corrections.map((x) => ({
         id: x.id,

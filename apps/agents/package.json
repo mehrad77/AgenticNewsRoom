@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "node --env-file-if-exists=../../.env --import @anr/telemetry/register --watch src/worker.ts",
     "start": "node --env-file-if-exists=../../.env --import @anr/telemetry/register src/worker.ts",
+    "recheck": "node --env-file-if-exists=../../.env src/recheck/cli.ts",
     "typecheck": "tsc -p .",
     "test": "vitest run"
   },

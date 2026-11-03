@@ -1,5 +1,5 @@
 from anr_legacy_import.mapping import Entry
-from anr_legacy_import.pieces import classic_pieces, news_issues
+from anr_legacy_import.pieces import classic_pieces, keep_claims, news_issues
 
 
 def news(legacy: str, day: str, title: str, **facts: object) -> Entry:
@@ -87,3 +87,23 @@ def test_a_posted_classic_becomes_a_piece_on_its_posted_day() -> None:
     assert pieces[0].body["paper"] == "x"
     # No English yet: the English piece shows the Persian text under English headings.
     assert pieces[1].body["items"][1]["heading"] == "Why"
+
+
+def test_keep_claims_on_unchanged_items_only() -> None:
+    old = {
+        "items": [
+            {"anchor": "a", "headline": "A", "body": "One.", "claim_ids": ["c1", "c2"]},
+            {"anchor": "b", "headline": "B", "body": "Two.", "claim_ids": ["c3"]},
+        ]
+    }
+    new = {
+        "title": "T",
+        "items": [
+            {"anchor": "a", "headline": "A", "body": "One.", "claim_ids": []},
+            {"anchor": "b", "headline": "B", "body": "Two, changed.", "claim_ids": []},
+        ],
+    }
+    out = keep_claims(old, new)
+    assert [i["claim_ids"] for i in out["items"]] == [["c1", "c2"], []]
+    assert out["title"] == "T"
+    assert keep_claims(None, new) is new

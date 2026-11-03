@@ -268,6 +268,14 @@ def test_an_image_id_is_not_item_text() -> None:
     assert [c.result for c in items.item_claims(bundle([claim()], [shown]))] == ["pass"]
 
 
+def test_an_items_source_links_are_not_item_text() -> None:
+    linked = news("c1") | {
+        "url": "https://lab.example/orbit",
+        "links": [{"url": "https://docs.example/a", "label": "Docs"}],
+    }
+    assert [c.result for c in items.item_claims(bundle([claim()], [linked]))] == ["pass"]
+
+
 def test_items_show_only_licensed_credited_media() -> None:
     shown = [
         news("c1") | {"media_id": "m-ok"},

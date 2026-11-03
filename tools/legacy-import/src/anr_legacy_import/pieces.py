@@ -174,3 +174,19 @@ def classic_pieces(
                 )
             )
     return out
+
+
+def keep_claims(old: dict[str, Any] | None, new: dict[str, Any]) -> dict[str, Any]:
+    """A re-imported body with the claims the recheck wrote (D184) kept on every item whose text is
+    unchanged; an item whose text changed starts with none, so it is checked again."""
+    if not old:
+        return new
+
+    def key(item: dict[str, Any]) -> tuple[object, ...]:
+        return (item.get("anchor"), item.get("headline"), item.get("body"))
+
+    kept = {key(i): i.get("claim_ids", []) for i in old.get("items", []) if isinstance(i, dict)}
+    items = [
+        {**i, "claim_ids": kept.get(key(i)) or i.get("claim_ids", [])} for i in new.get("items", [])
+    ]
+    return {**new, "items": items}
