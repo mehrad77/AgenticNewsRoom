@@ -51,6 +51,9 @@ export interface ReferenceWords {
   references: string;
   citedBy: string;
   linkedFrom: string;
+  /** Opens the rest of a long group under "In this Reference"; `n` is already formatted. */
+  showAll: (n: string) => string;
+  showFewer: string;
   sources: string;
   links: string;
   newer: string;
@@ -114,6 +117,8 @@ const en: ReferenceWords = {
   references: "What it cites that is in this Reference or the channel",
   citedBy: "What in this Reference builds on it",
   linkedFrom: "In this Reference",
+  showAll: (n) => `Show all ${n}`,
+  showFewer: "Show fewer",
   sources: "Sources",
   links: "Links",
   newer: "Newer",
@@ -174,6 +179,8 @@ const fa: ReferenceWords = {
   references: "ارجاع‌هایی که در این مرجع یا کانال آمده‌اند",
   citedBy: "آنچه در این مرجع بر پایه‌ی آن است",
   linkedFrom: "در این مرجع",
+  showAll: (n) => `نمایش همه‌ی ${n} مورد`,
+  showFewer: "نمایش کمتر",
   sources: "منابع",
   links: "پیوندها",
   newer: "تازه‌تر",
@@ -215,6 +222,8 @@ const tr: ReferenceWords = {
   excerpts: "Alıntılar",
   relatedWorks: "İlgili",
   linkedFrom: "Bu başvuruda",
+  showAll: (n) => `${n} kaydın tümünü göster`,
+  showFewer: "Daha az göster",
   sources: "Kaynaklar",
   links: "Bağlantılar",
   newer: "Daha yeni",

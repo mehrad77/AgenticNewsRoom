@@ -1,0 +1,37 @@
+---
+// One group's entries under "In this Reference" (Incoming.astro), drawn by its kind's layout.
+import type { Language } from "@anr/core";
+import { type Entry, type EntryImage, entryName, linkedOrNull, type OutLink } from "../../lib/reference.ts";
+import { nameOf } from "../../lib/reference-config.ts";
+import type { Incoming } from "../../lib/reference-page.ts";
+import type { ReferenceWords } from "../../lib/reference-words.ts";
+import DocumentTile from "./DocumentTile.astro";
+import TimelineItem from "./TimelineItem.astro";
+
+interface Props {
+  group: Incoming;
+  entries: Entry[];
+  links: Map<string, OutLink[]>;
+  targetImages: Map<string, EntryImage>;
+  language: Language;
+  words: ReferenceWords;
+  entryUrl: (kind: string, slug: string) => string | null;
+  url: (path: string) => string;
+}
+const { group: g, entries, links, targetImages, language, words: w, entryUrl, url } = Astro.props;
+const filterUrl = (fact: string, value: string) => `${url(g.path)}?${fact}=${encodeURIComponent(value)}`;
+const href = (e: Entry) => entryUrl(e.kind, e.slug) ?? "#";
+---
+{g.kind.layout === "timeline" ? (
+  <ol class="ref-list">
+    {entries.map((e) => (
+      <TimelineItem targetImages={targetImages} entry={e} language={language} words={w} kind={g.kind} outLinks={linkedOrNull(links, e.id)} entryUrl={entryUrl} filterUrl={filterUrl} url={url} />
+    ))}
+  </ol>
+) : g.kind.layout === "document" ? (
+  <ul class="ref-tiles">
+    {entries.map((e) => <DocumentTile entry={e} language={language} kind={g.kind} label={nameOf(g.kind.one, language)} href={href(e)} />)}
+  </ul>
+) : (
+  <ul>{entries.map((e) => <li><a href={href(e)} dir="auto">{entryName(e, language)}</a></li>)}</ul>
+)}

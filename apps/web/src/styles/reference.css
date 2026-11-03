@@ -700,3 +700,37 @@ main > h1,
 [dir="rtl"] .front-more::after {
   content: " ‹";
 }
+
+/* ---------------------------------------------------------------- "In this Reference" */
+/* Jump links to each group, and a long group's "Show all" (Incoming.astro). */
+.ref-jump {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  margin-block: var(--space-3) 0;
+  font-size: var(--step--1);
+}
+.ref-jump a {
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+}
+.ref-jump .ref-muted {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.ref-more {
+  margin-block-start: var(--space-4);
+}
+.ref-more > summary {
+  inline-size: fit-content;
+  color: var(--text-accent);
+  font-size: var(--step--1);
+  cursor: pointer;
+}
+.ref-more[open] > summary {
+  margin-block-end: var(--space-4);
+}
+.ref-more[open] > summary .ref-more-closed,
+.ref-more:not([open]) > summary .ref-more-open {
+  display: none;
+}

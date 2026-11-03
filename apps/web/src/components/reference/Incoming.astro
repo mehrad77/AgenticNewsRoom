@@ -1,19 +1,13 @@
 ---
 // What in the Reference points at an entry, grouped by kind (D170): timeline items as on their
-// timeline, documents as tiles, profiles as links.
+// timeline, documents as tiles, profiles as links. A long group shows its first few and keeps the
+// rest behind "Show all"; with several groups, links at the top jump to each.
 import type { Language } from "@anr/core";
-import {
-  type Entry,
-  type EntryImage,
-  entryName,
-  linkedOrNull,
-  type OutLink,
-} from "../../lib/reference.ts";
+import type { EntryImage, OutLink } from "../../lib/reference.ts";
 import { nameOf, type ReferenceConfig } from "../../lib/reference-config.ts";
 import type { Incoming } from "../../lib/reference-page.ts";
 import type { ReferenceWords } from "../../lib/reference-words.ts";
-import DocumentTile from "./DocumentTile.astro";
-import TimelineItem from "./TimelineItem.astro";
+import IncomingList from "./IncomingList.astro";
 
 interface Props {
   groups: Incoming[];
@@ -26,28 +20,30 @@ interface Props {
   url: (path: string) => string;
 }
 const { groups, links, targetImages, language, words: w, entryUrl, url } = Astro.props;
-const filterUrl = (path: string) => (fact: string, value: string) =>
-  `${url(path)}?${fact}=${encodeURIComponent(value)}`;
-const href = (e: Entry) => entryUrl(e.kind, e.slug) ?? "#";
+const count = (n: number) => new Intl.NumberFormat(language).format(n);
+// How many of a group show before "Show all", by layout.
+const SHOWN: Record<string, number> = { timeline: 5, document: 6 };
+const shown = (g: Incoming) => SHOWN[g.kind.layout ?? ""] ?? 12;
+const id = (g: Incoming) => `in-${g.kindKey}`;
+const list = { links, targetImages, language, words: w, entryUrl, url };
 ---
 {groups.length > 0 && (
   <section>
     <h2>{w.linkedFrom}</h2>
+    {groups.length > 1 && (
+      <nav class="ref-jump" aria-label={w.linkedFrom}>
+        {groups.map((g) => <a href={`#${id(g)}`}>{nameOf(g.kind.name, language)} <span class="ref-muted">{count(g.entries.length)}</span></a>)}
+      </nav>
+    )}
     {groups.map((g) => (
-      <section class="ref-group">
-        <h3>{nameOf(g.kind.name, language)} <span class="ref-muted">{g.entries.length}</span></h3>
-        {g.kind.layout === "timeline" ? (
-          <ol class="ref-list">
-            {g.entries.map((e) => (
-              <TimelineItem targetImages={targetImages} entry={e} language={language} words={w} kind={g.kind} outLinks={linkedOrNull(links, e.id)} entryUrl={entryUrl} filterUrl={filterUrl(g.path)} url={url} />
-            ))}
-          </ol>
-        ) : g.kind.layout === "document" ? (
-          <ul class="ref-tiles">
-            {g.entries.map((e) => <DocumentTile entry={e} language={language} kind={g.kind} label={nameOf(g.kind.one, language)} href={href(e)} />)}
-          </ul>
-        ) : (
-          <ul>{g.entries.map((e) => <li><a href={href(e)} dir="auto">{entryName(e, language)}</a></li>)}</ul>
+      <section class="ref-group" id={id(g)}>
+        <h3>{nameOf(g.kind.name, language)} <span class="ref-muted">{count(g.entries.length)}</span></h3>
+        <IncomingList group={g} entries={g.entries.slice(0, shown(g))} {...list} />
+        {g.entries.length > shown(g) && (
+          <details class="ref-more">
+            <summary><span class="ref-more-closed">{w.showAll(count(g.entries.length))}</span><span class="ref-more-open">{w.showFewer}</span></summary>
+            <IncomingList group={g} entries={g.entries.slice(shown(g))} {...list} />
+          </details>
         )}
       </section>
     ))}
