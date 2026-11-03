@@ -1,6 +1,8 @@
 // The fact-checker's and item matcher's graph: one question with a fresh context, the model's
 // verdict parsed by code, one retry when it does not parse, else an error. The checker never sees
 // the draft or the writer's reasoning, only what one check needs (technical design, D80).
+
+import { tracedNode } from "@anr/models";
 import { type BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
 import { z } from "zod";
@@ -21,16 +23,22 @@ const State = Annotation.Root({
 
 export function verdictGraph(model: ChatLike, parse: Parse) {
   return new StateGraph(State)
-    .addNode("ask", async (state) => {
-      const retry = state.attempts === 0 ? [] : [new HumanMessage(retryPrompt([state.error]))];
-      const reply = await model.invoke([...state.messages, ...retry]);
-      return { messages: [...retry, reply], attempts: state.attempts + 1 };
-    })
-    .addNode("parse", async (state) => {
-      const value = parseJson(textOf(state.messages.at(-1)));
-      const parsed = typeof value === "string" ? value : parse(value);
-      return typeof parsed === "string" ? { error: parsed } : { verdict: parsed, error: "" };
-    })
+    .addNode(
+      "ask",
+      tracedNode("verdict", "ask", async (state: typeof State.State) => {
+        const retry = state.attempts === 0 ? [] : [new HumanMessage(retryPrompt([state.error]))];
+        const reply = await model.invoke([...state.messages, ...retry]);
+        return { messages: [...retry, reply], attempts: state.attempts + 1 };
+      }),
+    )
+    .addNode(
+      "parse",
+      tracedNode("verdict", "parse", async (state: typeof State.State) => {
+        const value = parseJson(textOf(state.messages.at(-1)));
+        const parsed = typeof value === "string" ? value : parse(value);
+        return typeof parsed === "string" ? { error: parsed } : { verdict: parsed, error: "" };
+      }),
+    )
     .addEdge(START, "ask")
     .addEdge("ask", "parse")
     .addConditionalEdges("parse", (s) => (s.verdict || s.attempts >= 2 ? END : "ask"))

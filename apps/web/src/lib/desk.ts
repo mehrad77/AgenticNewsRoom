@@ -379,6 +379,34 @@ export function challengeIssueLink(base: string, newsroom: string, c: ChallengeD
   return url.toString();
 }
 
+/**
+ * Grafana's view of a publication's trace (D137), at ops. behind Access; dev's Grafana is on
+ * localhost:3000 (`pnpm telemetry:up`).
+ */
+export function traceLink(rootDomain: string, traceId: string): string {
+  const base = rootDomain === "localhost" ? "http://localhost:3000" : `https://ops.${rootDomain}`;
+  const url = new URL("/explore", base);
+  url.searchParams.set("schemaVersion", "1");
+  url.searchParams.set(
+    "panes",
+    JSON.stringify({
+      trace: {
+        datasource: "tempo",
+        queries: [
+          {
+            refId: "A",
+            datasource: { type: "tempo", uid: "tempo" },
+            queryType: "traceql",
+            query: traceId,
+          },
+        ],
+        range: { from: "now-30d", to: "now" },
+      },
+    }),
+  );
+  return url.toString();
+}
+
 /** A link only for http(s) addresses: stored URLs come from feeds and editors (no `javascript:`). */
 export const safeHref = (url: string | null | undefined) =>
   url && /^https?:\/\//i.test(url) ? url : undefined;

@@ -4,3 +4,4 @@ export * from "./errors.ts";
 export * from "./gateway.ts";
 export * from "./limits.ts";
 export * from "./probe.ts";
+export * from "./telemetry.ts";

@@ -5,7 +5,7 @@
 // checks the episode like any story, and one renderer run per language writes the script. No
 // model is asked anything here, and nothing is researched again.
 import { type AssignJob, localDay, nextWeekly } from "@anr/core";
-import { type Client, type Pool, withNewsroom } from "@anr/db";
+import { type Client, type Pool, traceparent, withNewsroom } from "@anr/db";
 import type { PgBoss } from "pg-boss";
 import { type AssignOutcome, noticeUnassigned } from "../assign.ts";
 import type { ModelRouter } from "../router.ts";
@@ -168,9 +168,9 @@ export async function assignEpisode(
     const assignmentId = made[0]?.id;
     if (!assignmentId) return { kind: "exists", slot: at };
     await client.query(
-      `insert into publications (newsroom_id, series_id, assignment_id, slot, language)
-       select anr.current_newsroom_id(), $1, $2, $3, unnest($4::text[])`,
-      [job.seriesId, assignmentId, at, series.languages],
+      `insert into publications (newsroom_id, series_id, assignment_id, slot, language, traceparent)
+       select anr.current_newsroom_id(), $1, $2, $3, unnest($4::text[]), $5`,
+      [job.seriesId, assignmentId, at, series.languages, traceparent()],
     );
     const { rows: story } = await client.query<{ id: string }>(
       `insert into stories (newsroom_id, assignment_id, summary)

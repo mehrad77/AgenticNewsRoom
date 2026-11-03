@@ -1,8 +1,10 @@
 import type { MembershipRole } from "@anr/core";
 import { type Client, type PlatformKey, type Pool, withNewsroom } from "@anr/db";
 import { createRenderer } from "@anr/render";
+import { setHttpRoute } from "@anr/telemetry";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import { type Context, Hono } from "hono";
+import { routePath } from "hono/route";
 import type { PgBoss } from "pg-boss";
 import { ACCESS_HEADER, type VerifyAccess } from "./desk/access.ts";
 import { budget } from "./desk/budget.ts";
@@ -125,6 +127,20 @@ function id(c: Context, name: string): string {
 
 export function createApp(deps?: DeskDeps) {
   const app = new Hono<Env>();
+
+  // Each request's trace and duration metric are named by its route, and one line per request
+  // carries its trace id, so the line opens the trace in Grafana (D137). It names no person or
+  // address.
+  app.use(async (c, next) => {
+    const started = performance.now();
+    await next();
+    if (c.req.path === "/healthz") return;
+    const route = routePath(c, -1);
+    setHttpRoute(route);
+    console.log(
+      `[api] ${c.req.method} ${route} ${c.res.status} ${Math.round(performance.now() - started)} ms`,
+    );
+  });
 
   app.get("/healthz", (c) => c.json<Health>({ status: "ok", service: "api" }));
 

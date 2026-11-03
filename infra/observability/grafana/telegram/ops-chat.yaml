@@ -1,0 +1,26 @@
+# The ops chat (D140): every alert goes to the operator's Telegram chat through the ops bot, which
+# is not a newsroom Channel. start.sh adds this file to Grafana's provisioning only when both
+# settings are set; Grafana fills them in from the environment, so no secret is in a file.
+apiVersion: 1
+contactPoints:
+  - orgId: 1
+    name: ops-telegram
+    receivers:
+      - uid: ops-telegram
+        type: telegram
+        settings:
+          bottoken: ${ANR_OPS_TELEGRAM_BOT_TOKEN}
+          chatid: ${ANR_OPS_TELEGRAM_CHAT_ID}
+        disableResolveMessage: false
+policies:
+  - orgId: 1
+    receiver: ops-telegram
+    group_by: [alertname]
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 4h
+    # A warning (a half-spent budget, a hold spike, low disk) may hold for days: once a day.
+    routes:
+      - receiver: ops-telegram
+        object_matchers: [["severity", "=", "warning"]]
+        repeat_interval: 24h

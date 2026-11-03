@@ -18,11 +18,13 @@
   },
   "dependencies": {
     "@anr/core": "workspace:*",
+    "@opentelemetry/api": "1.10.0",
     "pg": "8.23.1",
     "pg-boss": "12.38.0"
   },
   "devDependencies": {
     "@anr/schemas": "workspace:*",
+    "@anr/telemetry": "workspace:*",
     "@types/node": "24.19.2",
     "@types/pg": "8.23.1",
     "dbmate": "2.37.0",

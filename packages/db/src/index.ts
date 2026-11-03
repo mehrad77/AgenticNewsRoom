@@ -62,3 +62,4 @@ export {
 } from "./heartbeat.ts";
 export { DRAIN_POLL_MS, drainControl, isPaused } from "./ops.ts";
 export { findTenancyProblems, PLATFORM_TABLES } from "./tenancy.ts";
+export { inStoredTrace, linkTo, traceparent } from "./trace.ts";

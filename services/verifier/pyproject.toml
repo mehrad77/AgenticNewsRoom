@@ -7,6 +7,7 @@ dependencies = [
     "fastapi>=0.162",
     "uvicorn>=0.54",
     "anr-schemas",
+    "anr-telemetry",
     "psycopg[binary]>=3.3.6",
     "psycopg-pool>=3.3.3",
     "pyyaml>=6.0",
@@ -14,6 +15,7 @@ dependencies = [
 
 [tool.uv.sources]
 anr-schemas = { workspace = true }
+anr-telemetry = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

@@ -8,6 +8,7 @@ import {
 import type { Catalog, CatalogEntry } from "./catalog.ts";
 import { AllModelsExhausted, type Attempt, classify, ModelCallFailed } from "./errors.ts";
 import { LimitTracker, UNAVAILABLE_COOLDOWN_MS } from "./limits.ts";
+import { chatSpan } from "./telemetry.ts";
 
 export interface ChatRequest extends InvokeOptions {
   /** Catalog ids in order, from the router. */
@@ -56,11 +57,24 @@ export class ModelGateway {
     this.#log = options.log ?? ((line) => console.warn(`[models] ${line}`));
   }
 
-  async chat(req: ChatRequest): Promise<ChatResult> {
+  /** One call through the chain: a `chat` span with its fallbacks as attributes (D138). */
+  chat(req: ChatRequest): Promise<ChatResult> {
     const order =
       req.sticky && req.chain.includes(req.sticky)
         ? [req.sticky, ...req.chain.filter((id) => id !== req.sticky)]
         : [...req.chain];
+    const first = this.#catalog.entries.get(order[0] ?? "");
+    return chatSpan(
+      {
+        provider: first?.provider ?? "unknown",
+        model: first?.model ?? "unknown",
+        chain: req.chain,
+      },
+      () => this.#chat(req, order),
+    );
+  }
+
+  async #chat(req: ChatRequest, order: string[]): Promise<ChatResult> {
     const attempts: Attempt[] = [];
     for (const id of order) {
       const entry = this.#entry(id);

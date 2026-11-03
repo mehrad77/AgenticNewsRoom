@@ -2,6 +2,7 @@
 // request a source through ingestion, submit. Nothing else is reachable from a graph: no web, no
 // send, no other write. Research tools are bound to models; code calls submit after validation.
 import type { Pool } from "@anr/db";
+import { executeTool } from "@anr/models";
 import { type StructuredToolInterface, tool } from "@langchain/core/tools";
 import { z } from "zod";
 import type { IngestionClient } from "../ingest.ts";
@@ -89,7 +90,7 @@ export function researchTools(ctx: ToolContext): StructuredToolInterface[] {
  * make has one definition and one name.
  */
 export function submitTool<T>(handler: SubmitHandler<T>): StructuredToolInterface {
-  return tool(async ({ draft }) => handler(draft as T), {
+  return tool(async ({ draft }) => executeTool("submit", undefined, () => handler(draft as T)), {
     name: "submit",
     description: "Submit the validated draft. Ends the run.",
     schema: z.object({ draft: z.unknown() }),

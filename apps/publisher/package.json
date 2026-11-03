@@ -7,8 +7,8 @@
     "./publish": "./src/publish.ts"
   },
   "scripts": {
-    "dev": "node --env-file-if-exists=../../.env --watch src/worker.ts",
-    "start": "node --env-file-if-exists=../../.env src/worker.ts",
+    "dev": "node --env-file-if-exists=../../.env --import @anr/telemetry/register --watch src/worker.ts",
+    "start": "node --env-file-if-exists=../../.env --import @anr/telemetry/register src/worker.ts",
     "typecheck": "tsc -p .",
     "test": "vitest run",
     "cues": "node scripts/cues.ts",
@@ -20,6 +20,7 @@
     "@anr/models": "workspace:*",
     "@anr/render": "workspace:*",
     "@anr/storage": "workspace:*",
+    "@anr/telemetry": "workspace:*",
     "pg-boss": "12.38.0",
     "yaml": "2.9.1"
   },

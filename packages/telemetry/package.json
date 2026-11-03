@@ -1,0 +1,43 @@
+{
+  "name": "@anr/telemetry",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./register": "./src/register.ts",
+    "./testing": "./src/testing.ts"
+  },
+  "scripts": {
+    "lint": "uv run --frozen ruff check python && uv run --frozen ruff format --check python",
+    "typecheck": "tsc -p . && uv run --frozen mypy python/anr_telemetry",
+    "test": "vitest run",
+    "gen": "node ops/gen.ts"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "1.10.0",
+    "@opentelemetry/context-async-hooks": "3.0.0",
+    "@opentelemetry/core": "3.0.0",
+    "@opentelemetry/exporter-logs-otlp-proto": "0.300.0",
+    "@opentelemetry/exporter-metrics-otlp-proto": "0.300.0",
+    "@opentelemetry/exporter-trace-otlp-proto": "0.300.0",
+    "@opentelemetry/instrumentation": "0.300.0",
+    "@opentelemetry/instrumentation-http": "0.300.0",
+    "@opentelemetry/instrumentation-pg": "0.77.0",
+    "@opentelemetry/instrumentation-runtime-node": "0.37.0",
+    "@opentelemetry/instrumentation-undici": "0.34.0",
+    "@opentelemetry/resources": "3.0.0",
+    "@opentelemetry/sdk-logs": "3.0.0",
+    "@opentelemetry/sdk-metrics": "3.0.0",
+    "@opentelemetry/sdk-node": "0.300.0",
+    "@opentelemetry/sdk-trace": "3.0.0",
+    "@opentelemetry/semantic-conventions": "1.44.0",
+    "import-in-the-middle": "3.5.3"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "typescript": "5.9.3",
+    "vitest": "5.0.5",
+    "yaml": "2.9.1"
+  }
+}

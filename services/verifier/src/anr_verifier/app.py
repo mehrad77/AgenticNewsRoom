@@ -14,6 +14,7 @@ from psycopg_pool import ConnectionPool
 
 from anr_schemas.config.verify_request import VerifyRequest
 from anr_schemas.config.verify_result import VerifyResult
+from anr_telemetry import setup as setup_telemetry
 from anr_verifier.db import Conn, create_pool
 from anr_verifier.heartbeat import start_heartbeat
 from anr_verifier.verify import StoryNotFound, verify
@@ -41,6 +42,9 @@ def create_app(pool: ConnectionPool[Conn] | None = None, config_dir: Path | None
             app.state.pool.close()
 
     app = FastAPI(title="ANR verifier", docs_url=None, redoc_url=None, lifespan=lifespan)
+    # Only the service's own run is traced (D137); tests bring their own pool.
+    if pool is None:
+        setup_telemetry("verifier", app)
     configs = config_dir or Path(os.environ.get("ANR_CONFIG_DIR") or REPO / "config")
 
     @app.get("/healthz")

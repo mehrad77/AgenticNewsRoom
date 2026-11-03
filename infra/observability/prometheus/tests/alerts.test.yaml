@@ -1,0 +1,293 @@
+# promtool tests: every alert of packages/telemetry/ops/rules.ts fires on its test data and stays
+# quiet on healthy data (infra/observability/check-rules.sh). Times count from the Unix epoch.
+rule_files:
+  - ../rules/slo.yaml
+  - ../alerts/alerts.yaml
+evaluation_interval: 1m
+
+tests:
+  - name: a missed slot alerts at once, per newsroom
+    interval: 1m
+    input_series:
+      - series: 'anr_slots_total{anr_newsroom="ai", anr_slot_outcome="missed"}'
+        values: "0x10 1x20"
+      - series: 'anr_slots_total{anr_newsroom="kultur", anr_slot_outcome="missed"}'
+        values: "0x30"
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: SlotMissed
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: SlotMissed
+        exp_alerts:
+          - exp_labels: { severity: critical, anr_newsroom: ai }
+            exp_annotations: { summary: "ai missed a slot: see the desk's notices" }
+      - eval_time: 30m
+        alertname: SlotMissed
+        exp_alerts: []
+
+  - name: half the slots' error budget spent
+    interval: 1h
+    input_series:
+      # ai: 18 on time, 2 late over two days, 10% bad against a 5% budget.
+      - series: 'anr_slots_total{anr_newsroom="ai", anr_slot_outcome="on-time"}'
+        values: "0+0.375x48"
+      - series: 'anr_slots_total{anr_newsroom="ai", anr_slot_outcome="late"}'
+        values: "0x24 1x12 2x12"
+      # kultur: 99 on time, 1 missed: 1% bad.
+      - series: 'anr_slots_total{anr_newsroom="kultur", anr_slot_outcome="on-time"}'
+        values: "0+2.0625x48"
+      - series: 'anr_slots_total{anr_newsroom="kultur", anr_slot_outcome="missed"}'
+        values: "0x24 1x24"
+    promql_expr_test:
+      - expr: round(anr:slots:budget_spent28d, 0.1)
+        eval_time: 48h
+        exp_samples:
+          - labels: '{anr_newsroom="ai"}'
+            value: 2
+          - labels: '{anr_newsroom="kultur"}'
+            value: 0.2
+    alert_rule_test:
+      - eval_time: 48h
+        alertname: SlotsErrorBudgetHalfSpent
+        exp_alerts:
+          - exp_labels: { severity: warning, anr_newsroom: ai }
+            exp_annotations:
+              summary: "ai has spent half its 28-day budget of late and missed slots"
+
+  - name: WAL archiving stopped burns the budget fast
+    interval: 1m
+    input_series:
+      - series: "anr_wal_ok"
+        values: "1x60 0x70"
+    alert_rule_test:
+      - eval_time: 60m
+        alertname: WalArchiveBurnFast
+        exp_alerts: []
+      - eval_time: 75m
+        alertname: WalArchiveBurnFast
+        exp_alerts:
+          - exp_labels: { severity: critical }
+            exp_annotations:
+              summary: "WAL archiving burns its error budget 14.4 times too fast (1 h and 5 min)"
+
+  - name: one bad minute in twenty burns the budget slowly, not fast
+    interval: 1m
+    input_series:
+      - series: "anr_wal_ok"
+        values: "1x18 0 1x18 0 1x18 0 1x18 0 1x18 0 1x18 0 1x18 0 1x18 0 1x18 0 1x18 0 1x18 0 1x18 0 1x18 0 1x18 0 1x18 0 1x18 0 1x18 0 1x18 0 1x18 0 1x18 0 1x18 0 1x18 0 1x18 0 1x18 0"
+    alert_rule_test:
+      - eval_time: 7h50m
+        alertname: WalArchiveBurnSlow
+        exp_alerts:
+          - exp_labels: { severity: warning }
+            exp_annotations:
+              summary: "WAL archiving burns its error budget 6 times too fast (6 h and 30 min)"
+      - eval_time: 7h50m
+        alertname: WalArchiveBurnFast
+        exp_alerts: []
+
+  - name: healthy WAL archiving burns nothing
+    interval: 1m
+    input_series:
+      - series: "anr_wal_ok"
+        values: "1x500"
+    alert_rule_test:
+      - eval_time: 8h
+        alertname: WalArchiveBurnSlow
+        exp_alerts: []
+      - eval_time: 8h
+        alertname: WalArchiveBurnFast
+        exp_alerts: []
+
+  - name: a failed backup check
+    interval: 1m
+    input_series:
+      - series: 'anr_backup_last_ok{anr_backup_kind="check"}'
+        values: "1x5 0x5"
+      - series: 'anr_backup_last_ok{anr_backup_kind="full"}'
+        values: "0x10"
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: BackupCheckFailed
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: BackupCheckFailed
+        exp_alerts:
+          - exp_labels: { severity: critical }
+            exp_annotations: { summary: "The latest backup check failed" }
+
+  - name: no successful backup check for an hour
+    interval: 1m
+    input_series:
+      # The last success at the epoch; gauges flowing.
+      - series: 'anr_backup_last_success_seconds{anr_backup_kind="check"}'
+        values: "0x120"
+      - series: "anr_gauges_collected_seconds"
+        values: "0+60x120"
+    alert_rule_test:
+      - eval_time: 50m
+        alertname: BackupCheckMissing
+        exp_alerts: []
+      - eval_time: 70m
+        alertname: BackupCheckMissing
+        exp_alerts:
+          - exp_labels: { severity: critical }
+            exp_annotations: { summary: "No backup check has succeeded for an hour" }
+
+  - name: no backup check ever, while the gauges report
+    interval: 1m
+    input_series:
+      - series: "anr_gauges_collected_seconds"
+        values: "0+60x20"
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: BackupCheckMissing
+        exp_alerts:
+          - exp_labels: { severity: critical, anr_backup_kind: check }
+            exp_annotations: { summary: "No backup check has succeeded for an hour" }
+
+  - name: recent backup checks
+    interval: 1m
+    input_series:
+      - series: 'anr_backup_last_success_seconds{anr_backup_kind="check"}'
+        values: "0+60x120"
+      - series: 'anr_backup_last_ok{anr_backup_kind="check"}'
+        values: "1x120"
+      - series: "anr_gauges_collected_seconds"
+        values: "0+60x120"
+    alert_rule_test:
+      - eval_time: 2h
+        alertname: BackupCheckMissing
+        exp_alerts: []
+      - eval_time: 2h
+        alertname: BackupCheckFailed
+        exp_alerts: []
+
+  - name: disk thresholds, on whichever disk has less room
+    interval: 1m
+    input_series:
+      - series: 'system_filesystem_usage_bytes{state="free", anr_disk="volumes", mountpoint="/hostfs/volumes"}'
+        values: "900e9x20"
+      - series: 'system_filesystem_usage_bytes{state="free", anr_disk="host", mountpoint="/hostfs/host"}'
+        values: "50e9x5 30e9x10 10e9x10"
+      - series: 'system_filesystem_usage_bytes{state="used", anr_disk="host", mountpoint="/hostfs/host"}'
+        values: "1e9x25"
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: DiskLow
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: DiskLow
+        exp_alerts:
+          - exp_labels: { severity: warning, anr_disk: host }
+            exp_annotations: { summary: "Under 40 GB free on the host disk" }
+      - eval_time: 12m
+        alertname: DiskCritical
+        exp_alerts: []
+      - eval_time: 22m
+        alertname: DiskCritical
+        exp_alerts:
+          - exp_labels: { severity: critical, anr_disk: host }
+            exp_annotations: { summary: "Under 20 GB free on the host disk" }
+
+  - name: a lost heartbeat, after 2 minutes over 3
+    interval: 1m
+    input_series:
+      - series: 'anr_heartbeat_age_seconds{anr_worker="publisher"}'
+        values: "20x3 120 200 260 320 380"
+      - series: 'anr_heartbeat_age_seconds{anr_worker="agents"}'
+        values: "20x8"
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: HeartbeatLost
+        exp_alerts: []
+      - eval_time: 7m
+        alertname: HeartbeatLost
+        exp_alerts:
+          - exp_labels: { severity: critical, anr_worker: publisher }
+            exp_annotations:
+              summary: "The publisher worker has not beaten for over 3 minutes"
+
+  - name: the gauges stop moving, or never came
+    interval: 1m
+    input_series:
+      - series: "anr_gauges_collected_seconds"
+        values: "0+60x10 600x20"
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: GaugesStale
+        exp_alerts: []
+      - eval_time: 25m
+        alertname: GaugesStale
+        exp_alerts:
+          - exp_labels: { severity: critical }
+            exp_annotations:
+              summary: "The agents worker has reported no platform gauges for 5 minutes"
+
+  - name: no gauges at all
+    interval: 1m
+    input_series: []
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: GaugesStale
+        exp_alerts:
+          - exp_labels: { severity: critical }
+            exp_annotations:
+              summary: "The agents worker has reported no platform gauges for 5 minutes"
+
+  - name: the tunnel loses its connections
+    interval: 1m
+    input_series:
+      - series: 'cloudflared_tunnel_ha_connections{instance="cloudflared:2000"}'
+        values: "4x5 0x10"
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: TunnelDown
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: TunnelDown
+        exp_alerts:
+          - exp_labels: { severity: critical }
+            exp_annotations:
+              summary: "The Cloudflare Tunnel has no connection to Cloudflare's edge"
+
+  - name: holds spike against the usual daily rate, once there is a week of data
+    interval: 1h
+    input_series:
+      # ai: one hold a day for ten days, then five in a day; kultur: one a day throughout; new:
+      # five in a day too, but only two days of data.
+      - series: 'anr_publications_holds_total{anr_newsroom="ai"}'
+        values: "0+0.0416667x240 10.2083333+0.2083333x23"
+      - series: 'anr_publications_holds_total{anr_newsroom="kultur"}'
+        values: "0+0.0416667x264"
+      - series: 'anr_publications_holds_total{anr_newsroom="new"}'
+        values: "_x215 0+0.0416667x24 1.2083333+0.2083333x23"
+    alert_rule_test:
+      - eval_time: 240h
+        alertname: HoldRateSpike
+        exp_alerts: []
+      - eval_time: 264h
+        alertname: HoldRateSpike
+        exp_alerts:
+          - exp_labels: { severity: warning, anr_newsroom: ai }
+            exp_annotations:
+              summary: "ai held over twice its usual share of publications today"
+
+  - name: a newsroom's gauges cannot be read
+    interval: 1m
+    input_series:
+      - series: 'anr_gauges_newsroom_ok{anr_newsroom="ai"}'
+        values: "1x20"
+      - series: 'anr_gauges_newsroom_ok{anr_newsroom="kultur"}'
+        values: "1x5 0x15"
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: NewsroomGaugesFailing
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: NewsroomGaugesFailing
+        exp_alerts:
+          - exp_labels: { severity: critical, anr_newsroom: kultur }
+            exp_annotations:
+              summary: "The gauges of kultur cannot be read: its panels show old values"

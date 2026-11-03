@@ -1,0 +1,164 @@
+# OpenTelemetry Collector (contrib), between every app and otel-lgtm (D137, D139). Apps send OTLP
+# here; Docker's fluentd log driver sends it the lines of the containers ANR does not write. It also
+# reports the disks and memory, scrapes cloudflared, scrubs reader data from everything and forwards
+# it to otel-lgtm. It keeps only lines of the project ANR_COMPOSE_PROJECT, so a trial stack on the
+# same Docker never sends production's. It mounts nothing of Docker's and runs without root.
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+
+  # Postgres, Caddy and cloudflared, from Docker's fluentd log driver (compose files); the apps' own
+  # logs arrive over OTLP with their trace ids.
+  fluentforward:
+    endpoint: 0.0.0.0:24224
+
+  # The disk Docker's volumes live on (on macOS, Docker's VM disk), through an empty volume mounted
+  # here; the host's own disk, through a host directory (on macOS the VM disk is a file on it, so it
+  # fills first); and memory (on macOS, the VM's) (D132, D153).
+  host_metrics:
+    collection_interval: 60s
+    scrapers:
+      filesystem:
+        # Bind mounts in a container count as virtual; the mount-point list keeps only these two.
+        include_virtual_filesystems: true
+        include_mount_points:
+          mount_points: [/hostfs/volumes, /hostfs/host]
+          match_type: strict
+        metrics:
+          system.filesystem.utilization:
+            enabled: true
+      memory:
+        metrics:
+          system.memory.utilization:
+            enabled: true
+
+  # cloudflared's connections to Cloudflare's edge (tunnel without a connection, D140).
+  prometheus/cloudflared:
+    config:
+      scrape_configs:
+        - job_name: cloudflared
+          scrape_interval: 30s
+          static_configs:
+            - targets: ["cloudflared:2000"]
+          metric_relabel_configs:
+            - source_labels: [__name__]
+              regex: cloudflared_tunnel_.*|build_info
+              action: keep
+
+processors:
+  # Docker's lines: only this project's postgres, caddy and cloudflared, named by service. Postgres's
+  # DETAIL, STATEMENT, CONTEXT and QUERY lines can quote a row's values, so they are dropped.
+  filter/docker:
+    error_mode: ignore
+    logs:
+      log_record:
+        - 'attributes["com.docker.compose.project"] != "${env:ANR_COMPOSE_PROJECT}"'
+        - 'not IsMatch(attributes["com.docker.compose.service"], "^(postgres|caddy|cloudflared)$")'
+        - 'IsMatch(body, "(DETAIL|STATEMENT|CONTEXT|QUERY):  ")'
+
+  transform/docker:
+    error_mode: ignore
+    log_statements:
+      - context: log
+        statements:
+          - set(resource.attributes["service.name"], attributes["com.docker.compose.service"])
+          - set(resource.attributes["service.namespace"], "anr")
+          - set(attributes["log.iostream"], attributes["source"])
+          - delete_matching_keys(attributes, "^(com\\.docker\\..*|container_id|container_name|source|fluent\\.tag)$")
+
+  # First in every pipeline: refuses data before the container runs out of memory.
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 20
+
+  # No reader data (D137): the same rules as packages/telemetry's scrubbing, for anything that did
+  # not pass through it (Python, logs of Postgres, Caddy and cloudflared).
+  transform/scrub:
+    error_mode: ignore
+    trace_statements:
+      - context: span
+        statements:
+          - delete_matching_keys(attributes, "^(client\\.(address|port)|http\\.client_ip|net\\.peer\\.(ip|port)|net\\.sock\\.peer\\..*|network\\.peer\\..*|user_agent\\..*|http\\.user_agent|url\\.query|enduser\\..*|user\\.(id|email)|http\\.(request|response)\\.header\\..*)$")
+          - replace_pattern(attributes["url.full"], "[?#].*$", "")
+          - replace_pattern(attributes["url.original"], "[?#].*$", "")
+          - replace_pattern(attributes["http.url"], "[?#].*$", "")
+          - replace_pattern(attributes["http.target"], "[?#].*$", "")
+          - replace_all_patterns(attributes, "value", "\\beyJ[\\w-]+\\.[\\w-]+\\.[\\w-]+", "<jwt>")
+          - replace_all_patterns(attributes, "value", "\\bbot\\d+:[A-Za-z0-9_-]{20,}", "bot<token>")
+          - replace_all_patterns(attributes, "value", "\\?[^\\s\"'<>?]*=[^\\s\"'<>]*", "")
+          - replace_all_patterns(attributes, "value", "[\\w.%+-]+@[\\w-]+(?:\\.[\\w-]+)*\\.[A-Za-z]{2,}", "<email>")
+          - replace_all_patterns(attributes, "value", "\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b", "<ip>")
+          - replace_all_patterns(attributes, "value", "\\b(?:[0-9A-Fa-f]{1,4}:){3,7}[0-9A-Fa-f]{1,4}\\b", "<ip>")
+      - context: spanevent
+        statements:
+          - replace_all_patterns(attributes, "value", "\\beyJ[\\w-]+\\.[\\w-]+\\.[\\w-]+", "<jwt>")
+          - replace_all_patterns(attributes, "value", "\\bbot\\d+:[A-Za-z0-9_-]{20,}", "bot<token>")
+          - replace_all_patterns(attributes, "value", "\\?[^\\s\"'<>?]*=[^\\s\"'<>]*", "")
+          - replace_all_patterns(attributes, "value", "[\\w.%+-]+@[\\w-]+(?:\\.[\\w-]+)*\\.[A-Za-z]{2,}", "<email>")
+          - replace_all_patterns(attributes, "value", "\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b", "<ip>")
+          - replace_all_patterns(attributes, "value", "\\b(?:[0-9A-Fa-f]{1,4}:){3,7}[0-9A-Fa-f]{1,4}\\b", "<ip>")
+    metric_statements:
+      - context: datapoint
+        statements:
+          - delete_matching_keys(attributes, "^(client\\.(address|port)|http\\.client_ip|net\\.peer\\..*|network\\.peer\\..*|user_agent\\..*|http\\.user_agent|url\\.(query|full)|enduser\\..*|user\\.(id|email))$")
+    log_statements:
+      - context: log
+        statements:
+          - delete_matching_keys(attributes, "^(client\\.(address|port)|http\\.client_ip|net\\.peer\\.(ip|port)|net\\.sock\\.peer\\..*|network\\.peer\\..*|user_agent\\..*|http\\.user_agent|url\\.query|enduser\\..*|user\\.(id|email)|http\\.(request|response)\\.header\\..*)$")
+          - replace_pattern(body, "\\beyJ[\\w-]+\\.[\\w-]+\\.[\\w-]+", "<jwt>")
+          - replace_pattern(body, "\\bbot\\d+:[A-Za-z0-9_-]{20,}", "bot<token>")
+          - replace_pattern(body, "\\?[^\\s\"'<>?]*=[^\\s\"'<>]*", "")
+          - replace_pattern(body, "[\\w.%+-]+@[\\w-]+(?:\\.[\\w-]+)*\\.[A-Za-z]{2,}", "<email>")
+          - replace_pattern(body, "\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b", "<ip>")
+          - replace_pattern(body, "\\b(?:[0-9A-Fa-f]{1,4}:){3,7}[0-9A-Fa-f]{1,4}\\b", "<ip>")
+
+  # Names each disk for the alerts (D153). Docker Desktop's virtiofs (type fakeowner) reports a
+  # block size of 1 MiB with 4 KiB fragments, and the scraper counts blocks of the former: its
+  # sizes are 256 times too large.
+  transform/disks:
+    error_mode: ignore
+    metric_statements:
+      - context: datapoint
+        conditions:
+          - metric.name == "system.filesystem.usage"
+        statements:
+          - set(attributes["anr.disk"], "volumes") where attributes["mountpoint"] == "/hostfs/volumes"
+          - set(attributes["anr.disk"], "host") where attributes["mountpoint"] == "/hostfs/host"
+          - set(value_int, value_int / 256) where attributes["type"] == "fakeowner"
+
+  batch: {}
+
+exporters:
+  otlp_http/lgtm:
+    endpoint: http://lgtm:4318
+
+service:
+  extensions: [health_check]
+  telemetry:
+    metrics:
+      level: basic
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, transform/scrub, batch]
+      exporters: [otlp_http/lgtm]
+    metrics:
+      receivers: [otlp, host_metrics, prometheus/cloudflared]
+      processors: [memory_limiter, transform/disks, transform/scrub, batch]
+      exporters: [otlp_http/lgtm]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, transform/scrub, batch]
+      exporters: [otlp_http/lgtm]
+    logs/docker:
+      receivers: [fluentforward]
+      processors: [memory_limiter, filter/docker, transform/docker, transform/scrub, batch]
+      exporters: [otlp_http/lgtm]

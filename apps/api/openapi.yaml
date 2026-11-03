@@ -1595,6 +1595,7 @@ components:
           posts,
           runs,
           cost_usd,
+          trace_id,
         ]
       properties:
         id: { type: string, format: uuid }
@@ -1625,6 +1626,10 @@ components:
           description: The agent runs behind the publication's assignment and stories.
           items: { $ref: "#/components/schemas/AgentRun" }
         cost_usd: { type: number, description: The runs' summed cost. }
+        trace_id:
+          type: [string, "null"]
+          pattern: "^[0-9a-f]{32}$"
+          description: The publication's trace (D137), from its assignment on; none before milestone 7b.
     ApproveRequest:
       type: object
       additionalProperties: false

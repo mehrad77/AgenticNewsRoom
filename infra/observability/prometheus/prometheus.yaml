@@ -1,0 +1,19 @@
+# otel-lgtm's Prometheus configuration (grafana/otel-lgtm 0.39.0, /otel-lgtm/prometheus.yaml) with
+# ANR's recording rules added; mounted over the image's file. Retention is a flag (compose).
+global:
+  scrape_native_histograms: true
+  evaluation_interval: 1m
+rule_files:
+  - /etc/anr/prometheus/rules/*.yaml
+otlp:
+  keep_identifying_resource_attributes: true
+  promote_resource_attributes:
+    - service.instance.id
+    - service.name
+    - service.namespace
+    - service.version
+    - deployment.environment.name
+storage:
+  tsdb:
+    # Absorbs export retries and network delays.
+    out_of_order_time_window: 10m

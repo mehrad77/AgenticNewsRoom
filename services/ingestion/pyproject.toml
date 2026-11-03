@@ -10,6 +10,7 @@ dependencies = [
     "feedparser>=6.0",
     "trafilatura>=2.3",
     "anr-schemas",
+    "anr-telemetry",
     "psycopg[binary]>=3.3.6",
     "psycopg-pool>=3.3.3",
     "py3langid>=0.4.0",
@@ -20,6 +21,7 @@ dependencies = [
 
 [tool.uv.sources]
 anr-schemas = { workspace = true }
+anr-telemetry = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

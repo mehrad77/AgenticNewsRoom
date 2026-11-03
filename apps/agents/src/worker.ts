@@ -5,6 +5,7 @@ import type { AgentRole } from "@anr/core";
 import { createBoss, createPool, drainControl, startHeartbeat, withNewsroom } from "@anr/db";
 import { buildCatalog, loadModelsConfig, ModelGateway, missingKeys, modelsFile } from "@anr/models";
 import { createRenderer } from "@anr/render";
+import { shutdownTelemetry } from "@anr/telemetry";
 import { assignDaily, assignPick } from "./assign.ts";
 import { challengeDeadline } from "./challenges/deadline.ts";
 import type { RoleDeps } from "./desk/run.ts";
@@ -12,6 +13,7 @@ import { runDesk } from "./desk/run.ts";
 import { dispatchAgentRun } from "./dispatch.ts";
 import { runGate, verifierClient } from "./gate/run.ts";
 import { sweepStuck } from "./gate/sweep.ts";
+import { startGauges } from "./gauges.ts";
 import { handleIngestSource, ingestionClient } from "./ingest.ts";
 import { registerJobs } from "./jobs.ts";
 import { ingestMedia } from "./media/ingest.ts";
@@ -42,6 +44,7 @@ if (!connectionString) throw new Error("DATABASE_URL is not set");
 
 const pool = createPool(connectionString);
 const stopHeartbeat = startHeartbeat(pool, "agents");
+const stopGauges = startGauges(pool);
 const boss = createBoss(connectionString, "agents");
 await boss.start();
 const ingestion = ingestionClient(process.env.ANR_INGESTION_URL ?? "http://127.0.0.1:8101");
@@ -180,10 +183,12 @@ console.log(`agents worker started (${modelsFile(configDir)})`);
 
 const stop = async () => {
   stopHeartbeat();
+  stopGauges();
   drains.stop();
   clearInterval(sweeper);
   await boss.stop();
   await pool.end();
+  await shutdownTelemetry();
   process.exit(0);
 };
 process.on("SIGINT", stop);

@@ -33,10 +33,12 @@ problems=()
 warnings=()
 # Settings and secrets production cannot run without (D124). Model keys other than the models
 # file's are optional.
+# Grafana signs in only through the ops application's Access audience and alerts only through the
+# ops bot, so it refuses to start without them (D123, D140).
 for name in ANR_ROOT_DOMAIN CF_ACCESS_TEAM_DOMAIN CF_ACCESS_AUD ANR_PLATFORM_KEY R2_ACCOUNT_ID \
   R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BACKUP_ACCESS_KEY_ID R2_BACKUP_SECRET_ACCESS_KEY \
   ANR_BACKUP_BUCKET ANR_RAW_BUCKET ANR_MEDIA_BUCKET ANR_BACKUP_PASSPHRASE GEMINI_API_KEY \
-  CLOUDFLARE_TUNNEL_TOKEN; do
+  CLOUDFLARE_TUNNEL_TOKEN CF_ACCESS_OPS_AUD ANR_OPS_TELEGRAM_BOT_TOKEN ANR_OPS_TELEGRAM_CHAT_ID; do
   [[ -n "${!name:-}" ]] || problems+=("$name is not set")
 done
 # Hex keeps the passwords valid inside database URLs; 64 characters is 256 bits.

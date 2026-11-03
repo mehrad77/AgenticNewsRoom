@@ -1,7 +1,9 @@
 import { defineMiddleware } from "astro:middleware";
 import { startHeartbeat } from "@anr/db";
+import { setHttpRoute } from "@anr/telemetry";
 import { db } from "./lib/db.ts";
 import { healthResponse } from "./lib/health.ts";
+import { httpRoute } from "./lib/http-route.ts";
 import { rootDomain, siteNewsrooms } from "./lib/newsrooms.ts";
 import { resolveSite } from "./lib/site.ts";
 
@@ -17,6 +19,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const host = context.request.headers.get("host") ?? context.url.host;
   const site = resolveSite(host, context.url.pathname, rootDomain, await siteNewsrooms(db()));
   if (site.kind === "unknown") return new Response("Unknown site", { status: 404 });
+  setHttpRoute(httpRoute(site, context.url.pathname));
   context.locals.site = site;
   // The rewrite below hides it; the desk routes on the path the browser asked for.
   context.locals.path = context.url.pathname;

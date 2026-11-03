@@ -14,7 +14,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "gen": "turbo run gen",
-    "gen:check": "pnpm gen && git diff --exit-code -- packages/schemas/src/generated packages/schemas/python apps/api/src/generated",
+    "gen:check": "pnpm gen && git diff --exit-code -- packages/schemas/src/generated packages/schemas/python apps/api/src/generated infra/observability/grafana/dashboards infra/observability/grafana/provisioning/alerting infra/observability/prometheus/rules infra/observability/prometheus/alerts",
     "config:check": "pnpm --filter @anr/config run check",
     "schemas:view": "pnpm --filter @anr/schemas run view",
     "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm config:check && pnpm gen:check",
@@ -24,7 +24,9 @@
     "db:roles": "docker compose --env-file .env -f infra/compose.yaml exec postgres anr-roles",
     "config:sync": "pnpm --filter @anr/config run sync",
     "models:probe": "pnpm --filter @anr/models run probe",
-    "css:tools": "tailwindcss -i packages/schemas/viewer/tags.src.css -o packages/schemas/viewer/tags.build.css --minify && tailwindcss -i tools/tts-eval/tags.src.css -o tools/tts-eval/tags.build.css --minify"
+    "css:tools": "tailwindcss -i packages/schemas/viewer/tags.src.css -o packages/schemas/viewer/tags.build.css --minify && tailwindcss -i tools/tts-eval/tags.src.css -o tools/tts-eval/tags.build.css --minify",
+    "telemetry:up": "docker compose --env-file .env -f infra/compose.yaml --profile telemetry up -d --wait otel-collector lgtm",
+    "telemetry:down": "docker compose --env-file .env -f infra/compose.yaml --profile telemetry stop otel-collector lgtm"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.3",
