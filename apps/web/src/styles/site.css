@@ -127,10 +127,36 @@ article > .piece-imported {
 }
 main > .eyebrow + article > h1,
 main > article > h1:first-child {
-  margin-block-start: var(--space-2);
+  margin-block: var(--space-2) var(--space-3);
+  font-size: var(--step-3);
+  line-height: 1.35;
+}
+/* An issue's items: each a block of its own, with room between them and a hairline apart. */
+main > article > section {
+  margin-block: var(--space-6) 0;
+  padding-block-start: var(--space-5);
+  border-block-start: 1px solid var(--stroke);
+}
+main > article > .piece-imported + section,
+main > article > .piece-meta + section {
+  border-block-start: 0;
+  padding-block-start: 0;
+}
+main > article > section > h2 {
+  margin: 0 0 var(--space-3);
+  font-size: var(--step-1);
+  line-height: 1.5;
+}
+main > article > section > p {
+  margin: 0;
+  line-height: 1.9;
+}
+main > article > section > p + p {
+  margin-block-start: var(--space-3);
 }
 /* A one-item issue's source, under its text. */
-.item-source {
+main > article > section > .item-source {
+  margin-block-start: var(--space-3);
   font-size: var(--step--1);
 }
 
