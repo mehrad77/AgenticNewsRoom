@@ -519,6 +519,8 @@ async function finish(deps: PublishDeps, client: Client, plan: Plan, now: Date) 
   await auditedUpdate(client, PUBLISHER, "publish", "publications", p.id, {
     status: "published",
     published_at: now,
+    // Fixed now: a later change to the format's grace never moves this slot (D158).
+    published_late: now.getTime() - p.slot.getTime() > p.grace_ms,
     updated_at: now,
     path,
     title: typeof title === "string" ? title : null,
