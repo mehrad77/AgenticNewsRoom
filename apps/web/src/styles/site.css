@@ -109,8 +109,33 @@ html body > header form[role="search"] + nav {
   text-transform: uppercase;
 }
 
-/* A piece's challenge form (D114): one field per row, full width; closed until it has a bot
-   check (D178). */
+/* A piece's date and its imported note, under its title and AI label (piece-head.ts). The date
+   sits on the label's line. */
+article > .piece-meta {
+  display: inline;
+  margin-inline-start: var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--step--1);
+}
+article > .piece-imported {
+  margin: var(--space-3) 0 var(--space-5);
+  padding-inline-start: var(--space-3);
+  border-inline-start: 3px solid var(--status-warning);
+  color: var(--text-muted);
+  font-size: var(--step--1);
+  line-height: 1.6;
+}
+main > .eyebrow + article > h1,
+main > article > h1:first-child {
+  margin-block-start: var(--space-2);
+}
+/* A one-item issue's source, under its text. */
+.item-source {
+  font-size: var(--step--1);
+}
+
+/* A piece's challenge form (D114): one field per row, full width. While challenges are closed
+   (D178) only a line says so. */
 #challenge {
   margin-block-start: var(--space-7);
   padding-block-start: var(--space-5);
@@ -126,21 +151,9 @@ html body > header form[role="search"] + nav {
   font-size: var(--step--1);
   line-height: 1.7;
 }
-#challenge .challenge-closed {
-  padding: var(--space-2) var(--space-4);
-  border-inline-start: 3px solid var(--status-warning);
-  background: var(--surface-raised);
-  color: var(--text);
-}
-.challenge-form fieldset {
+.challenge-form {
   display: grid;
   gap: var(--space-4);
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-.challenge-form fieldset:disabled {
-  opacity: 0.55;
 }
 .challenge-form label:not(.visually-hidden) {
   display: grid;
@@ -171,7 +184,4 @@ html body > header form[role="search"] + nav {
   color: var(--text-on-fill);
   font: inherit;
   cursor: pointer;
-}
-.challenge-form fieldset:disabled button {
-  cursor: not-allowed;
 }

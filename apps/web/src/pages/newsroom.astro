@@ -12,11 +12,11 @@ import ProfileEntry from "../components/reference/ProfileEntry.astro";
 import EpisodePage from "../components/podcast/EpisodePage.astro";
 import ReferenceHome from "../components/reference/ReferenceHome.astro";
 import ReferenceIndex from "../components/reference/ReferenceIndex.astro";
-import Labels from "../components/reference/Labels.astro";
 import SeriesPage from "../components/series/SeriesPage.astro";
 import FrontPage from "../components/home/FrontPage.astro";
 import { directionOf, pageUrl } from "@anr/core";
 import { CHALLENGES_OPEN, challengeForm, sendChallenge } from "../lib/challenge.ts";
+import { splitHead } from "../lib/piece-head.ts";
 import { db } from "../lib/db.ts";
 import { scriptJson } from "../lib/metadata.ts";
 import { loadPage } from "../lib/page.ts";
@@ -132,6 +132,22 @@ const placeOf = (href: string): "page" | "inside" | null => {
   if (path === current) return "page";
   return path.length > 4 && current.startsWith(`${path}/`) ? "inside" : null;
 };
+// A piece's head (title, AI label), then its date and labels, then the rest; the eyebrow links to
+// the series' own page or timeline (D179, D173).
+const [pieceHead, pieceRest] =
+  page.kind === "publication" && !page.episode
+    ? splitHead(markExternalLinks(page.bodyHtml, new URL(Astro.url).hostname, w.newTab))
+    : ["", ""];
+const pieceHome = ((): { href: string; label: string } | null => {
+  if (page.kind !== "publication") return null;
+  const { series, seriesName } = page.publication;
+  const index = page.newsroom.indexes.find((i) => i.series === series);
+  if (index) return { href: page.url(`/${series}`), label: index.name[page.language] ?? seriesName[page.language] ?? series };
+  const timeline = page.newsroom.timelines.find((t) => t.series === series);
+  return timeline
+    ? { href: page.url(`/${timeline.config.path}`), label: timeline.config.name[page.language] ?? series }
+    : null;
+})();
 const date = (d: Date) =>
   new Intl.DateTimeFormat(page.language, { dateStyle: "long", calendar: "gregory", timeZone: page.newsroom.timezone }).format(d);
 ---
@@ -188,29 +204,35 @@ const date = (d: Date) =>
           />
         ) : (
           <>
-            <p><time datetime={page.publication.publishedAt.toISOString()}>{date(page.publication.publishedAt)}</time></p>
-            {page.publication.imported && <Labels label={null} aiPolicy={page.links.aiPolicy} imported={page.ref.imported} />}
-            <Fragment set:html={markExternalLinks(page.bodyHtml, new URL(Astro.url).hostname, w.newTab)} />
+            {pieceHome && <p class="eyebrow"><a href={pieceHome.href}>{pieceHome.label}</a></p>}
+            <Fragment set:html={pieceHead} />
+            <p class="piece-meta"><time datetime={page.publication.publishedAt.toISOString()}>{date(page.publication.publishedAt)}</time></p>
+            {page.publication.imported && <p class="piece-imported" role="note">{page.ref.imported}</p>}
+            <Fragment set:html={pieceRest} />
           </>
         )}
         {page.publication.corrections.map((c) => (
           <aside id={c.id}><strong>{w.corrected}</strong> ({date(c.publishedAt)}): {c.notice}</aside>
         ))}
-        <section id="challenge">
-          <h2>{w.challenge.heading}</h2>
-          <p>{w.challenge.intro}</p>
-          {challengeFailed && <p role="alert">{w.challenge.failed}</p>}
-          {!CHALLENGES_OPEN && <p class="challenge-closed" role="note">{w.challenge.closed}</p>}
-          <form class="challenge-form" method="post" action="#challenge">
-            <fieldset disabled={!CHALLENGES_OPEN}>
+        {CHALLENGES_OPEN ? (
+          <section id="challenge">
+            <h2>{w.challenge.heading}</h2>
+            <p>{w.challenge.intro}</p>
+            {challengeFailed && <p role="alert">{w.challenge.failed}</p>}
+            <form class="challenge-form" method="post" action="#challenge">
               <input type="hidden" name="publication" value={page.publication.id} />
               <label>{w.challenge.text}<textarea name="text" required minlength="20" maxlength="4000" rows="5"></textarea></label>
               <label>{w.challenge.source}<input name="source_url" type="url" maxlength="500" dir="ltr" placeholder="https://" /></label>
               <label class="visually-hidden" aria-hidden="true">Website<input name="website" tabindex="-1" autocomplete="off" /></label>
               <button>{w.challenge.send}</button>
-            </fieldset>
-          </form>
-        </section>
+            </form>
+          </section>
+        ) : (
+          <section id="challenge" class="challenge-closed">
+            <h2>{w.challenge.heading}</h2>
+            <p>{w.challenge.closed} <a href={page.links.corrections}>{w.corrections}</a></p>
+          </section>
+        )}
       </>
     )}
     {page.kind === "challenge" && (

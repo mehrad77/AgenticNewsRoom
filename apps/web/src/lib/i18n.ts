@@ -143,7 +143,7 @@ const en: Words = {
     send: "Send",
     failed: "Your challenge could not be sent. Please try again later.",
     closed:
-      "Challenges open once the form has spam protection. Published corrections are on the corrections page.",
+      "Challenges open once this form has spam protection. Until then, see what we have corrected:",
     status: "Your challenge",
     keep: "Keep this page's address: it is the only way to see our answer.",
     received: "Received",
@@ -219,7 +219,7 @@ const fa: Words = {
     send: "ارسال",
     failed: "اعتراض شما فرستاده نشد. لطفاً بعداً دوباره امتحان کنید.",
     closed:
-      "فرستادن اعتراض پس از راه‌اندازی محافظت این فرم در برابر هرزنامه باز می‌شود. اصلاحیه‌های منتشرشده در صفحه‌ی اصلاحیه‌ها هستند.",
+      "فرستادن اعتراض پس از راه‌اندازی محافظت این فرم در برابر هرزنامه باز می‌شود. تا آن زمان، اصلاحیه‌های منتشرشده را ببینید:",
     status: "اعتراض شما",
     keep: "نشانی این صفحه را نگه دارید: تنها راه دیدن پاسخ ماست.",
     received: "دریافت",
@@ -295,7 +295,7 @@ const tr: Words = {
     send: "Gönder",
     failed: "İtirazınız gönderilemedi. Lütfen daha sonra yeniden deneyin.",
     closed:
-      "İtirazlar, form spama karşı korunduğunda açılacak. Yayımlanan düzeltmeler düzeltmeler sayfasında.",
+      "İtirazlar, form spama karşı korunduğunda açılacak. O zamana kadar yayımlanan düzeltmelere bakın:",
     status: "İtirazınız",
     keep: "Bu sayfanın adresini saklayın: yanıtımızı görmenin tek yolu budur.",
     received: "Alındı",

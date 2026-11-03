@@ -53,6 +53,29 @@ describe("channel templates", () => {
     expect(out).toContain('dir="rtl"');
   });
 
+  it("show a one-item issue's headline once, with its source under the text", async () => {
+    const one = {
+      title: "Introducing a model",
+      items: [
+        {
+          kind: "news",
+          headline: "Introducing a model",
+          body: "A lab released a model.",
+          claim_ids: [],
+          url: "https://www.example.com/news/model",
+        },
+      ],
+    };
+    const out = await renderer.render("newsletter-issue", "site", "en", {
+      rendition: one,
+      edited: false,
+      ai_policy_url: "/en/ai-policy",
+      leads: {},
+    });
+    expect(out).not.toContain("<h2");
+    expect(out).toContain('<a href="https://www.example.com/news/model" dir="ltr">example.com</a>');
+  });
+
   it("label each item marked opinion, in its language", async () => {
     const story = {
       title: "Bir sanatçı",
