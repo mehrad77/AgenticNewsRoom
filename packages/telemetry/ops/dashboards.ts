@@ -2,7 +2,7 @@
 // dashboards/, which Grafana provisions read-only. Queries use the names Prometheus stores (OTLP
 // names translated: dots to underscores, `_total` on counters, the unit as a suffix).
 
-type Unit = "s" | "bytes" | "percentunit" | "currencyUSD" | "short" | "ops";
+type Unit = "s" | "ms" | "reqps" | "bytes" | "percentunit" | "currencyUSD" | "short" | "ops";
 
 interface Query {
   expr: string;
@@ -434,7 +434,73 @@ export const DASHBOARDS: readonly Dashboard[] = [
       },
     ],
   },
+  {
+    uid: "anr-load",
+    title: "Load tests",
+    description:
+      "k6 runs against the origin (tools/load): request rate, latency percentiles, errors",
+    panels: [
+      stat("Requests a second", 6, [q("sum(rate(k6_http_reqs_total[1m]))")], { unit: "reqps" }),
+      stat(
+        "p95 latency",
+        6,
+        [q(quantile(0.95, "k6_http_req_duration_milliseconds_bucket", "5m"))],
+        {
+          unit: "ms",
+          steps: [{ value: 500, color: "red" }],
+        },
+      ),
+      // k6's rate metrics count every sample, by whether it was true ("nonzero").
+      stat("Failed requests", 6, [q(failed("$__range"))], { steps: [{ value: 1, color: "red" }] }),
+      stat(
+        "Requests k6 could not start in time",
+        6,
+        [q("sum(increase(k6_dropped_iterations_total[$__range])) or vector(0)")],
+        {
+          steps: [{ value: 1, color: "red" }],
+        },
+      ),
+      ts(
+        "Requests a second by kind",
+        12,
+        [q("sum by (kind) (rate(k6_http_reqs_total[1m]))", "{{kind}}")],
+        {
+          unit: "reqps",
+        },
+      ),
+      ts(
+        "p50, p95 and p99 latency",
+        12,
+        [0.5, 0.95, 0.99].map((p) =>
+          q(quantile(p, "k6_http_req_duration_milliseconds_bucket", "1m"), `p${p * 100}`),
+        ),
+        { unit: "ms", steps: [{ value: 500, color: "red" }] },
+      ),
+      ts(
+        "p95 latency by kind",
+        12,
+        [q(quantile(0.95, "k6_http_req_duration_milliseconds_bucket", "1m", "kind"), "{{kind}}")],
+        { unit: "ms", steps: [{ value: 500, color: "red" }] },
+      ),
+      ts("Failed requests a second", 12, [q(failed("1m", "rate"), "failed")]),
+      ts("Virtual users", 12, [q("max(k6_vus)", "active"), q("max(k6_vus_max)", "allocated")]),
+      ts(
+        "Time waiting for the first byte, p95",
+        12,
+        [q(quantile(0.95, "k6_http_req_waiting_milliseconds_bucket", "1m", "kind"), "{{kind}}")],
+        { unit: "ms" },
+      ),
+    ],
+  },
 ];
+
+function quantile(p: number, buckets: string, window: string, by = ""): string {
+  return `histogram_quantile(${p}, sum by (le${by ? `, ${by}` : ""}) (rate(${buckets}[${window}])))`;
+}
+
+function failed(window: string, fn: "increase" | "rate" = "increase"): string {
+  return `sum(${fn}(k6_http_req_failed_total{condition="nonzero"}[${window}])) or vector(0)`;
+}
 
 /** The dashboard as Grafana's JSON model. Panels flow left to right, 8 rows high unless set. */
 export function toGrafana(d: Dashboard): Record<string, unknown> {
