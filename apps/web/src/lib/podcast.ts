@@ -60,21 +60,32 @@ export async function episodeAudio(
   });
 }
 
-/** The newest episode row of a published episode: its length and chapters, for its page. */
+/**
+ * The newest episode row of a published episode, for its page: its length and chapters, and how
+ * its series names its hosts in the episode's language.
+ */
 export async function episodeFacts(
   pool: Pool,
   newsroom: Pick<ReaderNewsroom, "id">,
   publicationId: string,
-): Promise<{ seconds: number; chapters: unknown } | null> {
+): Promise<{ seconds: number; chapters: unknown; hostNames: Record<string, string> } | null> {
   return withNewsroom(pool, newsroom.id, async (c) => {
-    const { rows } = await c.query<{ seconds: string; chapters: unknown }>(
-      `select e.seconds, e.chapters from episodes e join publications p on p.id = e.publication_id
+    const { rows } = await c.query<{
+      seconds: string;
+      chapters: unknown;
+      host_names: Record<string, string> | null;
+    }>(
+      `select e.seconds, e.chapters, s.config->'host_names'->p.language as host_names
+       from episodes e join publications p on p.id = e.publication_id
+       join series s on s.id = p.series_id
        where p.id = $1 and p.status in ('published', 'corrected')
        order by e.created_at desc limit 1`,
       [publicationId],
     );
     const row = rows[0];
-    return row ? { seconds: Number(row.seconds), chapters: row.chapters } : null;
+    return row
+      ? { seconds: Number(row.seconds), chapters: row.chapters, hostNames: row.host_names ?? {} }
+      : null;
   });
 }
 

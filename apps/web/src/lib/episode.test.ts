@@ -36,6 +36,8 @@ describe("sectionTitle", () => {
   it("drops the part number and the speakers", () => {
     expect(sectionTitle("بخش ۳: مقاله‌ها، پروب (نیلوفر و فرزاد)")).toBe("مقاله‌ها، پروب");
     expect(sectionTitle("بخش 2: شروع ثابت")).toBe("شروع ثابت");
+    expect(sectionTitle("Bölüm 4: Yapay zekâ (Ada ve Can)")).toBe("Yapay zekâ");
+    expect(sectionTitle("Part 1: Opening")).toBe("Opening");
     expect(sectionTitle("اگه، وگرنه: شرطی که خودش مقدار داره")).toBe(
       "اگه، وگرنه: شرطی که خودش مقدار داره",
     );
@@ -153,6 +155,18 @@ describe("initial", () => {
 });
 
 describe("portraitsOf", () => {
+  it("finds a portrait by the host's name in the series config, else the key capitalised", () => {
+    const pic = (id: string) => ({ src: `/m/${id}.jpg`, alt: "", credit: "" });
+    const art = new Map([
+      ["host/ada", pic("ada")],
+      ["host/can", pic("can")],
+    ]);
+    expect(portraitsOf(art, ["Ada", "Canan", "Can"], { can: "Canan" })).toEqual({
+      Ada: pic("ada"),
+      Canan: pic("can"),
+    });
+  });
+
   it("finds each speaker's portrait by its alt text, and skips other artwork", () => {
     const pic = (alt: string) => ({ src: `/m/${alt}.jpg`, alt, credit: "AI Newsroom (AI-made)" });
     const art = new Map([

@@ -319,7 +319,12 @@ export async function loadPage(
           : null;
       let episode: (Page & { kind: "publication" })["episode"] = null;
       if (facts) {
-        const view = episodeView({ rendition: publication.rendition, audioUrl, ...facts });
+        const view = episodeView({
+          rendition: publication.rendition,
+          audioUrl,
+          seconds: facts.seconds,
+          chapters: facts.chapters,
+        });
         const [art, cover] = await Promise.all([
           artwork(deps.pool, newsroom.id, `series/${publication.series}/`),
           coverOf(deps.pool, newsroom.id, publication.rendition),
@@ -331,7 +336,7 @@ export async function loadPage(
           feedUrl: pageUrl(site, language, `/podcast/${publication.series}.xml`),
           cover: cover ?? showArt,
           showArt,
-          portraits: portraitsOf(art, Object.keys(view.speakers)),
+          portraits: portraitsOf(art, Object.keys(view.speakers), facts.hostNames),
         };
       }
       return {

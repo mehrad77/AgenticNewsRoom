@@ -2,6 +2,7 @@
 // and when each turn is spoken, for the player and the transcript sync. Ported from the old
 // archive's episode page (D177); plain TypeScript, so EpisodePage.astro only lays it out.
 import type { Language } from "@anr/core";
+import { type HostNames, hostName } from "@anr/render";
 
 /** A chapter as the episodes row (and an imported rendition) records it: seconds into the audio. */
 export interface Chapter {
@@ -21,7 +22,7 @@ export interface Turn {
 export interface TranscriptSection {
   /** The «## » heading as written. */
   label: string;
-  /** The heading shown: without «بخش N:» and the trailing «(speakers)». */
+  /** The heading shown: without a leading «Part N:» and a trailing «(speakers)». */
   title: string;
   /** The chapter the section is, or null. */
   chapter: number | null;
@@ -55,11 +56,14 @@ export function chaptersOf(recorded: unknown, rendition: Record<string, unknown>
   return own.length > 0 ? own : from(rendition.chapters);
 }
 
-/** «بخش ۳: مقاله‌ها، پروب (نیلوفر و فرزاد)» -> «مقاله‌ها، پروب»: the chapter's own name. */
+/**
+ * «Part 3: Probes (Maya and Leo)» -> «Probes»: the chapter's own name, without a one-word part
+ * label and number in any language and script, or the speakers in brackets at its end.
+ */
 export function sectionTitle(label: string): string {
   const t = label
     .trim()
-    .replace(/^بخش\s*[0-9۰-۹٠-٩]+\s*[:：]\s*/, "")
+    .replace(/^[^\s\d:：]+\s*\p{Nd}+\s*[:：]\s*/u, "")
     .replace(/\s*\([^()]*\)\s*$/, "");
   return t.trim() || label.trim();
 }
@@ -169,7 +173,7 @@ export function clock(sec: number): string {
     : `${pad(Math.floor(s / 60))}:${pad(s % 60)}`;
 }
 
-/** The page language's digits in place of ASCII ones: «05:36» -> «۰۵:۳۶» in Persian. */
+/** The page language's digits in place of ASCII ones, for a clock in a Persian page. */
 export function localDigits(language: Language): (text: string | number) => string {
   const f = new Intl.NumberFormat(language, { useGrouping: false });
   return (text) => String(text).replace(/[0-9]/g, (d) => f.format(Number(d)));
@@ -197,7 +201,7 @@ export function episodeView(input: {
   };
 }
 
-/** A speaker's initial for their avatar, without its diacritics: «اِبی» -> «ا». */
+/** A speaker's initial for their avatar, without its diacritics. */
 export const initial = (speaker: string) =>
   speaker.normalize("NFD").replace(/\p{M}/gu, "").charAt(0);
 
@@ -209,16 +213,21 @@ export interface Picture {
 }
 
 /**
- * Each speaker's portrait among a series' artwork (`host/<id>` roles): the one whose alt text is
- * the speaker's name as the transcript writes it, so no newsroom's hosts are named in code.
+ * Each speaker's portrait among a series' artwork (`host/<host>` roles): the host whose name in
+ * the page's language (`host_names`, else the key capitalised) is the speaker's label, or whose
+ * portrait's alt text is.
  */
 export function portraitsOf(
   art: ReadonlyMap<string, Picture>,
   speakers: Iterable<string>,
+  names?: HostNames,
 ): Record<string, Picture> {
   const byName = new Map<string, Picture>();
-  for (const [role, picture] of art)
-    if (role.startsWith("host/") && picture.alt.trim()) byName.set(picture.alt.trim(), picture);
+  for (const [role, picture] of art) {
+    if (!role.startsWith("host/")) continue;
+    if (picture.alt.trim()) byName.set(picture.alt.trim(), picture);
+    byName.set(hostName(role.slice("host/".length), names), picture);
+  }
   const out: Record<string, Picture> = {};
   for (const s of speakers) {
     const p = byName.get(s);

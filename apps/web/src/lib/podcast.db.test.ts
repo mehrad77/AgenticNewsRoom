@@ -117,6 +117,7 @@ describe("the podcast on the site (D110)", () => {
     expect(await episodeFacts(pools.app, newsroom, ids.published)).toEqual({
       seconds: 60,
       chapters: [],
+      hostNames: {},
     });
     expect(await episodeFacts(pools.app, newsroom, ids.held)).toBeNull();
   });
