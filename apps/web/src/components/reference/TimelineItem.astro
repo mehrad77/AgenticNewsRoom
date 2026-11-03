@@ -5,6 +5,7 @@ import { directionOf, type Language } from "@anr/core";
 import {
   dateLabel,
   type Entry,
+  type EntryImage,
   entryName,
   linkFor,
   links,
@@ -23,10 +24,13 @@ interface Props {
   words: ReferenceWords;
   kind: KindConfig;
   outLinks: OutLink[];
+  /** Images of the entries this item links to, by "kind/slug" (a maker's logo). */
+  targetImages: Map<string, EntryImage>;
   entryUrl: (kind: string, slug: string) => string | null;
   filterUrl: (fact: string, value: string) => string;
 }
-const { entry: e, language, words: w, kind, outLinks, entryUrl, filterUrl } = Astro.props;
+const { entry: e, language, words: w, kind, outLinks, targetImages, entryUrl, filterUrl } =
+  Astro.props;
 const f = e.facts;
 const text = textIn(e, language);
 const url = str(f.url);
@@ -41,6 +45,7 @@ const facts = (kind.filters ?? []).flatMap((filter) => {
     {
       label: configured ?? own ?? value,
       href: link ? entryUrl(link.toKind, link.toSlug) : null,
+      image: link ? targetImages.get(`${link.toKind}/${link.toSlug}`) : undefined,
       chip: !link && !!filter.values,
       filterHref: filterUrl(filter.fact, value),
     },
@@ -60,6 +65,11 @@ const telegram = strings(f.telegram);
         <>
           <span aria-hidden="true">·</span>
           {x.href ? <a href={x.href}><b>{x.label}</b></a> : <b>{x.label}</b>}
+          {x.href && x.image && (
+            <a class="ref-logo-link" href={x.href} tabindex="-1" aria-hidden="true">
+              <img class="ref-logo" src={x.image.src} alt="" title={`${x.image.credit} · ${x.image.licence}`} loading="lazy" decoding="async" />
+            </a>
+          )}
         </>
       ),
     )}

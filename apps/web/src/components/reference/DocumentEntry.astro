@@ -142,7 +142,7 @@ const crumb = list
       </section>
     )}
 
-    <Incoming groups={page.incoming} links={page.incomingLinks} reference={page.reference} language={language} words={w} entryUrl={page.entryUrl} url={page.url} />
+    <Incoming groups={page.incoming} links={page.incomingLinks} targetImages={page.targetImages} reference={page.reference} language={language} words={w} entryUrl={page.entryUrl} url={page.url} />
 
     <nav class="ref-pager" aria-label={crumb.label}>
       {page.newer ? <a href={page.entryUrl(page.newer.kind, page.newer.slug) ?? "#"}><span>{w.newer}</span><bdi dir="ltr" lang="en">{page.newer.title}</bdi></a> : <span />}

@@ -1,8 +1,11 @@
 """Writes imported entries in one transaction, as the system role, in the newsroom's setting."""
 
+from pathlib import Path
+
 import psycopg
 from psycopg.types.json import Jsonb
 
+from .images import store_images
 from .mapping import Entry
 
 UPSERT = """
@@ -20,7 +23,11 @@ returning (xmax = 0) as inserted
 
 
 def write(
-    url: str, newsroom: str, entries: list[Entry], links: list[tuple[str, str, str, str]]
+    url: str,
+    newsroom: str,
+    entries: list[Entry],
+    links: list[tuple[str, str, str, str]],
+    public: Path | None = None,
 ) -> tuple[int, int]:
     inserted = updated = 0
     with psycopg.connect(url) as conn, conn.transaction():
@@ -37,6 +44,8 @@ def write(
         if unknown:
             raise SystemExit(f"newsroom {newsroom!r} has no Reference kind {', '.join(unknown)}")
         conn.execute("select set_config('anr.newsroom_id', %s, true)", (str(newsroom_id),))
+        entries, images = store_images(conn, newsroom_id, entries, public)
+        print(f"images: {images} stored as licensed media")
         for e in entries:
             res = conn.execute(
                 UPSERT,

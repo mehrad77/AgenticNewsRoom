@@ -31,6 +31,8 @@ WIKIDATA_FACTS = (
     "scholar",
 )
 SUFFIXES = {"the", "inc", "ltd", "llc", "corp", "corporation", "co"}
+# Free Wikimedia Commons licences ANR publishes images under (D119); anything else gets no image.
+FREE_LICENCES = re.compile(r"^(Public domain|CC0|CC BY(-SA)? \d\.\d( [a-z]{2})?)$")
 
 
 def norm(s: str) -> str:
@@ -191,6 +193,24 @@ def _entry(e: Entity, slug: str) -> Entry:
         "entity_kind": e.entity_kind,
         "class": e.org_class,
     }
+    image = e.wikidata.get("image")
+    if (
+        isinstance(image, dict)
+        and FREE_LICENCES.match(str(image.get("license") or ""))
+        and image.get("artist")
+        and image.get("commonsUrl")
+    ):
+        # Stored as a licensed media item at import (write.py); the site shows it with its credit.
+        facts["image_source"] = {
+            "src": image["src"],
+            "licence": image["license"],
+            "licence_url": image.get("licenseUrl") or image["commonsUrl"],
+            "artist": image["artist"],
+            "commons_url": image["commonsUrl"],
+            "width": image.get("width"),
+            "height": image.get("height"),
+            "role": "photo" if e.kind == "person" else "logo",
+        }
     return Entry(
         legacy_id=f"entity:{e.key}",
         kind=e.kind,

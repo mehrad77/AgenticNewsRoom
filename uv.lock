@@ -80,11 +80,15 @@ name = "anr-legacy-import"
 version = "0.0.0"
 source = { editable = "tools/legacy-import" }
 dependencies = [
+    { name = "anr-ingestion" },
     { name = "psycopg", extra = ["binary"] },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "psycopg", extras = ["binary"], specifier = ">=3.3.6" }]
+requires-dist = [
+    { name = "anr-ingestion", editable = "services/ingestion" },
+    { name = "psycopg", extras = ["binary"], specifier = ">=3.3.6" },
+]
 
 [[package]]
 name = "anr-schemas"

@@ -7,6 +7,8 @@ export interface ReferenceWords {
   reference: string;
   /** D164: imported text, shown as it was (and, outside Persian, machine-translated, D169). */
   imported: string;
+  /** An imported profile: names and Wikidata's facts, no translated text. */
+  importedFacts: string;
   approximate: string;
   all: string;
   filter: string;
@@ -57,6 +59,7 @@ const en: ReferenceWords = {
   reference: "Reference",
   imported:
     "Imported from the old archive and machine-translated from Persian. Not checked by ANR's verifier.",
+  importedFacts: "Imported from the old archive, with facts from Wikidata.",
   approximate: "(approximate date)",
   all: "All",
   filter: "Filter",
@@ -113,6 +116,7 @@ const en: ReferenceWords = {
 const fa: ReferenceWords = {
   reference: "مرجع",
   imported: "از آرشیو قدیمی آمده است. بررسی‌کننده‌ی ANR این متن را نسنجیده است.",
+  importedFacts: "از آرشیو قدیمی آمده است، با داده‌هایی از ویکی‌داده.",
   approximate: "(تاریخ تقریبی)",
   all: "همه",
   filter: "فیلتر",
@@ -171,6 +175,7 @@ const tr: ReferenceWords = {
   reference: "Başvuru",
   imported:
     "Eski arşivden aktarıldı ve Farsçadan makine çevirisiyle çevrildi. ANR'nin doğrulayıcısı bu metni kontrol etmedi.",
+  importedFacts: "Eski arşivden aktarıldı; veriler Wikidata'dan.",
   approximate: "(yaklaşık tarih)",
   all: "Tümü",
   filter: "Süz",

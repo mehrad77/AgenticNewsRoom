@@ -79,7 +79,7 @@ const describe = (e: Entry) => {
             <h3><time datetime={d.key}>{dateLabel(d.key, language)}</time></h3>
             <ol class="ref-list">
               {d.entries.map((e) => (
-                <TimelineItem entry={e} language={language} words={w} kind={target.kind} outLinks={linkedOrNull(page.outLinks, e.id)} entryUrl={page.entryUrl} filterUrl={filterUrl} />
+                <TimelineItem targetImages={page.targetImages} entry={e} language={language} words={w} kind={target.kind} outLinks={linkedOrNull(page.outLinks, e.id)} entryUrl={page.entryUrl} filterUrl={filterUrl} />
               ))}
             </ol>
           </section>
@@ -91,7 +91,7 @@ const describe = (e: Entry) => {
 {layout === "timeline" && grouping !== "year-day" && (
   <ol class="ref-list">
     {entries.map((e) => (
-      <TimelineItem entry={e} language={language} words={w} kind={target.kind} outLinks={linkedOrNull(page.outLinks, e.id)} entryUrl={page.entryUrl} filterUrl={filterUrl} />
+      <TimelineItem targetImages={page.targetImages} entry={e} language={language} words={w} kind={target.kind} outLinks={linkedOrNull(page.outLinks, e.id)} entryUrl={page.entryUrl} filterUrl={filterUrl} />
     ))}
   </ol>
 )}
@@ -115,8 +115,19 @@ const describe = (e: Entry) => {
         {entries.map((e) => (
           <tr>
             <td>
-              <a href={page.entryUrl(e.kind, e.slug) ?? "#"} dir="auto">{entryName(e, language)}</a>
-              {describe(e) && <div class="ref-muted">{describe(e)}</div>}
+              <div class="ref-entity">
+                {page.entryImages.get(e.id) ? (
+                  <span class="ref-entity-media">
+                    <img class="ref-entity-image" src={page.entryImages.get(e.id)?.src} alt="" title={`${page.entryImages.get(e.id)?.credit} · ${page.entryImages.get(e.id)?.licence}`} loading="lazy" decoding="async" />
+                  </span>
+                ) : (
+                  <span class="ref-entity-placeholder" aria-hidden="true">{[...entryName(e, language)][0]}</span>
+                )}
+                <div>
+                  <a href={page.entryUrl(e.kind, e.slug) ?? "#"} dir="auto">{entryName(e, language)}</a>
+                  {describe(e) && <div class="ref-muted">{describe(e)}</div>}
+                </div>
+              </div>
             </td>
             <td class="ref-num">{n(page.counts.get(e.id) ?? 0)}</td>
           </tr>

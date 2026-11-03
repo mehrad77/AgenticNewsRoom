@@ -4,10 +4,13 @@ import type { Language } from "@anr/core";
 import type { Pool } from "@anr/db";
 import {
   type Entry,
+  type EntryImage,
   entriesByQid,
   entriesLinkingTo,
   entriesOf,
   entryBySlug,
+  imagesOf,
+  imagesOfTargets,
   kindCounts,
   linkedCounts,
   linksFrom,
@@ -45,6 +48,8 @@ export interface HomeSection {
   latest: Entry[];
   /** The latest entries' links out (timeline items link their names). */
   links: Map<string, OutLink[]>;
+  /** Images of the entries those links point at, by "kind/slug". */
+  targetImages: Map<string, EntryImage>;
 }
 
 export interface Incoming {
@@ -64,6 +69,9 @@ export type ReferenceView =
       outLinks: Map<string, OutLink[]>;
       /** For a profile index: how many entries point at each entry. */
       counts: Map<string, number>;
+      /** Images: of the entries listed (by id), and of what timeline items link to (by "kind/slug"). */
+      entryImages: Map<string, EntryImage>;
+      targetImages: Map<string, EntryImage>;
     }
   | {
       kind: "reference-entry";
@@ -76,6 +84,8 @@ export type ReferenceView =
       older: Entry | null;
       /** Entries for the QIDs the entry's Wikidata facts name. */
       byQid: Map<string, { kind: string; slug: string }>;
+      image: EntryImage | null;
+      targetImages: Map<string, EntryImage>;
     };
 
 /** The timeline's filters from the query (one parameter per fact), and the entries they keep. */
@@ -146,17 +156,19 @@ export async function loadReference(
         ? await entriesOf(pool, newsroomId, target.kindKey, target.kind.layout, factOf(target))
         : [];
       const latest = all.slice(0, target.kind.layout === "timeline" ? 5 : 4);
+      const links = await linksFrom(
+        pool,
+        newsroomId,
+        latest.map((e) => e.id),
+      );
       sections.push({
         target,
         count: target.type === "list" ? all.length : c.count,
         oldest: c.oldest,
         newest: c.newest,
         latest,
-        links: await linksFrom(
-          pool,
-          newsroomId,
-          latest.map((e) => e.id),
-        ),
+        links,
+        targetImages: await imagesOfTargets(pool, newsroomId, links.values()),
       });
     }
     return { kind: "reference", sections };
@@ -204,6 +216,15 @@ export async function loadReference(
       filters,
       outLinks,
       counts,
+      entryImages:
+        target.kind.layout === "profile"
+          ? await imagesOf(
+              pool,
+              newsroomId,
+              entries.map((e) => e.id),
+            )
+          : new Map(),
+      targetImages: await imagesOfTargets(pool, newsroomId, outLinks.values()),
     };
   }
 
@@ -246,5 +267,7 @@ export async function loadReference(
     newer: at > 0 ? (siblings[at - 1] ?? null) : null,
     older: at >= 0 ? (siblings[at + 1] ?? null) : null,
     byQid: await entriesByQid(pool, newsroomId, qidsIn(entry.facts)),
+    image: (await imagesOf(pool, newsroomId, [entry.id])).get(entry.id) ?? null,
+    targetImages: await imagesOfTargets(pool, newsroomId, incomingLinks.values()),
   };
 }

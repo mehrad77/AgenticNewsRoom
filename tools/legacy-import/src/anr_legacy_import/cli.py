@@ -123,7 +123,9 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     from .write import write
 
-    inserted, updated = write(url, args.newsroom, imported.entries, imported.links)
+    # The old site's public files (its Commons images) sit beside its src/data.
+    public = args.site_data.resolve().parents[1] / "public" if args.site_data else None
+    inserted, updated = write(url, args.newsroom, imported.entries, imported.links, public)
     print(f"written: {inserted} new, {updated} updated")
     return 0
 

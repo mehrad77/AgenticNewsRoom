@@ -62,7 +62,16 @@ const ids = [
     <p class="ref-eyebrow"><a href={page.url(targetPath(target))}>{nameOf(target.kind.one, language)}</a></p>
     <h1 dir="auto">{entryName(e, language)}</h1>
     {description && <p class="ref-lead">{description}</p>}
-    <Labels label={page.label} aiPolicy={page.links.aiPolicy} imported={e.origin === "imported" ? w.imported : null} />
+    {page.image && (
+      <figure class="ref-figure">
+        <img src={page.image.src} alt={page.image.alt} width={page.image.width ?? undefined} height={page.image.height ?? undefined} />
+        <figcaption>
+          {page.image.credit} · {page.image.licenceUrl ? <a href={page.image.licenceUrl} rel="noopener license">{page.image.licence}</a> : page.image.licence}
+          {page.image.sourceUrl && <> · <a href={page.image.sourceUrl} rel="noopener">Wikimedia Commons</a></>}
+        </figcaption>
+      </figure>
+    )}
+    <Labels label={page.label} aiPolicy={page.links.aiPolicy} imported={e.origin === "imported" ? w.importedFacts : null} />
     {(rows.length > 0 || lists.length > 0 || website || otherNames.length > 0) && (
       <dl class="ref-facts">
         {website && <><dt>{w.wikidata.website}</dt><dd><a href={website} rel="noopener" dir="ltr">{website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}</a></dd></>}
@@ -73,7 +82,7 @@ const ids = [
         {otherNames.length > 0 && <><dt>{w.wikidata.aliases}</dt><dd>{otherNames.map((n, i) => <>{i > 0 && sep}<bdi>{n}</bdi></>)}</dd></>}
       </dl>
     )}
-    <Incoming groups={page.incoming} links={page.incomingLinks} reference={page.reference} language={language} words={w} entryUrl={page.entryUrl} url={page.url} />
+    <Incoming groups={page.incoming} links={page.incomingLinks} targetImages={page.targetImages} reference={page.reference} language={language} words={w} entryUrl={page.entryUrl} url={page.url} />
   </article>
   <aside class="ref-side">
     {(qid || ids.length > 0) && (

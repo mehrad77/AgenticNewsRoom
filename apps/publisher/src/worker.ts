@@ -20,6 +20,7 @@ import { queueAudio } from "./podcast/queue.ts";
 import { c2paSigner } from "./podcast/sign.ts";
 import { cachedTts, fakeTts, ttsFor } from "./podcast/tts.ts";
 import type { PublishDeps } from "./publish.ts";
+import { publishReferenceImages } from "./reference.ts";
 import { snapshotSubscribers } from "./stats.ts";
 import { sweepDue } from "./sweep.ts";
 
@@ -84,6 +85,9 @@ await registerJobs(drains.boss, {
     await queueAudio(pool, boss);
     const counts = await sweepDue(deps);
     if (Object.keys(counts).length > 0) console.log(`[publisher] sweep ${JSON.stringify(counts)}`);
+    const images = await publishReferenceImages(pool, deps.media);
+    if (images.published + images.failed > 0)
+      console.log(`[publisher] reference images ${JSON.stringify(images)}`);
   },
   stats: async () => {
     console.log(`[publisher] subscribers ${JSON.stringify(await snapshotSubscribers(deps))}`);

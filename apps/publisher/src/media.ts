@@ -162,7 +162,24 @@ export async function prepareMedia(
     return { kind: "hold", name: "unlicensed-media", detail: { media: unlicensed } };
   if (!deps)
     return { kind: "hold", name: "media", detail: { error: "no image writer configured" } };
-  for (const m of rows.filter((r) => !r.published_file)) {
+  const failed = await publishCopies(client, deps, rows, true);
+  return failed
+    ? { kind: "hold", name: "media", detail: { media: failed.id, error: failed.error } }
+    : { kind: "ready" };
+}
+
+/**
+ * Publishes each licensed image not published yet: its copy with Photo Metadata, signed (D120).
+ * Returns the first failure; with `stopAtFailure` false it goes on to the next image.
+ */
+export async function publishCopies(
+  client: Client,
+  deps: MediaDeps,
+  rows: MediaRow[],
+  stopAtFailure: boolean,
+): Promise<{ id: string; error: string } | null> {
+  let first: { id: string; error: string } | null = null;
+  for (const m of rows.filter((r) => !r.published_file && r.licence && r.credit_line?.trim())) {
     const workDir = deps.workDir();
     try {
       const source = await deps.raw(m.file);
@@ -175,14 +192,15 @@ export async function prepareMedia(
         [m.id, key],
       );
     } catch (error) {
-      return {
-        kind: "hold",
-        name: "media",
-        detail: { media: m.id, error: (error as Error).message },
-      };
+      first ??= { id: m.id, error: (error as Error).message };
+      if (stopAtFailure) return first;
     } finally {
       rmSync(workDir, { recursive: true, force: true });
     }
   }
-  return { kind: "ready" };
+  return first;
 }
+
+/** The columns publishCopies reads. */
+export const MEDIA_COLUMNS = `id, file, content_type, description, creator, credit_line, copyright_notice,
+  web_statement, licensor, digital_source_type, licence, licence_url, published_file`;

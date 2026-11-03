@@ -2,7 +2,13 @@
 // What in the Reference points at an entry, grouped by kind (D170): timeline items as on their
 // timeline, documents as tiles, profiles as links.
 import type { Language } from "@anr/core";
-import { type Entry, entryName, linkedOrNull, type OutLink } from "../../lib/reference.ts";
+import {
+  type Entry,
+  type EntryImage,
+  entryName,
+  linkedOrNull,
+  type OutLink,
+} from "../../lib/reference.ts";
 import { nameOf, type ReferenceConfig } from "../../lib/reference-config.ts";
 import type { Incoming } from "../../lib/reference-page.ts";
 import type { ReferenceWords } from "../../lib/reference-words.ts";
@@ -12,13 +18,14 @@ import TimelineItem from "./TimelineItem.astro";
 interface Props {
   groups: Incoming[];
   links: Map<string, OutLink[]>;
+  targetImages: Map<string, EntryImage>;
   reference: ReferenceConfig;
   language: Language;
   words: ReferenceWords;
   entryUrl: (kind: string, slug: string) => string | null;
   url: (path: string) => string;
 }
-const { groups, links, language, words: w, entryUrl, url } = Astro.props;
+const { groups, links, targetImages, language, words: w, entryUrl, url } = Astro.props;
 const filterUrl = (path: string) => (fact: string, value: string) =>
   `${url(`/reference/${path}`)}?${fact}=${encodeURIComponent(value)}`;
 const href = (e: Entry) => entryUrl(e.kind, e.slug) ?? "#";
@@ -32,7 +39,7 @@ const href = (e: Entry) => entryUrl(e.kind, e.slug) ?? "#";
         {g.kind.layout === "timeline" ? (
           <ol class="ref-list">
             {g.entries.map((e) => (
-              <TimelineItem entry={e} language={language} words={w} kind={g.kind} outLinks={linkedOrNull(links, e.id)} entryUrl={entryUrl} filterUrl={filterUrl(g.kind.path)} />
+              <TimelineItem targetImages={targetImages} entry={e} language={language} words={w} kind={g.kind} outLinks={linkedOrNull(links, e.id)} entryUrl={entryUrl} filterUrl={filterUrl(g.kind.path)} />
             ))}
           </ol>
         ) : g.kind.layout === "document" ? (

@@ -329,3 +329,73 @@
   text-align: end;
   font-variant-numeric: tabular-nums;
 }
+
+/* Images (D119): logos beside a name carry their credit in a title and link to the profile, whose
+   caption gives credit, licence and source. */
+.ref-logo {
+  display: inline-block;
+  max-height: 1.4rem;
+  max-width: 5rem;
+  width: auto;
+  height: auto;
+  margin: 0;
+  border-radius: 0;
+  vertical-align: middle;
+}
+.ref-logo-link {
+  text-decoration: none;
+}
+/* A table row's image: as tall as the row's name and description, scaled to fit, never cropped. */
+.ref-entity {
+  display: grid;
+  /* One image column for every row, so names line up whatever the image's shape. */
+  grid-template-columns: 7rem minmax(0, 1fr);
+  align-items: stretch;
+  gap: 0.75rem;
+}
+/* The image fills its box, which takes the row's height and adds none of its own. */
+.ref-entity-media {
+  position: relative;
+  min-height: 3.5rem;
+}
+.ref-entity-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  object-fit: contain;
+  object-position: center;
+  border-radius: 0;
+}
+/* A row without an image: a square with the name's first letter, so the table stays even. */
+.ref-entity-placeholder {
+  display: grid;
+  place-items: center;
+  align-self: center;
+  justify-self: center;
+  width: 3.5rem;
+  aspect-ratio: 1;
+  background: var(--surface-sunken);
+  border: 1px solid var(--stroke);
+  color: var(--text-muted);
+  font-size: 1.4rem;
+  font-weight: 600;
+  line-height: 1;
+}
+.ref-figure {
+  margin: 1rem 0;
+  padding: 1rem;
+  display: inline-block;
+  border: 1px solid var(--stroke);
+  background: #fff;
+}
+.ref-figure img {
+  max-height: 10rem;
+  max-width: 100%;
+  width: auto;
+  border-radius: 0;
+}
+.ref-figure figcaption {
+  font-size: 0.75rem;
+}

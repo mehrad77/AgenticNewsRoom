@@ -37,7 +37,7 @@ const name = (names: Parameters<typeof nameOf>[0]) => nameOf(names, language);
     {s.target.kind.layout === "timeline" ? (
       <ol class="ref-list">
         {s.latest.map((e) => (
-          <TimelineItem
+          <TimelineItem targetImages={s.targetImages}
             entry={e}
             language={language}
             words={w}

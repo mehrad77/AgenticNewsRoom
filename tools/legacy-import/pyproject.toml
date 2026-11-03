@@ -5,7 +5,12 @@ description = "One-off import of the old system's knowledge-base export into a n
 requires-python = ">=3.13"
 dependencies = [
     "psycopg[binary]>=3.3.6",
+    # The raw store images go to, as ingestion writes it (local directory or R2, D132).
+    "anr-ingestion",
 ]
+
+[tool.uv.sources]
+anr-ingestion = { workspace = true }
 
 [project.scripts]
 legacy-import = "anr_legacy_import.cli:main"

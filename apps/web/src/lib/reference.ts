@@ -2,6 +2,7 @@
 // out. Only listed entries are ever read; row-level security keeps each newsroom's own.
 import type { Language } from "@anr/core";
 import { type Pool, withNewsroom } from "@anr/db";
+import { mediaPath } from "@anr/render";
 
 export type DatePrecision = "day" | "month" | "year";
 
@@ -462,3 +463,91 @@ export function qidsIn(facts: Record<string, unknown>): string[] {
 /** An entry's links out, or none. */
 export const linkedOrNull = (links: Map<string, OutLink[]>, entryId: string): OutLink[] =>
   links.get(entryId) ?? [];
+
+/** An entry's image as the site shows it: its published copy (D120), with credit and licence. */
+export interface EntryImage {
+  src: string;
+  width: number | null;
+  height: number | null;
+  alt: string;
+  credit: string;
+  licence: string;
+  licenceUrl: string | null;
+  sourceUrl: string | null;
+}
+
+/** The images of these entries that have a published copy, by entry id (D119). */
+export function imagesOf(
+  pool: Pool,
+  newsroomId: string,
+  entryIds: string[],
+): Promise<Map<string, EntryImage>> {
+  if (entryIds.length === 0) return Promise.resolve(new Map());
+  return withNewsroom(pool, newsroomId, async (c) => {
+    const { rows } = await c.query<{
+      entry: string;
+      id: string;
+      content_type: string;
+      width: number | null;
+      height: number | null;
+      description: string | null;
+      credit_line: string;
+      licence: string;
+      licence_url: string | null;
+      source_url: string | null;
+    }>(
+      `select e.id as entry, m.id, m.content_type, (e.facts->'image'->>'width')::int as width,
+              (e.facts->'image'->>'height')::int as height, m.description, m.credit_line,
+              m.licence, m.licence_url, m.source_url
+       from reference_entries e
+       join media m on m.id::text = e.facts->'image'->>'media_id'
+       where e.id = any($1::uuid[]) and m.published_file is not null
+         and m.licence is not null and nullif(trim(m.credit_line), '') is not null`,
+      [entryIds],
+    );
+    return new Map(
+      rows.map((r) => [
+        r.entry,
+        {
+          src: mediaPath(r.id, r.content_type),
+          width: r.width,
+          height: r.height,
+          alt: r.description ?? "",
+          credit: r.credit_line,
+          licence: r.licence,
+          licenceUrl: r.licence_url,
+          sourceUrl: r.source_url,
+        },
+      ]),
+    );
+  });
+}
+
+/** The images of the entries these links point at, by "kind/slug". */
+export async function imagesOfTargets(
+  pool: Pool,
+  newsroomId: string,
+  links: Iterable<OutLink[]>,
+): Promise<Map<string, EntryImage>> {
+  const targets = [...new Set([...links].flat().map((l) => `${l.toKind}/${l.toSlug}`))];
+  if (targets.length === 0) return new Map();
+  const ids = await withNewsroom(pool, newsroomId, async (c) => {
+    const { rows } = await c.query<{ id: string; ks: string }>(
+      `select id, kind || '/' || slug as ks from reference_entries
+       where kind || '/' || slug = any($1::text[]) and facts ? 'image'`,
+      [targets],
+    );
+    return rows;
+  });
+  const images = await imagesOf(
+    pool,
+    newsroomId,
+    ids.map((r) => r.id),
+  );
+  return new Map(
+    ids.flatMap((r) => {
+      const img = images.get(r.id);
+      return img ? [[r.ks, img] as const] : [];
+    }),
+  );
+}
