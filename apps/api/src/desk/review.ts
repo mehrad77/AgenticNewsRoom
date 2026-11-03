@@ -85,9 +85,10 @@ export async function deskPublication(client: Client, actor: Actor, id: string) 
     assignment_id: string | null;
     version: string;
     editable: boolean;
+    trace_id: string | null;
   }>(
     `select p.id, s.slug as series, p.slot, p.language, p.status, r.body as rendition, r.story_id,
-            p.assignment_id, p.updated_at::text as version,
+            p.assignment_id, p.updated_at::text as version, substr(p.traceparent, 4, 32) as trace_id,
             p.status = 'with-editor' and r.id is not null and not exists (
               select 1 from posts x where x.publication_id = p.id and (${OUT_OR_IN_FLIGHT})
             ) as editable

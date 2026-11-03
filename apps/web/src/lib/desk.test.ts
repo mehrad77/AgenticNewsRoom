@@ -9,6 +9,7 @@ import {
   issueLink,
   noticeFields,
   type Sample,
+  traceLink,
 } from "./desk.ts";
 
 describe("deskRoute", () => {
@@ -225,5 +226,18 @@ describe("challenges at the desk (D114–D116)", () => {
     const url = new URL(challengeIssueLink("https://github.com/x/y/issues/new", "kultur", c));
     expect(url.searchParams.get("body")).toContain("> Release years from the label.");
     expect(url.toString()).not.toContain("PRIVATE");
+  });
+});
+
+describe("traceLink", () => {
+  const id = "4bf92f3577b34da6a3ce929d0e0e4736";
+  it("opens the trace in Grafana's Explore at ops.", () => {
+    const url = new URL(traceLink("example.org", id));
+    expect(url.origin).toBe("https://ops.example.org");
+    expect(url.pathname).toBe("/explore");
+    expect(JSON.parse(url.searchParams.get("panes") ?? "").trace.queries[0].query).toBe(id);
+  });
+  it("uses dev's Grafana on localhost", () => {
+    expect(traceLink("localhost", id)).toMatch(/^http:\/\/localhost:3000\/explore\?/);
   });
 });

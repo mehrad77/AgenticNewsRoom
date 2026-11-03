@@ -5,9 +5,11 @@ import {
   editForm,
   type Preview,
   safeHref,
+  traceLink,
   usd,
   when,
 } from "../../lib/desk.ts";
+import { rootDomain } from "../../lib/newsrooms.ts";
 import Holds from "./Holds.astro";
 
 interface Props {
@@ -24,7 +26,7 @@ const fields = p.editable ? editForm(rendition) : [];
 const problems = preview ? [...preview.channels.filter((c) => c.error).map((c) => c.kind), ...(preview.site.error ? ["site"] : [])] : [];
 ---
 <h1>{String(rendition?.title ?? "(untitled)")}</h1>
-<p class="meta">{p.series} · {p.language} · {when(p.slot)} · <strong>{p.status}</strong></p>
+<p class="meta">{p.series} · {p.language} · {when(p.slot)} · <strong>{p.status}</strong>{p.trace_id && <> · <a href={traceLink(rootDomain, p.trace_id)}>Trace</a></>}</p>
 
 {held && (
   <section class="card decide">

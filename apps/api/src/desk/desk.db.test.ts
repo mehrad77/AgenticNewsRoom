@@ -176,9 +176,14 @@ describe("review queue and decisions", () => {
     ).toEqual([["fact-check", "partial", "c1"]]);
   });
 
-  it("shows one publication with its claims, checks and posts", async () => {
+  it("shows one publication with its claims, checks, posts and trace", async () => {
+    await pools.system.query("update publications set traceparent = $2 where id = $1", [
+      held,
+      "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+    ]);
     const p = await call(at(`/publications/${held}`), { as: editor });
     expect(p.status).toBe(200);
+    expect(p.json.trace_id).toBe("4bf92f3577b34da6a3ce929d0e0e4736");
     expect(p.json.claims).toEqual([expect.objectContaining({ ref: "c1", kind: "opinion" })]);
     expect(p.json.posts).toEqual([expect.objectContaining({ status: "unknown", part: 1 })]);
     expect((await call(at("/publications/not-a-uuid"))).status).toBe(404);
