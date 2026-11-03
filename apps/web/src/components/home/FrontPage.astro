@@ -19,7 +19,10 @@ const filterUrl = (fact: string, value: string) => `${timeline}?${fact}=${encode
 <h1 class="visually-hidden">{page.newsroom.name[language] ?? page.newsroom.slug}</h1>
 <div class="front wide">
   <section class="front-news" aria-labelledby="front-news">
-    <h2 class="front-title" id="front-news"><a href={timeline}>{nameOf(news.target.kind.name, language)}</a></h2>
+    <div class="front-head">
+      <h2 class="front-title" id="front-news"><a href={timeline}>{nameOf(news.target.kind.name, language)}</a></h2>
+      <a class="front-more" href={timeline}>{w.seeMore}</a>
+    </div>
     <Labels label={news.label} aiPolicy={page.links.aiPolicy} imported={news.entries.some((e) => e.origin === "imported") ? page.ref.imported : null} />
     {news.entries.length === 0 ? <p>{w.nothingYet}</p> : (
       <ol class="ref-list">
@@ -39,19 +42,24 @@ const filterUrl = (fact: string, value: string) => `${timeline}?${fact}=${encode
         ))}
       </ol>
     )}
-    <p class="ref-more"><a href={timeline}>{w.allNews}</a></p>
   </section>
 
   <aside class="front-side">
     {page.blocks.map((b) => (
       <section class="front-series" aria-label={nameOf(b.index.name, language)}>
-        <h2 class="front-title"><a href={page.url(`/${b.index.series}`)}>{nameOf(b.index.name, language)}</a></h2>
+        <div class="front-head">
+          <h2 class="front-title"><a href={page.url(`/${b.index.series}`)}>{nameOf(b.index.name, language)}</a></h2>
+          <a class="front-more" href={page.url(`/${b.index.series}`)}>{w.seeMore}</a>
+        </div>
         <PieceTile piece={b.piece} href={page.url(b.piece.path)} language={language} timezone={page.newsroom.timezone} fallback={b.show} stacked />
       </section>
     ))}
     {news.named.length > 0 && (
       <section class="front-named" aria-labelledby="front-named">
-        <h2 class="front-title" id="front-named">{w.inTheNews}</h2>
+        <div class="front-head">
+          <h2 class="front-title" id="front-named">{w.inTheNews}</h2>
+          <a class="front-more" href={page.links.reference}>{w.seeMore}</a>
+        </div>
         <ul>
           {news.named.map((n) => {
             const href = page.entryUrl(n.kind, n.slug);
