@@ -90,8 +90,8 @@ function meters() {
       unit: "{token}",
       description: "Tokens one model call used.",
     }),
-    cost: meter.createCounter("anr.gen_ai.cost", {
-      unit: "USD",
+    cost: meter.createCounter("anr.gen_ai.cost_usd", {
+      unit: "{USD}",
       description: "What model calls cost, from the catalog's prices.",
     }),
     fallbacks: meter.createCounter("anr.gen_ai.fallbacks", {

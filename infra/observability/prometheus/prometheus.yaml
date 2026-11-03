@@ -13,7 +13,6 @@ otlp:
     - service.namespace
     - service.version
     - deployment.environment.name
-    - host.name
 storage:
   tsdb:
     # Absorbs export retries and network delays.

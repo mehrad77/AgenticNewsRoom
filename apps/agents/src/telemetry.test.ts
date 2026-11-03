@@ -137,7 +137,7 @@ describe("LLM spans (D138)", () => {
     for (const name of [
       "gen_ai.client.operation.duration",
       "gen_ai.client.token.usage",
-      "anr.gen_ai.cost",
+      "anr.gen_ai.cost_usd",
       "anr.gen_ai.fallbacks",
       "anr.agent.runs",
     ])

@@ -112,12 +112,15 @@ def install(
     span_processor: Callable[[SpanExporter], SpanProcessor] = BatchSpanProcessor,
 ) -> Telemetry:
     """Providers wired to the given exporters. Sets nothing global; tests use it directly."""
+    name = os.environ.get("OTEL_SERVICE_NAME") or service_name
     resource = Resource.create(
         {
             # The detector merges OTEL_RESOURCE_ATTRIBUTES (service.version, the environment).
-            "service.name": os.environ.get("OTEL_SERVICE_NAME") or service_name,
+            "service.name": name,
             "service.namespace": "anr",
-            "service.instance.id": socket.gethostname(),
+            # One instance per service on one host: a redeploy keeps the same series (D158).
+            "service.instance.id": name,
+            "host.name": socket.gethostname(),
         }
     )
     tracer_provider = TracerProvider(

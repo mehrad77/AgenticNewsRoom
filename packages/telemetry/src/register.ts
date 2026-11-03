@@ -38,16 +38,19 @@ if (telemetryEnabled()) {
     DiagLogLevel.WARN,
   );
 
+  // npm_package_name is set by `pnpm start` and `pnpm dev`: @anr/agents → agents.
+  const serviceName =
+    process.env.OTEL_SERVICE_NAME ??
+    process.env.npm_package_name?.replace(/^@anr\//, "") ??
+    "unknown";
   const sdk = new NodeSDK({
-    // npm_package_name is set by `pnpm start` and `pnpm dev`: @anr/agents → agents.
-    serviceName:
-      process.env.OTEL_SERVICE_NAME ??
-      process.env.npm_package_name?.replace(/^@anr\//, "") ??
-      "unknown",
+    serviceName,
     // Merged with OTEL_RESOURCE_ATTRIBUTES (service.version, deployment.environment.name).
     resource: resourceFromAttributes({
       "service.namespace": "anr",
-      "service.instance.id": hostname(),
+      // One instance per service on one host: a redeploy keeps the same series (D158).
+      "service.instance.id": serviceName,
+      "host.name": hostname(),
     }),
     spanProcessors: [
       new ScrubbingSpanProcessor(),
