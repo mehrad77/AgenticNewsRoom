@@ -27,7 +27,7 @@ interface Props {
 }
 const { groups, links, targetImages, language, words: w, entryUrl, url } = Astro.props;
 const filterUrl = (path: string) => (fact: string, value: string) =>
-  `${url(`/reference/${path}`)}?${fact}=${encodeURIComponent(value)}`;
+  `${url(path)}?${fact}=${encodeURIComponent(value)}`;
 const href = (e: Entry) => entryUrl(e.kind, e.slug) ?? "#";
 ---
 {groups.length > 0 && (
@@ -39,7 +39,7 @@ const href = (e: Entry) => entryUrl(e.kind, e.slug) ?? "#";
         {g.kind.layout === "timeline" ? (
           <ol class="ref-list">
             {g.entries.map((e) => (
-              <TimelineItem targetImages={targetImages} entry={e} language={language} words={w} kind={g.kind} outLinks={linkedOrNull(links, e.id)} entryUrl={entryUrl} filterUrl={filterUrl(g.kind.path)} />
+              <TimelineItem targetImages={targetImages} entry={e} language={language} words={w} kind={g.kind} outLinks={linkedOrNull(links, e.id)} entryUrl={entryUrl} filterUrl={filterUrl(g.path)} url={url} />
             ))}
           </ol>
         ) : g.kind.layout === "document" ? (

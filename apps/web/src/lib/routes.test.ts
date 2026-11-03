@@ -37,9 +37,14 @@ describe("route", () => {
     expect(route("/daily-newsletter/2026-10-27-1a2b3c4d")).toMatchObject({ kind: "publication" });
   });
 
+  it("reads one plain segment as a series' timeline (the page checks it exists)", () => {
+    expect(route("/news")).toEqual({ kind: "timeline", path: "news" });
+    expect(route("/news/")).toEqual({ kind: "timeline", path: "news" });
+  });
+
   it("refuses anything else", () => {
     for (const p of [
-      "/x",
+      "/X",
       "/daily/today",
       "/../etc/passwd",
       "/Daily/2026-10-27",

@@ -256,7 +256,7 @@ def classic_entries(
         elif kind == "classic" and key in slug_by_classic_id:
             entry = {"kind": "paper", "slug": slug_by_classic_id[key]}
         elif kind == "lab_news" and key in news_slug:
-            entry = {"kind": "news-event", "slug": news_slug[key]}
+            entry = {"kind": "timeline-item", "slug": news_slug[key]}
         url = (
             r.get("url") if isinstance(r.get("url"), str) and r["url"].startswith("http") else None
         )
@@ -335,6 +335,9 @@ def classic_entries(
             "citations": citations,
             "sources": sources,
             "telegram": [u for m in message_ids if (u := telegram_url(channel, m))],
+            "posted_date": _date(str(c.get("posted_date") or "")[:10])[0]
+            if c.get("status") == "posted"
+            else None,
             "references": [ref(r) for r in c.get("references_seen") or [] if isinstance(r, dict)],
             "cited_by": [ref(r) for r in c.get("cited_by_seen") or [] if isinstance(r, dict)],
             "field": c.get("field"),

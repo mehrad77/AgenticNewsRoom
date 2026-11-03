@@ -65,7 +65,7 @@ These words mean one thing each, in code, in the data model and in conversation.
 | Series          | A named recurring output with its own identity, such as a specific podcast or newsletter                                |
 | Channel         | Where a publication goes out: a site, a Telegram channel, a podcast feed; later email or X. Set up in the editor's desk |
 | Reference       | A newsroom's reader-facing reference on its site: all its entries, by kind                                              |
-| Entry           | One reference page of a kind its newsroom configures (the AI newsroom's organisations, people, products, papers and news events; a culture newsroom's artists or venues): facts from code, and text that passed the gate or was imported |
+| Entry           | One reference page of a kind its newsroom configures (the AI newsroom's organisations, people, products and papers; a culture newsroom's artists or venues): facts from code, and text that passed the gate or was imported |
 
 **Roles.** Humans are the Editor-in-Chief and editors, and one platform admin, an operator role with no editorial authority, who chooses which text-to-speech engines newsrooms may use and holds the platform's operational controls (pausing publishing, retrying, cancelling or draining work that ends in a hold or reruns, a backup check), which can never approve, publish or suppress anything. Agents are the planner, the desk (research and writing), the renderer, the fact-checker, the item matcher and the summariser. Code is the producer and the publisher.
 
@@ -118,7 +118,7 @@ Four safeguards are part of the platform, not optional settings. The first three
 3. **Corrections and challenges.** Readers can challenge a publication. A named human owns each newsroom's corrections: the challenge is acknowledged within 24 hours and answered within 48 hours. Every correction is published and becomes a new check.
 4. **AI disclosure.** Mandatory on every channel. Publications carry a visible label and machine-readable metadata (IPTC Digital Source Type, and C2PA for media).
 
-Reference entries carry all four. The one exception is the old system's archive: text imported from it shows as it was, labelled as imported and not checked by ANR's gate, beside the AI disclosure. Readers can challenge it and a correction replaces it with checked text. Nothing written after the import can carry that label.
+Reference entries carry all four. The one exception is the old system's archive: its news, articles and entries imported from it show as they were, labelled as imported and not checked by ANR's gate, beside the AI disclosure. Readers can challenge it and a correction replaces it with checked text. Nothing written after the import can carry that label.
 
 ## v1 scope
 

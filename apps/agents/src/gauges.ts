@@ -73,7 +73,8 @@ export function collectNewsroom(pool: Pool, newsroomId: string): Promise<Newsroo
               from publications p
               join series s on s.id = p.series_id
               join formats f on f.id = s.format_id
-              where p.published_at is not null
+              -- Imported pieces (D172) never had a slot to keep.
+              where p.published_at is not null and p.origin = 'pipeline'
                 and not exists (select from missed m where m.key = p.id::text))
        select n.slug,
               (select count(*) from sent where not late)::int as on_time,

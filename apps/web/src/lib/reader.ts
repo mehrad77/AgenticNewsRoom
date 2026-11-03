@@ -5,6 +5,7 @@ import type { Language } from "@anr/core";
 import { type Pool, withNewsroom } from "@anr/db";
 import { type MediaContext, mediaContext } from "@anr/render";
 import type { ReferenceSchema } from "@anr/schemas";
+import type { Timeline, TimelineConfig } from "./timeline.ts";
 
 /** The statuses a reader may see; also the predicate of the search and listing indexes. */
 const VISIBLE = "status in ('published', 'corrected')";
@@ -20,6 +21,8 @@ export interface ReaderNewsroom {
   correctionsOwner: string;
   /** The newsroom's Reference config (reference.yaml, D170); no kinds when it has none. */
   reference: ReferenceSchema;
+  /** The series whose items form a timeline (D173), in the series' order. */
+  timelines: Timeline[];
 }
 
 export interface Listed {
@@ -52,6 +55,8 @@ export interface ReaderPublication extends Listed {
   /** The licensed images the piece shows, at site-relative URLs (D119). */
   media: Record<string, MediaContext>;
   corrections: Correction[];
+  /** Imported from the old archive (D172): shown as it was, with the imported label (D164). */
+  imported: boolean;
 }
 
 export async function newsroomBySubdomain(
@@ -76,6 +81,12 @@ export async function newsroomBySubdomain(
   );
   const n = rows[0];
   if (!n) return null;
+  const timelines = await withNewsroom(pool, n.id, async (c) => {
+    const { rows: series } = await c.query<{ series: string; config: TimelineConfig }>(
+      "select slug as series, config->'timeline' as config from series where config ? 'timeline' order by slug",
+    );
+    return series;
+  });
   return {
     id: n.id,
     slug: n.slug,
@@ -86,6 +97,7 @@ export async function newsroomBySubdomain(
     editorInChief: n.editor_in_chief,
     correctionsOwner: n.corrections_owner,
     reference: { ...n.reference, kinds: n.reference.kinds ?? {} },
+    timelines,
   };
 }
 
@@ -150,8 +162,9 @@ export function publicationByPath(
       story_id: string | null;
       media_topics: string[] | null;
       body: Record<string, unknown> | null;
+      origin: string;
     }>(
-      `select p.id, p.title, p.path, p.published_at, p.status, p.edited,
+      `select p.id, p.title, p.path, p.published_at, p.status, p.edited, p.origin,
               s.slug as series, s.config->'name' as series_name,
               f.slug as format, f.genre, f.ninjs_type,
               r.story_id, b.media_topics, r.body
@@ -206,6 +219,7 @@ export function publicationByPath(
       rendition: p.body,
       leads: Object.fromEntries(leads.map((l) => [l.id, { url: l.uri, headline: l.headline }])),
       media: await mediaContext(c, p.body, ""),
+      imported: p.origin === "imported",
       corrections: corrections.map((x) => ({
         id: x.id,
         notice: x.notice,

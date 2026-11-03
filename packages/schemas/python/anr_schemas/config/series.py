@@ -48,6 +48,11 @@ class Pick(BaseModel):
     planner_proposes: Literal[3]
     by: By
     editor_picks_by: EditorPicksBy
+    from_: constr(pattern=r"^[a-z][a-z0-9-]*$") | None = Field(
+        None,
+        alias="from",
+        description="A list in the newsroom's reference.yaml whose entries no published piece covers yet: the planner proposes from them (D175).",
+    )
 
 
 class Kind(Enum):
@@ -68,6 +73,36 @@ class Channel(Enum):
     fa = "fa"
     en = "en"
     tr = "tr"
+
+
+class Fact(Enum):
+    org = "org"
+    news_kind = "news_kind"
+
+
+class Filter(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    fact: Fact
+    name: dict[Literal["fa", "en", "tr"], constr(min_length=1)] = Field(..., min_length=1)
+    values: (
+        dict[
+            constr(pattern=r"^[a-z0-9][a-z0-9_-]*$"),
+            dict[Literal["fa", "en", "tr"], constr(min_length=1)],
+        ]
+        | None
+    ) = None
+
+
+class Timeline(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    path: constr(pattern=r"^[a-z][a-z0-9-]*$")
+    name: dict[Literal["fa", "en", "tr"], constr(min_length=1)] = Field(..., min_length=1)
+    intro: dict[Literal["fa", "en", "tr"], constr(min_length=1)] | None = Field(None, min_length=1)
+    filters: list[Filter] | None = None
 
 
 class SeriesConfig(BaseModel):
@@ -107,4 +142,8 @@ class SeriesConfig(BaseModel):
     ) = Field(
         None,
         description='Per text-to-speech engine (a catalogue id), per language: a voice for each host and "narrator". `hosts` and `narrator` are the default engine\'s voices; a local engine without voices here gives each speaker its own default (D113).',
+    )
+    timeline: Timeline | None = Field(
+        None,
+        description="The series' news items as a timeline on the site at /<path>, newest first (D173).",
     )

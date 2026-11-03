@@ -69,6 +69,11 @@
         },
         "editor_picks_by": {
           "enum": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+        },
+        "from": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "A list in the newsroom's reference.yaml whose entries no published piece covers yet: the planner proposes from them (D175)."
         }
       }
     },
@@ -161,6 +166,81 @@
           "additionalProperties": {
             "type": "string",
             "minLength": 1
+          }
+        }
+      }
+    },
+    "timeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "name"],
+      "description": "The series' news items as a timeline on the site at /<path>, newest first (D173).",
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "name": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          },
+          "propertyNames": {
+            "enum": ["fa", "en", "tr"]
+          }
+        },
+        "intro": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          },
+          "propertyNames": {
+            "enum": ["fa", "en", "tr"]
+          }
+        },
+        "filters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["fact", "name"],
+            "properties": {
+              "fact": {
+                "enum": ["org", "news_kind"]
+              },
+              "name": {
+                "type": "object",
+                "minProperties": 1,
+                "additionalProperties": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "propertyNames": {
+                  "enum": ["fa", "en", "tr"]
+                }
+              },
+              "values": {
+                "type": "object",
+                "propertyNames": {
+                  "pattern": "^[a-z0-9][a-z0-9_-]*$"
+                },
+                "additionalProperties": {
+                  "type": "object",
+                  "minProperties": 1,
+                  "additionalProperties": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "propertyNames": {
+                    "enum": ["fa", "en", "tr"]
+                  }
+                }
+              }
+            }
           }
         }
       }

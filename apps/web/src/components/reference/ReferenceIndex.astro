@@ -44,7 +44,7 @@ const describe = (e: Entry) => {
 ---
 <h1>{nameOf(names.name, language)}</h1>
 {names.intro && <p class="ref-lead">{nameOf(names.intro, language)}</p>}
-<Labels label={page.label} aiPolicy={page.links.aiPolicy} imported={w.imported} />
+<Labels label={page.label} aiPolicy={page.links.aiPolicy} imported={entries.some((e) => e.origin === "imported") ? w.imported : null} />
 <StatGroup class="ref-stats">
   <Stat label={nameOf(names.name, language)} value={n(page.total)} />
   {layout !== "profile" && entries.length > 0 && entries[entries.length - 1]?.date && (
@@ -82,7 +82,7 @@ const describe = (e: Entry) => {
             <h3><time datetime={d.key}>{dateLabel(d.key, language)}</time></h3>
             <ol class="ref-list">
               {d.entries.map((e) => (
-                <TimelineItem targetImages={page.targetImages} entry={e} language={language} words={w} kind={target.kind} outLinks={linkedOrNull(page.outLinks, e.id)} entryUrl={page.entryUrl} filterUrl={filterUrl} />
+                <TimelineItem targetImages={page.targetImages} entry={e} language={language} words={w} kind={target.kind} outLinks={linkedOrNull(page.outLinks, e.id)} entryUrl={page.entryUrl} filterUrl={filterUrl} url={page.url} />
               ))}
             </ol>
           </section>
@@ -94,7 +94,7 @@ const describe = (e: Entry) => {
 {layout === "timeline" && grouping !== "year-day" && (
   <ol class="ref-list">
     {entries.map((e) => (
-      <TimelineItem targetImages={page.targetImages} entry={e} language={language} words={w} kind={target.kind} outLinks={linkedOrNull(page.outLinks, e.id)} entryUrl={page.entryUrl} filterUrl={filterUrl} />
+      <TimelineItem targetImages={page.targetImages} entry={e} language={language} words={w} kind={target.kind} outLinks={linkedOrNull(page.outLinks, e.id)} entryUrl={page.entryUrl} filterUrl={filterUrl} url={page.url} />
     ))}
   </ol>
 )}

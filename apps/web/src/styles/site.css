@@ -89,6 +89,7 @@ html body > main aside:not(.ref-side) {
 }
 /* Links out of a piece's rendered body get the kit's external-link look (external-links.ts). */
 .external-link-icon {
+  display: inline-block;
   inline-size: 0.85em;
   block-size: 0.85em;
   margin-inline-start: 0.25em;

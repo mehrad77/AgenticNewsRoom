@@ -1,5 +1,6 @@
 ---
-// One dated item of a timeline kind (D170): its date, its filter facts (a fact that names a linked
+// One dated item of a timeline kind (D170) or a series' timeline (D173): its date (linked to its
+// piece, for a news item), its filter facts (a fact that names a linked
 // entry links to it), its title, its text, the entries it mentions and its links.
 import { directionOf, type Language } from "@anr/core";
 import {
@@ -30,9 +31,12 @@ interface Props {
   targetImages: Map<string, EntryImage>;
   entryUrl: (kind: string, slug: string) => string | null;
   filterUrl: (fact: string, value: string) => string;
+  /** A path on the page's site as a URL, for the piece a news item belongs to (D173). */
+  url?: (path: string) => string;
 }
-const { entry: e, language, words: w, kind, outLinks, targetImages, entryUrl, filterUrl } =
+const { entry: e, language, words: w, kind, outLinks, targetImages, entryUrl, filterUrl, url: siteUrl } =
   Astro.props;
+const piece = str(e.facts.piece) && siteUrl ? siteUrl(str(e.facts.piece) ?? "/") : null;
 const f = e.facts;
 const text = textIn(e, language);
 const url = str(f.url);
@@ -58,7 +62,11 @@ const telegram = strings(f.telegram);
 ---
 <li class="ref-news" id={e.slug}>
   <div class="ref-meta">
-    <time datetime={e.date}>{dateLabel(e.date, language)}</time>
+    {piece ? (
+      <a href={piece}><time datetime={e.date}>{dateLabel(e.date, language)}</time></a>
+    ) : (
+      <time datetime={e.date}>{dateLabel(e.date, language)}</time>
+    )}
     {e.dateStatus === "approximate" && <span>{w.approximate}</span>}
     {facts.map((x) =>
       x.chip ? (

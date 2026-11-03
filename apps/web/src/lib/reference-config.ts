@@ -12,7 +12,9 @@ export type Names = Partial<Record<Language, string>>;
 /** What `/reference/<path>` shows: one kind's entries, or a list of one kind's entries. */
 export type Target =
   | { type: "kind"; key: string; kind: KindConfig; kindKey: string }
-  | { type: "list"; key: string; list: ListConfig; kind: KindConfig; kindKey: string };
+  | { type: "list"; key: string; list: ListConfig; kind: KindConfig; kindKey: string }
+  /** A series' timeline (D173), drawn as a timeline kind at `/<path>`. */
+  | { type: "timeline"; key: string; kind: KindConfig; kindKey: string };
 
 export function hasReference(ref: ReferenceConfig): boolean {
   return Object.keys(ref.kinds).length > 0;
@@ -38,8 +40,10 @@ export function targetByKey(ref: ReferenceConfig, key: string): Target | null {
 }
 
 export const targetPath = (t: Target) =>
-  `/reference/${t.type === "kind" ? t.kind.path : t.list.path}`;
-export const targetNames = (t: Target) => (t.type === "kind" ? t.kind : t.list);
+  t.type === "timeline"
+    ? `/${t.kind.path}`
+    : `/reference/${t.type === "kind" ? t.kind.path : t.list.path}`;
+export const targetNames = (t: Target) => (t.type === "list" ? t.list : t.kind);
 
 /**
  * Where an entry lives: its page, or an anchor on its kind's index for a timeline kind. Null when

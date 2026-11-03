@@ -117,6 +117,68 @@
                   },
                   "claim_ids": {
                     "$ref": "#/$defs/claim_ids"
+                  },
+                  "org": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Who the item is about (the lab, company or institute), as its source names it. The site links it to the Reference entry of that name (D173)."
+                  },
+                  "news_kind": {
+                    "enum": [
+                      "model",
+                      "product",
+                      "tool",
+                      "research-blog",
+                      "open-source",
+                      "funding",
+                      "org",
+                      "other"
+                    ],
+                    "description": "What kind of news it is, for the timeline's filter (D173)."
+                  },
+                  "related": {
+                    "type": "array",
+                    "maxItems": 8,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": "Products, models, people or organisations the item names, as it names them."
+                  },
+                  "url": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "Set by code: the item's own page. The site otherwise links its first claim's lead."
+                  },
+                  "url_type": {
+                    "enum": ["official", "docs", "repo", "press", "wikipedia", "other"],
+                    "description": "Set by code: what kind of page `url` is."
+                  },
+                  "links": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["url", "label"],
+                      "properties": {
+                        "url": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "description": "Set by code: further links the item carries."
+                  },
+                  "anchor": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9][a-z0-9-]*$",
+                    "description": "Set by code: the item's id on the timeline."
+                  },
+                  "approximate": {
+                    "type": "boolean",
+                    "description": "Set by code: the item's date is approximate."
                   }
                 }
               },

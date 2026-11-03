@@ -157,7 +157,12 @@ export interface PickFacts {
   angle: string | null;
   focus: string | null;
   earlier: string[];
+  /** The Reference's entries the pick proposes from (`pick.from`, D175) that nothing covers yet. */
+  waiting: { title: string; year: number | null; url: string | null }[];
 }
+
+/** How many waiting entries the planner is shown up front. */
+export const SHOWN_WAITING = 40;
 
 export async function pickFacts(
   client: Client,
@@ -166,11 +171,21 @@ export async function pickFacts(
   slot: Date,
   timezone: string,
 ): Promise<PickFacts> {
-  const { rows } = await client.query<Omit<PickFacts, "slot" | "focus"> & { calendar: unknown }>(
+  // Earlier picks and every published piece of the series, imported ones too (D172), so the
+  // planner never proposes what the series already covered.
+  const { rows } = await client.query<
+    Omit<PickFacts, "slot" | "focus" | "waiting"> & { calendar: unknown; from: string | null }
+  >(
     `select s.slug as series, coalesce(s.config->'name'->>'en', s.slug) as "seriesName", f.slug as format,
-            c.theme, c.angle, c.calendar,
-            array(select p.candidates->(p.chosen::int)->>'title' from picks p
-                  where p.series_id = s.id and p.chosen is not null order by p.week desc limit 12) as earlier
+            c.theme, c.angle, c.calendar, s.config->'pick'->>'from' as from,
+            array(select t from (
+                    select p.candidates->(p.chosen::int)->>'title' as t, p.week as at from picks p
+                    where p.series_id = s.id and p.chosen is not null
+                    union
+                    select q.title, (q.slot at time zone 'UTC')::date from publications q
+                    where q.series_id = s.id and q.status in ('published', 'corrected')
+                      and q.title is not null) x
+                  group by t order by max(at) desc limit 60) as earlier
      from series s join formats f on f.id = s.format_id, editorial_cycles c
      where s.id = $1 and c.id = $2`,
     [seriesId, cycleId],
@@ -183,7 +198,31 @@ export async function pickFacts(
     ? (row.calendar as { week: string; focus: string }[])
     : [];
   const focus = calendar.find((c) => c.week === week)?.focus ?? null;
-  return { ...row, slot, focus };
+  const waiting = row.from ? await waitingEntries(client, row.from, row.earlier) : [];
+  return { ...row, slot, focus, waiting };
+}
+
+/**
+ * A Reference list's entries no piece covers yet (D175): listed, without a piece of their own and
+ * not among the series' earlier titles, oldest first, as the list's fact and kind say.
+ */
+async function waitingEntries(
+  client: Client,
+  listKey: string,
+  earlier: string[],
+): Promise<PickFacts["waiting"]> {
+  const { rows } = await client.query<{ title: string; year: number | null; url: string | null }>(
+    `select e.title, (e.facts->>'year')::int as year, e.facts->>'url' as url
+     from newsrooms n, reference_entries e
+     where n.id = anr.current_newsroom_id() and e.listed
+       and e.kind = n.reference->'lists'->$1->>'kind'
+       and (e.facts->>(n.reference->'lists'->$1->>'fact'))::boolean
+       and e.facts->>'piece' is null
+       and not (lower(e.title) = any($2::text[]))
+     order by e.date nulls last, e.title`,
+    [listKey, earlier.map((t) => t.toLowerCase())],
+  );
+  return rows;
 }
 
 export async function candidatesMessage(
@@ -199,6 +238,14 @@ export async function candidatesMessage(
     p.earlier.length > 0
       ? `Earlier picks of this series (do not repeat):\n${p.earlier.map((t) => `- ${t}`).join("\n")}`
       : "Earlier picks: none.",
+    ...(p.waiting.length > 0
+      ? [
+          `Waiting in the newsroom's Reference (propose from these; request each one's URL as a source so its candidate rests on a stored lead), ${p.waiting.length} in all:\n${p.waiting
+            .slice(0, SHOWN_WAITING)
+            .map((w) => `- ${w.title}${w.year ? ` (${w.year})` : ""}${w.url ? ` ${w.url}` : ""}`)
+            .join("\n")}`,
+        ]
+      : []),
     await recentLeads(client, now),
   ].join("\n\n");
 }

@@ -10,6 +10,7 @@ import DocumentEntry from "../components/reference/DocumentEntry.astro";
 import ProfileEntry from "../components/reference/ProfileEntry.astro";
 import ReferenceHome from "../components/reference/ReferenceHome.astro";
 import ReferenceIndex from "../components/reference/ReferenceIndex.astro";
+import Labels from "../components/reference/Labels.astro";
 import { directionOf, pageUrl } from "@anr/core";
 import { challengeForm, sendChallenge } from "../lib/challenge.ts";
 import { db } from "../lib/db.ts";
@@ -123,7 +124,7 @@ const isHere = (href: string) => {
   return path === current || (path.length > 4 && current.startsWith(`${path}/`));
 };
 const date = (d: Date) =>
-  new Intl.DateTimeFormat(page.language, { dateStyle: "long", timeZone: page.newsroom.timezone }).format(d);
+  new Intl.DateTimeFormat(page.language, { dateStyle: "long", calendar: "gregory", timeZone: page.newsroom.timezone }).format(d);
 ---
 <Base title={page.title} language={page.language} direction={directionOf(page.language)} theme="light">
   <Fragment slot="head">
@@ -157,6 +158,7 @@ const date = (d: Date) =>
       <>
         {page.publication.status === "corrected" && <p><a href={page.links.corrections}>{w.corrected}</a></p>}
         <p><time datetime={page.publication.publishedAt.toISOString()}>{date(page.publication.publishedAt)}</time></p>
+        {page.publication.imported && <Labels label={null} aiPolicy={page.links.aiPolicy} imported={page.ref.imported} />}
         <Fragment set:html={markExternalLinks(page.bodyHtml, new URL(Astro.url).hostname, w.newTab)} />
         {page.publication.corrections.map((c) => (
           <aside id={c.id}><strong>{w.corrected}</strong> ({date(c.publishedAt)}): {c.notice}</aside>

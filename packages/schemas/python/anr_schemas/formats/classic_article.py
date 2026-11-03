@@ -71,6 +71,9 @@ class Rendition(BaseModel):
     language: Language
     title: constr(min_length=1)
     items: list[Item] = Field(..., min_length=1)
+    paper: constr(pattern=r"^[a-z0-9][a-z0-9-]*$") | None = Field(
+        None, description="Set by code: the slug of the Reference paper the piece is about (D172)."
+    )
 
 
 class ClassicArticleDraft(BaseModel):

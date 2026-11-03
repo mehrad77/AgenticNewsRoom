@@ -106,7 +106,7 @@ def test_classic_entries_keep_sections_refs_and_posts() -> None:
     assert t.body["fa"]["overview"] == "خلاصه" and t.body["fa"]["excerpts"][0]["original"]
     refs = t.facts["references"]
     assert refs[0]["entry"] == {"kind": "paper", "slug": "bush-1945"}
-    assert refs[1]["entry"] == {"kind": "news-event", "slug": news[1].slug}
+    assert refs[1]["entry"] == {"kind": "timeline-item", "slug": news[1].slug}
     assert refs[2] == {
         "title": "x",
         "year": None,

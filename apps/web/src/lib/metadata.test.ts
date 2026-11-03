@@ -27,6 +27,7 @@ const newsroom: ReaderNewsroom = {
   editorInChief: "Mehrad Rousta",
   correctionsOwner: "Mehrad Rousta",
   reference: { kinds: {} },
+  timelines: [],
 };
 const publication: ReaderPublication = {
   id: "p1",
@@ -46,6 +47,7 @@ const publication: ReaderPublication = {
   leads: {},
   media: {},
   corrections: [],
+  imported: false,
 };
 const described = {
   site: { ...site, languages: [...site.languages] },

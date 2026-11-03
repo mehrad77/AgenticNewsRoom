@@ -2,13 +2,14 @@
 import Badge from "@shabboo/kit/Badge.astro";
 // The AI label, and the imported label when the page shows imported text (D164).
 interface Props {
-  label: string;
+  /** Null where the page already shows the AI label (a piece's own template renders it). */
+  label: string | null;
   aiPolicy: string;
   imported: string | null;
 }
 const { label, aiPolicy, imported } = Astro.props;
 ---
 <p class="ref-labels">
-  <a href={aiPolicy}><Badge variant="pill" tone="accent">{label}</Badge></a>
+  {label && <a href={aiPolicy}><Badge variant="pill" tone="accent">{label}</Badge></a>}
   {imported && <Badge variant="pill" tone="warning">{imported}</Badge>}
 </p>

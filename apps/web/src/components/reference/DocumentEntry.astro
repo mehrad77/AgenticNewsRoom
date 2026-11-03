@@ -75,6 +75,7 @@ const crumb = list
     </p>
     <h1 class="ref-title" dir="ltr" lang={e.titleLanguage}>{url ? <ExternalLink href={url} newTabLabel={w.newTab}>{e.title}</ExternalLink> : e.title}</h1>
     <Labels label={page.label} aiPolicy={page.links.aiPolicy} imported={e.origin === "imported" ? w.imported : null} />
+    {str(f.piece) && <p class="ref-lead"><a href={page.url(str(f.piece) ?? "/")}>{w.readPiece}</a></p>}
     <DescriptionList class="ref-facts">
       {e.date && <><dt>{w.facts.date}</dt><dd><time datetime={e.date}>{dateLabel(e.date, language, precision)}</time></dd></>}
       {authors.length > 0 && (

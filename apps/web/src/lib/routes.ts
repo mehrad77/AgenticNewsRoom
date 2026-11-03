@@ -15,6 +15,8 @@ export type Route =
   | { kind: "reference" }
   | { kind: "reference-index"; path: string }
   | { kind: "reference-entry"; path: string; slug: string }
+  /** A series' timeline at the path its config gives (D173); unknown paths are not found. */
+  | { kind: "timeline"; path: string }
   /** The publication's ninjs 3.2 twin: its page URL plus `.json`. */
   | { kind: "ninjs"; path: string }
   | { kind: "not-found" };
@@ -37,5 +39,7 @@ export function route(path: string): Route {
   if (p.endsWith(".json") && PUBLICATION.test(p.slice(0, -5)))
     return { kind: "ninjs", path: p.slice(0, -5) };
   if (PUBLICATION.test(p)) return { kind: "publication", path: p };
+  const timeline = /^\/([a-z][a-z0-9-]*)$/.exec(p);
+  if (timeline?.[1]) return { kind: "timeline", path: timeline[1] };
   return { kind: "not-found" };
 }

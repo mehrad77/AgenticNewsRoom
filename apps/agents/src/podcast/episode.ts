@@ -47,7 +47,7 @@ async function publishedStories(
      join series s on s.id = p.series_id
      join publication_renditions pr on pr.publication_id = p.id
      join renditions r on r.id = pr.rendition_id
-     where s.slug = $1 and p.status in ('published', 'corrected')
+     where s.slug = $1 and p.status in ('published', 'corrected') and p.origin = 'pipeline'
        and p.slot > $2 and p.slot <= $3
      group by r.story_id order by min(p.slot)`,
     [series, from, to],

@@ -27,9 +27,10 @@ import {
   targetNames,
   targetPath,
 } from "./reference-config.ts";
-import { loadReference, type ReferenceView } from "./reference-page.ts";
+import { loadReference, loadTimeline, type ReferenceView } from "./reference-page.ts";
 import { REFERENCE_WORDS, type ReferenceWords } from "./reference-words.ts";
 import { route } from "./routes.ts";
+import { TIMELINE_ITEM } from "./timeline.ts";
 
 let renderer: ReturnType<typeof createRenderer> | undefined;
 
@@ -47,7 +48,10 @@ interface Common {
   ref: ReferenceWords;
   title: string;
   links: ReturnType<typeof policyUrls> & { search: string; reference: string };
-  /** The Reference's kinds and lists in the header (`nav` in reference.yaml); empty without one. */
+  /**
+   * The header's sections after the latest pieces: each series' timeline (D173), then the
+   * Reference's nav (reference.yaml).
+   */
   referenceNav: { key: string; href: string; label: string }[];
   /** An entry's URL on this language's site, or null when the newsroom has no such kind. */
   entryUrl: (kind: string, slug: string) => string | null;
@@ -110,19 +114,30 @@ export async function loadPage(
       search: pageUrl(site, language, "/search"),
       reference: pageUrl(site, language, "/reference"),
     },
-    referenceNav: (newsroom.reference.nav ?? []).flatMap((key) => {
-      const t = targetByKey(newsroom.reference, key);
-      return t
-        ? [
-            {
-              key,
-              href: pageUrl(site, language, targetPath(t)),
-              label: nameOf(targetNames(t).name, language),
-            },
-          ]
-        : [];
-    }),
+    referenceNav: [
+      ...newsroom.timelines.map((t) => ({
+        key: t.series,
+        href: pageUrl(site, language, `/${t.config.path}`),
+        label: nameOf(t.config.name, language),
+      })),
+      ...(newsroom.reference.nav ?? []).flatMap((key) => {
+        const t = targetByKey(newsroom.reference, key);
+        return t
+          ? [
+              {
+                key,
+                href: pageUrl(site, language, targetPath(t)),
+                label: nameOf(targetNames(t).name, language),
+              },
+            ]
+          : [];
+      }),
+    ],
     entryUrl: (kind, slug) => {
+      // A news item lives on its series' timeline.
+      const timeline = newsroom.timelines[0];
+      if (kind === TIMELINE_ITEM)
+        return timeline ? pageUrl(site, language, `/${timeline.config.path}#${slug}`) : null;
       const p = entryPath(newsroom.reference, kind, slug);
       return p ? pageUrl(site, language, p) : null;
     },
@@ -151,6 +166,17 @@ export async function loadPage(
       ]);
       return { kind: "search", query, pieces, entries, ...common(words.search, "/search") };
     }
+    case "timeline": {
+      const timeline = newsroom.timelines.find((t) => t.config.path === r.path);
+      if (!timeline) return { kind: "not-found", ...common(words.notFound) };
+      const view = await loadTimeline(deps.pool, newsroom, timeline, language, request.query);
+      return {
+        ...view,
+        label: await label(),
+        reference: newsroom.reference,
+        ...common(nameOf(timeline.config.name, language), request.path),
+      };
+    }
     case "reference":
     case "reference-index":
     case "reference-entry": {
@@ -160,6 +186,7 @@ export async function loadPage(
         deps.pool,
         newsroom.id,
         newsroom.reference,
+        newsroom.timelines.map((timeline) => ({ timeline, timezone: newsroom.timezone })),
         language,
         r,
         request.query,

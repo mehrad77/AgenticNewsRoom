@@ -119,6 +119,11 @@
               }
             }
           }
+        },
+        "paper": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "description": "Set by code: the slug of the Reference paper the piece is about (D172)."
         }
       }
     }

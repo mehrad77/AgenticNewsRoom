@@ -2,6 +2,7 @@
 // list's index, and an entry with what it links to and what links to it. page.ts calls this.
 import type { Language } from "@anr/core";
 import type { Pool } from "@anr/db";
+import type { ReaderNewsroom } from "./reader.ts";
 import {
   type Entry,
   type EntryImage,
@@ -24,7 +25,9 @@ import {
   type Target,
   targetByKey,
   targetOf,
+  targetPath,
 } from "./reference-config.ts";
+import { TIMELINE_ITEM, type Timeline, timelineItems, timelineKind } from "./timeline.ts";
 
 export interface FilterValue {
   value: string;
@@ -50,6 +53,8 @@ export interface HomeSection {
 export interface Incoming {
   kindKey: string;
   kind: KindConfig;
+  /** Where the group's kind lists its entries, for its filter links. */
+  path: string;
   entries: Entry[];
 }
 
@@ -119,10 +124,48 @@ export function filterTimeline(
 
 const factOf = (t: Target) => (t.type === "list" ? t.list.fact : undefined);
 
+const profileKinds = (ref: ReferenceConfig) =>
+  Object.entries(ref.kinds)
+    .filter(([, k]) => k.layout === "profile")
+    .map(([key]) => key);
+
+/** A series' timeline page (D173): its news items, filtered, drawn as a timeline kind's index. */
+export async function loadTimeline(
+  pool: Pool,
+  newsroom: ReaderNewsroom,
+  timeline: Timeline,
+  language: Language,
+  query: URLSearchParams,
+): Promise<Extract<ReferenceView, { kind: "reference-index" }>> {
+  const kind = timelineKind(timeline.config);
+  const { entries: all, links } = await timelineItems(
+    pool,
+    newsroom.id,
+    timeline.series,
+    language,
+    newsroom.timezone,
+    profileKinds(newsroom.reference),
+  );
+  const { entries, filters } = filterTimeline(kind, all, query, language);
+  return {
+    kind: "reference-index",
+    target: { type: "timeline", key: timeline.series, kind, kindKey: TIMELINE_ITEM },
+    entries,
+    total: all.length,
+    filters,
+    outLinks: links,
+    counts: new Map(),
+    entryImages: new Map(),
+    targetImages: await imagesOfTargets(pool, newsroom.id, links.values()),
+  };
+}
+
 export async function loadReference(
   pool: Pool,
   newsroomId: string,
   ref: ReferenceConfig,
+  /** The newsroom's timelines, whose items an entry's page lists when they name it. */
+  timelines: { timeline: Timeline; timezone: string }[],
   language: Language,
   r:
     | { kind: "reference" }
@@ -218,18 +261,45 @@ export async function loadReference(
     linksFrom(pool, newsroomId, [entry.id]),
     entriesLinkingTo(pool, newsroomId, entry.id),
   ]);
-  const incoming: Incoming[] = Object.entries(ref.kinds)
-    .map(([kindKey, kind]) => ({
+  // News items that name the entry come first, from each timeline (D173).
+  const news = await Promise.all(
+    timelines.map(async ({ timeline, timezone }) => {
+      const t = await timelineItems(
+        pool,
+        newsroomId,
+        timeline.series,
+        language,
+        timezone,
+        profileKinds(ref),
+      );
+      const about = t.entries.filter((e) =>
+        (t.links.get(e.id) ?? []).some(
+          (l) => l.toKind === target.kindKey && l.toSlug === entry.slug,
+        ),
+      );
+      return { timeline, about, links: t.links };
+    }),
+  );
+  const incoming: Incoming[] = [
+    ...news.map(({ timeline, about }) => ({
+      kindKey: TIMELINE_ITEM,
+      kind: timelineKind(timeline.config),
+      path: `/${timeline.config.path}`,
+      entries: about,
+    })),
+    ...Object.entries(ref.kinds).map(([kindKey, kind]) => ({
       kindKey,
       kind,
+      path: targetPath({ type: "kind", key: kindKey, kind, kindKey }),
       entries: linking.filter((e) => e.kind === kindKey),
-    }))
-    .filter((g) => g.entries.length > 0);
+    })),
+  ].filter((g) => g.entries.length > 0);
   const incomingLinks = await linksFrom(
     pool,
     newsroomId,
     linking.map((e) => e.id),
   );
+  for (const n of news) for (const e of n.about) incomingLinks.set(e.id, n.links.get(e.id) ?? []);
   // Newer and older within the list the entry belongs to, else within its kind.
   const list = Object.entries(ref.lists ?? {}).find(
     ([, l]) => l.kind === target.kindKey && entry.facts[l.fact] === true,

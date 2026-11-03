@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 from enum import Enum
-from pydantic import BaseModel, ConfigDict, Field, RootModel, constr
+from pydantic import AnyUrl, BaseModel, ConfigDict, Field, RootModel, constr
 from typing import Literal
 
 
@@ -11,6 +11,38 @@ class Language(Enum):
     fa = "fa"
     en = "en"
     tr = "tr"
+
+
+class NewsKind(Enum):
+    model = "model"
+    product = "product"
+    tool = "tool"
+    research_blog = "research-blog"
+    open_source = "open-source"
+    funding = "funding"
+    org = "org"
+    other = "other"
+
+
+class RelatedItem(RootModel[constr(min_length=1)]):
+    root: constr(min_length=1)
+
+
+class UrlType(Enum):
+    official = "official"
+    docs = "docs"
+    repo = "repo"
+    press = "press"
+    wikipedia = "wikipedia"
+    other = "other"
+
+
+class Link(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    url: str
+    label: str
 
 
 class Kind(Enum):
@@ -64,6 +96,32 @@ class Items(BaseModel):
     headline: str
     body: str
     claim_ids: ClaimIds
+    org: constr(min_length=1) | None = Field(
+        None,
+        description="Who the item is about (the lab, company or institute), as its source names it. The site links it to the Reference entry of that name (D173).",
+    )
+    news_kind: NewsKind | None = Field(
+        None, description="What kind of news it is, for the timeline's filter (D173)."
+    )
+    related: list[RelatedItem] | None = Field(
+        None,
+        description="Products, models, people or organisations the item names, as it names them.",
+        max_length=8,
+    )
+    url: AnyUrl | None = Field(
+        None,
+        description="Set by code: the item's own page. The site otherwise links its first claim's lead.",
+    )
+    url_type: UrlType | None = Field(None, description="Set by code: what kind of page `url` is.")
+    links: list[Link] | None = Field(
+        None, description="Set by code: further links the item carries."
+    )
+    anchor: constr(pattern=r"^[a-z0-9][a-z0-9-]*$") | None = Field(
+        None, description="Set by code: the item's id on the timeline."
+    )
+    approximate: bool | None = Field(
+        None, description="Set by code: the item's date is approximate."
+    )
 
 
 class Items1(BaseModel):
