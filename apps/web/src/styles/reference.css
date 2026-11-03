@@ -480,6 +480,9 @@ main > h1,
 }
 
 /* ---------------------------------------------------------------- series pages (D179) */
+.series-head {
+  display: block;
+}
 .series-hero {
   display: block;
   inline-size: 100%;

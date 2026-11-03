@@ -119,15 +119,18 @@ const name = page.newsroom.name[page.language] ?? page.newsroom.slug;
 const w = page.words;
 // The site's sections: its latest pieces, the Reference's nav (reference.yaml) and the Reference
 // home, when the newsroom has one. The current one is marked for the reader (aria-current).
-const current = new URL(Astro.url).pathname.replace(/\/+$/, "");
+// The page as the reader asked for it (Astro.url is the internal, rewritten path).
+const current = new URL(page.url(site.path)).pathname.replace(/\/+$/, "");
 const sections = [
   { href: page.links.home, label: w.latest },
   ...page.referenceNav,
   ...(page.referenceNav.length > 0 ? [{ href: page.links.reference, label: page.ref.reference }] : []),
 ];
-const isHere = (href: string) => {
+// The section the page is (shown as text, not a link) or is inside (a link, marked).
+const placeOf = (href: string): "page" | "inside" | null => {
   const path = new URL(href).pathname.replace(/\/+$/, "");
-  return path === current || (path.length > 4 && current.startsWith(`${path}/`));
+  if (path === current) return "page";
+  return path.length > 4 && current.startsWith(`${path}/`) ? "inside" : null;
 };
 const date = (d: Date) =>
   new Intl.DateTimeFormat(page.language, { dateStyle: "long", calendar: "gregory", timeZone: page.newsroom.timezone }).format(d);
@@ -146,7 +149,14 @@ const date = (d: Date) =>
   <header>
     <strong><a href={page.links.home}>{name}</a></strong>
     <nav aria-label={name}>
-      {sections.map((s) => <a href={s.href} aria-current={isHere(s.href) ? "page" : undefined}>{s.label}</a>)}
+      {sections.map((s) => {
+        const place = placeOf(s.href);
+        return place === "page" ? (
+          <span class="nav-here" aria-current="page">{s.label}</span>
+        ) : (
+          <a href={s.href} class:list={{ "nav-here": place === "inside" }} aria-current={place === "inside" ? "true" : undefined}>{s.label}</a>
+        );
+      })}
     </nav>
     <form action={page.links.search} method="get" role="search">
       <input type="search" name="q" placeholder={w.searchPlaceholder} value={page.kind === "search" ? page.query : ""} />

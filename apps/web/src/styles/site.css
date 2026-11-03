@@ -42,9 +42,13 @@ html body > header nav a {
   color: var(--text-muted);
   text-decoration: none;
 }
-html body > header nav a[aria-current="page"] {
+/* The section the reader is in: its name in full colour and weight, with a bar under it; on the
+   section's own page it is text, not a link. */
+html body > header nav .nav-here {
   color: var(--text);
-  text-decoration: underline;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: inset 0 -2px 0 var(--text-accent);
 }
 html body > header form[role="search"] {
   margin-inline-start: auto;
