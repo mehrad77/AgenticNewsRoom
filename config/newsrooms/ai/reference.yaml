@@ -11,6 +11,9 @@ kinds:
     layout: document
     name: { fa: مقاله‌ها, en: Papers }
     one: { fa: مقاله, en: Paper }
+    intro:
+      fa: مقاله‌های پژوهشی که هوش مصنوعی امروز روی آن‌ها ساخته شده، هر کدام با خلاصه‌ای از مسئله، ایده و آنچه بعدش آمد.
+      en: The research papers today's AI is built on, each summarised by its problem, its idea and what came after.
     grouping: month
     sections:
       - { key: overview, name: { fa: این مقاله چیست, en: What this paper is } }
@@ -59,6 +62,9 @@ kinds:
     layout: profile
     name: { fa: محصول‌ها و مدل‌ها, en: Products and models }
     one: { fa: محصول, en: Product }
+    intro:
+      fa: مدل‌ها و محصول‌هایی که در خبرهای این مرجع آمده‌اند.
+      en: The models and products in this Reference's news.
     grouping: none
 
   person:
