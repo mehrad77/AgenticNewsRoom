@@ -15,9 +15,12 @@ const HOSTS = list(__ENV.HOSTS);
 const FEEDS = list(__ENV.FEEDS);
 const KINDS = list(__ENV.KINDS ?? "home,publication,search,ninjs,feed");
 const QUERIES = ["ai", "art", "music", "model", "news"];
-/** A publication path as the publisher writes it (apps/web/src/lib/routes.ts), maybe after a language. */
+/**
+ * A publication path as the publisher writes it (apps/web/src/lib/routes.ts), maybe after a
+ * language, in a link with the site's origin (pageUrl). Only the path is kept: requests go to TARGET.
+ */
 const PUBLICATION =
-  /href="((?:\/[a-z]{2})?\/[a-z0-9][a-z0-9-]*\/\d{4}-\d{2}-\d{2}(?:-[a-z0-9]+)?)"/g;
+  /href="(?:https?:\/\/[^/"]+)?((?:\/[a-z]{2})?\/[a-z0-9][a-z0-9-]*\/\d{4}-\d{2}-\d{2}(?:-[a-z0-9]+)?)"/g;
 
 export const options = {
   // No url or proto tags: one series per kind and site, not per publication or query.
