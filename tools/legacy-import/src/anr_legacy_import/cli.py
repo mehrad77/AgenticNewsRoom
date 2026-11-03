@@ -25,6 +25,8 @@ from .mapping import (
     text_key,
     with_english,
 )
+from .podcasts import episodes
+from .podcasts import url_map as podcast_urls
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -88,10 +90,16 @@ def main(argv: list[str] | None = None) -> int:
         "--translations", type=Path, help="English texts by key (translate.ts writes them, D169)"
     )
     ap.add_argument("--units", type=Path, help="write the Persian texts still to translate here")
+    ap.add_argument(
+        "--audio-cache", type=Path, help="keep the old episodes' audio here between runs"
+    )
     ap.add_argument("--dry-run", action="store_true", help="count, write nothing")
     args = ap.parse_args(argv)
 
     imported = load(args.export, args.telegram_channel, args.site_data)
+    found = episodes(read_jsonl(args.export / "podcast-episodes.jsonl"))
+    imported.url_map.update(podcast_urls(found))
+    print(f"podcast: {len(found)} published episodes")
     translations = (
         {r["key"]: r["en"] for r in read_jsonl(args.translations) if r.get("en")}
         if args.translations
@@ -125,7 +133,9 @@ def main(argv: list[str] | None = None) -> int:
 
     # The old site's public files (its Commons images) sit beside its src/data.
     public = args.site_data.resolve().parents[1] / "public" if args.site_data else None
-    inserted, updated = write(url, args.newsroom, imported.entries, imported.links, public)
+    inserted, updated = write(
+        url, args.newsroom, imported.entries, imported.links, public, found, args.audio_cache
+    )
     print(f"written: {inserted} new, {updated} updated")
     return 0
 

@@ -7,9 +7,9 @@ import { createHmac, randomBytes } from "node:crypto";
 import { createReadStream, statSync } from "node:fs";
 import { join } from "node:path";
 import { Readable } from "node:stream";
-import { type Language, pageUrl, type SiteAddress } from "@anr/core";
+import { type Language, pageUrl, type SiteAddress, siteOrigin } from "@anr/core";
 import { type Pool, withNewsroom } from "@anr/db";
-import { createRenderer } from "@anr/render";
+import { audioPath, createRenderer } from "@anr/render";
 import type { ReaderNewsroom } from "./reader.ts";
 import { mediaRedirect } from "./storage.ts";
 
@@ -185,6 +185,39 @@ export async function podcastFeed(
        order by p.slot desc limit 100`,
       [seriesSlug, language],
     );
+    // Imported episodes (D177) were never sent, so they have no stored item: built here.
+    const { rows: imported } = await c.query<{
+      id: string;
+      path: string;
+      slot: Date;
+      title: string | null;
+      summary: string | null;
+      bytes: string;
+      seconds: string;
+    }>(
+      `select p.id, p.path, p.slot, p.title, r.body->>'summary' as summary, e.bytes, e.seconds
+       from publications p
+       join series s on s.id = p.series_id and s.slug = $1
+       join publication_renditions pr on pr.publication_id = p.id and pr.position = 1
+       join renditions r on r.id = pr.rendition_id
+       join episodes e on e.publication_id = p.id
+       where p.origin = 'imported' and p.language = $2 and p.status in ('published', 'corrected')
+       order by p.slot desc`,
+      [seriesSlug, language],
+    );
+    const importedItems = imported.map((e) =>
+      [
+        "<item>",
+        `  <title>${xml(e.title ?? "")}</title>`,
+        `  <link>${xml(pageUrl(site, language, e.path))}</link>`,
+        `  <description><![CDATA[${e.summary ?? ""}\n\n${aiLabel}]]></description>`,
+        `  <enclosure url="${xml(`${siteOrigin(site)}${audioPath(e.id)}`)}" length="${e.bytes}" type="audio/mpeg"/>`,
+        `  <guid isPermaLink="false">${e.id}-${language}</guid>`,
+        `  <pubDate>${e.slot.toUTCString()}</pubDate>`,
+        `  <itunes:duration>${Math.round(Number(e.seconds))}</itunes:duration>`,
+        "</item>",
+      ].join("\n"),
+    );
     const title = series[0].name?.[language] ?? seriesSlug;
     const author = newsroom.name[language] ?? newsroom.slug;
     const link = pageUrl(site, language, "/");
@@ -199,6 +232,7 @@ export async function podcastFeed(
       `<itunes:author>${xml(author)}</itunes:author>`,
       "<itunes:explicit>false</itunes:explicit>",
       ...items.map((i) => i.body),
+      ...importedItems,
       "</channel>",
       "</rss>",
     ].join("\n");

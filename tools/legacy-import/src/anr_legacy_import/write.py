@@ -11,6 +11,7 @@ from psycopg.types.json import Jsonb
 from .images import store_images
 from .mapping import Entry
 from .pieces import CLASSIC_SERIES, Piece, classic_pieces, news_issues
+from .podcasts import Episode, write_episodes
 
 UPSERT = """
 insert into reference_entries
@@ -61,6 +62,8 @@ def write(
     entries: list[Entry],
     links: list[tuple[str, str, str, str]],
     public: Path | None = None,
+    podcast: list[Episode] | None = None,
+    audio_cache: Path | None = None,
 ) -> tuple[int, int]:
     inserted = updated = 0
     with psycopg.connect(url) as conn, conn.transaction():
@@ -98,6 +101,9 @@ def write(
         )
         written = write_pieces(conn, newsroom_id, pieces)
         print(f"pieces: {written} imported publications written")
+        if podcast:
+            n = write_episodes(conn, newsroom_id, podcast, audio_cache)
+            print(f"podcast: {n} imported episodes written")
         entries, images = store_images(conn, newsroom_id, entries, public)
         print(f"images: {images} stored as licensed media")
         for e in entries:

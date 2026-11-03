@@ -1,8 +1,8 @@
 // Turns a request on a newsroom site into what its page shows. Plain TypeScript, so the .astro
 // file only lays it out (apps/web/AGENTS.md).
-import { type Language, pageUrl, type SiteAddress } from "@anr/core";
+import { type Language, pageUrl, type SiteAddress, siteOrigin } from "@anr/core";
 import type { Pool } from "@anr/db";
-import { createRenderer } from "@anr/render";
+import { audioPath, chapterTitles, createRenderer } from "@anr/render";
 import { type ChallengeStatus, challengeStatus } from "./challenge.ts";
 import { WORDS, type Words } from "./i18n.ts";
 import { jsonLd, ninjs, policyUrls } from "./metadata.ts";
@@ -39,6 +39,19 @@ import { route } from "./routes.ts";
 import { TIMELINE_ITEM } from "./timeline.ts";
 
 let renderer: ReturnType<typeof createRenderer> | undefined;
+
+/**
+ * An episode's notes on its page: an imported episode's summary and chapters (D177), else the
+ * chapters of its script.
+ */
+export function showNotes(rendition: Record<string, unknown>): string {
+  const chapters = Array.isArray(rendition.chapters)
+    ? (rendition.chapters as { title?: string }[]).map((c) => c.title ?? "").filter(Boolean)
+    : chapterTitles(rendition);
+  return [typeof rendition.summary === "string" ? rendition.summary : "", chapters.join(" · ")]
+    .filter(Boolean)
+    .join("\n\n");
+}
 
 /** How many news items a news home lists before its link to the whole timeline. */
 const HOME_NEWS = 30;
@@ -263,6 +276,9 @@ export async function loadPage(
         ai_policy_url: links.aiPolicy,
         leads: publication.leads,
         media: publication.media,
+        // An episode's audio, through the counting redirect, and its notes (D110, D177).
+        audio_url: `${siteOrigin(site)}${audioPath(publication.id)}`,
+        show_notes: showNotes(publication.rendition),
       });
       const described = { site, newsroom, publication, bodyHtml };
       if (r.kind === "ninjs") return { kind: "ninjs", json: ninjs(described) };
