@@ -90,16 +90,14 @@ const ids = [
     )}
     <Incoming groups={page.incoming} links={page.incomingLinks} targetImages={page.targetImages} reference={page.reference} language={language} words={w} entryUrl={page.entryUrl} url={page.url} />
   </article>
-  <aside class="ref-side">
-    {(qid || ids.length > 0) && (
-      <>
+  {(qid || ids.length > 0) && (
+    <aside class="ref-side">
         <h2>{w.wikidata.ids}</h2>
         <ul dir="ltr">
           {qid && <li><ExternalLink href={`https://www.wikidata.org/wiki/${qid}`} newTabLabel={w.newTab}>Wikidata {qid}</ExternalLink></li>}
           {ids.map((x) => <li><ExternalLink href={x.url} newTabLabel={w.newTab}>{x.label}</ExternalLink></li>)}
         </ul>
         {qid && <p class="ref-muted">{w.wikidata.source}</p>}
-      </>
-    )}
-  </aside>
+    </aside>
+  )}
 </div>

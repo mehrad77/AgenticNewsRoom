@@ -154,7 +154,7 @@ const crumb = list
     </nav>
   </article>
 
-  <aside class="ref-side">
+  {(sources.length > 0 || url || telegram.length > 0) && <aside class="ref-side">
     {sources.length > 0 && (
       <>
         <h2>{w.sources}</h2>
@@ -173,5 +173,5 @@ const crumb = list
         <ul>{telegram.map((t) => <li><ExternalLink href={t} newTabLabel={w.newTab}>{w.telegramPost(numberLabel(Number(t.split("/").pop()), language))}</ExternalLink></li>)}</ul>
       </>
     )}
-  </aside>
+  </aside>}
 </div>

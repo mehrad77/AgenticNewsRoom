@@ -1,12 +1,9 @@
 ---
-// The Reference's home (D170): a card per kind and list the newsroom configures, and the newest
-// entries of those in its nav.
+// The Reference's home (D170): a card per kind and list the newsroom configures.
 import type { Page } from "../../lib/page.ts";
-import { linkedOrNull, numberLabel } from "../../lib/reference.ts";
+import { numberLabel } from "../../lib/reference.ts";
 import { nameOf, targetNames, targetPath } from "../../lib/reference-config.ts";
-import DocumentTile from "./DocumentTile.astro";
 import Labels from "./Labels.astro";
-import TimelineItem from "./TimelineItem.astro";
 
 interface Props {
   page: Extract<Page, { kind: "reference" }>;
@@ -28,29 +25,3 @@ const name = (names: Parameters<typeof nameOf>[0]) => nameOf(names, language);
     </li>
   ))}
 </ul>
-{page.sections.filter((s) => s.latest.length > 0).map((s) => (
-  <section class="ref-group">
-    <h2>{name(targetNames(s.target).name)} <a class="ref-muted" href={page.url(targetPath(s.target))}>{n(s.count)}</a></h2>
-    {s.target.kind.layout === "timeline" ? (
-      <ol class="ref-list">
-        {s.latest.map((e) => (
-          <TimelineItem targetImages={s.targetImages}
-            entry={e}
-            language={language}
-            words={w}
-            kind={s.target.kind}
-            outLinks={linkedOrNull(s.links, e.id)}
-            entryUrl={page.entryUrl}
-            filterUrl={(fact, value) => `${page.url(targetPath(s.target))}?${fact}=${encodeURIComponent(value)}`}
-          />
-        ))}
-      </ol>
-    ) : (
-      <ul class="ref-tiles">
-        {s.latest.map((e) => (
-          <DocumentTile entry={e} language={language} kind={s.target.kind} label={name(targetNames(s.target).one)} href={page.entryUrl(e.kind, e.slug) ?? "#"} />
-        ))}
-      </ul>
-    )}
-  </section>
-))}

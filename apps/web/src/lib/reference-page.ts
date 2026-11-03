@@ -45,11 +45,6 @@ export interface HomeSection {
   count: number;
   oldest: string | null;
   newest: string | null;
-  latest: Entry[];
-  /** The latest entries' links out (timeline items link their names). */
-  links: Map<string, OutLink[]>;
-  /** Images of the entries those links point at, by "kind/slug". */
-  targetImages: Map<string, EntryImage>;
 }
 
 export interface Incoming {
@@ -150,26 +145,13 @@ export async function loadReference(
       seen.add(key);
       const c = counts.get(target.kindKey);
       if (!c) continue;
-      // Nav items show their newest entries; the other kinds are cards only.
-      const inNav = ref.nav?.includes(key) ?? false;
-      const all = inNav
-        ? await entriesOf(pool, newsroomId, target.kindKey, target.kind.layout, factOf(target))
-        : [];
-      const latest = all.slice(0, target.kind.layout === "timeline" ? 5 : 4);
-      const links = await linksFrom(
-        pool,
-        newsroomId,
-        latest.map((e) => e.id),
-      );
-      sections.push({
-        target,
-        count: target.type === "list" ? all.length : c.count,
-        oldest: c.oldest,
-        newest: c.newest,
-        latest,
-        links,
-        targetImages: await imagesOfTargets(pool, newsroomId, links.values()),
-      });
+      // A card per kind and list; each opens its own page, so the home lists no entries itself.
+      const count =
+        target.type === "list"
+          ? (await entriesOf(pool, newsroomId, target.kindKey, target.kind.layout, factOf(target)))
+              .length
+          : c.count;
+      sections.push({ target, count, oldest: c.oldest, newest: c.newest });
     }
     return { kind: "reference", sections };
   }
