@@ -60,6 +60,24 @@ export async function episodeAudio(
   });
 }
 
+/** The newest episode row of a published episode: its length and chapters, for its page. */
+export async function episodeFacts(
+  pool: Pool,
+  newsroom: Pick<ReaderNewsroom, "id">,
+  publicationId: string,
+): Promise<{ seconds: number; chapters: unknown } | null> {
+  return withNewsroom(pool, newsroom.id, async (c) => {
+    const { rows } = await c.query<{ seconds: string; chapters: unknown }>(
+      `select e.seconds, e.chapters from episodes e join publications p on p.id = e.publication_id
+       where p.id = $1 and p.status in ('published', 'corrected')
+       order by e.created_at desc limit 1`,
+      [publicationId],
+    );
+    const row = rows[0];
+    return row ? { seconds: Number(row.seconds), chapters: row.chapters } : null;
+  });
+}
+
 /**
  * A reader's address: CF-Connecting-IP, which Cloudflare sets and a reader cannot forge since the
  * tunnel is the only way in (D122); without it (development), the connection's own address.

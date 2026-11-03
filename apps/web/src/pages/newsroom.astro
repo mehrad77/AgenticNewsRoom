@@ -6,8 +6,10 @@ import "@shabboo/kit/fonts.css";
 import "@shabboo/kit/styles.css";
 import "../styles/site.css";
 import "../styles/reference.css";
+import "../styles/podcast.css";
 import DocumentEntry from "../components/reference/DocumentEntry.astro";
 import ProfileEntry from "../components/reference/ProfileEntry.astro";
+import EpisodePage from "../components/podcast/EpisodePage.astro";
 import ReferenceHome from "../components/reference/ReferenceHome.astro";
 import ReferenceIndex from "../components/reference/ReferenceIndex.astro";
 import Labels from "../components/reference/Labels.astro";
@@ -164,9 +166,25 @@ const date = (d: Date) =>
     {page.kind === "publication" && (
       <>
         {page.publication.status === "corrected" && <p><a href={page.links.corrections}>{w.corrected}</a></p>}
-        <p><time datetime={page.publication.publishedAt.toISOString()}>{date(page.publication.publishedAt)}</time></p>
-        {page.publication.imported && <Labels label={null} aiPolicy={page.links.aiPolicy} imported={page.ref.imported} />}
-        <Fragment set:html={markExternalLinks(page.bodyHtml, new URL(Astro.url).hostname, w.newTab)} />
+        {page.episode ? (
+          <EpisodePage
+            episode={page.episode}
+            title={page.publication.title ?? name}
+            series={page.publication.seriesName[page.language] ?? page.publication.series}
+            publishedAt={page.publication.publishedAt}
+            timezone={page.newsroom.timezone}
+            language={page.language}
+            words={w}
+            aiPolicy={page.links.aiPolicy}
+            imported={page.publication.imported ? page.ref.imported : null}
+          />
+        ) : (
+          <>
+            <p><time datetime={page.publication.publishedAt.toISOString()}>{date(page.publication.publishedAt)}</time></p>
+            {page.publication.imported && <Labels label={null} aiPolicy={page.links.aiPolicy} imported={page.ref.imported} />}
+            <Fragment set:html={markExternalLinks(page.bodyHtml, new URL(Astro.url).hostname, w.newTab)} />
+          </>
+        )}
         {page.publication.corrections.map((c) => (
           <aside id={c.id}><strong>{w.corrected}</strong> ({date(c.publishedAt)}): {c.notice}</aside>
         ))}

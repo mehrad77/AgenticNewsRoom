@@ -27,6 +27,35 @@ export interface Words {
   }[];
   /** The corrections page: who owns corrections and how a reader challenges a piece. */
   correctionsBody: (o: { owner: string }) => string;
+  /** An episode's page (D180): its facts, chapters, transcript and player. */
+  episode: {
+    date: string;
+    length: string;
+    chapters: string;
+    transcript: string;
+    /** A transcript section without a heading. */
+    part: (n: string) => string;
+    /** The length in minutes and seconds, digits already in the page's language. */
+    duration: (minutes: string | null, seconds: string | null) => string;
+    /** The feed link's heading in the facts. */
+    subscribe: string;
+    feed: string;
+    /** "Play from 05:36", on a chapter's time. */
+    playFrom: (time: string) => string;
+    player: {
+      play: string;
+      pause: string;
+      back: (seconds: string) => string;
+      forward: (seconds: string) => string;
+      /** The scrubber's name, and its spoken value: "05:36 of 11:06". */
+      position: string;
+      of: (now: string, length: string) => string;
+      speed: (rate: string) => string;
+      /** Brings the spoken turn back into view. */
+      follow: string;
+      close: string;
+    };
+  };
   /** A reader's challenge: the form on every piece and the reader's private status page (D114). */
   challenge: {
     heading: string;
@@ -81,6 +110,28 @@ const en: Words = {
   ],
   correctionsBody: ({ owner }) =>
     `${owner} owns corrections. A challenge is acknowledged within 24 hours and answered within 48. Every correction is published here and becomes a new check.`,
+  episode: {
+    date: "Date",
+    length: "Length",
+    chapters: "Chapters",
+    transcript: "Transcript",
+    part: (n) => `Part ${n}`,
+    duration: (m, s) => [m && `${m} min`, s && `${s} s`].filter(Boolean).join(" "),
+    subscribe: "Subscribe",
+    feed: "Podcast feed (RSS)",
+    playFrom: (t) => `Play from ${t}`,
+    player: {
+      play: "Play",
+      pause: "Pause",
+      back: (s) => `Back ${s} seconds`,
+      forward: (s) => `Forward ${s} seconds`,
+      position: "Position",
+      of: (now, length) => `${now} of ${length}`,
+      speed: (r) => `Playback speed: ${r}×`,
+      follow: "Follow the text",
+      close: "Close the player bar",
+    },
+  },
   challenge: {
     heading: "Is something wrong here?",
     intro:
@@ -140,6 +191,28 @@ const fa: Words = {
   ],
   correctionsBody: ({ owner }) =>
     `مسئول اصلاحیه‌ها ${owner} است. هر اعتراض ظرف ۲۴ ساعت تأیید دریافت و ظرف ۴۸ ساعت پاسخ می‌گیرد. هر اصلاحیه اینجا منتشر می‌شود و به یک بررسی تازه تبدیل می‌شود.`,
+  episode: {
+    date: "تاریخ",
+    length: "مدت",
+    chapters: "بخش‌ها",
+    transcript: "متن اپیزود",
+    part: (n) => `بخش ${n}`,
+    duration: (m, s) => [m && `${m} دقیقه`, s && `${s} ثانیه`].filter(Boolean).join(" و "),
+    subscribe: "اشتراک",
+    feed: "فید پادکست (RSS)",
+    playFrom: (t) => `پخش از ${t}`,
+    player: {
+      play: "پخش",
+      pause: "توقف",
+      back: (s) => `${s} ثانیه عقب`,
+      forward: (s) => `${s} ثانیه جلو`,
+      position: "جای پخش",
+      of: (now, length) => `${now} از ${length}`,
+      speed: (r) => `سرعت پخش: ${r} برابر`,
+      follow: "همراه متن",
+      close: "بستن نوار پخش",
+    },
+  },
   challenge: {
     heading: "چیزی در این مطلب نادرست است؟",
     intro:
@@ -199,6 +272,28 @@ const tr: Words = {
   ],
   correctionsBody: ({ owner }) =>
     `Düzeltmelerden ${owner} sorumludur. Her itiraz 24 saat içinde alındı olarak bildirilir ve 48 saat içinde yanıtlanır. Her düzeltme burada yayımlanır ve yeni bir kontrole dönüşür.`,
+  episode: {
+    date: "Tarih",
+    length: "Süre",
+    chapters: "Bölümler",
+    transcript: "Döküm",
+    part: (n) => `Bölüm ${n}`,
+    duration: (m, s) => [m && `${m} dk`, s && `${s} sn`].filter(Boolean).join(" "),
+    subscribe: "Abone ol",
+    feed: "Podcast akışı (RSS)",
+    playFrom: (t) => `${t} itibarıyla oynat`,
+    player: {
+      play: "Oynat",
+      pause: "Duraklat",
+      back: (s) => `${s} saniye geri`,
+      forward: (s) => `${s} saniye ileri`,
+      position: "Konum",
+      of: (now, length) => `${now} / ${length}`,
+      speed: (r) => `Oynatma hızı: ${r}×`,
+      follow: "Metni takip et",
+      close: "Oynatıcı çubuğunu kapat",
+    },
+  },
   challenge: {
     heading: "Burada yanlış bir şey mi var?",
     intro:

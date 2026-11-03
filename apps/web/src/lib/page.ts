@@ -4,8 +4,10 @@ import { type Language, pageUrl, type SiteAddress, siteOrigin } from "@anr/core"
 import type { Pool } from "@anr/db";
 import { audioPath, chapterTitles, createRenderer } from "@anr/render";
 import { type ChallengeStatus, challengeStatus } from "./challenge.ts";
+import { type EpisodeView, episodeView } from "./episode.ts";
 import { WORDS, type Words } from "./i18n.ts";
 import { jsonLd, ninjs, policyUrls } from "./metadata.ts";
+import { episodeFacts } from "./podcast.ts";
 import {
   corrections,
   countView,
@@ -52,6 +54,9 @@ export function showNotes(rendition: Record<string, unknown>): string {
     .filter(Boolean)
     .join("\n\n");
 }
+
+/** The format whose publications are episodes, drawn with a player (D180). */
+const EPISODE_FORMAT = "podcast-episode";
 
 /** How many news items a news home lists before its link to the whole timeline. */
 const HOME_NEWS = 30;
@@ -106,6 +111,11 @@ export type Page =
       jsonLd: Record<string, unknown>;
       ninjsUrl: string;
       digitalSourceType: string;
+      /**
+       * An episode with audio, drawn by EpisodePage.astro instead of the body (D180): its player,
+       * transcript, AI label (edited or not) and the series' feed.
+       */
+      episode: (EpisodeView & { label: string; feedUrl: string }) | null;
     } & Common)
   | { kind: "ninjs"; json: Record<string, unknown> };
 
@@ -276,6 +286,7 @@ export async function loadPage(
       if (!publication) return { kind: "not-found", ...common(words.notFound) };
       renderer ??= createRenderer();
       const links = policyUrls(site, language);
+      const audioUrl = `${siteOrigin(site)}${audioPath(publication.id)}`;
       // The site channel's template: the same renderer, label and escaping as every channel.
       const bodyHtml = await renderer.render(publication.format, "site", language, {
         rendition: publication.rendition,
@@ -284,13 +295,22 @@ export async function loadPage(
         leads: publication.leads,
         media: publication.media,
         // An episode's audio, through the counting redirect, and its notes (D110, D177).
-        audio_url: `${siteOrigin(site)}${audioPath(publication.id)}`,
+        audio_url: audioUrl,
         show_notes: showNotes(publication.rendition),
       });
       const described = { site, newsroom, publication, bodyHtml };
       if (r.kind === "ninjs") return { kind: "ninjs", json: ninjs(described) };
       await countView(deps.pool, newsroom, publication.id, request.userAgent);
       const ld = jsonLd(described);
+      const facts =
+        publication.format === EPISODE_FORMAT
+          ? await episodeFacts(deps.pool, newsroom, publication.id)
+          : null;
+      const episode = facts && {
+        ...episodeView({ rendition: publication.rendition, audioUrl, ...facts }),
+        label: await renderer.disclosureLabel(language, publication.edited),
+        feedUrl: pageUrl(site, language, `/podcast/${publication.series}.xml`),
+      };
       return {
         kind: "publication",
         publication,
@@ -298,6 +318,7 @@ export async function loadPage(
         jsonLd: ld,
         ninjsUrl: `${pageUrl(site, language, r.path)}.json`,
         digitalSourceType: (ninjs(described).digitalSourceType as { uri: string }).uri,
+        episode,
         // Other languages have their own publication at the same path only by coincidence.
         ...common(publication.title ?? name, "/"),
       };

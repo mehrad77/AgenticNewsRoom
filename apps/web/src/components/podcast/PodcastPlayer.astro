@@ -1,0 +1,274 @@
+---
+// An episode's audio player, from the old archive's episode page (D177, D180). The HTML ships the
+// native <audio controls>, so the page plays without JS; the script hides it and shows these
+// controls: play/pause, 15 s back and forward, a scrubber with chapter notches, the current
+// chapter, the time and the speed. Once playback has started and the player scrolls out of view it
+// docks to the bottom of the screen until it scrolls back in or is closed; on a phone (≤ 40rem) it
+// is always docked. The transcript sync is EpisodePage's script: it listens to this <audio>, seeks
+// it with a `pp:seek` event ({detail: {t}}), and shows [data-pp-follow] (a pill above the docked
+// bar) while the spoken turn is off screen. The kit has no media icons (play, pause, skip), so they
+// are drawn here on its 24 px grid with a 1.5 stroke. Words come from i18n.ts; the script gets
+// them, with the page's digits, from data-words.
+import type { Language } from "@anr/core";
+import Icon from "@shabboo/kit/Icon.astro";
+import { type Chapter, clock, localDigits } from "../../lib/episode.ts";
+import type { Words } from "../../lib/i18n.ts";
+
+interface Props {
+  src: string;
+  title: string;
+  artist: string;
+  seconds: number;
+  chapters: Chapter[];
+  language: Language;
+  words: Words["episode"]["player"];
+  id?: string;
+}
+const { src, title, artist, seconds, chapters, language, words: w, id = "player" } = Astro.props;
+const d = localDigits(language);
+const marks = chapters
+  .filter((c) => c.start > 0 && c.start < seconds)
+  .map((c) => (c.start / seconds) * 100);
+const skip = d(15);
+// For the script: templates it fills in, with its own clock and the page's digits.
+const scriptWords = {
+  play: w.play,
+  pause: w.pause,
+  of: w.of("{now}", "{length}"),
+  speed: w.speed("{rate}"),
+};
+---
+<div class="pplayer" data-pplayer data-title={title} data-artist={artist} data-duration={seconds}
+  data-chapters={JSON.stringify(chapters.map((c) => [c.start, c.title]))} data-words={JSON.stringify(scriptWords)}>
+  <div class="pplayer__bar">
+    <audio id={id} class="episode-player episode-player--page" controls preload="none" src={src} aria-label={`${w.play}: ${title}`}></audio>
+    <button type="button" class="pplayer__follow" data-pp-follow hidden>{w.follow}</button>
+    <div class="pplayer__ui" role="group" aria-label={`${w.play}: ${title}`} hidden>
+      <div class="pplayer__row">
+        <div class="pplayer__transport" dir="ltr">
+          <button type="button" class="pplayer__btn" data-pp-skip="-15" aria-label={w.back(skip)}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3L4.5 9" /><path d="M4.5 4.5V9H9" />
+              <text x="12.6" y="15.2" font-size="7" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none">{skip}</text>
+            </svg>
+          </button>
+          <button type="button" class="pplayer__play" data-pp-play aria-label={w.play}>
+            <svg class="pplayer__icon-play" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5.2v13.6a.8.8 0 0 0 1.2.7l10.6-6.8a.8.8 0 0 0 0-1.4L9.2 4.5a.8.8 0 0 0-1.2.7z" fill="currentColor" /></svg>
+            <svg class="pplayer__icon-pause" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="6" y="5" width="4.2" height="14" rx="1" fill="currentColor" /><rect x="13.8" y="5" width="4.2" height="14" rx="1" fill="currentColor" /></svg>
+          </button>
+          <button type="button" class="pplayer__btn" data-pp-skip="15" aria-label={w.forward(skip)}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3L19.5 9" /><path d="M19.5 4.5V9H15" />
+              <text x="11.4" y="15.2" font-size="7" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none">{skip}</text>
+            </svg>
+          </button>
+        </div>
+        <div class="pplayer__info">
+          <p class="pplayer__chapter" data-pp-chapter dir="auto">{chapters[0]?.title || title}</p>
+          <p class="pplayer__time"><bdi dir="ltr"><span data-pp-now>{d(clock(0))}</span> / <span data-pp-dur>{d(clock(seconds))}</span></bdi></p>
+        </div>
+        <div class="pplayer__extras">
+          <button type="button" class="pplayer__chip" data-pp-rate aria-label={w.speed(d(1))}>{d(1)}×</button>
+          <button type="button" class="pplayer__btn pplayer__close" data-pp-close aria-label={w.close} hidden><Icon name="close" /></button>
+        </div>
+      </div>
+      <div class="pplayer__track" dir="ltr">
+        <input type="range" class="pplayer__seek" data-pp-seek min="0" max={Math.ceil(seconds)} step="1" value="0" aria-label={w.position}
+          aria-valuetext={w.of(d(clock(0)), d(clock(seconds)))} />
+        <span class="pplayer__marks" aria-hidden="true">{marks.map((at) => <span style={`--at:${at.toFixed(3)}%`}></span>)}</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const clock = (sec: number) => {
+    const s = Math.max(0, Math.floor(sec));
+    const h = Math.floor(s / 3600);
+    return h ? `${h}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}` : `${pad(Math.floor(s / 60))}:${pad(s % 60)}`;
+  };
+  const RATES = [1, 1.25, 1.5, 1.75, 2];
+  const RATE_KEY = "podcast-rate";
+  const store = {
+    get: (k: string) => {
+      try {
+        return localStorage.getItem(k);
+      } catch {
+        return null;
+      }
+    },
+    set: (k: string, v: string) => {
+      try {
+        localStorage.setItem(k, v);
+      } catch {}
+    },
+  };
+  const fill = (template: string, values: Record<string, string>) =>
+    template.replace(/\{(\w+)\}/g, (_, k: string) => values[k] ?? "");
+
+  for (const root of document.querySelectorAll<HTMLElement>("[data-pplayer]")) init(root);
+
+  function init(root: HTMLElement) {
+    const $ = <T extends HTMLElement>(sel: string) => root.querySelector<T>(sel);
+    const audio = $<HTMLAudioElement>("audio");
+    const bar = $(".pplayer__bar");
+    const ui = $(".pplayer__ui");
+    const play = $<HTMLButtonElement>("[data-pp-play]");
+    const seek = $<HTMLInputElement>("[data-pp-seek]");
+    const now = $("[data-pp-now]");
+    const durEl = $("[data-pp-dur]");
+    const chapterEl = $("[data-pp-chapter]");
+    const rateBtn = $<HTMLButtonElement>("[data-pp-rate]");
+    const closeBtn = $<HTMLButtonElement>("[data-pp-close]");
+    if (!audio || !bar || !ui || !play || !seek || !now || !durEl || !chapterEl || !rateBtn || !closeBtn) return;
+    const chapters: [number, string][] = JSON.parse(root.dataset.chapters || "[]");
+    const words: { play: string; pause: string; of: string; speed: string } = JSON.parse(root.dataset.words || "{}");
+    const lang = document.documentElement.lang || "en";
+    const digits = new Intl.NumberFormat(lang, { useGrouping: false });
+    const local = (s: string) => s.replace(/[0-9]/g, (x) => digits.format(Number(x)));
+    const rateLabel = (r: number) => new Intl.NumberFormat(lang).format(r);
+
+    audio.controls = false;
+    ui.hidden = false;
+    root.classList.add("is-enhanced");
+
+    const duration = () =>
+      Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : Number(root.dataset.duration) || 0;
+    let dragging = false;
+
+    function render() {
+      if (!audio || !seek || !now || !durEl || !chapterEl) return;
+      const t = dragging ? Number(seek.value) : audio.currentTime;
+      const d = duration();
+      now.textContent = local(clock(t));
+      durEl.textContent = local(clock(d));
+      if (!dragging) seek.value = String(Math.floor(t));
+      seek.max = String(Math.ceil(d));
+      seek.setAttribute("aria-valuetext", fill(words.of, { now: local(clock(t)), length: local(clock(d)) }));
+      root.style.setProperty("--p", `${d ? Math.min(100, (t / d) * 100) : 0}%`);
+      let c = chapters[0]?.[1] ?? "";
+      for (const [start, name] of chapters) if (start <= t + 0.25) c = name;
+      if (c && chapterEl.textContent !== c) chapterEl.textContent = c;
+    }
+
+    // Seek, waiting for the metadata first: with preload="none" nothing is loaded before the first play.
+    function seekTo(t: number, andPlay = true) {
+      if (!audio) return;
+      const go = () => {
+        audio.currentTime = Math.max(0, Math.min(t, duration() - 0.5));
+        render();
+        if (andPlay) audio.play().catch(() => {});
+      };
+      if (audio.readyState >= 1) go();
+      else {
+        audio.addEventListener("loadedmetadata", go, { once: true });
+        audio.load();
+      }
+    }
+    audio.addEventListener("pp:seek", (e) => {
+      const detail = (e as CustomEvent<{ t?: number; play?: boolean }>).detail;
+      seekTo(Number(detail?.t) || 0, detail?.play !== false);
+    });
+
+    play.addEventListener("click", () => (audio.paused ? audio.play().catch(() => {}) : audio.pause()));
+    for (const b of root.querySelectorAll<HTMLButtonElement>("[data-pp-skip]"))
+      b.addEventListener("click", () => seekTo(audio.currentTime + Number(b.dataset.ppSkip), !audio.paused));
+    seek.addEventListener("input", () => {
+      dragging = true;
+      render();
+    });
+    seek.addEventListener("change", () => {
+      dragging = false;
+      seekTo(Number(seek.value), !audio.paused);
+    });
+
+    // speed, remembered across episodes
+    let rate = Number(store.get(RATE_KEY)) || 1;
+    if (!RATES.includes(rate)) rate = 1;
+    const applyRate = () => {
+      audio.defaultPlaybackRate = rate;
+      audio.playbackRate = rate;
+      rateBtn.textContent = `${rateLabel(rate)}×`;
+      rateBtn.setAttribute("aria-label", fill(words.speed, { rate: rateLabel(rate) }));
+    };
+    applyRate();
+    rateBtn.addEventListener("click", () => {
+      rate = RATES[(RATES.indexOf(rate) + 1) % RATES.length] ?? 1;
+      store.set(RATE_KEY, String(rate));
+      applyRate();
+    });
+
+    // docking: on a phone always (the bar is the only player there); elsewhere after the first play,
+    // while the player's place is off screen and the bar was not closed
+    const phone = matchMedia("(max-width: 40rem)");
+    let started = false;
+    let closed = false;
+    let inView = true;
+    function dock() {
+      if (!bar || !closeBtn) return;
+      const on = phone.matches || (started && !closed && !inView);
+      const was = bar.classList.contains("is-docked");
+      // hold its place on wide screens so the page doesn't jump; a phone has no inline player to hold
+      if (on && !was) root.style.minBlockSize = phone.matches ? "" : `${bar.offsetHeight}px`;
+      bar.classList.toggle("is-docked", on);
+      root.classList.toggle("is-phone", phone.matches);
+      closeBtn.hidden = !on || phone.matches;
+      document.body.classList.toggle("pp-docked", on);
+      document.documentElement.style.setProperty("--pp-dock-h", on ? `${bar.offsetHeight}px` : "0px");
+      if (!on) root.style.minBlockSize = "";
+      if (on !== was) root.dispatchEvent(new CustomEvent("pp:dock", { bubbles: true, detail: { docked: on } }));
+    }
+    new IntersectionObserver(([e]) => {
+      inView = e?.isIntersecting ?? true;
+      dock();
+    }).observe(root);
+    phone.addEventListener("change", () => {
+      root.style.minBlockSize = "";
+      bar.classList.remove("is-docked");
+      dock();
+    });
+    closeBtn.addEventListener("click", () => {
+      audio.pause();
+      closed = true;
+      dock();
+    });
+
+    audio.addEventListener("play", () => {
+      started = true;
+      closed = false;
+      root.classList.add("is-playing");
+      play.setAttribute("aria-label", words.pause);
+      dock();
+      if ("mediaSession" in navigator)
+        navigator.mediaSession.metadata = new MediaMetadata({ title: root.dataset.title, artist: root.dataset.artist });
+    });
+    audio.addEventListener("pause", () => {
+      root.classList.remove("is-playing");
+      play.setAttribute("aria-label", words.play);
+    });
+    audio.addEventListener("timeupdate", render);
+    audio.addEventListener("durationchange", render);
+    audio.addEventListener("ratechange", () => {
+      // load() resets playbackRate to the default; keep the chosen one
+      if (audio.playbackRate !== rate) audio.playbackRate = rate;
+    });
+    // one player at a time: another audio on the page pauses this one
+    document.addEventListener("play", (e) => e.target !== audio && audio.pause(), true);
+
+    if ("mediaSession" in navigator) {
+      const ms = navigator.mediaSession;
+      const set = (a: MediaSessionAction, h: MediaSessionActionHandler) => {
+        try {
+          ms.setActionHandler(a, h);
+        } catch {}
+      };
+      set("play", () => audio.play());
+      set("pause", () => audio.pause());
+      set("seekbackward", (d) => seekTo(audio.currentTime - (d.seekOffset || 15), !audio.paused));
+      set("seekforward", (d) => seekTo(audio.currentTime + (d.seekOffset || 15), !audio.paused));
+      set("seekto", (d) => d.seekTime !== undefined && seekTo(d.seekTime, !audio.paused));
+    }
+    render();
+  }
+</script>
