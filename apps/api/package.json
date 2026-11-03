@@ -26,12 +26,12 @@
     "@anr/telemetry": "workspace:*",
     "@hono/node-server": "2.1.5",
     "hono": "4.13.14",
-    "jose": "6.2.12",
+    "jose": "6.2.14",
     "pg-boss": "12.38.0"
   },
   "devDependencies": {
     "@anr/publisher": "workspace:*",
-    "@redocly/cli": "2.71.0",
+    "@redocly/cli": "2.72.1",
     "@types/node": "24.19.2",
     "openapi-typescript": "7.13.0",
     "typescript": "5.9.3",
