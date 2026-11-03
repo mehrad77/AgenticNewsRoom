@@ -109,7 +109,7 @@ Every tenant row carries `newsroom_id`, enforced by row-level security (see Tena
 | Story                             | assignment, summary, beat                                                                 | Format- and language-neutral; researched once                                                                  |
 | Claim                             | story, ref (c1, c2…), kind (fact, quote or opinion), text, lead, quoted passage; further sources (lead, passage) | Fact-checked once per source, however many languages the story appears in. Written in its lead's language (D77); further sources corroborate it (D74) |
 | Rendition                         | story, format, language, structured body                                                  | Each item in the body lists the claim ids it relies on                                                         |
-| Publication                       | series, slot, language, status, ordered renditions, trace (`traceparent`)                 | What goes out in one slot: an article, a newsletter issue or a podcast episode. The lifecycle below runs on it |
+| Publication                       | series, slot, language, status, ordered renditions, trace (`traceparent`), sent late    | What goes out in one slot: an article, a newsletter issue or a podcast episode. The lifecycle below runs on it |
 | Check                             | claim or rendition item, kind (code, fact-check, item match, policy, correction), result, detail              | Every check is stored, so a hold always has a reason                                                           |
 | Post                              | publication, channel, part, external id, idempotency key, sent at, dry run                | `part` numbers the messages of a split Telegram post                                                           |
 | Media                             | file, source page, lead, IPTC Photo Metadata: creator, credit line, copyright notice, web statement of rights, licensor, digital source type, description; licence: kind (press kit or Commons), terms, URL, who recorded it; the publisher's copy | Added by a member; a recorded licence never changes. The publisher refuses media without a licence and a credit |
@@ -314,7 +314,7 @@ flowchart LR
     TS["api, web, agents, publisher<br/><small>OTel Node SDK</small>"]
     PY["ingestion, verifier<br/><small>OTel Python SDK</small>"]
   end
-  OTHER["Postgres, Caddy, cloudflared<br/><small>Docker log files</small>"]
+  OTHER["Postgres, Caddy, cloudflared<br/><small>Docker's fluentd log driver</small>"]
   OTC["OTel Collector<br/><small>drops client addresses and user agents;<br/>host disk and memory</small>"]
   subgraph LGTM["otel-lgtm"]
     PROM[("Prometheus<br/><small>metrics, 30 days</small>")]
@@ -327,7 +327,7 @@ flowchart LR
   OP["Operator"]:::ext
   DESK["Desk Ops page<br/><small>pause, retry, cancel, drain, backup check</small>"]
   TS & PY -- OTLP --> OTC
-  OTHER -. read-only .-> OTC
+  OTHER -. logs .-> OTC
   OTC --> PROM & TEMPO & LOKI
   PROM & TEMPO & LOKI --> GRAF
   GRAF -- alerts --> TG
@@ -338,13 +338,13 @@ flowchart LR
   classDef ext stroke-dasharray: 4 4
 ```
 
-- **Signals.** The Node SDK instruments Hono, Astro, pg and outgoing HTTP, and every pg-boss job is a span; the Python SDK instruments FastAPI, httpx and psycopg (`packages/telemetry`, D137). Logs are structured JSON with trace and span ids, sent over OTLP, so a log line opens its trace. The collector also reads the Docker log files of Postgres, Caddy and cloudflared, read-only; no container has the Docker socket. Metrics follow OTel's HTTP and database conventions plus ANR's own under `anr.`.
+- **Signals.** The Node SDK instruments Hono, Astro, pg and outgoing HTTP, and every pg-boss job is a span; the Python SDK instruments FastAPI, httpx and psycopg (`packages/telemetry`, D137). Logs are structured JSON with trace and span ids, sent over OTLP, so a log line opens its trace. Docker's fluentd log driver sends the collector the lines of Postgres, Caddy and cloudflared over loopback; the collector mounts nothing of Docker's and no container has the Docker socket (D155). Metrics follow OTel's HTTP and database conventions plus ANR's own under `anr.`.
 - **Reader privacy.** Telemetry carries no reader data: the collector drops client addresses, user agents, `CF-Connecting-IP` and URL query strings, Caddy writes no access log, and challenge text is never logged (D114).
-- **One publication, end to end.** A publication's trace starts at its assignment; its trace id is stored on the publication, and each job for it (desk, renderers, gate, fact-checks, publisher, audio) continues the trace from `traceparent` in its job data. Span links point to the ingest spans of the leads it cites. The publication's page in the desk links to the trace in Grafana.
+- **One publication, end to end.** A publication's trace starts at its assignment; its trace id is stored on the publication, and each job for it (desk, renderers, gate, fact-checks, publisher, audio) continues the trace from the context pg-boss stores with the job; the publisher's send continues it from the publication, linked to the sweep that found it (D154). Span links point to the ingest spans of the leads it cites. The publication's page in the desk links to the trace in Grafana.
 - **LLM spans.** Each graph run is an `invoke_agent` span, each LangGraph node a child span, each model call a `chat` span with the GenAI conventions' provider, model and token attributes, and each tool call an `execute_tool` span. ANR adds cost (`anr.cost_usd`), the role's chain and every model tried with why it fell through. No prompt or answer text is recorded (D138).
-- **Platform gauges.** Every minute the agents worker reports queue depths, held publications and month's spend per newsroom, heartbeat ages, open outages, the latest backup runs and `pg_stat_archiver`. It reads each newsroom inside `withNewsroom()`, so Grafana never touches Postgres (D139).
+- **Platform gauges.** Every minute the agents worker reads, per newsroom inside `withNewsroom()`, its slots on time, late and missed, its holds and their reasons, publications waiting for an editor and the month's spend against the budget; and, for the platform, the age of each queue's oldest due job, drains, heartbeat ages, outages, the latest backup runs, `pg_stat_archiver` and the database's size. Slots and holds are counted from rows, so a restart loses none; a slot with a `slot-missed` notice is missed even if sent later (D139, D158). Grafana never touches Postgres.
 - **Heartbeats.** Every worker beats every 30 seconds; a gap over 3 minutes is an outage with a start and an end, for one worker or for the whole host (D128). `/healthz` answers 200 only when Postgres answers and every heartbeat is fresh.
-- **Backend.** `grafana/otel-lgtm` in one container, pinned, on its own volume, within a 2 GB memory budget shared with the collector (D139). Grafana is at `ops.$ANR_ROOT_DOMAIN` behind Access, for the operator alone, and signs people in from the Access JWT (anonymous access off). Dashboards and alert rules are files in `infra/observability/`.
+- **Backend.** `grafana/otel-lgtm` in one container, pinned, on its own volume, within a 2 GB memory budget shared with the collector (D139). Grafana is at `ops.$ANR_ROOT_DOMAIN` behind Access, for the operator alone, and signs people in from the Access JWT (anonymous access off). Dashboards, the SLO recording rules and the alert rules are written in `packages/telemetry/ops/` and generated into `infra/observability/`; alerts are Grafana-managed rules, tested with promtool (D158).
 
 | Dashboard        | Shows                                                                                         |
 | ---------------- | --------------------------------------------------------------------------------------------- |
@@ -361,7 +361,7 @@ flowchart LR
 | Slots on time        | 95% of slots send within their format's grace; a missed-slot hold or a slot an outage left unassigned counts against it | Every missed slot; half the budget spent |
 | WAL archived         | In 99.5% of the minutes the server is up, the last archived segment is at most 10 minutes old and no archive attempt failed | Burn rate 14.4× over 1 h and 5 min; 6× over 6 h and 30 min |
 
-Other alerts (D140): a failed backup check or none for an hour; the volumes' disk under 40 GB and under 20 GB free; a heartbeat older than 3 minutes; the tunnel with no connection; a hold-rate spike (the last 24 hours over twice the 28-day rate, at least 3 holds). Grafana sends them to the operator's Telegram chat through an ops bot that is not a newsroom Channel. UptimeRobot checks `/healthz` through the tunnel every 5 minutes and alerts the operator by push and email, since a server that is down cannot alert (D141).
+Other alerts (D140): a failed backup check or none for an hour; the volumes' disk under 40 GB and under 20 GB free; a heartbeat older than 3 minutes; the tunnel with no connection; a hold-rate spike (the last 24 hours over twice the daily rate of up to 28 days, at least 3 holds, once there is a week of data); a newsroom whose gauges cannot be read (D158). Grafana sends them to the operator's Telegram chat through an ops bot that is not a newsroom Channel. UptimeRobot checks `/healthz` through the tunnel every 5 minutes and alerts the operator by push and email, since a server that is down cannot alert (D141).
 
 - **Ops controls.** The platform admin's Ops page in the desk, next to the Admin page: pause publishing for one newsroom or everywhere; retry a failed job; cancel a job that has not started or drain a queue, only where the work ends in a hold or reruns (never a deadline, a correction, an assignment or a redraft); run a backup check now. Each is a row the workers or the backup agent obey (`platform_settings`, `publishing_pauses`, `queue_drains`, `ops_requests`), and each action is in `platform_audit_log` (D144).
 - **Testing it.** k6 load tests in `tools/load/` hit the origin through Caddy, with p95 under 500 ms at 20 requests a second (D142). Chaos drills in `infra/drills/` take the host down across a slot, kill a worker and fill a scratch volume until the low-disk alert fires; each ends in a blameless postmortem in `docs/postmortems/` (D143).

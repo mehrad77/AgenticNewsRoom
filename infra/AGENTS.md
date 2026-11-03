@@ -4,16 +4,16 @@ One server runs everything with Docker Compose: a Linux VM or dedicated server, 
 
 ## Production topology
 
-Prod is the Compose project `anr-prod` (`compose.prod.yaml`); where dev shares the machine it is project `anr` (`compose.yaml`, Postgres on 5432, apps run with `pnpm dev`) (D126, D146). Prod has its own volumes, Postgres on `127.0.0.1:${ANR_PG_PORT:-5433}`, and no other published port. Readers and editors reach it only through Cloudflare: `cloudflared` holds an outbound-only tunnel, Cloudflare terminates TLS and Access guards `desk.` and `ops.` (D122, D123). The tunnel sends every host to Caddy over plain HTTP; Caddy routes `ops.` to Grafana (*7b*), `/api/*` on `desk.` to the API and the rest to the web app. Apps read a reader's address only from `CF-Connecting-IP`. Each container gets only the variables it reads; apps reach Postgres as `anr_app` (D149). No container gets the Docker socket.
+Prod is the Compose project `anr-prod` (`compose.prod.yaml`); where dev shares the machine it is project `anr` (`compose.yaml`, Postgres on 5432, apps run with `pnpm dev`) (D126, D146). Prod has its own volumes, Postgres on `127.0.0.1:${ANR_PG_PORT:-5433}`, and no other published port. Readers and editors reach it only through Cloudflare: `cloudflared` holds an outbound-only tunnel, Cloudflare terminates TLS and Access guards `desk.` and `ops.` (D122, D123). The tunnel sends every host to Caddy over plain HTTP; Caddy routes `ops.` to Grafana, `/api/*` on `desk.` to the API and the rest to the web app. Apps read a reader's address only from `CF-Connecting-IP`. Each container gets only the variables it reads; apps reach Postgres as `anr_app` (D149). No container gets the Docker socket.
 
 ## Files
 
-- `compose.yaml`: dev's Postgres (`pnpm db:up`).
+- `compose.yaml`: dev's Postgres (`pnpm db:up`), and the telemetry stack in the `telemetry` profile (`pnpm telemetry:up`: OTLP on `localhost:4318`, Grafana on `http://localhost:3000` as an anonymous viewer).
 - `compose.prod.yaml`: production, images from `${ANR_IMAGES}/anr-*:${ANR_VERSION}`; the one-shot `migrate` and `config-sync` jobs finish before any app starts. The server never builds.
 - `compose.build.yaml`: adds builds of the same images for a local trial or the drill (`ANR_IMAGES=local ANR_VERSION=local`).
 - `docker/`: one Node image per app (the publisher's adds ffmpeg, exiftool and c2patool built from source), one Python image per service, and Postgres 17 with pgBackRest and `anr-roles`.
 - `postgres/`: `anr-roles` creates the roles (`anr_migrator`, `anr_app`, `anr_system`) and databases from the env passwords on first start, and rotates passwords when run again (`pnpm db:roles` in dev; `deploy.sh` runs it on every deploy).
-- `Caddyfile`: stock Caddy, plain HTTP, no access log.
+- `Caddyfile`: stock Caddy, plain HTTP; its log keeps no headers, client address or query string, and it drops readers' trace headers.
 - `deploy.sh <tag>`: decrypts `secrets/prod.env` for the run (`env.sh`), refuses unsafe settings (dev values, `ANR_PUBLISH` not `live`, weak passwords, a non-base64 backup passphrase, a host disk under 20 GB free, a taken port, a restored copy not promoted), pulls the tag's images, applies the role passwords, checks WAL archiving, starts `anr-prod` and waits for `/healthz`. `--check` checks only; on macOS it warns when sleep is on for AC power (D127). `--promote-restore <tag>` makes a restored copy production.
 - `env.sh`: loads the production env as data, never as shell; clears every `.env.example` name from the shell first, so a dev value cannot leak in (D147).
 - `check.ts`: run by `pnpm lint` and the opt-in pre-commit hook (`git config core.hooksPath .githooks`); fails on any file in `secrets/` that is not SOPS-encrypted, and when `.env.example`'s secrets differ from `env.sh`'s.
@@ -21,7 +21,7 @@ Prod is the Compose project `anr-prod` (`compose.prod.yaml`); where dev shares t
 - `terraform/`: the tunnel and its ingress, root and wildcard records, Access for `desk.` and `ops.`, and the R2 buckets (D136). Run through `tf.sh`, which decrypts the variables per command; state is in the `anr-terraform-state` bucket, locked.
 - `backup/`: pgBackRest to R2 (`backup.sh init|full|diff|incr|check|requests|info`, each run a `backup_runs` row), `restore.sh` into an empty volume, `restore-drill.sh <tag>` (7a's gate on a fresh machine) and `drill-local.sh` (the whole cycle against an S3 stand-in, milestone 1's gate). Running jobs use `docker exec` on the running container, so the host's scheduler needs no env.
 - `host/`: host profiles (D127). `linux/`: systemd user units with lingering (`install.sh`). `macos/`: launchd agents (`install.sh`), plus one running `caffeinate -s`.
-- *7b* `observability/`: collector config, Grafana datasources, dashboards and alert rules, provisioned read-only.
+- `observability/`: the collector's config, otel-lgtm's Prometheus config and Grafana's entrypoint (`grafana/start.sh`), datasources, dashboards, alert rules and the ops chat's contact point, all provisioned read-only. Dashboards and rules are generated from `packages/telemetry/ops/` (`pnpm gen`); never edit them here. See Observability below.
 - *7b* `drills/`: chaos drills and their runbooks (D143).
 
 ## Backups
@@ -30,7 +30,29 @@ pgBackRest archives every WAL segment to R2 (at least every 5 minutes), takes a 
 
 The host profile runs `backup.sh full` (Sunday 03:00), `diff` (03:00 other days), `check` (every 30 minutes) and `requests` (every 30 seconds, the desk's "check now"): systemd timers with `Persistent=true` on Linux, launchd agents on macOS. Both run a job missed while the host was down or asleep once when it is back; cron would skip it (D131, D150). A job waits up to 5 minutes for Postgres, so a catch-up at boot or wake does not fail before Docker is up. Logs: `journalctl --user -u 'anr-*'` on Linux, `~/Library/Logs/anr/` on macOS.
 
-If `check` fails, WAL is not reaching R2 and Postgres keeps every segment until it does, so the disk fills; the backup and disk alerts (*7b*) catch it.
+If `check` fails, WAL is not reaching R2 and Postgres keeps every segment until it does, so the disk fills; the backup and disk alerts catch it.
+
+## Observability
+
+The apps send OTLP to the collector (`otel-collector`), which scrubs reader data, adds Postgres's, Caddy's and cloudflared's logs, both disks and memory, and forwards everything to otel-lgtm (`lgtm`: Grafana, Prometheus 30 days, Tempo and Loki 7 days) (D137, D139, D155). Grafana at `ops.` signs in only with the ops Access application's JWT, as Editor (D156). The agents worker reports the platform gauges every minute (D158). Alerts go to the ops Telegram chat; UptimeRobot watches `/healthz` from outside (D140, D141).
+
+Memory, measured idle on the macOS host profile: lgtm about 970 MiB, the collector about 90 MiB; limits 1792 MiB and 256 MiB, 2 GB together.
+
+```bash
+pnpm telemetry:up                               # dev's collector and Grafana
+infra/observability/check-rules.sh              # recording and alert rules against their promtool tests
+infra/observability/check-dashboards.sh         # every panel query through dev's Grafana, no errors
+infra/observability/check-grafana-auth.sh       # production's sign-in in a throwaway Grafana
+infra/observability/check-scrub.sh              # a dirty span reaches Tempo clean (COMPOSE_PROJECT_NAME=anr-prod for prod)
+```
+
+For milestone 7b the operator adds to `prod.env` (`sops infra/secrets/prod.env`), before deploying it:
+
+1. `CF_ACCESS_OPS_AUD`: `infra/terraform/tf.sh output -raw ops_access_aud`.
+2. The ops bot: create one with BotFather (not a newsroom's bot), send it a message from your Telegram account, and set `ANR_OPS_TELEGRAM_BOT_TOKEN` and `ANR_OPS_TELEGRAM_CHAT_ID` (your chat's id, from `https://api.telegram.org/bot<token>/getUpdates`). Without both, `deploy.sh` refuses; Grafana gets the Telegram contact point only when both are set. After the deploy, send Grafana's test notification from Alerting → Contact points.
+3. UptimeRobot (free plan): an HTTPS monitor on `https://$ANR_ROOT_DOMAIN/healthz` every 5 minutes, alerting by its app's push and email.
+
+A trial or restored stack on the same Docker runs with both `ANR_OPS_TELEGRAM_*` empty, so its alerts stay in its own Grafana.
 
 ## Useful commands
 
