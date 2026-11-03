@@ -1,4 +1,4 @@
-// Listening samples for milestone 5's gate: the English and Turkish hosts, each pair in one
+// Listening samples: the English and Turkish hosts, each pair in one
 // multi-speaker Gemini TTS request, so the whole test costs exactly two requests. Each sample
 // opens with the episode's code-rendered AI-voice intro, then a short neutral conversation.
 // `pnpm --filter @anr/publisher samples -- --yes` writes .data/m5/listening/<language>.mp3.

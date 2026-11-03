@@ -62,7 +62,7 @@ key_bytes=$({ printf %s "${ANR_PLATFORM_KEY:-}" | base64 --decode 2>/dev/null ||
 [[ -z "${ANR_DESK_DEV_EMAIL:-}" ]] || problems+=("ANR_DESK_DEV_EMAIL is for development only")
 [[ -z "${CLOUDFLARE_DNS_API_TOKEN:-}" ]] || warnings+=("CLOUDFLARE_DNS_API_TOKEN is no longer used (D124); remove it")
 [[ -n "${ANR_OPS_TELEGRAM_BOT_TOKEN:-}" && -n "${ANR_OPS_TELEGRAM_CHAT_ID:-}" ]] ||
-  warnings+=("ANR_OPS_TELEGRAM_BOT_TOKEN and ANR_OPS_TELEGRAM_CHAT_ID are not set (alerts, milestone 7b)")
+  warnings+=("ANR_OPS_TELEGRAM_BOT_TOKEN and ANR_OPS_TELEGRAM_CHAT_ID are not set (alerts)")
 
 # The host (D127, D132).
 docker info >/dev/null 2>&1 || die "Docker is not running"

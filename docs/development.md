@@ -25,8 +25,8 @@ packages/
   schemas/      JSON Schema → zod (src/generated) and pydantic (python/anr_schemas); vendored IPTC vocabularies (iptc/)
   db/           SQL migrations, Postgres client, withNewsroom()
 config/         models, formats, newsrooms
-infra/          compose.yaml, Dockerfiles, Caddyfile, Postgres roles, backups, deploy.sh
-                (milestone 7a adds terraform/, secrets/, host/; 7b observability/, drills/)
+infra/          compose files, Dockerfiles, Caddyfile, Postgres roles, backups, deploy.sh, terraform/,
+                secrets/, host/, observability/, drills/
 docs/           design docs (settled decisions only); postmortems/
 .claude/        skills and dev-server launch config for coding agents
 ```
@@ -54,13 +54,12 @@ Dev ports: web 4321 (override with `WEB_PORT`), api 8787, ingestion 8101, verifi
 
 ## Workflow
 
-1. Pick a task from the [build plan](build-plan.md).
-2. Read the package's `AGENTS.md` and the relevant section of the [technical design](technical-design.md).
-3. Use a skill when one fits (`.claude/skills/`: add-newsroom, add-format, add-migration, add-agent-role, charter-check).
-4. Write the change with tests. Logic goes in plain modules; framework files stay thin.
-5. `pnpm check`.
-6. Update the docs, tick the build-plan task, record any new decision in [decisions](decisions.md).
-7. Commit with a conventional message (`feat(publisher): idempotent Telegram send`). Once per clone, `git config core.hooksPath .githooks` makes every commit refuse a file in `infra/secrets/` that is not SOPS-encrypted (D125).
+1. Read the package's `AGENTS.md` and the relevant section of the [technical design](technical-design.md).
+2. Use a skill when one fits (`.claude/skills/`: add-newsroom, add-format, add-migration, add-agent-role, charter-check).
+3. Write the change with tests. Logic goes in plain modules; framework files stay thin.
+4. `pnpm check`.
+5. Update the docs, record any new decision in [decisions](decisions.md).
+6. Commit with a conventional message (`feat(publisher): idempotent Telegram send`). Once per clone, `git config core.hooksPath .githooks` makes every commit refuse a file in `infra/secrets/` that is not SOPS-encrypted (D125).
 
 ## Conventions
 

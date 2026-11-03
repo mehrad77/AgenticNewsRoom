@@ -271,7 +271,7 @@ config/
 
 ## Deploy and backups
 
-Production is one server: a Linux VM, or the operator's laptop (D145). Prod is the Compose project `anr-prod` (its own volumes, Postgres on `127.0.0.1:5433`, no other published port); where dev shares the machine, as on the laptop, it is project `anr` on 5432. What depends on the host is a profile in `infra/host/`: `linux` (systemd, the reference) or `macos` (launchd, keep-awake) (D127). Only prod sends to real channels (`ANR_PUBLISH=live`, D126). Nothing is deployed before milestone 6's gate passes (D53); milestone 7a deploys and 7b adds observability.
+Production is one server: a Linux VM, or the operator's laptop (D145). Prod is the Compose project `anr-prod` (its own volumes, Postgres on `127.0.0.1:5433`, no other published port); where dev shares the machine, as on the laptop, it is project `anr` on 5432. What depends on the host is a profile in `infra/host/`: `linux` (systemd, the reference) or `macos` (launchd, keep-awake) (D127). Only prod sends to real channels (`ANR_PUBLISH=live`, D126).
 
 ```mermaid
 flowchart LR
@@ -412,28 +412,3 @@ The charter's v1 measures come from data ANR already holds, plus three audience 
 | Audience per language (site)     | Cookieless server-side page-view counts per publication and language                                                                                                            |
 | Audience per language (podcast)  | Episode audio is linked through the site (`/a/<episode>.mp3`), which logs a download, deduplicated by a hashed IP and user agent per 24 hours, then redirects to object storage |
 | Audience per language (Telegram) | A daily subscriber-count snapshot per channel from the Bot API                                                                                                                  |
-
-## Build order
-
-```mermaid
-flowchart TB
-  M1["1. Foundation<br/><small>Repo, Postgres schema with row-level security,<br/>pg-boss, config loader, CI, off-VM backups</small>"]
-  M2["2. Ingestion<br/><small>Python ingestion service, leads, credibility tiers,<br/>summariser agent</small>"]
-  M3["3. Desk and verifier<br/><small>Agents worker with the desk and fact-checker<br/>graphs; the verifier's code checks</small>"]
-  M4["4. Publishing<br/><small>Publisher, reader site, Telegram, editor's desk<br/>with sign-in and channels, disclosure labels</small>"]
-  M5["5. Planning and podcasts<br/><small>Planner agent, cycle themes, weekly picks,<br/>audio pipeline, podcast RSS, C2PA signing</small>"]
-  M6["6. Safeguards and the second newsroom<br/><small>Challenges and corrections, the 10% audit sample;<br/>the second newsroom added as config</small>"]
-  G1{{"Config loads, and a backup restores into a fresh database"}}
-  G2{{"The AI newsroom's sources fill the lead pool"}}
-  G3{{"A daily brief is drafted, then passes or is held with reasons"}}
-  G4{{"Daily news publishes end to end on its own"}}
-  G5{{"One editorial cycle runs from plan to published pieces"}}
-  M7A["7a. Deploy<br/><small>Cloudflare Tunnel, images by tag, SOPS, Terraform;<br/>host profiles, gaps, Ops controls; backups off the server</small>"]
-  M7B["7b. Observability<br/><small>OpenTelemetry, Grafana LGTM, SLOs and alerts,<br/>uptime check, load tests, chaos drills</small>"]
-  G6{{"v1 done: the second newsroom starts with no new code"}}
-  G7A{{"A backup restores onto a fresh machine"}}
-  G7B{{"A simulated outage shows in Grafana and fires an alert"}}
-  M1 --> G1 --> M2 --> G2 --> M3 --> G3 --> M4 --> G4 --> M5 --> G5 --> M6 --> G6 --> M7A --> G7A --> M7B --> G7B
-```
-
-Each milestone ships something that runs, and the next one starts only after its gate passes. Milestones are gated, not dated. The task list for each milestone is in the [build plan](build-plan.md).
