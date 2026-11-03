@@ -16,7 +16,7 @@ const TEMPLATES = {
   reference: "/reference",
   "reference-index": "/reference/:path",
   "reference-entry": "/reference/:path/:slug",
-  timeline: "/:timeline",
+  section: "/:section",
   "not-found": "/*",
 } as const;
 

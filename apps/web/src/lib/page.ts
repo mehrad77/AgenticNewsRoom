@@ -38,7 +38,14 @@ import {
 } from "./reference-page.ts";
 import { REFERENCE_WORDS, type ReferenceWords } from "./reference-words.ts";
 import { route } from "./routes.ts";
-import { artwork, coverOf } from "./series.ts";
+import {
+  type Artwork,
+  artwork,
+  coverOf,
+  type SeriesIndex,
+  type SeriesPiece,
+  seriesPieces,
+} from "./series.ts";
 import { TIMELINE_ITEM } from "./timeline.ts";
 
 let renderer: ReturnType<typeof createRenderer> | undefined;
@@ -99,6 +106,16 @@ export type Page =
       pieces: Listed[];
       /** On a news home (newsroom.yaml `home: {news}`): the newest items, the pieces under them. */
       news: (HomeNews & { label: string }) | null;
+      /** On a news home: the newest piece of each other series with a page (D179). */
+      blocks: { index: SeriesIndex; piece: SeriesPiece }[];
+    } & Common)
+  | ({
+      kind: "series";
+      index: SeriesIndex;
+      pieces: SeriesPiece[];
+      /** The series' own header image and show art, when it has them (D180). */
+      art: Map<string, Artwork>;
+      label: string;
     } & Common)
   | ({ kind: "search"; query: string; pieces: Listed[]; entries: FoundEntry[] } & Common)
   | (ReferenceView & { label: string; reference: ReferenceConfig } & Common)
@@ -170,6 +187,11 @@ export async function loadPage(
         href: pageUrl(site, language, `/${t.config.path}`),
         label: nameOf(t.config.name, language),
       })),
+      ...newsroom.indexes.map((i) => ({
+        key: i.series,
+        href: pageUrl(site, language, `/${i.series}`),
+        label: nameOf(i.name, language),
+      })),
       ...(newsroom.reference.nav ?? []).flatMap((key) => {
         const t = targetByKey(newsroom.reference, key);
         return t
@@ -211,9 +233,10 @@ export async function loadPage(
           kind: "home",
           pieces: await latest(deps.pool, newsroom.id, language),
           news: null,
+          blocks: [],
           ...common(name),
         };
-      const [news, pieces] = await Promise.all([
+      const [news, pieces, blocks] = await Promise.all([
         loadHomeNews(
           deps.pool,
           newsroom,
@@ -223,8 +246,22 @@ export async function loadPage(
           Number(request.query.get("page")) || 1,
         ),
         latest(deps.pool, newsroom.id, language, HOME_PIECES, [timeline.series]),
+        Promise.all(
+          newsroom.indexes
+            .filter((i) => i.series !== timeline.series)
+            .map(async (index) => ({
+              index,
+              piece: (await seriesPieces(deps.pool, newsroom.id, index.series, language, 1))[0],
+            })),
+        ),
       ]);
-      return { kind: "home", pieces, news: { ...news, label: await label() }, ...common(name) };
+      return {
+        kind: "home",
+        pieces,
+        news: { ...news, label: await label() },
+        blocks: blocks.flatMap((b) => (b.piece ? [{ index: b.index, piece: b.piece }] : [])),
+        ...common(name),
+      };
     }
     case "search": {
       const query = request.query.get("q") ?? "";
@@ -234,7 +271,23 @@ export async function loadPage(
       ]);
       return { kind: "search", query, pieces, entries, ...common(words.search, "/search") };
     }
-    case "timeline": {
+    case "section": {
+      // A series' own page (D179), else a series' timeline (D173).
+      const index = newsroom.indexes.find((i) => i.series === r.path);
+      if (index) {
+        const [pieces, art] = await Promise.all([
+          seriesPieces(deps.pool, newsroom.id, index.series, language),
+          artwork(deps.pool, newsroom.id, `series/${index.series}/`),
+        ]);
+        return {
+          kind: "series",
+          index,
+          pieces,
+          art,
+          label: await label(),
+          ...common(nameOf(index.name, language), request.path),
+        };
+      }
       const timeline = newsroom.timelines.find((t) => t.config.path === r.path);
       if (!timeline) return { kind: "not-found", ...common(words.notFound) };
       const view = await loadTimeline(deps.pool, newsroom, timeline, language, request.query);

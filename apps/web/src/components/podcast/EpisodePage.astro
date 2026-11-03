@@ -22,8 +22,11 @@ interface Props {
   aiPolicy: string;
   /** The imported label (D164), on an imported episode. */
   imported: string | null;
+  /** The series' own page (D179), when it has one: the eyebrow links to it. */
+  seriesHref?: string | null;
 }
-const { episode: ep, title, series, publishedAt, timezone, language, words, aiPolicy, imported } = Astro.props;
+const { episode: ep, title, series, publishedAt, timezone, language, words, aiPolicy, imported, seriesHref } =
+  Astro.props;
 const w = words.episode;
 const d = localDigits(language);
 const time = (sec: number) => d(clock(sec));
@@ -39,7 +42,7 @@ const inTranscript = new Set(ep.sections.map((s) => s.chapter));
     <img class="podcast-cover podcast-cover--lg" src={ep.cover.src} alt={ep.cover.alt} title={ep.cover.credit || undefined} width="192" height="192" decoding="async" />
   )}
   <div>
-    <p class="eyebrow">{series}</p>
+    <p class="eyebrow">{seriesHref ? <a href={seriesHref}>{series}</a> : series}</p>
     <h1 class="page-title" dir="auto">{title}</h1>
     {ep.summary && <p class="lead" dir="auto">{ep.summary}</p>}
   </div>

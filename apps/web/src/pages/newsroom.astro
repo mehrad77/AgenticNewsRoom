@@ -14,7 +14,9 @@ import ReferenceHome from "../components/reference/ReferenceHome.astro";
 import ReferenceIndex from "../components/reference/ReferenceIndex.astro";
 import Labels from "../components/reference/Labels.astro";
 import TimelineItem from "../components/reference/TimelineItem.astro";
-import { targetPath } from "../lib/reference-config.ts";
+import PieceTile from "../components/series/PieceTile.astro";
+import SeriesPage from "../components/series/SeriesPage.astro";
+import { nameOf, targetPath } from "../lib/reference-config.ts";
 import { pageNumbers } from "../lib/reference-page.ts";
 import { directionOf, pageUrl } from "@anr/core";
 import { CHALLENGES_OPEN, challengeForm, sendChallenge } from "../lib/challenge.ts";
@@ -171,6 +173,7 @@ const date = (d: Date) =>
             episode={page.episode}
             title={page.publication.title ?? name}
             series={page.publication.seriesName[page.language] ?? page.publication.series}
+            seriesHref={page.newsroom.indexes.some((i) => i.series === page.publication.series) ? page.url(`/${page.publication.series}`) : null}
             publishedAt={page.publication.publishedAt}
             timezone={page.newsroom.timezone}
             language={page.language}
@@ -229,6 +232,7 @@ const date = (d: Date) =>
         {page.challenge.outcome === "upheld" && <p><a href={page.links.corrections}>{w.corrections}</a></p>}
       </>
     )}
+    {page.kind === "series" && <SeriesPage page={page} />}
     {page.kind === "reference" && <ReferenceHome page={page} />}
     {page.kind === "reference-index" && <ReferenceIndex page={page} />}
     {page.kind === "reference-entry" && page.target.kind.layout === "document" && <DocumentEntry page={page} />}
@@ -268,12 +272,12 @@ const date = (d: Date) =>
           </nav>
         )}
         <p class="ref-more"><a href={page.url(targetPath(page.news.target))}>{w.allNews}</a></p>
-        {page.news.page === 1 && page.pieces.length > 0 && (
-          <section class="ref-group">
+        {page.news.page === 1 && page.blocks.length > 0 && (
+          <section class="ref-group wide">
             <h2>{w.latestPieces}</h2>
-            <ul>
-              {page.pieces.map((p) => (
-                <li><a href={page.url(p.path)} dir="auto">{p.title ?? p.path}</a> · <time datetime={p.publishedAt.toISOString()}>{date(p.publishedAt)}</time></li>
+            <ul class="home-blocks">
+              {page.blocks.map((b) => (
+                <li><PieceTile piece={b.piece} href={page.url(b.piece.path)} language={page.language} timezone={page.newsroom.timezone} eyebrow={{ text: nameOf(b.index.name, page.language), href: page.url(`/${b.index.series}`) }} /></li>
               ))}
             </ul>
           </section>

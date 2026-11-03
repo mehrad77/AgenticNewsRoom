@@ -28,6 +28,7 @@ const newsroom: ReaderNewsroom = {
   correctionsOwner: "Mehrad Rousta",
   reference: { kinds: {} },
   timelines: [],
+  indexes: [],
   home: "pieces",
 };
 const publication: ReaderPublication = {

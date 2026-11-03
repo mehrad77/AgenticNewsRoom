@@ -1,0 +1,29 @@
+---
+// One piece of a series as a tile: its cover (or the series' show art), title, date and a line
+// about it. The whole tile is the link.
+import type { Language } from "@anr/core";
+import type { Artwork, SeriesPiece } from "../../lib/series.ts";
+
+interface Props {
+  piece: SeriesPiece;
+  href: string;
+  language: Language;
+  timezone: string;
+  /** The series' show art, for a piece without a cover of its own. */
+  fallback?: Artwork;
+  /** The series' name above the title, on the home. */
+  eyebrow?: { text: string; href: string };
+}
+const { piece: p, href, language, timezone, fallback, eyebrow } = Astro.props;
+const image = p.cover ?? fallback;
+const date = new Intl.DateTimeFormat(language, { dateStyle: "long", calendar: "gregory", timeZone: timezone }).format(p.publishedAt);
+---
+<article class:list={["piece-tile", { "piece-tile--image": image }]}>
+  {image && <img src={image.src} alt="" title={image.credit} loading="lazy" decoding="async" />}
+  <div>
+    {eyebrow && <p class="piece-tile__series"><a href={eyebrow.href}>{eyebrow.text}</a></p>}
+    <h3 dir="auto"><a href={href}>{p.title ?? p.path}</a></h3>
+    <p class="piece-tile__date"><time datetime={p.publishedAt.toISOString()}>{date}</time></p>
+    {p.line && <p class="piece-tile__line" dir="auto">{p.line}</p>}
+  </div>
+</article>

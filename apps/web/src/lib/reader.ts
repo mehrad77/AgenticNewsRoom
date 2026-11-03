@@ -5,6 +5,7 @@ import type { Language } from "@anr/core";
 import { type Pool, withNewsroom } from "@anr/db";
 import { type MediaContext, mediaContext } from "@anr/render";
 import type { ReferenceSchema } from "@anr/schemas";
+import type { SeriesIndex } from "./series.ts";
 import type { Timeline, TimelineConfig } from "./timeline.ts";
 
 /** The statuses a reader may see; also the predicate of the search and listing indexes. */
@@ -23,6 +24,8 @@ export interface ReaderNewsroom {
   reference: ReferenceSchema;
   /** The series whose items form a timeline (D173), in the series' order. */
   timelines: Timeline[];
+  /** The series with a page of their own and a header link (D179), in the series' order. */
+  indexes: SeriesIndex[];
   /** What the home lists (newsroom.yaml `home`): pieces, or a series' news items. */
   home: "pieces" | { news: string };
 }
@@ -84,11 +87,15 @@ export async function newsroomBySubdomain(
   );
   const n = rows[0];
   if (!n) return null;
-  const timelines = await withNewsroom(pool, n.id, async (c) => {
+  const [timelines, indexes] = await withNewsroom(pool, n.id, async (c) => {
     const { rows: series } = await c.query<{ series: string; config: TimelineConfig }>(
       "select slug as series, config->'timeline' as config from series where config ? 'timeline' order by slug",
     );
-    return series;
+    const { rows: pages } = await c.query<{ series: string; index: Omit<SeriesIndex, "series"> }>(
+      `select slug as series, config->'index' as index from series
+       where config ? 'index' and removed_at is null order by slug`,
+    );
+    return [series, pages.map((p) => ({ series: p.series, ...p.index }))] as const;
   });
   return {
     id: n.id,
@@ -101,6 +108,7 @@ export async function newsroomBySubdomain(
     correctionsOwner: n.corrections_owner,
     reference: { ...n.reference, kinds: n.reference.kinds ?? {} },
     timelines,
+    indexes,
     home: n.home,
   };
 }

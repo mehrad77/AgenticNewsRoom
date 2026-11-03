@@ -518,3 +518,90 @@ main > h1,
   line-height: 1;
   color: var(--text-muted);
 }
+
+/* ---------------------------------------------------------------- series pages (D179) */
+.series-hero {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  margin: var(--space-5) 0 0;
+  border: 1px solid var(--stroke);
+  border-radius: 0;
+}
+.series-pieces {
+  display: grid;
+  gap: var(--space-4);
+  margin: var(--space-6) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.piece-tile {
+  position: relative;
+  display: grid;
+  gap: var(--space-4);
+  align-items: start;
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--stroke);
+  background: var(--surface-raised);
+}
+.piece-tile--image {
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+}
+.piece-tile img {
+  inline-size: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  margin: 0;
+  border-radius: 0;
+}
+.piece-tile > div {
+  display: grid;
+  gap: var(--space-1);
+}
+.piece-tile :is(h3, p) {
+  margin: 0;
+}
+.piece-tile h3 {
+  font-size: var(--step-1);
+  line-height: 1.35;
+}
+.piece-tile h3 a {
+  text-decoration: none;
+}
+.piece-tile h3 a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+.piece-tile__series a {
+  position: relative;
+  z-index: 1;
+  font-size: var(--step--1);
+  color: var(--text-muted);
+  text-decoration: none;
+}
+.piece-tile__date {
+  font-size: var(--step--1);
+  color: var(--text-muted);
+}
+.piece-tile__line {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.7;
+}
+/* A news home's blocks: the newest piece of each other series, side by side when there is room. */
+.home-blocks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: var(--space-4);
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+[dir="rtl"] .piece-tile h3 {
+  text-align: right;
+}

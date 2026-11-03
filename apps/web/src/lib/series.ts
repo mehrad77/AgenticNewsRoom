@@ -18,6 +18,8 @@ export interface SeriesPiece {
   /** A line about the piece: an episode's summary, else its first paragraph. */
   line: string | null;
   imported: boolean;
+  /** Its cover (an episode's, D180), once published. */
+  cover: Artwork | null;
 }
 
 /** The first thing a rendition says about itself: its summary, or its first item's text. */
@@ -45,12 +47,16 @@ export function seriesPieces(
       published_at: Date;
       origin: string;
       body: Record<string, unknown> | null;
+      cover_file: string | null;
+      cover_credit: string | null;
     }>(
-      `select p.id, p.title, p.path, p.published_at, p.origin, r.body
+      `select p.id, p.title, p.path, p.published_at, p.origin, r.body,
+              m.published_file as cover_file, m.credit_line as cover_credit
        from publications p
        join series s on s.id = p.series_id
        left join publication_renditions pr on pr.publication_id = p.id and pr.position = 1
        left join renditions r on r.id = pr.rendition_id
+       left join media m on m.id::text = r.body->'cover'->>'media_id' and m.published_file is not null
        where s.slug = $1 and p.language = $2 and p.status in ('published', 'corrected')
        order by p.published_at desc limit $3`,
       [series, language, limit],
@@ -62,6 +68,13 @@ export function seriesPieces(
       publishedAt: r.published_at,
       line: lineOf(r.body),
       imported: r.origin === "imported",
+      cover: r.cover_file
+        ? {
+            src: `/${r.cover_file}`,
+            alt: String((r.body?.cover as { alt?: string } | undefined)?.alt ?? ""),
+            credit: r.cover_credit ?? "",
+          }
+        : null,
     }));
   });
 }
