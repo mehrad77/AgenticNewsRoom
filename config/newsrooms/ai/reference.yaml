@@ -3,7 +3,7 @@
 intro:
   fa: مقاله‌ها، خبرهای لابراتوارها و سازمان‌ها و افرادی که پشت پوشش ما هستند، یک‌جا.
   en: The papers, lab news, organisations and people behind our coverage, kept in one place.
-nav: [classics, news-event, organisation]
+nav: [news-event]
 
 kinds:
   paper:
