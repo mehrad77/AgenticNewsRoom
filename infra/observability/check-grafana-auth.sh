@@ -42,6 +42,7 @@ docker run -d --name "$name" -p 127.0.0.1::3000 \
   -v "$PWD/grafana/start.sh:/etc/anr/grafana/start.sh:ro" \
   -v "$PWD/grafana/provisioning:/etc/anr/grafana/provisioning:ro" \
   -v "$PWD/grafana/dashboards:/etc/anr/grafana/dashboards:ro" \
+  -v "$PWD/grafana/telegram:/etc/anr/grafana/telegram:ro" \
   --entrypoint /etc/anr/grafana/start.sh "$image" >/dev/null
 port=$(docker port "$name" 3000/tcp | head -1 | sed 's/.*://')
 url="http://127.0.0.1:$port"
@@ -76,4 +77,16 @@ for file in grafana/dashboards/*.json; do
   status=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "$(jwt ops)" -H 'content-type: application/json' -d "$body" "$url/api/dashboards/db")
   if [[ "$status" =~ ^4 ]]; then echo "✓ $(basename "$file") cannot be saved ($status)"; else echo "✗ $(basename "$file") was saved ($status)"; failed=1; fi
 done
+
+# Provisioned alert rules are read-only too.
+uids=$(curl -s -H "$(jwt ops)" "$url/api/v1/provisioning/alert-rules" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).map(r=>r.uid).join(" ")))')
+[[ -n "$uids" ]] || { echo "✗ no provisioned alert rules"; failed=1; }
+for uid in $uids; do
+  status=$(curl -s -o /dev/null -w '%{http_code}' -X DELETE -H "$(jwt ops)" "$url/api/v1/provisioning/alert-rules/$uid")
+  if [[ "$status" =~ ^4 ]]; then echo "✓ alert rule $uid cannot be deleted ($status)"; else echo "✗ alert rule $uid was deleted ($status)"; failed=1; fi
+done
+# This container has no ops chat settings: nothing can reach Telegram.
+if curl -s -H "$(jwt ops)" "$url/api/v1/provisioning/contact-points" | grep -qi telegram; then
+  echo "✗ a Telegram contact point exists without the ops chat's settings"; failed=1
+else echo "✓ no Telegram contact point without the ops chat's settings"; fi
 exit "$failed"

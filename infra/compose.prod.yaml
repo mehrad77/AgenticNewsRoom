@@ -152,6 +152,18 @@ services:
       R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
       ANR_MEDIA_BUCKET: ${ANR_MEDIA_BUCKET:-}
       ANR_S3_ENDPOINT: ${ANR_S3_ENDPOINT:-}
+    # The web worker beats from its first request (D128): this one comes right after any restart, so
+    # a restarted web never looks down for want of a reader.
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4321/healthz').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))",
+        ]
+      interval: 30s
+      start_period: 10s
 
   agents:
     <<: *app
@@ -285,6 +297,7 @@ services:
       - ./observability/grafana/start.sh:/etc/anr/grafana/start.sh:ro
       - ./observability/grafana/provisioning:/etc/anr/grafana/provisioning:ro
       - ./observability/grafana/dashboards:/etc/anr/grafana/dashboards:ro
+      - ./observability/grafana/telegram:/etc/anr/grafana/telegram:ro
       - ./observability/prometheus/prometheus.yaml:/otel-lgtm/prometheus.yaml:ro
       - ./observability/prometheus/rules:/etc/anr/prometheus/rules:ro
     networks: [telemetry]

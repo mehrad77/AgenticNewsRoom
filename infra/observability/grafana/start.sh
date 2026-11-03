@@ -21,7 +21,6 @@ export GF_SECURITY_DISABLE_GRAVATAR=true
 # No snapshots to Grafana's servers and no public dashboards: nothing is shown without sign-in.
 export GF_SNAPSHOTS_EXTERNAL_ENABLED=false
 export GF_PUBLIC_DASHBOARDS_ENABLED=false
-export GF_PATHS_PROVISIONING=/etc/anr/grafana/provisioning
 # Encrypts what Grafana stores (the Telegram token of the contact point): made once, kept on
 # Grafana's own volume, never the image's public default.
 key=/data/grafana/secret_key
@@ -29,6 +28,17 @@ mkdir -p /data/grafana
 [[ -s "$key" ]] || (umask 077 && head -c 32 /dev/urandom | base64 >"$key")
 GF_SECURITY_SECRET_KEY="$(cat "$key")"
 export GF_SECURITY_SECRET_KEY
+
+# Alerts reach the ops chat only where its bot and chat are set (production, which deploy.sh
+# checks). Dev, the sign-in check and a trial stack keep Grafana's default contact point, an email
+# without a mail server: alerts show in Grafana and nothing is sent.
+provisioning=/tmp/anr-provisioning
+rm -rf "$provisioning"
+cp -R /etc/anr/grafana/provisioning "$provisioning"
+if [[ -n "${ANR_OPS_TELEGRAM_BOT_TOKEN:-}" && -n "${ANR_OPS_TELEGRAM_CHAT_ID:-}" ]]; then
+  cp /etc/anr/grafana/telegram/ops-chat.yaml "$provisioning/alerting/"
+fi
+export GF_PATHS_PROVISIONING="$provisioning"
 
 if [[ -n "${ANR_GRAFANA_ANONYMOUS:-}" ]]; then
   [[ "$ANR_GRAFANA_ANONYMOUS" == Viewer ]] || { echo "ANR_GRAFANA_ANONYMOUS may only be Viewer" >&2; exit 1; }
