@@ -16,21 +16,34 @@
     "planning"
   ],
   "properties": {
-    "slug": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
     "name": {
       "type": "object",
       "description": "Display name per language.",
       "minProperties": 1,
-      "additionalProperties": { "type": "string", "minLength": 1 },
-      "propertyNames": { "enum": ["fa", "en", "tr"] }
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      },
+      "propertyNames": {
+        "enum": ["fa", "en", "tr"]
+      }
     },
     "languages": {
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
-      "items": { "enum": ["fa", "en", "tr"] }
+      "items": {
+        "enum": ["fa", "en", "tr"]
+      }
     },
-    "timezone": { "type": "string", "minLength": 1 },
+    "timezone": {
+      "type": "string",
+      "minLength": 1
+    },
     "subdomain": {
       "type": "string",
       "description": "The newsroom's site is served at <subdomain>.$ANR_ROOT_DOMAIN; other languages at /<lang>.",
@@ -63,6 +76,25 @@
           "description": "Start date of the first cycle."
         }
       }
+    },
+    "home": {
+      "description": "What the reader site's home lists: `pieces`, the newest publications (the default), or `{news: <series>}`, the newest news items of that series' timeline with the newest pieces of the other series under them.",
+      "oneOf": [
+        {
+          "const": "pieces"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["news"],
+          "properties": {
+            "news": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9-]*$"
+            }
+          }
+        }
+      ]
     }
   }
 }

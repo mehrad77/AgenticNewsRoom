@@ -234,6 +234,10 @@ main > h1,
   margin: 0;
   line-height: 1.7;
 }
+.ref-more {
+  margin: var(--space-5) 0 0;
+  font-weight: 600;
+}
 .ref-links {
   display: flex;
   flex-wrap: wrap;

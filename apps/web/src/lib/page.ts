@@ -27,12 +27,23 @@ import {
   targetNames,
   targetPath,
 } from "./reference-config.ts";
-import { loadReference, loadTimeline, type ReferenceView } from "./reference-page.ts";
+import {
+  type HomeNews,
+  loadHomeNews,
+  loadReference,
+  loadTimeline,
+  type ReferenceView,
+} from "./reference-page.ts";
 import { REFERENCE_WORDS, type ReferenceWords } from "./reference-words.ts";
 import { route } from "./routes.ts";
 import { TIMELINE_ITEM } from "./timeline.ts";
 
 let renderer: ReturnType<typeof createRenderer> | undefined;
+
+/** How many news items a news home lists before its link to the whole timeline. */
+const HOME_NEWS = 30;
+/** How many of the other series' pieces a news home lists under its news. */
+const HOME_PIECES = 8;
 
 export interface PageDeps {
   pool: Pool;
@@ -64,7 +75,12 @@ interface Common {
 export type Page =
   | { kind: "unknown" }
   | ({ kind: "not-found" } & Common)
-  | ({ kind: "home"; pieces: Listed[] } & Common)
+  | ({
+      kind: "home";
+      pieces: Listed[];
+      /** On a news home (newsroom.yaml `home: {news}`): the newest items, the pieces under them. */
+      news: (HomeNews & { label: string }) | null;
+    } & Common)
   | ({ kind: "search"; query: string; pieces: Listed[]; entries: FoundEntry[] } & Common)
   | (ReferenceView & { label: string; reference: ReferenceConfig } & Common)
   | ({ kind: "ai-policy" } & Common)
@@ -152,12 +168,23 @@ export async function loadPage(
     return renderer.disclosureLabel(language);
   };
   switch (r.kind) {
-    case "home":
-      return {
-        kind: "home",
-        pieces: await latest(deps.pool, newsroom.id, language),
-        ...common(name),
-      };
+    case "home": {
+      const home = newsroom.home;
+      const timeline =
+        typeof home === "object" ? newsroom.timelines.find((t) => t.series === home.news) : null;
+      if (!timeline)
+        return {
+          kind: "home",
+          pieces: await latest(deps.pool, newsroom.id, language),
+          news: null,
+          ...common(name),
+        };
+      const [news, pieces] = await Promise.all([
+        loadHomeNews(deps.pool, newsroom, timeline, language, HOME_NEWS),
+        latest(deps.pool, newsroom.id, language, HOME_PIECES, [timeline.series]),
+      ]);
+      return { kind: "home", pieces, news: { ...news, label: await label() }, ...common(name) };
+    }
     case "search": {
       const query = request.query.get("q") ?? "";
       const [pieces, entries] = await Promise.all([

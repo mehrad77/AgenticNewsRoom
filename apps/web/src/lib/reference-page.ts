@@ -129,6 +129,45 @@ const profileKinds = (ref: ReferenceConfig) =>
     .filter(([, k]) => k.layout === "profile")
     .map(([key]) => key);
 
+/** The newest news items a news home lists, with what they link to. */
+export interface HomeNews {
+  target: Extract<Target, { type: "timeline" }>;
+  entries: Entry[];
+  outLinks: Map<string, OutLink[]>;
+  targetImages: Map<string, EntryImage>;
+}
+
+/** A news home's items (newsroom.yaml `home: {news}`): the timeline's newest `limit` items. */
+export async function loadHomeNews(
+  pool: Pool,
+  newsroom: ReaderNewsroom,
+  timeline: Timeline,
+  language: Language,
+  limit: number,
+): Promise<HomeNews> {
+  const { entries: all, links } = await timelineItems(
+    pool,
+    newsroom.id,
+    timeline.series,
+    language,
+    newsroom.timezone,
+    profileKinds(newsroom.reference),
+  );
+  const entries = all.slice(0, limit);
+  const outLinks = new Map(entries.map((e) => [e.id, links.get(e.id) ?? []]));
+  return {
+    target: {
+      type: "timeline",
+      key: timeline.series,
+      kind: timelineKind(timeline.config),
+      kindKey: TIMELINE_ITEM,
+    },
+    entries,
+    outLinks,
+    targetImages: await imagesOfTargets(pool, newsroom.id, outLinks.values()),
+  };
+}
+
 /** A series' timeline page (D173): its news items, filtered, drawn as a timeline kind's index. */
 export async function loadTimeline(
   pool: Pool,

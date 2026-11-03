@@ -198,12 +198,13 @@ async function syncNewsroom(
   const { rows } = await client.query<Row>(
     `insert into newsrooms
        (slug, subdomain, name, languages, timezone, editor_in_chief, corrections_owner, planning, policy,
-        reference)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        reference, home)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      on conflict (slug) do update set subdomain = excluded.subdomain, name = excluded.name,
        languages = excluded.languages, timezone = excluded.timezone,
        editor_in_chief = excluded.editor_in_chief, corrections_owner = excluded.corrections_owner,
        planning = excluded.planning, policy = excluded.policy, reference = excluded.reference,
+       home = excluded.home,
        updated_at = now(), removed_at = null
      ${RETURNING}`,
     [
@@ -217,6 +218,7 @@ async function syncNewsroom(
       n.planning,
       policy,
       raw.reference ?? {},
+      JSON.stringify(n.home ?? "pieces"),
     ],
   );
   const newsroomId = tally(report.newsrooms, rows[0]);

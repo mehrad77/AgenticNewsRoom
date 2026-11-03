@@ -5,6 +5,9 @@ import type { Language } from "@anr/core";
 export interface Words {
   latest: string;
   nothingYet: string;
+  /** On a news home: the newest pieces of the other series, and the way to the whole timeline. */
+  latestPieces: string;
+  allNews: string;
   search: string;
   searchPlaceholder: string;
   noResults: string;
@@ -46,6 +49,8 @@ export interface Words {
 const en: Words = {
   latest: "Latest",
   nothingYet: "Nothing published yet.",
+  latestPieces: "Latest pieces",
+  allNews: "All news",
   search: "Search",
   searchPlaceholder: "Search this site",
   noResults: "No results.",
@@ -95,6 +100,8 @@ const en: Words = {
 const fa: Words = {
   latest: "تازه‌ترین‌ها",
   nothingYet: "هنوز چیزی منتشر نشده است.",
+  latestPieces: "تازه‌ترین نوشته‌ها",
+  allNews: "همه‌ی خبرها",
   search: "جست‌وجو",
   searchPlaceholder: "جست‌وجو در این سایت",
   noResults: "نتیجه‌ای پیدا نشد.",
@@ -144,6 +151,8 @@ const fa: Words = {
 const tr: Words = {
   latest: "Son yazılar",
   nothingYet: "Henüz bir şey yayımlanmadı.",
+  latestPieces: "Son yazılar",
+  allNews: "Tüm haberler",
   search: "Ara",
   searchPlaceholder: "Bu sitede ara",
   noResults: "Sonuç yok.",

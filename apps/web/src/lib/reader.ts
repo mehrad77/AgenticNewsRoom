@@ -23,6 +23,8 @@ export interface ReaderNewsroom {
   reference: ReferenceSchema;
   /** The series whose items form a timeline (D173), in the series' order. */
   timelines: Timeline[];
+  /** What the home lists (newsroom.yaml `home`): pieces, or a series' news items. */
+  home: "pieces" | { news: string };
 }
 
 export interface Listed {
@@ -73,9 +75,10 @@ export async function newsroomBySubdomain(
     editor_in_chief: string;
     corrections_owner: string;
     reference: Partial<ReferenceSchema>;
+    home: "pieces" | { news: string };
   }>(
     `select id, slug, subdomain, name, languages, timezone, editor_in_chief, corrections_owner,
-            reference
+            reference, home
      from newsrooms where subdomain = $1 and removed_at is null`,
     [subdomain],
   );
@@ -98,6 +101,7 @@ export async function newsroomBySubdomain(
     correctionsOwner: n.corrections_owner,
     reference: { ...n.reference, kinds: n.reference.kinds ?? {} },
     timelines,
+    home: n.home,
   };
 }
 
@@ -108,14 +112,21 @@ const listed = (r: { id: string; title: string | null; path: string; published_a
   publishedAt: r.published_at,
 });
 
-/** A language's newest publications. */
-export function latest(pool: Pool, newsroomId: string, language: Language, limit = 30) {
+/** A language's newest publications, leaving out the series named in `except`. */
+export function latest(
+  pool: Pool,
+  newsroomId: string,
+  language: Language,
+  limit = 30,
+  except: string[] = [],
+) {
   return withNewsroom(pool, newsroomId, async (c) => {
     const { rows } = await c.query(
-      `select id, title, path, published_at from publications
-       where ${VISIBLE} and language = $1
-       order by published_at desc limit $2`,
-      [language, limit],
+      `select p.id, p.title, p.path, p.published_at from publications p
+       join series s on s.id = p.series_id
+       where p.${VISIBLE} and p.language = $1 and not (s.slug = any($3::text[]))
+       order by p.published_at desc limit $2`,
+      [language, limit, except],
     );
     return rows.map(listed) as Listed[];
   });

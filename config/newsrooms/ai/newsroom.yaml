@@ -6,3 +6,4 @@ subdomain: ai # ai.$ANR_ROOT_DOMAIN; English at /en
 editor_in_chief: Mehrad Rousta
 corrections_owner: Mehrad Rousta
 planning: { cycle: 1mo, from: 2026-11-01 } # editorial cycles of one calendar month
+home: { news: daily-newsletter } # the home lists the newest lab news items

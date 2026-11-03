@@ -275,6 +275,15 @@ export function validateConfig(config: RawConfig): string[] {
       }
     }
 
+    // The home's news (`home: {news: <series>}`) comes from a series of this newsroom with a timeline.
+    const home = (newsroom as { home?: string | { news: string } }).home;
+    if (home && typeof home === "object") {
+      const series = n.series[home.news] as { timeline?: unknown } | undefined;
+      if (!series) errors.push(`${at}/newsroom.yaml home names unknown series ${home.news}`);
+      else if (!series.timeline)
+        errors.push(`${at}/newsroom.yaml home names series ${home.news}, which has no timeline`);
+    }
+
     for (const [name, s] of Object.entries(n.series)) {
       const where = `${at}/series/${name}.yaml`;
       if (!check(v.series, s, where)) continue;

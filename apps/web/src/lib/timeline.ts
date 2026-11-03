@@ -48,7 +48,9 @@ interface Item {
   approximate?: boolean;
 }
 
-const PERSIAN = /[؀-ۿ]/;
+/** A headline in Latin script in a non-Latin piece is the source's own (English) title. */
+const LATIN_ONLY = /^[\p{Script=Latin}\p{N}\p{P}\p{S}\s]+$/u;
+const LATIN_LANGUAGES = new Set(["en", "tr"]);
 
 /** The items of one piece, as timeline entries; `leadUrl` is the item's first claim's lead. */
 export function itemsOf(
@@ -65,7 +67,8 @@ export function itemsOf(
         kind: TIMELINE_ITEM,
         slug: item.anchor ?? `${piece.day}-${i + 1}`,
         title: item.headline,
-        titleLanguage: PERSIAN.test(item.headline) ? "fa" : "en",
+        titleLanguage:
+          LATIN_ONLY.test(item.headline) && !LATIN_LANGUAGES.has(language) ? "en" : language,
         date: piece.day,
         dateStatus: item.approximate ? "approximate" : "verified",
         facts: {

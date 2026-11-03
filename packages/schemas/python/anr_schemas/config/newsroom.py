@@ -25,6 +25,13 @@ class Planning(BaseModel):
     from_: date = Field(..., alias="from", description="Start date of the first cycle.")
 
 
+class Home(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    news: constr(pattern=r"^[a-z0-9][a-z0-9-]*$")
+
+
 class NewsroomConfig(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -48,4 +55,8 @@ class NewsroomConfig(BaseModel):
     planning: Planning = Field(
         ...,
         description="The editorial cycle. Cycles run back to back from `from`, each `cycle` long, in the newsroom's timezone; the planner proposes themes when one starts.",
+    )
+    home: Literal["pieces"] | Home | None = Field(
+        None,
+        description="What the reader site's home lists: `pieces`, the newest publications (the default), or `{news: <series>}`, the newest news items of that series' timeline with the newest pieces of the other series under them.",
     )
