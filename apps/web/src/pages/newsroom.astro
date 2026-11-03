@@ -1,6 +1,9 @@
 ---
 // Every page of a newsroom site; src/lib/page.ts decides what it shows.
 import Base from "../layouts/Base.astro";
+// ShabUI (D168): its faces, tokens and base styles, then the site's layout.
+import "@shabboo/kit/fonts.css";
+import "@shabboo/kit/styles.css";
 import "../styles/site.css";
 import "../styles/reference.css";
 import DocumentEntry from "../components/reference/DocumentEntry.astro";
@@ -15,6 +18,7 @@ import { loadPage } from "../lib/page.ts";
 import { imageResponse, mediaRoute, publishedImage } from "../lib/media.ts";
 import { audioResponse, countDownload, episodeAudio, feedRenderer, podcastFeed, readerAddress, podcastRoute } from "../lib/podcast.ts";
 import { newsroomBySubdomain } from "../lib/reader.ts";
+import { markExternalLinks } from "../lib/external-links.ts";
 import { route } from "../lib/routes.ts";
 
 const site = Astro.locals.site;
@@ -121,7 +125,7 @@ const isHere = (href: string) => {
 const date = (d: Date) =>
   new Intl.DateTimeFormat(page.language, { dateStyle: "long", timeZone: page.newsroom.timezone }).format(d);
 ---
-<Base title={page.title} language={page.language} direction={directionOf(page.language)}>
+<Base title={page.title} language={page.language} direction={directionOf(page.language)} theme="light">
   <Fragment slot="head">
     {page.kind === "publication" && (
       <>
@@ -153,7 +157,7 @@ const date = (d: Date) =>
       <>
         {page.publication.status === "corrected" && <p><a href={page.links.corrections}>{w.corrected}</a></p>}
         <p><time datetime={page.publication.publishedAt.toISOString()}>{date(page.publication.publishedAt)}</time></p>
-        <Fragment set:html={page.bodyHtml} />
+        <Fragment set:html={markExternalLinks(page.bodyHtml, new URL(Astro.url).hostname, w.newTab)} />
         {page.publication.corrections.map((c) => (
           <aside id={c.id}><strong>{w.corrected}</strong> ({date(c.publishedAt)}): {c.notice}</aside>
         ))}

@@ -13,6 +13,9 @@ import {
 } from "../../lib/reference.ts";
 import { nameOf, targetNames, targetPath } from "../../lib/reference-config.ts";
 import DocumentTile from "./DocumentTile.astro";
+import Stat from "@shabboo/kit/Stat.astro";
+import StatGroup from "@shabboo/kit/StatGroup.astro";
+import Table from "@shabboo/kit/Table.astro";
 import Labels from "./Labels.astro";
 import TimelineItem from "./TimelineItem.astro";
 
@@ -42,12 +45,12 @@ const describe = (e: Entry) => {
 <h1>{nameOf(names.name, language)}</h1>
 {names.intro && <p class="ref-lead">{nameOf(names.intro, language)}</p>}
 <Labels label={page.label} aiPolicy={page.links.aiPolicy} imported={w.imported} />
-<div class="ref-stats">
-  <div class="ref-stat"><b>{n(page.total)}</b><span>{nameOf(names.name, language)}</span></div>
+<StatGroup class="ref-stats">
+  <Stat label={nameOf(names.name, language)} value={n(page.total)} />
   {layout !== "profile" && entries.length > 0 && entries[entries.length - 1]?.date && (
-    <div class="ref-stat"><b>{dateLabel(entries[entries.length - 1]?.date ?? null, language, "year")}</b><span>{dateLabel(entries[0]?.date ?? null, language, "year")}</span></div>
+    <Stat label={`${dateLabel(entries[entries.length - 1]?.date ?? null, language, "year")}–${dateLabel(entries[0]?.date ?? null, language, "year")}`} value={dateLabel(entries[entries.length - 1]?.date ?? null, language, "year")} />
   )}
-</div>
+</StatGroup>
 
 {filters.length > 0 && (
   <form class="ref-filters" method="get" action={here}>
@@ -108,9 +111,8 @@ const describe = (e: Entry) => {
 ))}
 
 {layout === "profile" && entries.length > 0 && (
-  <div class="ref-table-wrap wide">
-    <table class="ref-table">
-      <thead><tr><th>{nameOf(target.kind.one, language)}</th><th>{w.linkedFrom}</th></tr></thead>
+  <Table class="ref-table wide" label={nameOf(names.name, language)} framed hover>
+      <thead><tr><th>{nameOf(target.kind.one, language)}</th><th class="num">{w.linkedFrom}</th></tr></thead>
       <tbody>
         {entries.map((e) => (
           <tr>
@@ -129,10 +131,9 @@ const describe = (e: Entry) => {
                 </div>
               </div>
             </td>
-            <td class="ref-num">{n(page.counts.get(e.id) ?? 0)}</td>
+            <td class="num">{n(page.counts.get(e.id) ?? 0)}</td>
           </tr>
         ))}
       </tbody>
-    </table>
-  </div>
+  </Table>
 )}

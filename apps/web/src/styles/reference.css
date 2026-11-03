@@ -1,103 +1,121 @@
 /*
- * The Reference's patterns, after the old archive (D168): stat tiles, list tiles with an accent
- * edge, a dated timeline, summary panels and a description list of facts. Tokens are site.css's.
+ * The Reference's own patterns, on ShabUI's tokens (D168): list tiles, a dated timeline, summary
+ * panels, entry images. Labels, chips, stat tiles, fact lists and tables are the kit's components.
+ * One rhythm throughout: sizes from the kit's type steps, every gap from its space scale, items
+ * laid out as grids with a gap rather than margins on their children.
  */
+
+/* ---------------------------------------------------------------- page head */
+main > h1,
+.ref-page h1 {
+  margin: var(--space-7) 0 var(--space-3);
+  line-height: 1.2;
+}
 .ref-lead {
-  font-size: 1.15rem;
+  margin: 0 0 var(--space-4);
+  font-size: var(--step-1);
+  line-height: 1.55;
   color: var(--text-muted);
 }
 .ref-labels {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin: 0.75rem 0;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-5);
 }
-.ref-label {
-  display: inline-block;
-  padding: 0.1rem 0.6rem;
-  font-size: 0.8rem;
-  border: 1px solid var(--stroke);
-  background: var(--surface-raised);
-  color: var(--text-muted);
-  border-radius: 999px;
-}
-.ref-label--imported {
-  border-color: var(--warning);
-  color: var(--warning);
-}
-.ref-chip {
-  display: inline-block;
-  padding: 0 0.5rem;
-  font-size: 0.8rem;
-  border: 1px solid var(--stroke);
-  background: var(--surface);
-  color: var(--text-muted);
+.ref-labels a {
   text-decoration: none;
-  border-radius: 2px;
+}
+.ref-eyebrow {
+  margin: var(--space-7) 0 var(--space-2);
+  font-size: var(--step--1);
+  color: var(--text-muted);
+}
+.ref-eyebrow + h1,
+.ref-eyebrow + .ref-title {
+  margin-top: 0;
 }
 .ref-latin {
   font-family: var(--font-serif);
 }
 .ref-muted {
+  font-size: var(--step--1);
   color: var(--text-muted);
-  font-size: 0.9rem;
 }
 
-/* Stat tiles */
-.ref-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-  margin: 1.5rem 0;
-  border: 1px solid var(--stroke);
-  background: var(--surface-raised);
+/* ---------------------------------------------------------------- groups and headings */
+.ref-group {
+  margin-block-start: var(--space-7);
 }
-.ref-stat {
+.ref-group > h2,
+.ref-group > h3 {
   display: flex;
-  flex-direction: column;
-  padding: 1rem 1.25rem;
-  border-inline-end: 1px solid var(--stroke);
+  align-items: baseline;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-4);
+  padding-block-end: var(--space-2);
+  border-block-end: 1px solid var(--stroke);
 }
-.ref-stat b {
-  font-size: 2rem;
-  line-height: 1.2;
-}
-.ref-stat span {
-  font-size: 0.85rem;
-  color: var(--text-muted);
+.ref-group > h2 .ref-muted,
+.ref-group > h3 .ref-muted {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
-/* Section cards and list tiles */
+/* ---------------------------------------------------------------- cards and tiles */
 .ref-cards,
 .ref-tiles {
   display: grid;
-  gap: 1rem;
-  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
-  margin: 1rem 0;
+  gap: var(--space-4);
+  margin: var(--space-5) 0 0;
   padding: 0;
   list-style: none;
 }
-.ref-tiles {
-  grid-template-columns: 1fr;
+.ref-cards {
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
 }
 .ref-card,
 .ref-tile {
   position: relative;
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
   margin: 0;
-  padding: 1rem 1.25rem;
+  padding: var(--space-5);
   border: 1px solid var(--stroke);
-  border-top: 3px solid var(--info);
+  border-block-start: 3px solid var(--status-info);
   background: var(--surface-raised);
 }
 .ref-card--classics,
 .ref-tile--classic {
-  border-top-color: #8a6a1f;
+  border-block-start-color: var(--category-3, var(--status-warning));
 }
 .ref-card h2,
 .ref-tile h3 {
-  margin: 0.25rem 0;
-  border: 0;
+  margin: 0;
   padding: 0;
-  font-size: 1.35rem;
+  border: 0;
+}
+.ref-card h2 {
+  font-size: var(--step-1);
+}
+.ref-card p,
+.ref-tile p {
+  margin: 0;
+  line-height: 1.65;
+}
+.ref-card p {
+  color: var(--text-muted);
+}
+.ref-tile h3 {
+  font-family: var(--font-serif);
+  font-size: var(--step-1);
+  line-height: 1.3;
+}
+.ref-card a,
+.ref-tile h3 a {
+  text-decoration: none;
 }
 .ref-card a::after,
 .ref-tile h3 a::after {
@@ -105,187 +123,220 @@
   position: absolute;
   inset: 0;
 }
-.ref-card a,
-.ref-tile h3 a {
-  text-decoration: none;
-}
-.ref-tile h3 {
-  font-family: var(--font-serif);
-  font-weight: 500;
-  font-size: 1.45rem;
-  line-height: 1.3;
-}
-.ref-tile p {
-  margin: 0.5rem 0 0;
-}
+
+/* ---------------------------------------------------------------- meta lines */
 .ref-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.25rem 0.6rem;
-  font-size: 0.85rem;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  font-size: var(--step--1);
   color: var(--text-muted);
 }
-.ref-group {
-  margin-top: 2rem;
+.ref-meta b {
+  font-weight: 600;
+  color: var(--text);
 }
-.ref-group > h2,
-.ref-group > h3 {
-  display: flex;
-  align-items: baseline;
-  gap: 0.75rem;
-}
-.ref-group .ref-muted {
-  font-weight: 400;
+.ref-meta a {
+  text-decoration: none;
 }
 
-/* Timeline */
-.ref-jump {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem 0.9rem;
-  margin: 1rem 0;
-  font-size: 0.9rem;
-}
+/* ---------------------------------------------------------------- timeline */
 .ref-filters {
   display: flex;
   flex-wrap: wrap;
   align-items: end;
-  gap: 0.75rem;
-  margin: 1rem 0;
+  gap: var(--space-3) var(--space-4);
+  margin: var(--space-5) 0;
+  padding: var(--space-4);
+  border: 1px solid var(--stroke);
+  background: var(--surface-raised);
 }
 .ref-filters label {
-  display: flex;
-  flex-direction: column;
-  font-size: 0.85rem;
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--step--1);
   color: var(--text-muted);
 }
+.ref-filters select {
+  min-block-size: var(--control-h-md);
+  min-inline-size: 12rem;
+  padding-inline: var(--control-pad-md);
+  border: 1px solid var(--stroke-control);
+  border-radius: var(--radius);
+  background: var(--field);
+  color: var(--text);
+  font: inherit;
+}
+.ref-filters button {
+  min-block-size: var(--control-h-md);
+  padding-inline: var(--control-pad-md);
+  border: 1px solid var(--fill-accent-strong);
+  border-radius: var(--radius);
+  background: var(--fill-accent);
+  color: var(--text-on-fill);
+  font: inherit;
+  cursor: pointer;
+}
+.ref-jump {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin: var(--space-4) 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  font-variant-numeric: tabular-nums;
+}
+.ref-jump a {
+  text-decoration: none;
+}
+.ref-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
 .ref-day {
-  margin: 1rem 0 0;
-  padding-inline-start: 1rem;
+  margin: var(--space-5) 0 0;
+  padding-inline-start: var(--space-4);
   border-inline-start: 2px solid var(--stroke);
 }
 .ref-day > h3 {
-  margin: 0.5rem 0;
-  font-size: 1rem;
+  margin: 0 0 var(--space-3);
+  font-size: var(--step--1);
+  color: var(--text-muted);
 }
 .ref-news {
-  margin: 0 0 0.75rem;
-  padding: 0.9rem 1.1rem;
-  list-style: none;
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-4) var(--space-5);
   border: 1px solid var(--stroke);
   background: var(--surface-raised);
-  scroll-margin-top: 5rem;
+  scroll-margin-top: 6rem;
 }
 .ref-news:target {
-  outline: 2px solid var(--accent-strong);
+  outline: 2px solid var(--stroke-strong);
+  outline-offset: 2px;
 }
 .ref-news h4 {
-  margin: 0.35rem 0;
+  margin: 0;
   font-family: var(--font-serif);
-  font-size: 1.3rem;
-  font-weight: 500;
-  line-height: 1.35;
+  font-size: var(--step-1);
+  line-height: 1.3;
 }
 .ref-news h4 a {
   text-decoration: none;
 }
-.ref-news p {
-  margin: 0.4rem 0;
+.ref-news > p {
+  margin: 0;
+  line-height: 1.7;
 }
 .ref-links {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem 1rem;
-  font-size: 0.85rem;
-}
-.ref-list {
-  padding: 0;
+  gap: var(--space-1) var(--space-4);
+  padding-block-start: var(--space-2);
+  border-block-start: 1px solid var(--stroke-subtle, var(--stroke));
+  font-size: var(--step--1);
 }
 
-/* Entry page */
+/* ---------------------------------------------------------------- entry page */
 .ref-page {
   display: grid;
-  gap: 2rem;
+  gap: var(--space-6) var(--space-7);
   max-width: var(--wide);
 }
 @media (min-width: 64rem) {
   .ref-page {
-    grid-template-columns: minmax(0, 1fr) 18rem;
+    grid-template-columns: minmax(0, 1fr) 16rem;
   }
 }
-.ref-eyebrow {
-  margin: 1.5rem 0 0;
-  font-size: 0.85rem;
-  color: var(--text-muted);
+.ref-page > article > section {
+  margin-block-start: var(--space-7);
+}
+.ref-page > article > section > h2 {
+  margin: 0 0 var(--space-4);
 }
 .ref-title {
-  margin-top: 0.25rem;
+  margin: 0 0 var(--space-4);
   font-family: var(--font-serif);
-  font-weight: 500;
-  font-size: 2.4rem;
-  line-height: 1.2;
+  font-size: var(--step-4);
+  line-height: 1.15;
 }
 .ref-title a {
   text-decoration: none;
 }
 .ref-facts {
-  display: grid;
-  grid-template-columns: 9rem minmax(0, 1fr);
-  gap: 0.5rem 1rem;
-  margin: 1rem 0;
-  padding: 1rem 0;
+  margin: 0 0 var(--space-5);
+  padding: var(--space-4) 0;
   border-block: 1px solid var(--stroke);
 }
-.ref-facts dd {
-  margin: 0;
-}
 .ref-panel {
-  margin: 1rem 0;
-  padding: 0.9rem 1.2rem;
+  display: grid;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-4);
+  padding: var(--space-4) var(--space-5);
   border: 1px solid var(--stroke);
-  border-inline-start: 4px solid var(--stroke);
+  border-inline-start: 3px solid var(--stroke);
   background: var(--surface-raised);
 }
 .ref-panel > h3 {
-  margin: 0 0 0.25rem;
-  font-size: 0.95rem;
+  margin: 0;
+  font-size: var(--step--1);
   color: var(--text-muted);
 }
+.ref-panel .prose > :first-child {
+  margin-block-start: 0;
+}
+.ref-panel .prose > :last-child {
+  margin-block-end: 0;
+}
 .ref-panel[data-section="problem"] {
-  border-inline-start-color: var(--info);
+  border-inline-start-color: var(--status-info);
 }
 .ref-panel[data-section="idea"],
 .ref-panel[data-section="overview"] {
-  border-inline-start-color: var(--success);
+  border-inline-start-color: var(--status-success);
 }
 .ref-panel[data-section="why"],
 .ref-panel[data-section="after"] {
-  border-inline-start-color: var(--warning);
+  border-inline-start-color: var(--status-warning);
 }
 .ref-panel blockquote {
+  margin: 0;
   font-family: var(--font-serif);
-  font-size: 1.1rem;
+  font-size: var(--step-1);
+}
+.ref-panel ul {
+  margin: 0;
+}
+.ref-side {
+  font-size: var(--step--1);
 }
 .ref-side h2 {
-  font-size: 1rem;
-  margin-top: 1.5rem;
+  margin: var(--space-6) 0 var(--space-2);
+  font-size: var(--step-0);
 }
 .ref-side ul {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 0.9rem;
 }
 .ref-pager {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  margin-top: 2rem;
+  gap: var(--space-4);
+  margin-block-start: var(--space-7);
 }
 .ref-pager a {
-  display: flex;
-  flex-direction: column;
-  padding: 0.75rem 1rem;
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-4);
   border: 1px solid var(--stroke);
   background: var(--surface-raised);
   text-decoration: none;
@@ -294,7 +345,7 @@
   text-align: end;
 }
 .ref-pager span {
-  font-size: 0.8rem;
+  font-size: var(--step--1);
   color: var(--text-muted);
 }
 
@@ -303,41 +354,36 @@
   text-align: right;
 }
 
-/* Profile index */
-.ref-table-wrap {
-  overflow-x: auto;
+/* ---------------------------------------------------------------- profiles */
+/* A profile's head: name, description and labels beside its image, the image on the far side. */
+.ref-profile-head {
+  display: grid;
+  gap: var(--space-4) var(--space-6);
+  align-items: center;
+  margin-block-end: var(--space-2);
 }
-.ref-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: var(--surface-raised);
-  border: 1px solid var(--stroke);
+@media (min-width: 48rem) {
+  .ref-profile-head {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .ref-profile-head .ref-figure {
+    max-inline-size: 18rem;
+    margin-block-start: var(--space-7);
+  }
 }
-.ref-table th,
-.ref-table td {
-  padding: 0.6rem 0.9rem;
-  text-align: start;
-  border-bottom: 1px solid var(--stroke);
-  vertical-align: top;
-}
-.ref-table th {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  background: var(--surface-sunken);
-}
-.ref-table .ref-num {
-  text-align: end;
-  font-variant-numeric: tabular-nums;
+.ref-profile-head .ref-labels {
+  margin-block-end: 0;
 }
 
+/* ---------------------------------------------------------------- images */
 /* Images (D119): logos beside a name carry their credit in a title and link to the profile, whose
    caption gives credit, licence and source. */
 .ref-logo {
   display: inline-block;
-  max-height: 1.4rem;
-  max-width: 5rem;
-  width: auto;
-  height: auto;
+  max-block-size: 1.25rem;
+  max-inline-size: 5rem;
+  inline-size: auto;
+  block-size: auto;
   margin: 0;
   border-radius: 0;
   vertical-align: middle;
@@ -345,24 +391,59 @@
 .ref-logo-link {
   text-decoration: none;
 }
+.ref-figure {
+  display: inline-grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--stroke);
+  background: #fff;
+}
+.ref-figure img {
+  max-block-size: 10rem;
+  max-inline-size: 100%;
+  inline-size: auto;
+  border-radius: 0;
+}
+.ref-figure figcaption {
+  font-size: var(--step--2);
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* ---------------------------------------------------------------- tables */
+.ref-stats {
+  margin: var(--space-5) 0;
+}
+.ref-table {
+  margin: var(--space-5) 0 0;
+}
+.ref-table td {
+  vertical-align: middle;
+}
 /* A table row's image: as tall as the row's name and description, scaled to fit, never cropped. */
 .ref-entity {
   display: grid;
   /* One image column for every row, so names line up whatever the image's shape. */
   grid-template-columns: 7rem minmax(0, 1fr);
-  align-items: stretch;
-  gap: 0.75rem;
+  align-items: center;
+  gap: var(--space-4);
+}
+.ref-entity > div {
+  display: grid;
+  gap: var(--space-1);
 }
 /* The image fills its box, which takes the row's height and adds none of its own. */
 .ref-entity-media {
   position: relative;
-  min-height: 3.5rem;
+  align-self: stretch;
+  min-block-size: 3.5rem;
 }
 .ref-entity-image {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
+  inline-size: 100%;
+  block-size: 100%;
   margin: 0;
   object-fit: contain;
   object-position: center;
@@ -372,30 +453,12 @@
 .ref-entity-placeholder {
   display: grid;
   place-items: center;
-  align-self: center;
   justify-self: center;
-  width: 3.5rem;
+  inline-size: 3.5rem;
   aspect-ratio: 1;
+  border: 1px solid var(--stroke);
   background: var(--surface-sunken);
-  border: 1px solid var(--stroke);
-  color: var(--text-muted);
-  font-size: 1.4rem;
-  font-weight: 600;
+  font-size: var(--step-1);
   line-height: 1;
-}
-.ref-figure {
-  margin: 1rem 0;
-  padding: 1rem;
-  display: inline-block;
-  border: 1px solid var(--stroke);
-  background: #fff;
-}
-.ref-figure img {
-  max-height: 10rem;
-  max-width: 100%;
-  width: auto;
-  border-radius: 0;
-}
-.ref-figure figcaption {
-  font-size: 0.75rem;
+  color: var(--text-muted);
 }

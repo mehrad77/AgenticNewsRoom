@@ -19,9 +19,6 @@ const name = (names: Parameters<typeof nameOf>[0]) => nameOf(names, language);
 <h1>{w.reference}</h1>
 {page.reference.intro && <p class="ref-lead">{name(page.reference.intro)}</p>}
 <Labels label={page.label} aiPolicy={page.links.aiPolicy} imported={w.imported} />
-<div class="ref-stats">
-  {page.sections.map((s) => <div class="ref-stat"><b>{n(s.count)}</b><span>{name(targetNames(s.target).name)}</span></div>)}
-</div>
 <ul class="ref-cards wide">
   {page.sections.map((s) => (
     <li class={`ref-card${s.target.kind.layout === "document" ? " ref-card--classics" : ""}`}>

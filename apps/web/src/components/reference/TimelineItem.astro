@@ -17,6 +17,8 @@ import {
 } from "../../lib/reference.ts";
 import type { KindConfig } from "../../lib/reference-config.ts";
 import type { ReferenceWords } from "../../lib/reference-words.ts";
+import ExternalLink from "@shabboo/kit/ExternalLink.astro";
+import Tag from "@shabboo/kit/Tag.astro";
 
 interface Props {
   entry: Entry;
@@ -60,7 +62,7 @@ const telegram = strings(f.telegram);
     {e.dateStatus === "approximate" && <span>{w.approximate}</span>}
     {facts.map((x) =>
       x.chip ? (
-        <a class="ref-chip" href={x.filterHref}>{x.label}</a>
+        <Tag href={x.filterHref} variant="chip" size="sm">{x.label}</Tag>
       ) : (
         <>
           <span aria-hidden="true">·</span>
@@ -74,20 +76,20 @@ const telegram = strings(f.telegram);
       ),
     )}
   </div>
-  <h4 dir="ltr" lang={e.titleLanguage}>{url ? <a href={url} rel="noopener">{e.title}</a> : e.title}</h4>
+  <h4 dir="ltr" lang={e.titleLanguage}>{url ? <ExternalLink href={url} newTabLabel={w.newTab}>{e.title}</ExternalLink> : e.title}</h4>
   {text && str(text.body.summary) && <p lang={text.language} dir={directionOf(text.language)}>{str(text.body.summary)}</p>}
   {mentions.length > 0 && (
     <p class="ref-meta">
       {w.related}:
       {mentions.map((m) => {
         const href = entryUrl(m.toKind, m.toSlug);
-        return href ? <a class="ref-chip" href={href} dir="auto">{m.label}</a> : <span class="ref-chip" dir="auto">{m.label}</span>;
+        return href ? <Tag href={href} variant="chip" size="sm"><bdi>{m.label}</bdi></Tag> : <Tag as="span" variant="chip" size="sm"><bdi>{m.label}</bdi></Tag>;
       })}
     </p>
   )}
   <div class="ref-links">
-    {url && <a href={url} rel="noopener">{w.urlTypes[urlType] ?? w.urlTypes.other}</a>}
-    {links(f.links).map((l) => <a href={l.url} rel="noopener" dir="auto">{l.label}</a>)}
-    {telegram.map((t) => <a href={t} rel="noopener">{w.telegramPost(numberLabel(Number(t.split("/").pop()), language))}</a>)}
+    {url && <ExternalLink href={url} newTabLabel={w.newTab}>{w.urlTypes[urlType] ?? w.urlTypes.other}</ExternalLink>}
+    {links(f.links).map((l) => <ExternalLink href={l.url} newTabLabel={w.newTab}>{l.label}</ExternalLink>)}
+    {telegram.map((t) => <ExternalLink href={t} newTabLabel={w.newTab}>{w.telegramPost(numberLabel(Number(t.split("/").pop()), language))}</ExternalLink>)}
   </div>
 </li>

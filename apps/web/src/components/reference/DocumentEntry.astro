@@ -19,6 +19,9 @@ import {
   textIn,
 } from "../../lib/reference.ts";
 import { nameOf, targetPath } from "../../lib/reference-config.ts";
+import DescriptionList from "@shabboo/kit/DescriptionList.astro";
+import ExternalLink from "@shabboo/kit/ExternalLink.astro";
+import { markExternalLinks } from "../../lib/external-links.ts";
 import Incoming from "./Incoming.astro";
 import Labels from "./Labels.astro";
 
@@ -28,6 +31,7 @@ interface Props {
 const { page } = Astro.props;
 const { ref: w, language, entry: e, target } = page;
 const f = e.facts;
+const host = new URL(Astro.url).hostname;
 const configured = target.kind.sections ?? [];
 const sections = sectionsIn(e, language, configured.map((s) => s.key));
 const sectionName = (key: string) =>
@@ -69,9 +73,9 @@ const crumb = list
       <a href={crumb.href}>{crumb.label}</a>
       {str(f.arxiv_id) && <> · <bdi dir="ltr">arXiv:{str(f.arxiv_id)}</bdi></>}
     </p>
-    <h1 class="ref-title" dir="ltr" lang={e.titleLanguage}>{url ? <a href={url} rel="noopener">{e.title}</a> : e.title}</h1>
+    <h1 class="ref-title" dir="ltr" lang={e.titleLanguage}>{url ? <ExternalLink href={url} newTabLabel={w.newTab}>{e.title}</ExternalLink> : e.title}</h1>
     <Labels label={page.label} aiPolicy={page.links.aiPolicy} imported={e.origin === "imported" ? w.imported : null} />
-    <dl class="ref-facts">
+    <DescriptionList class="ref-facts">
       {e.date && <><dt>{w.facts.date}</dt><dd><time datetime={e.date}>{dateLabel(e.date, language, precision)}</time></dd></>}
       {authors.length > 0 && (
         <><dt>{w.facts.authors}</dt><dd><bdi dir="ltr" class="ref-latin">{authors.map((a, i) => {
@@ -89,7 +93,7 @@ const crumb = list
           return <>{i > 0 && "; "}{href ? <a href={href}>{a}</a> : a}</>;
         })}</bdi></dd></>
       )}
-    </dl>
+    </DescriptionList>
 
     {untranslated && <p class="ref-muted">{w.untranslated}</p>}
     {sections.length > 0 && (
@@ -98,7 +102,7 @@ const crumb = list
         {sections.map((s) => (
           <div class="ref-panel" data-section={s.name}>
             <h3>{sectionName(s.name)}</h3>
-            <div lang={s.language} dir={directionOf(s.language)} set:html={textHtml(s.text)} />
+            <div class="prose" lang={s.language} dir={directionOf(s.language)} set:html={markExternalLinks(textHtml(s.text), host, w.newTab)} />
           </div>
         ))}
       </section>
@@ -130,7 +134,7 @@ const crumb = list
                 const note = language === "fa" ? r.note : (r.noteEn ?? r.note);
                 return (
                   <li>
-                    {href ? <a href={href} rel={r.entry ? undefined : "noopener"}><bdi dir="ltr" lang="en">{r.title}</bdi></a> : <bdi dir="ltr" lang="en">{r.title}</bdi>}
+                    {r.entry && href ? <a href={href}><bdi dir="ltr" lang="en">{r.title}</bdi></a> : href ? <ExternalLink href={href} newTabLabel={w.newTab} textLang="en">{r.title}</ExternalLink> : <bdi dir="ltr" lang="en">{r.title}</bdi>}
                     {r.year && <span class="ref-muted"> ({numberLabel(r.year, language)})</span>}
                     {note && <span class="ref-muted" dir="auto"> {note}</span>}
                   </li>
@@ -154,19 +158,19 @@ const crumb = list
     {sources.length > 0 && (
       <>
         <h2>{w.sources}</h2>
-        <ul dir="ltr" lang="en">{sources.map((l) => <li><a href={l.url} rel="noopener">{l.label}</a></li>)}</ul>
+        <ul dir="ltr" lang="en">{sources.map((l) => <li><ExternalLink href={l.url} newTabLabel={w.newTab}>{l.label}</ExternalLink></li>)}</ul>
       </>
     )}
     {url && sources.length === 0 && (
       <>
         <h2>{w.links}</h2>
-        <ul><li><a href={url} rel="noopener" dir="ltr">{url}</a></li></ul>
+        <ul><li><ExternalLink href={url} newTabLabel={w.newTab} class="ltr">{url}</ExternalLink></li></ul>
       </>
     )}
     {telegram.length > 0 && (
       <>
         <h2>{w.onTelegram}</h2>
-        <ul>{telegram.map((t) => <li><a href={t} rel="noopener">{w.telegramPost(numberLabel(Number(t.split("/").pop()), language))}</a></li>)}</ul>
+        <ul>{telegram.map((t) => <li><ExternalLink href={t} newTabLabel={w.newTab}>{w.telegramPost(numberLabel(Number(t.split("/").pop()), language))}</ExternalLink></li>)}</ul>
       </>
     )}
   </aside>

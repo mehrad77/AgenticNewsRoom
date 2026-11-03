@@ -13,6 +13,8 @@ export interface Words {
   correctionsNone: string;
   corrected: string;
   notFound: string;
+  /** Read after a link that opens in a new tab (ShabUI's ExternalLink). */
+  newTab: string;
   /** The AI policy page: why each piece is AI-made, and how claims are checked. */
   aiPolicyBody: (o: { newsroom: string; editor: string }) => {
     heading: string;
@@ -52,6 +54,7 @@ const en: Words = {
   correctionsNone: "No corrections so far.",
   corrected: "Corrected",
   notFound: "Page not found.",
+  newTab: "(opens in a new tab)",
   aiPolicyBody: ({ newsroom, editor }) => [
     {
       heading: "AI-made",
@@ -100,6 +103,7 @@ const fa: Words = {
   correctionsNone: "تاکنون اصلاحیه‌ای نداشته‌ایم.",
   corrected: "اصلاح‌شده",
   notFound: "صفحه پیدا نشد.",
+  newTab: "(در زبانه‌ی تازه باز می‌شود)",
   aiPolicyBody: ({ newsroom, editor }) => [
     {
       heading: "ساخته‌شده با هوش مصنوعی",
@@ -148,6 +152,7 @@ const tr: Words = {
   correctionsNone: "Şu ana kadar düzeltme yok.",
   corrected: "Düzeltildi",
   notFound: "Sayfa bulunamadı.",
+  newTab: "(yeni sekmede açılır)",
   aiPolicyBody: ({ newsroom, editor }) => [
     {
       heading: "Yapay zekâ ile üretildi",
