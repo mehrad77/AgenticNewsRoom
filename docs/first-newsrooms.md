@@ -2,7 +2,7 @@
 
 Oct 26, 2026 · Mehrad Rousta
 
-ANR starts with two newsrooms: the AI newsroom, rebuilt fresh in Persian with an English edition, and Kültür, a Turkish culture newsroom covering Türkiye's music and visual artists. The second one is the v1 test, so it must run on configuration alone, and it adds what the first doesn't need: a second topic, a third language, and podcasts in three languages from one story. All times are Europe/Istanbul.
+ANR starts with two newsrooms: the AI newsroom, rebuilt in Persian with an English edition and carrying over the old system's archive (D161), and Kültür, a Turkish culture newsroom covering Türkiye's music and visual artists. The second one is the v1 test, so it must run on configuration alone, and it adds what the first doesn't need: a second topic, a third language, and podcasts in three languages from one story. All times are Europe/Istanbul.
 
 ## At a glance
 
@@ -45,6 +45,8 @@ The AI newsroom publishes one newsletter a day and one podcast a week. The weekl
 1. On Monday, the planner proposes three classic papers that fit the cycle's theme. The Editor-in-Chief picks one by Tuesday.
 2. The desk researches the paper once into a story, then writes the site article.
 3. The article waits for an editor's approval and publishes on Wednesday at 10:00.
+
+**Reference.** The site's Reference starts with the old archive (D165): its papers, every classic paper, the lab news timeline since 2015, and its organisations, people, products, benchmarks and topics. It then grows from the pipeline (D163).
 
 **Weekly podcast.** One episode of about 30 minutes publishes on Friday at 18:00, in each language: the two current Persian hosts, Niloofar and Farzad, and two English hosts, Maya and Leo, with their own voices.
 

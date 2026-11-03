@@ -28,6 +28,7 @@ ANR (Agentic News Room): a platform for running publications where humans set th
 | `infra/`             | Docker Compose (dev, prod), Dockerfiles, Caddy, deploy, backups, `terraform/` (Cloudflare), `secrets/` (SOPS), `host/` (systemd and launchd profiles), `observability/` (collector, Grafana, rules), `drills/` (chaos drills) | Shell/HCL |
 | `tools/tts-eval`     | Local TTS comparison kit (Chatterbox, XTTS-v2, Dia) for English and Turkish | Python/HTML      |
 | `tools/load`         | k6 load test of the reader sites, run against the origin | JS |
+| `tools/legacy-import` | One-off import of the old system's knowledge-base export into a newsroom (D166) | Python |
 | `docs/`              | Charter, technical design, first newsrooms, decisions, postmortems | Markdown |
 
 Each app, service and package has its own short `AGENTS.md` with its boundaries.
@@ -52,7 +53,7 @@ pnpm --filter @anr/<pkg> test   # one package (TS or Python)
 These come from the charter. A change that crosses one needs a charter change first; stop and say so.
 1. **Only code publishes.** Agents never send to a channel, write HTML, record posts, or write anywhere except through `submit`.
 2. **Agents have four tools:** read a lead, search the lead pool, request a source (via ingestion), submit. No web access.
-3. **Source-grounded.** Every factual claim cites a stored lead and a passage from its frozen text.
+3. **Source-grounded.** Every factual claim cites a stored lead and a passage from its frozen text. The one exception is text the one-off legacy import wrote (`origin = imported`, labelled on the site); nothing else can be written with that origin.
 4. **The writer never checks its own facts.** The fact-checker's model family differs from every family that wrote the story (`apps/agents/src/router.ts`).
 5. **The gate can hold, never approve.** Any failed, partial, errored or timed-out check sends the publication to a person.
 6. **Tenancy in the database.** Every tenant table has `newsroom_id` with forced row-level security; app code uses `withNewsroom()`.
