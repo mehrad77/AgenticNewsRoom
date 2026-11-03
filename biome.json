@@ -17,7 +17,8 @@
       "!pnpm-lock.yaml",
       "!.vscode",
       "!**/*.build.css",
-      "!infra/secrets"
+      "!infra/secrets",
+      "!infra/observability/grafana/dashboards"
     ]
   },
   "formatter": {

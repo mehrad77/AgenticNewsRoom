@@ -14,7 +14,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "gen": "turbo run gen",
-    "gen:check": "pnpm gen && git diff --exit-code -- packages/schemas/src/generated packages/schemas/python apps/api/src/generated",
+    "gen:check": "pnpm gen && git diff --exit-code -- packages/schemas/src/generated packages/schemas/python apps/api/src/generated infra/observability/grafana/dashboards infra/observability/grafana/provisioning/alerting infra/observability/prometheus/rules infra/observability/prometheus/alerts",
     "config:check": "pnpm --filter @anr/config run check",
     "schemas:view": "pnpm --filter @anr/schemas run view",
     "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm config:check && pnpm gen:check",

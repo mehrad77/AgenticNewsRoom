@@ -11,7 +11,8 @@
   "scripts": {
     "lint": "uv run --frozen ruff check python && uv run --frozen ruff format --check python",
     "typecheck": "tsc -p . && uv run --frozen mypy python/anr_telemetry",
-    "test": "vitest run"
+    "test": "vitest run",
+    "gen": "node ops/gen.ts"
   },
   "dependencies": {
     "@opentelemetry/api": "1.10.0",
@@ -36,6 +37,7 @@
   "devDependencies": {
     "@types/node": "24.19.2",
     "typescript": "5.9.3",
-    "vitest": "5.0.5"
+    "vitest": "5.0.5",
+    "yaml": "2.9.1"
   }
 }
