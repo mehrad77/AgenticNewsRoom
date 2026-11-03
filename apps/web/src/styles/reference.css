@@ -234,6 +234,49 @@ main > h1,
   margin: 0;
   line-height: 1.7;
 }
+/* A list's pages: newer, the numbers around the current one, older. */
+.ref-pages {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: var(--space-6) 0 0;
+  padding-block: var(--space-3);
+  border-block: 1px solid var(--stroke);
+  font-variant-numeric: tabular-nums;
+}
+.ref-pages ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ref-pages ol li {
+  min-inline-size: 2.25rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+.ref-pages a {
+  text-decoration: none;
+}
+.ref-pages ol a {
+  display: block;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+}
+.ref-pages ol a:hover {
+  border-color: var(--stroke);
+}
+.ref-pages ol a[aria-current="page"] {
+  border-color: var(--stroke-strong);
+  background: var(--surface-raised);
+  color: var(--text);
+  font-weight: 600;
+}
 .ref-more {
   margin: var(--space-5) 0 0;
   font-weight: 600;

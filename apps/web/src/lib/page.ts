@@ -193,7 +193,14 @@ export async function loadPage(
           ...common(name),
         };
       const [news, pieces] = await Promise.all([
-        loadHomeNews(deps.pool, newsroom, timeline, language, HOME_NEWS),
+        loadHomeNews(
+          deps.pool,
+          newsroom,
+          timeline,
+          language,
+          HOME_NEWS,
+          Number(request.query.get("page")) || 1,
+        ),
         latest(deps.pool, newsroom.id, language, HOME_PIECES, [timeline.series]),
       ]);
       return { kind: "home", pieces, news: { ...news, label: await label() }, ...common(name) };

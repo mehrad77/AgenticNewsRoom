@@ -135,15 +135,19 @@ export interface HomeNews {
   entries: Entry[];
   outLinks: Map<string, OutLink[]>;
   targetImages: Map<string, EntryImage>;
+  /** The page shown (from 1) and how many there are. */
+  page: number;
+  pages: number;
 }
 
-/** A news home's items (newsroom.yaml `home: {news}`): the timeline's newest `limit` items. */
+/** A news home's items (newsroom.yaml `home: {news}`): one page of the timeline, newest first. */
 export async function loadHomeNews(
   pool: Pool,
   newsroom: ReaderNewsroom,
   timeline: Timeline,
   language: Language,
   limit: number,
+  page: number,
 ): Promise<HomeNews> {
   const { entries: all, links } = await timelineItems(
     pool,
@@ -153,7 +157,9 @@ export async function loadHomeNews(
     newsroom.timezone,
     profileKinds(newsroom.reference),
   );
-  const entries = all.slice(0, limit);
+  const pages = Math.max(1, Math.ceil(all.length / limit));
+  const at = Math.min(Math.max(1, page), pages);
+  const entries = all.slice((at - 1) * limit, at * limit);
   const outLinks = new Map(entries.map((e) => [e.id, links.get(e.id) ?? []]));
   return {
     target: {
@@ -165,7 +171,19 @@ export async function loadHomeNews(
     entries,
     outLinks,
     targetImages: await imagesOfTargets(pool, newsroom.id, outLinks.values()),
+    page: at,
+    pages,
   };
+}
+
+/** The page numbers a pager shows: the first, the last, and two either side of the current. */
+export function pageNumbers(page: number, pages: number): (number | null)[] {
+  const out: (number | null)[] = [];
+  for (let n = 1; n <= pages; n++) {
+    if (n === 1 || n === pages || Math.abs(n - page) <= 2) out.push(n);
+    else if (out.at(-1) !== null) out.push(null);
+  }
+  return out;
 }
 
 /** A series' timeline page (D173): its news items, filtered, drawn as a timeline kind's index. */

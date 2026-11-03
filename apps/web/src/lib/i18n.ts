@@ -8,6 +8,7 @@ export interface Words {
   /** On a news home: the newest pieces of the other series, and the way to the whole timeline. */
   latestPieces: string;
   allNews: string;
+  pages: { label: string; newer: string; older: string; page: (n: string, of: string) => string };
   search: string;
   searchPlaceholder: string;
   noResults: string;
@@ -34,6 +35,8 @@ export interface Words {
     source: string;
     send: string;
     failed: string;
+    /** Said where the form is while challenges are closed (D178). */
+    closed: string;
     status: string;
     keep: string;
     received: string;
@@ -51,6 +54,7 @@ const en: Words = {
   nothingYet: "Nothing published yet.",
   latestPieces: "Latest pieces",
   allNews: "All news",
+  pages: { label: "Pages", newer: "Newer", older: "Older", page: (n, of) => `Page ${n} of ${of}` },
   search: "Search",
   searchPlaceholder: "Search this site",
   noResults: "No results.",
@@ -85,6 +89,8 @@ const en: Words = {
     source: "Where the correct information is, if anywhere (a link)",
     send: "Send",
     failed: "Your challenge could not be sent. Please try again later.",
+    closed:
+      "Challenges open once the form has spam protection. Published corrections are on the corrections page.",
     status: "Your challenge",
     keep: "Keep this page's address: it is the only way to see our answer.",
     received: "Received",
@@ -102,6 +108,12 @@ const fa: Words = {
   nothingYet: "هنوز چیزی منتشر نشده است.",
   latestPieces: "تازه‌ترین نوشته‌ها",
   allNews: "همه‌ی خبرها",
+  pages: {
+    label: "صفحه‌ها",
+    newer: "تازه‌تر",
+    older: "قدیمی‌تر",
+    page: (n, of) => `صفحه‌ی ${n} از ${of}`,
+  },
   search: "جست‌وجو",
   searchPlaceholder: "جست‌وجو در این سایت",
   noResults: "نتیجه‌ای پیدا نشد.",
@@ -136,6 +148,8 @@ const fa: Words = {
     source: "اطلاعات درست کجاست، اگر جایی هست (یک پیوند)",
     send: "ارسال",
     failed: "اعتراض شما فرستاده نشد. لطفاً بعداً دوباره امتحان کنید.",
+    closed:
+      "فرستادن اعتراض پس از راه‌اندازی محافظت این فرم در برابر هرزنامه باز می‌شود. اصلاحیه‌های منتشرشده در صفحه‌ی اصلاحیه‌ها هستند.",
     status: "اعتراض شما",
     keep: "نشانی این صفحه را نگه دارید: تنها راه دیدن پاسخ ماست.",
     received: "دریافت",
@@ -153,6 +167,12 @@ const tr: Words = {
   nothingYet: "Henüz bir şey yayımlanmadı.",
   latestPieces: "Son yazılar",
   allNews: "Tüm haberler",
+  pages: {
+    label: "Sayfalar",
+    newer: "Daha yeni",
+    older: "Daha eski",
+    page: (n, of) => `Sayfa ${n} / ${of}`,
+  },
   search: "Ara",
   searchPlaceholder: "Bu sitede ara",
   noResults: "Sonuç yok.",
@@ -187,6 +207,8 @@ const tr: Words = {
     source: "Doğru bilgi nerede, varsa (bir bağlantı)",
     send: "Gönder",
     failed: "İtirazınız gönderilemedi. Lütfen daha sonra yeniden deneyin.",
+    closed:
+      "İtirazlar, form spama karşı korunduğunda açılacak. Yayımlanan düzeltmeler düzeltmeler sayfasında.",
     status: "İtirazınız",
     keep: "Bu sayfanın adresini saklayın: yanıtımızı görmenin tek yolu budur.",
     received: "Alındı",
