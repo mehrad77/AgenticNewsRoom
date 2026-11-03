@@ -2,6 +2,11 @@
 // Every page of a newsroom site; src/lib/page.ts decides what it shows.
 import Base from "../layouts/Base.astro";
 import "../styles/site.css";
+import "../styles/reference.css";
+import ClassicList from "../components/reference/ClassicList.astro";
+import NewsTimeline from "../components/reference/NewsTimeline.astro";
+import PaperEntry from "../components/reference/PaperEntry.astro";
+import ReferenceHome from "../components/reference/ReferenceHome.astro";
 import { directionOf, pageUrl } from "@anr/core";
 import { challengeForm, sendChallenge } from "../lib/challenge.ts";
 import { db } from "../lib/db.ts";
@@ -10,6 +15,7 @@ import { loadPage } from "../lib/page.ts";
 import { imageResponse, mediaRoute, publishedImage } from "../lib/media.ts";
 import { audioResponse, countDownload, episodeAudio, feedRenderer, podcastFeed, readerAddress, podcastRoute } from "../lib/podcast.ts";
 import { newsroomBySubdomain } from "../lib/reader.ts";
+import { entryPath } from "../lib/reference.ts";
 import { route } from "../lib/routes.ts";
 
 const site = Astro.locals.site;
@@ -101,6 +107,14 @@ if (page.kind === "challenge") {
 }
 const name = page.newsroom.name[page.language] ?? page.newsroom.slug;
 const w = page.words;
+// The site's sections; the current one is marked for the reader (aria-current).
+const here = page.kind.startsWith("reference-paper") ? "reference-classics" : page.kind;
+const sections = [
+  { kind: "home", href: page.links.home, label: w.latest },
+  { kind: "reference-classics", href: page.links.classics, label: page.ref.classics },
+  { kind: "reference-news", href: page.links.news, label: page.ref.news },
+  { kind: "reference", href: page.links.reference, label: page.ref.reference },
+];
 const date = (d: Date) =>
   new Intl.DateTimeFormat(page.language, { dateStyle: "long", timeZone: page.newsroom.timezone }).format(d);
 ---
@@ -117,6 +131,9 @@ const date = (d: Date) =>
   </Fragment>
   <header>
     <strong><a href={page.links.home}>{name}</a></strong>
+    <nav aria-label={name}>
+      {sections.map((s) => <a href={s.href} aria-current={s.kind === here ? "page" : undefined}>{s.label}</a>)}
+    </nav>
     <form action={page.links.search} method="get" role="search">
       <input type="search" name="q" placeholder={w.searchPlaceholder} value={page.kind === "search" ? page.query : ""} />
     </form>
@@ -175,17 +192,31 @@ const date = (d: Date) =>
         {page.challenge.outcome === "upheld" && <p><a href={page.links.corrections}>{w.corrections}</a></p>}
       </>
     )}
+    {page.kind === "reference" && <ReferenceHome page={page} />}
+    {page.kind === "reference-news" && <NewsTimeline page={page} />}
+    {page.kind === "reference-classics" && <ClassicList page={page} />}
+    {page.kind === "reference-paper" && <PaperEntry page={page} />}
     {(page.kind === "home" || page.kind === "search") && (
       <>
         <h1>{page.kind === "home" ? w.latest : w.search}</h1>
         {page.pieces.length === 0 ? (
-          <p>{page.kind === "home" ? w.nothingYet : page.query ? w.noResults : ""}</p>
+          <p>{page.kind === "home" ? w.nothingYet : page.query && page.entries.length === 0 ? w.noResults : ""}</p>
         ) : (
           <ul>
             {page.pieces.map((p) => (
               <li><a href={page.url(p.path)}>{p.title ?? p.path}</a> · <time datetime={p.publishedAt.toISOString()}>{date(p.publishedAt)}</time></li>
             ))}
           </ul>
+        )}
+        {page.kind === "search" && page.entries.length > 0 && (
+          <>
+            <h2>{page.ref.reference}</h2>
+            <ul>
+              {page.entries.map((e) => (
+                <li><a href={page.url(entryPath(e.kind, e.slug))} dir="auto">{e.title}</a>{e.date && <> · <time datetime={e.date}>{e.date}</time></>}</li>
+              ))}
+            </ul>
+          </>
         )}
       </>
     )}

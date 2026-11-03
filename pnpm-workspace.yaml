@@ -2,6 +2,7 @@ packages:
   - apps/*
   - services/*
   - packages/*
+  - tools/legacy-import
 
 # pnpm 11 fails an install on any dependency build script not decided here: true runs it, false
 # leaves it unrun. @parcel/watcher (via @tailwindcss/cli) only compiles from source when asked to;

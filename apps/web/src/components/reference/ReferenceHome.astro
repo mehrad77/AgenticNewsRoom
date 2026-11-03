@@ -1,0 +1,54 @@
+---
+// The Reference's home: what it holds, its sections, and the newest of each.
+import type { Page } from "../../lib/page.ts";
+import { dateLabel, entryPath, numberLabel } from "../../lib/reference.ts";
+import ClassicTile from "./ClassicTile.astro";
+import NewsItem from "./NewsItem.astro";
+import Labels from "./Labels.astro";
+
+interface Props {
+  page: Extract<Page, { kind: "reference" }>;
+}
+const { page } = Astro.props;
+const { ref: w, language, counts } = page;
+const n = (x: number) => numberLabel(x, language);
+const kindUrl = (k: string) => `${page.links.news}?kind=${encodeURIComponent(k)}`;
+---
+<h1>{w.reference}</h1>
+<p class="ref-lead">{w.referenceIntro}</p>
+<Labels label={page.label} aiPolicy={page.links.aiPolicy} imported={w.imported} />
+<div class="ref-stats">
+  <div class="ref-stat"><b>{n(counts.classics)}</b><span>{w.classics}</span></div>
+  <div class="ref-stat"><b>{n(counts.news)}</b><span>{w.news}</span></div>
+  {counts.newsOldest && counts.newsNewest && (
+    <div class="ref-stat"><b>{dateLabel(counts.newsOldest, language, "year")}</b><span>{w.oldest(dateLabel(counts.newsNewest, language))}</span></div>
+  )}
+</div>
+<ul class="ref-cards wide">
+  <li class="ref-card ref-card--classics">
+    <span class="ref-muted">{w.classicsCount(n(counts.classics))}</span>
+    <h2><a href={page.links.classics}>{w.classics}</a></h2>
+    <p>{w.classicsIntro}</p>
+  </li>
+  <li class="ref-card">
+    <span class="ref-muted">{w.newsCount(n(counts.news))}</span>
+    <h2><a href={page.links.news}>{w.news}</a></h2>
+    <p>{w.newsIntro}</p>
+  </li>
+</ul>
+{page.classics.length > 0 && (
+  <section class="ref-group">
+    <h2>{w.classics} <a class="ref-muted" href={page.links.classics}>{w.classicsCount(n(counts.classics))}</a></h2>
+    <ul class="ref-tiles">
+      {page.classics.map((e) => <ClassicTile entry={e} language={language} words={w} href={page.url(entryPath(e.kind, e.slug))} />)}
+    </ul>
+  </section>
+)}
+{page.news.length > 0 && (
+  <section class="ref-group">
+    <h2>{w.news} <a class="ref-muted" href={page.links.news}>{w.newsCount(n(counts.news))}</a></h2>
+    <ol class="ref-list">
+      {page.news.map((e) => <NewsItem entry={e} language={language} words={w} kindUrl={kindUrl} />)}
+    </ol>
+  </section>
+)}

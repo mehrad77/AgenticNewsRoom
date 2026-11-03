@@ -1,0 +1,304 @@
+/*
+ * The Reference's patterns, after the old archive (D168): stat tiles, list tiles with an accent
+ * edge, a dated timeline, summary panels and a description list of facts. Tokens are site.css's.
+ */
+.ref-lead {
+  font-size: 1.15rem;
+  color: var(--text-muted);
+}
+.ref-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+.ref-label {
+  display: inline-block;
+  padding: 0.1rem 0.6rem;
+  font-size: 0.8rem;
+  border: 1px solid var(--stroke);
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  border-radius: 999px;
+}
+.ref-label--imported {
+  border-color: var(--warning);
+  color: var(--warning);
+}
+.ref-chip {
+  display: inline-block;
+  padding: 0 0.5rem;
+  font-size: 0.8rem;
+  border: 1px solid var(--stroke);
+  background: var(--surface);
+  color: var(--text-muted);
+  text-decoration: none;
+  border-radius: 2px;
+}
+.ref-latin {
+  font-family: var(--font-serif);
+}
+.ref-muted {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+/* Stat tiles */
+.ref-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  margin: 1.5rem 0;
+  border: 1px solid var(--stroke);
+  background: var(--surface-raised);
+}
+.ref-stat {
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 1.25rem;
+  border-inline-end: 1px solid var(--stroke);
+}
+.ref-stat b {
+  font-size: 2rem;
+  line-height: 1.2;
+}
+.ref-stat span {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* Section cards and list tiles */
+.ref-cards,
+.ref-tiles {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  margin: 1rem 0;
+  padding: 0;
+  list-style: none;
+}
+.ref-tiles {
+  grid-template-columns: 1fr;
+}
+.ref-card,
+.ref-tile {
+  position: relative;
+  margin: 0;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--stroke);
+  border-top: 3px solid var(--info);
+  background: var(--surface-raised);
+}
+.ref-card--classics,
+.ref-tile--classic {
+  border-top-color: #8a6a1f;
+}
+.ref-card h2,
+.ref-tile h3 {
+  margin: 0.25rem 0;
+  border: 0;
+  padding: 0;
+  font-size: 1.35rem;
+}
+.ref-card a::after,
+.ref-tile h3 a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+.ref-card a,
+.ref-tile h3 a {
+  text-decoration: none;
+}
+.ref-tile h3 {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 1.45rem;
+  line-height: 1.3;
+}
+.ref-tile p {
+  margin: 0.5rem 0 0;
+}
+.ref-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.6rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.ref-group {
+  margin-top: 2rem;
+}
+.ref-group > h2,
+.ref-group > h3 {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+.ref-group .ref-muted {
+  font-weight: 400;
+}
+
+/* Timeline */
+.ref-jump {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.9rem;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+}
+.ref-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+.ref-filters label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.ref-day {
+  margin: 1rem 0 0;
+  padding-inline-start: 1rem;
+  border-inline-start: 2px solid var(--stroke);
+}
+.ref-day > h3 {
+  margin: 0.5rem 0;
+  font-size: 1rem;
+}
+.ref-news {
+  margin: 0 0 0.75rem;
+  padding: 0.9rem 1.1rem;
+  list-style: none;
+  border: 1px solid var(--stroke);
+  background: var(--surface-raised);
+  scroll-margin-top: 5rem;
+}
+.ref-news:target {
+  outline: 2px solid var(--accent-strong);
+}
+.ref-news h4 {
+  margin: 0.35rem 0;
+  font-family: var(--font-serif);
+  font-size: 1.3rem;
+  font-weight: 500;
+  line-height: 1.35;
+}
+.ref-news h4 a {
+  text-decoration: none;
+}
+.ref-news p {
+  margin: 0.4rem 0;
+}
+.ref-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  font-size: 0.85rem;
+}
+.ref-list {
+  padding: 0;
+}
+
+/* Entry page */
+.ref-page {
+  display: grid;
+  gap: 2rem;
+  max-width: var(--wide);
+}
+@media (min-width: 64rem) {
+  .ref-page {
+    grid-template-columns: minmax(0, 1fr) 18rem;
+  }
+}
+.ref-eyebrow {
+  margin: 1.5rem 0 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.ref-title {
+  margin-top: 0.25rem;
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 2.4rem;
+  line-height: 1.2;
+}
+.ref-title a {
+  text-decoration: none;
+}
+.ref-facts {
+  display: grid;
+  grid-template-columns: 9rem minmax(0, 1fr);
+  gap: 0.5rem 1rem;
+  margin: 1rem 0;
+  padding: 1rem 0;
+  border-block: 1px solid var(--stroke);
+}
+.ref-facts dd {
+  margin: 0;
+}
+.ref-panel {
+  margin: 1rem 0;
+  padding: 0.9rem 1.2rem;
+  border: 1px solid var(--stroke);
+  border-inline-start: 4px solid var(--stroke);
+  background: var(--surface-raised);
+}
+.ref-panel > h3 {
+  margin: 0 0 0.25rem;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+}
+.ref-panel[data-section="problem"] {
+  border-inline-start-color: var(--info);
+}
+.ref-panel[data-section="idea"],
+.ref-panel[data-section="overview"] {
+  border-inline-start-color: var(--success);
+}
+.ref-panel[data-section="why"],
+.ref-panel[data-section="after"] {
+  border-inline-start-color: var(--warning);
+}
+.ref-panel blockquote {
+  font-family: var(--font-serif);
+  font-size: 1.1rem;
+}
+.ref-side h2 {
+  font-size: 1rem;
+  margin-top: 1.5rem;
+}
+.ref-side ul {
+  padding: 0;
+  list-style: none;
+  font-size: 0.9rem;
+}
+.ref-pager {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+.ref-pager a {
+  display: flex;
+  flex-direction: column;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--stroke);
+  background: var(--surface-raised);
+  text-decoration: none;
+}
+.ref-pager a:last-child {
+  text-align: end;
+}
+.ref-pager span {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* English titles on a right-to-left page stay on the page's side, as on the old archive. */
+[dir="rtl"] :is(.ref-title, .ref-tile h3, .ref-news h4) {
+  text-align: right;
+}

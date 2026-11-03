@@ -1,0 +1,13 @@
+---
+// The AI label, and the imported label when the page shows imported text (D164).
+interface Props {
+  label: string;
+  aiPolicy: string;
+  imported: string | null;
+}
+const { label, aiPolicy, imported } = Astro.props;
+---
+<p class="ref-labels">
+  <a class="ref-label" href={aiPolicy}>{label}</a>
+  {imported && <span class="ref-label ref-label--imported">{imported}</span>}
+</p>

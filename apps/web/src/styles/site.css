@@ -1,33 +1,97 @@
 /*
- * Every newsroom's reader site: Tailwind's base, and quiet defaults for plain HTML tags only. No
- * classes are styled here. Spacing and borders use logical sides (start and end), so a Persian
- * page mirrors on its own. Imported by the reader pages alone; Base.astro lays out the page.
+ * Every newsroom's reader site: the old archive's look (D168), in its day theme: warm paper, a green
+ * accent, Vazirmatn for text and Newsreader for English titles. Quiet defaults for plain HTML tags;
+ * the Reference's few classes are in reference.css. Spacing and borders use logical sides (start
+ * and end), so a Persian page mirrors on its own. Imported by the reader pages alone.
  */
 @import "tailwindcss" source(none);
+@import "@fontsource-variable/vazirmatn";
+@import "@fontsource-variable/newsreader";
+@import "@fontsource-variable/jetbrains-mono";
+
+:root {
+  --surface: #f4f1e6;
+  --surface-raised: #fbf9f2;
+  --surface-sunken: #e8e4d6;
+  --text: #141a16;
+  --text-muted: #565c54;
+  --stroke: #cfcabb;
+  --accent: #1f5a3d;
+  --accent-strong: #2c7a53;
+  --text-accent: #1f6b45;
+  --info: #1f5fae;
+  --success: #1f6b45;
+  --warning: #855a00;
+  --font-text: "Vazirmatn Variable", "Noto Naskh Arabic", Tahoma, system-ui, sans-serif;
+  --font-serif: "Newsreader Variable", "Iowan Old Style", Georgia, serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, Menlo, monospace;
+  --measure: 46rem;
+  --wide: 72rem;
+  color-scheme: light;
+}
+
+/* Unlayered, so it wins over the layout Base.astro gives every page. */
+html body {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-text);
+  font-size: 1.0625rem;
+  line-height: 1.75;
+  background: var(--surface);
+  color: var(--text);
+}
+html body > header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  margin: 0;
+  padding: 0.6rem max(1rem, calc((100% - var(--wide)) / 2));
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--stroke);
+}
+html body > main {
+  max-width: var(--wide);
+  margin: 0 auto;
+  padding: 0 1rem 2rem;
+}
+html body > main > :where(:not(.wide)) {
+  max-width: var(--measure);
+}
+html body > footer {
+  max-width: var(--wide);
+  margin: 2rem auto 0;
+  padding: 1rem;
+  border-top: 1px solid var(--stroke);
+}
 
 @layer base {
-  html {
-    @apply bg-white text-stone-900 antialiased;
-  }
-
-  header {
-    @apply items-center border-stone-200 py-2;
-  }
   header strong a {
-    @apply text-lg text-stone-900 no-underline;
+    @apply text-lg font-bold no-underline;
+    color: var(--accent);
   }
   nav {
-    @apply flex gap-3 text-sm;
+    @apply flex flex-wrap gap-x-4 gap-y-1 text-sm;
+  }
+  nav a {
+    @apply no-underline;
+    color: var(--text-muted);
+  }
+  nav a[aria-current="page"] {
+    @apply font-semibold underline;
+    color: var(--text);
   }
   footer {
-    @apply border-stone-200 pt-3 text-stone-500;
+    @apply text-sm;
+    color: var(--text-muted);
   }
 
   h1 {
-    @apply mt-6 mb-3 text-3xl leading-tight font-bold tracking-tight text-balance;
+    @apply mt-8 mb-3 text-[2.1rem] leading-tight font-bold text-balance;
   }
   h2 {
-    @apply mt-8 mb-2 text-xl font-semibold;
+    @apply mt-10 mb-3 border-b pb-1 text-xl font-bold;
+    border-color: var(--stroke);
   }
   h3 {
     @apply mt-6 mb-2 text-lg font-semibold;
@@ -36,7 +100,13 @@
     @apply my-3;
   }
   a {
-    @apply text-emerald-800 underline decoration-emerald-800/30 underline-offset-2 hover:decoration-emerald-800;
+    @apply underline decoration-1 underline-offset-4;
+    color: var(--text);
+    text-decoration-color: var(--stroke);
+  }
+  a:hover {
+    color: var(--text-accent);
+    text-decoration-color: currentColor;
   }
   strong {
     @apply font-semibold;
@@ -51,7 +121,12 @@
     @apply my-1.5;
   }
   time {
-    @apply text-sm text-stone-500;
+    @apply text-sm;
+    color: var(--text-muted);
+  }
+  code {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
   }
   article {
     @apply my-4;
@@ -60,31 +135,52 @@
     @apply my-6;
   }
   aside {
-    @apply my-4 rounded-md border-s-4 border-amber-500 bg-amber-50 px-4 py-2 text-sm;
+    @apply my-4 border-s-4 px-4 py-2 text-sm;
+    border-color: var(--warning);
+    background: var(--surface-raised);
   }
   blockquote {
-    @apply my-4 border-s-4 border-stone-300 ps-4 text-stone-700 italic;
+    @apply my-4 border-s-4 ps-4;
+    border-color: var(--stroke);
+    color: var(--text-muted);
   }
   figure {
     @apply my-4;
   }
   figcaption {
-    @apply mt-1 text-sm text-stone-500;
+    @apply mt-1 text-sm;
+    color: var(--text-muted);
   }
   img {
-    @apply h-auto max-w-full rounded-md;
+    @apply h-auto max-w-full;
   }
   audio {
     @apply my-3 w-full;
   }
   hr {
-    @apply my-6 border-stone-200;
+    @apply my-6;
+    border-color: var(--stroke);
+  }
+  dt {
+    @apply text-sm;
+    color: var(--text-muted);
   }
 
   form[role="search"] {
     @apply ms-auto;
   }
-  input[type="search"] {
-    @apply min-h-10 w-48 rounded-full border border-stone-300 bg-stone-50 px-4 py-1.5 text-sm focus:border-emerald-700 focus:bg-white focus:outline-2 focus:outline-emerald-700/30 max-sm:w-full;
+  input[type="search"],
+  select {
+    @apply min-h-10 w-52 border px-3 py-1.5 text-sm max-sm:w-full;
+    border-color: var(--stroke);
+    background: var(--surface);
+    border-radius: 2px;
+  }
+  button {
+    @apply min-h-10 border px-4 py-1.5 text-sm font-semibold;
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--surface-raised);
+    border-radius: 2px;
   }
 }

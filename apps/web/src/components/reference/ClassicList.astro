@@ -1,0 +1,30 @@
+---
+// Every classic paper, newest first, grouped by month as the old archive grouped them.
+import type { Page } from "../../lib/page.ts";
+import { dateLabel, entryPath, groupBy, numberLabel } from "../../lib/reference.ts";
+import ClassicTile from "./ClassicTile.astro";
+import Labels from "./Labels.astro";
+
+interface Props {
+  page: Extract<Page, { kind: "reference-classics" }>;
+}
+const { page } = Astro.props;
+const { ref: w, language, classics } = page;
+const n = (x: number) => numberLabel(x, language);
+const months = groupBy(classics, (e) => (e.date ?? "").slice(0, 7));
+---
+<h1>{w.classics}</h1>
+<p class="ref-lead">{w.classicsIntro}</p>
+<Labels label={page.label} aiPolicy={page.links.aiPolicy} imported={w.imported} />
+<div class="ref-stats">
+  <div class="ref-stat"><b>{n(classics.length)}</b><span>{w.classics}</span></div>
+</div>
+{classics.length === 0 && <p>{w.nothing}</p>}
+{months.map((m) => (
+  <section class="ref-group">
+    <h2>{dateLabel(`${m.key}-01`, language, "month")} <span class="ref-muted">{w.papersCount(n(m.entries.length))}</span></h2>
+    <ul class="ref-tiles">
+      {m.entries.map((e) => <ClassicTile entry={e} language={language} words={w} href={page.url(entryPath(e.kind, e.slug))} />)}
+    </ul>
+  </section>
+))}

@@ -8,6 +8,11 @@ export type Route =
   /** A reader's own challenge, opened with the token in its link (D114). */
   | { kind: "challenge"; id: string }
   | { kind: "publication"; path: string }
+  /** The Reference (D162): its home, the news timeline, the classic papers and a paper's page. */
+  | { kind: "reference" }
+  | { kind: "reference-news" }
+  | { kind: "reference-classics" }
+  | { kind: "reference-paper"; slug: string }
   /** The publication's ninjs 3.2 twin: its page URL plus `.json`. */
   | { kind: "ninjs"; path: string }
   | { kind: "not-found" };
@@ -21,6 +26,11 @@ export function route(path: string): Route {
   if (p === "/search") return { kind: "search" };
   if (p === "/ai-policy") return { kind: "ai-policy" };
   if (p === "/corrections") return { kind: "corrections" };
+  if (p === "/reference") return { kind: "reference" };
+  if (p === "/reference/news") return { kind: "reference-news" };
+  if (p === "/reference/classics") return { kind: "reference-classics" };
+  const paper = /^\/reference\/papers\/([a-z0-9][a-z0-9-]*)$/.exec(p);
+  if (paper?.[1]) return { kind: "reference-paper", slug: paper[1] };
   const challenge = /^\/challenge\/([0-9a-f-]{36})$/.exec(p);
   if (challenge?.[1]) return { kind: "challenge", id: challenge[1] };
   if (p.endsWith(".json") && PUBLICATION.test(p.slice(0, -5)))

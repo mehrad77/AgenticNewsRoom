@@ -1,0 +1,21 @@
+[project]
+name = "anr-legacy-import"
+version = "0.0.0"
+description = "One-off import of the old system's knowledge-base export into a newsroom's Reference (D166)."
+requires-python = ">=3.13"
+dependencies = [
+    "psycopg[binary]>=3.3.6",
+]
+
+[project.scripts]
+legacy-import = "anr_legacy_import.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/anr_legacy_import"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

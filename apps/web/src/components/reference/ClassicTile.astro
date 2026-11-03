@@ -1,0 +1,33 @@
+---
+// A classic paper in a list: its date, English title and the start of its summary.
+import { directionOf, type Language } from "@anr/core";
+import {
+  type DatePrecision,
+  dateLabel,
+  type Entry,
+  str,
+  teaser,
+  textIn,
+} from "../../lib/reference.ts";
+import type { ReferenceWords } from "../../lib/reference-words.ts";
+
+interface Props {
+  entry: Entry;
+  language: Language;
+  words: ReferenceWords;
+  href: string;
+}
+const { entry: e, language, words: w, href } = Astro.props;
+const text = textIn(e, language);
+const summary = text ? teaser(text.body.overview ?? text.body.post ?? text.body.problem) : "";
+const precision = (str(e.facts.date_precision) ?? "day") as DatePrecision;
+---
+<li class="ref-tile ref-tile--classic">
+  <div class="ref-meta">
+    <time datetime={e.date}>{dateLabel(e.date, language, precision)}</time>
+    <span aria-hidden="true">·</span>
+    <span>{w.classicLabel}</span>
+  </div>
+  <h3 dir="ltr" lang={e.titleLanguage}><a href={href}>{e.title}</a></h3>
+  {summary && text && <p lang={text.language} dir={directionOf(text.language)}>{summary}</p>}
+</li>

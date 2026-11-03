@@ -13,6 +13,17 @@ describe("route", () => {
     });
   });
 
+  it("knows the Reference's pages", () => {
+    expect(route("/reference")).toEqual({ kind: "reference" });
+    expect(route("/reference/news/")).toEqual({ kind: "reference-news" });
+    expect(route("/reference/classics")).toEqual({ kind: "reference-classics" });
+    expect(route("/reference/papers/turing-1936-computable-numbers")).toEqual({
+      kind: "reference-paper",
+      slug: "turing-1936-computable-numbers",
+    });
+    expect(route("/reference/papers/Bad_Slug")).toEqual({ kind: "not-found" });
+  });
+
   it("finds a publication and its ninjs twin", () => {
     expect(route("/daily-newsletter/2026-10-27")).toEqual({
       kind: "publication",
