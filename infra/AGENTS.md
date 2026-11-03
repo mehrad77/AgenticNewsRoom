@@ -22,7 +22,7 @@ Prod is the Compose project `anr-prod` (`compose.prod.yaml`); where dev shares t
 - `backup/`: pgBackRest to R2 (`backup.sh init|full|diff|incr|check|requests|info`, each run a `backup_runs` row), `restore.sh` into an empty volume, `restore-drill.sh <tag>` (7a's gate on a fresh machine) and `drill-local.sh` (the whole cycle against an S3 stand-in, milestone 1's gate). Running jobs use `docker exec` on the running container, so the host's scheduler needs no env.
 - `host/`: host profiles (D127). `linux/`: systemd user units with lingering (`install.sh`). `macos/`: launchd agents (`install.sh`), plus one running `caffeinate -s`.
 - `observability/`: the collector's config, otel-lgtm's Prometheus config and Grafana's entrypoint (`grafana/start.sh`), datasources, dashboards, alert rules and the ops chat's contact point, all provisioned read-only. Dashboards and rules are generated from `packages/telemetry/ops/` (`pnpm gen`); never edit them here. See Observability below.
-- *7b* `drills/`: chaos drills and their runbooks (D143).
+- `drills/`: chaos drills, each with its runbook beside it (D143, D159): `pause.sh` (host outage), `kill-worker.sh`, `fill-disk.sh`. Each takes the Compose project and needs `--prod` for `anr-prod`; ask the operator before running one there.
 
 ## Backups
 
@@ -36,7 +36,7 @@ If `check` fails, WAL is not reaching R2 and Postgres keeps every segment until 
 
 The apps send OTLP to the collector (`otel-collector`), which scrubs reader data, adds Postgres's, Caddy's and cloudflared's logs, both disks and memory, and forwards everything to otel-lgtm (`lgtm`: Grafana, Prometheus 30 days, Tempo and Loki 7 days) (D137, D139, D155). Grafana at `ops.` signs in only with the ops Access application's JWT, as Editor (D156). The agents worker reports the platform gauges every minute (D158). Alerts go to the ops Telegram chat; UptimeRobot watches `/healthz` from outside (D140, D141).
 
-Memory, measured idle on the macOS host profile: lgtm about 970 MiB, the collector about 90 MiB; limits 1792 MiB and 256 MiB, 2 GB together.
+Memory on the macOS host profile: idle, lgtm about 840–970 MiB and the collector about 65–90 MiB; under k6 at 20 requests a second (`tools/load`, 2026-11-03), peaks of 940 MiB and 87 MiB. Limits 1792 MiB and 256 MiB, 2 GB together.
 
 ```bash
 pnpm telemetry:up                               # dev's collector and Grafana

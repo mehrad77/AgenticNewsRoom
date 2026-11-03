@@ -76,7 +76,7 @@ jobs:
           docker compose --env-file .env.example -p anr-prod -f infra/compose.prod.yaml config -q
           docker compose --env-file .env.example -f infra/compose.prod.yaml -f infra/compose.build.yaml config -q
       - name: shellcheck
-        run: shellcheck -x infra/*.sh infra/backup/*.sh infra/host/*/install.sh infra/terraform/tf.sh infra/observability/*.sh infra/observability/grafana/start.sh .githooks/pre-commit
+        run: shellcheck -x infra/*.sh infra/backup/*.sh infra/host/*/install.sh infra/terraform/tf.sh infra/observability/*.sh infra/observability/grafana/start.sh infra/drills/*.sh tools/load/run.sh .githooks/pre-commit
       # The SLO recording rules and alerts, against their promtool tests (D158).
       - name: Prometheus rules
         run: infra/observability/check-rules.sh
