@@ -35,6 +35,35 @@ function placeholder(name: string, p: Property): string {
   return `<${name}>`;
 }
 
+const CODE_SET = "Set by code";
+
+/**
+ * The fields of a format's rendition and its items that code fills in (their schema description
+ * starts "Set by code"): never the desk's or the renderer's to write (D173).
+ */
+export function codeSetFields(schema: unknown): string[] {
+  const s = schema as {
+    properties?: {
+      rendition?: {
+        properties?: Record<string, Property> & {
+          items?: { items?: ItemSchema & { oneOf?: ItemSchema[] } };
+        };
+      };
+    };
+  };
+  const rendition = s.properties?.rendition?.properties ?? {};
+  const items = rendition.items?.items ?? {};
+  const props = [
+    ...Object.entries(rendition),
+    ...(items.oneOf ?? [items]).flatMap((v) => Object.entries(v.properties ?? {})),
+  ];
+  return [
+    ...new Set(
+      props.filter(([, p]) => (p as Property).description?.startsWith(CODE_SET)).map(([n]) => n),
+    ),
+  ];
+}
+
 /** A format's rendition items, from its draft schema (`config/formats/<format>/schema.json`). */
 export function itemShape(schema: unknown): ItemShape {
   const s = schema as {
@@ -49,7 +78,7 @@ export function itemShape(schema: unknown): ItemShape {
   const shapes = variants.map((v) => {
     const fields = Object.entries(v.properties ?? {})
       // Fields code fills in (their schema says "Set by code") are not the desk's to write.
-      .filter(([name, p]) => name !== "claim_ids" && !p.description?.startsWith("Set by code"))
+      .filter(([name, p]) => name !== "claim_ids" && !p.description?.startsWith(CODE_SET))
       .map(([name, p]) => `"${name}": ${placeholder(name, p)}`);
     return `{${fields.join(", ")}}`;
   });

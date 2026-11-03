@@ -44,7 +44,7 @@ def test_news_entries_follow_the_old_timeline() -> None:
     assert second.facts["telegram"] == ["https://t.me/chan/390"]
     assert second.facts["org_names"] == {"fa": "آنتروپیک"}
     assert second.facts["links"] == [{"label": "CHANGELOG", "url": "https://example.com/c"}]
-    assert out.url_map == {"/news/": "/reference/news"}
+    assert out.url_map == {"/news/": "/news"}
 
 
 def test_classic_listing_matches_the_old_site() -> None:

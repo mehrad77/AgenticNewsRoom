@@ -30,6 +30,11 @@ SKIP_KEYS = {
     "direction",
     "speaker",
     "host",
+    # A news item's timeline labels (D173): `org` and `related` are names and are checked.
+    "news_kind",
+    "url_type",
+    "anchor",
+    "approximate",
 }
 
 

@@ -221,7 +221,7 @@ def news_entries(rows: list[Row], channel: str | None) -> Imported:
                 ),
             )
         )
-    out.url_map["/news/"] = "/reference/news"
+    out.url_map["/news/"] = "/news"
     return out
 
 
