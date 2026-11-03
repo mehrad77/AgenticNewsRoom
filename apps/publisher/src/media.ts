@@ -149,9 +149,7 @@ export async function prepareMedia(
   const ids = [...new Set(bodies.flatMap(mediaIds))];
   if (ids.length === 0) return { kind: "ready" };
   const { rows } = await client.query<MediaRow>(
-    `select id, file, content_type, description, creator, credit_line, copyright_notice,
-            web_statement, licensor, digital_source_type, licence, licence_url, published_file
-     from media where id::text = any($1)`,
+    `select ${MEDIA_COLUMNS} from media where id::text = any($1)`,
     [ids],
   );
   const unlicensed = ids.filter((id) => {

@@ -64,12 +64,13 @@ if (imageId) {
 // A reader's challenge from the form under a piece (D114): passed to the API, then on to the
 // reader's status page. Handled before the page loads, so it is not counted as a view.
 let challengeFailed = false;
+// Back to the piece at the path the reader asked for (Astro.url is the internal, rewritten one).
 if (Astro.request.method === "POST" && route(site.path).kind === "publication" && !CHALLENGES_OPEN)
-  return Astro.redirect(Astro.url.pathname, 303);
+  return Astro.redirect(Astro.locals.path, 303);
 if (Astro.request.method === "POST" && route(site.path).kind === "publication") {
   const form = await Astro.request.formData();
   const body = challengeForm(form);
-  if (!body) return Astro.redirect(Astro.url.pathname, 303);
+  if (!body) return Astro.redirect(Astro.locals.path, 303);
   const headers = Astro.request.headers;
   const sent = await sendChallenge(
     process.env.ANR_API_URL ?? "http://127.0.0.1:8787",

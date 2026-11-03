@@ -91,7 +91,8 @@ export async function newsroomBySubdomain(
   if (!n) return null;
   const [timelines, indexes] = await withNewsroom(pool, n.id, async (c) => {
     const { rows: series } = await c.query<{ series: string; config: TimelineConfig }>(
-      "select slug as series, config->'timeline' as config from series where config ? 'timeline' order by slug",
+      `select slug as series, config->'timeline' as config from series
+       where config ? 'timeline' and removed_at is null order by slug`,
     );
     const { rows: pages } = await c.query<{ series: string; index: Omit<SeriesIndex, "series"> }>(
       `select slug as series, config->'index' as index from series

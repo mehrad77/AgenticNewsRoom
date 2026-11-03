@@ -141,7 +141,6 @@ function modelsProblems(m: ModelsSchema, file: string, formats: string[]): strin
   return errors;
 }
 
-/** Returns a list of human-readable problems; empty means the config is valid. */
 /** Site paths a series' timeline cannot take (apps/web/src/lib/routes.ts). */
 const RESERVED_PATHS = new Set([
   "search",
@@ -163,6 +162,7 @@ export const CUE_FILES = [
   "jingle.flac",
 ] as const;
 
+/** Returns a list of human-readable problems; empty means the config is valid. */
 export function validateConfig(config: RawConfig): string[] {
   const ajv = new Ajv2020({ allErrors: true, strict: true });
   addFormats(ajv);
@@ -284,6 +284,8 @@ export function validateConfig(config: RawConfig): string[] {
         errors.push(`${at}/newsroom.yaml home names series ${home.news}, which has no timeline`);
     }
 
+    // Timeline paths taken so far, so two series never share one (only the first would show).
+    const timelinePaths = new Map<string, string>();
     for (const [name, s] of Object.entries(n.series)) {
       const where = `${at}/series/${name}.yaml`;
       if (!check(v.series, s, where)) continue;
@@ -330,6 +332,9 @@ export function validateConfig(config: RawConfig): string[] {
         const t = series.timeline;
         if (RESERVED_PATHS.has(t.path) || t.path in n.series)
           errors.push(`${where} timeline path ${t.path} is taken by the site`);
+        const other = timelinePaths.get(t.path);
+        if (other) errors.push(`${where} timeline path ${t.path} is also series ${other}'s`);
+        timelinePaths.set(t.path, name);
         const named = [
           ["name", t.name],
           ["intro", t.intro],

@@ -46,7 +46,7 @@ import {
   type SeriesPiece,
   seriesPieces,
 } from "./series.ts";
-import { TIMELINE_ITEM } from "./timeline.ts";
+import { timelineSeriesOf } from "./timeline.ts";
 
 let renderer: ReturnType<typeof createRenderer> | undefined;
 
@@ -210,10 +210,12 @@ export async function loadPage(
       }),
     ],
     entryUrl: (kind, slug) => {
-      // A news item lives on its series' timeline.
-      const timeline = newsroom.timelines[0];
-      if (kind === TIMELINE_ITEM)
+      // A news item lives on its own series' timeline.
+      const series = timelineSeriesOf(kind);
+      if (series !== null) {
+        const timeline = newsroom.timelines.find((t) => t.series === series);
         return timeline ? pageUrl(site, language, `/${timeline.config.path}#${slug}`) : null;
+      }
       const p = entryPath(newsroom.reference, kind, slug);
       return p ? pageUrl(site, language, p) : null;
     },

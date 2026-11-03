@@ -50,6 +50,20 @@ describe("validateConfig", () => {
     expect(validateConfig(config)).toEqual([]);
   });
 
+  it("rejects two series' timelines at one path", () => {
+    const config = loadConfig(root);
+    const ai = config.newsrooms.find((n) => n.slug === "ai");
+    if (!ai) throw new Error("ai newsroom missing");
+    const daily = ai.series["daily-newsletter"] as { timeline: unknown };
+    (ai.series["weekly-classic"] as { timeline?: unknown }).timeline = structuredClone(
+      daily.timeline,
+    );
+    const path = (daily.timeline as { path: string }).path;
+    expect(validateConfig(config)).toContain(
+      `newsrooms/ai/series/weekly-classic.yaml timeline path ${path} is also series daily-newsletter's`,
+    );
+  });
+
   it("rejects a series in a language its newsroom does not write", () => {
     const config = loadConfig(root);
     const ai = config.newsrooms.find((n) => n.slug === "ai");

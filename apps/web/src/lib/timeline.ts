@@ -30,8 +30,15 @@ export const timelineKind = (t: TimelineConfig): KindConfig => ({
   filters: t.filters,
 });
 
-/** The kind key timeline items carry, so links to them resolve to the timeline. */
+/** The kind key of timeline items, as a target's `kindKey`. */
 export const TIMELINE_ITEM = "timeline-item";
+
+/** The kind a series' timeline items carry, so a link to one resolves to that series' timeline. */
+export const timelineItemKind = (series: string) => `${TIMELINE_ITEM}:${series}`;
+
+/** The series a timeline item's kind names, or null for any other kind. */
+export const timelineSeriesOf = (kind: string): string | null =>
+  kind.startsWith(`${TIMELINE_ITEM}:`) ? kind.slice(TIMELINE_ITEM.length + 1) : null;
 
 interface Item {
   kind?: string;
@@ -54,7 +61,7 @@ const LATIN_LANGUAGES = new Set(["en", "tr"]);
 
 /** The items of one piece, as timeline entries; `leadUrl` is the item's first claim's lead. */
 export function itemsOf(
-  piece: { id: string; path: string; day: string; origin: string; items: Item[] },
+  piece: { id: string; series: string; path: string; day: string; origin: string; items: Item[] },
   language: Language,
   leadUrl: (claimId: string) => string | undefined,
 ): Entry[] {
@@ -64,7 +71,7 @@ export function itemsOf(
     return [
       {
         id: `${piece.id}:${i}`,
-        kind: TIMELINE_ITEM,
+        kind: timelineItemKind(piece.series),
         slug: item.anchor ?? `${piece.day}-${i + 1}`,
         title: item.headline,
         titleLanguage:
@@ -180,7 +187,9 @@ export function timelineItems(
     );
     const names = nameIndex(profiles);
     const entries = rows.flatMap((r) =>
-      itemsOf({ ...r, items: r.items ?? [] }, language, (id) => leadUrl.get(`${r.story_id}:${id}`)),
+      itemsOf({ ...r, series, items: r.items ?? [] }, language, (id) =>
+        leadUrl.get(`${r.story_id}:${id}`),
+      ),
     );
     return { entries, links: new Map(entries.map((e) => [e.id, linksOf(e, names)])) };
   });

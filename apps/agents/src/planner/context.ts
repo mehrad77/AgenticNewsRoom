@@ -188,6 +188,7 @@ export async function pickFacts(
                     select q.title, (q.slot at time zone 'UTC')::date from publications q
                     where q.series_id = s.id and q.status in ('published', 'corrected')
                       and q.title is not null) x
+                  where t is not null
                   group by t order by max(at) desc limit 60) as earlier
      from series s join formats f on f.id = s.format_id, editorial_cycles c
      where s.id = $1 and c.id = $2`,
@@ -215,9 +216,11 @@ async function waitingEntries(
   earlier: string[],
 ): Promise<PickFacts["waiting"]> {
   const { rows } = await client.query<{ title: string; year: number | null; url: string | null }>(
-    `select e.title, (e.facts->>'year')::int as year, e.facts->>'url' as url
+    // Facts are imported JSON (D166): read, never cast, so one odd value cannot fail the pick.
+    `select e.title, e.facts->>'url' as url,
+            case when e.facts->>'year' ~ '^\\d{1,4}$' then (e.facts->>'year')::int end as year
      from reference_entries e
-     where e.listed and e.kind = $1 and (e.facts->>$2)::boolean
+     where e.listed and e.kind = $1 and e.facts->$2 = 'true'::jsonb
        and e.facts->>'piece' is null
        and not (lower(e.title) = any($3::text[]))
      order by e.date nulls last, e.title`,

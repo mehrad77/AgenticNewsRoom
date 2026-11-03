@@ -116,7 +116,7 @@ export function entriesOf(
   return withNewsroom(pool, newsroomId, async (c) => {
     const { rows } = await c.query<Row>(
       `select ${COLUMNS} from reference_entries
-       where listed and kind = $1 and ($2::text is null or (facts->>$2)::boolean)
+       where listed and kind = $1 and ($2::text is null or facts->$2 = 'true'::jsonb)
        order by ${ORDER[layout] ?? ORDER.document}`,
       [kind, fact ?? null],
     );
@@ -496,8 +496,13 @@ export function imagesOf(
       licence_url: string | null;
       source_url: string | null;
     }>(
-      `select e.id as entry, m.id, m.content_type, (e.facts->'image'->>'width')::int as width,
-              (e.facts->'image'->>'height')::int as height, m.description, m.credit_line,
+      // Facts are imported JSON (D166): a size that is not a whole number is no size.
+      `select e.id as entry, m.id, m.content_type,
+              case when e.facts->'image'->>'width' ~ '^\\d{1,5}$'
+                then (e.facts->'image'->>'width')::int end as width,
+              case when e.facts->'image'->>'height' ~ '^\\d{1,5}$'
+                then (e.facts->'image'->>'height')::int end as height,
+              m.description, m.credit_line,
               m.licence, m.licence_url, m.source_url
        from reference_entries e
        join media m on m.id::text = e.facts->'image'->>'media_id'

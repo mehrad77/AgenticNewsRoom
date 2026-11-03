@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { itemsOf, linksOf, nameIndex, TIMELINE_ITEM } from "./timeline.ts";
+import { itemsOf, linksOf, nameIndex, timelineSeriesOf } from "./timeline.ts";
 
 const piece = {
   id: "p1",
+  series: "daily-newsletter",
   path: "/daily-newsletter/2026-10-24",
   day: "2026-10-24",
   origin: "imported",
@@ -31,8 +32,10 @@ describe("itemsOf", () => {
   it("makes each news item a timeline entry linked to its piece", () => {
     const out = itemsOf(piece, "fa", (id) => (id === "c1" ? "https://lead.example/1" : undefined));
     expect(out).toHaveLength(2);
+    // Its kind names its series, so a link to it opens that series' timeline.
+    expect(timelineSeriesOf(out[0]?.kind ?? "")).toBe("daily-newsletter");
+    expect(timelineSeriesOf("paper")).toBeNull();
     expect(out[0]).toMatchObject({
-      kind: TIMELINE_ITEM,
       slug: "2026-10-24-claude-code-v2",
       titleLanguage: "en",
       date: "2026-10-24",
