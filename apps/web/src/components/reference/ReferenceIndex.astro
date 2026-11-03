@@ -1,0 +1,127 @@
+---
+// A kind's or a list's index (D170), drawn by its layout: a timeline by year and day with filters
+// (a plain GET form, so it works without scripts), documents as tiles grouped by month, or
+// profiles as a table, the most linked first.
+import type { Page } from "../../lib/page.ts";
+import {
+  dateLabel,
+  type Entry,
+  entryName,
+  groupBy,
+  linkedOrNull,
+  numberLabel,
+} from "../../lib/reference.ts";
+import { nameOf, targetNames, targetPath } from "../../lib/reference-config.ts";
+import DocumentTile from "./DocumentTile.astro";
+import Labels from "./Labels.astro";
+import TimelineItem from "./TimelineItem.astro";
+
+interface Props {
+  page: Extract<Page, { kind: "reference-index" }>;
+}
+const { page } = Astro.props;
+const { ref: w, language, target, entries, filters } = page;
+const n = (x: number) => numberLabel(x, language);
+const names = targetNames(target);
+const layout = target.kind.layout;
+const grouping =
+  names.grouping ?? (layout === "timeline" ? "year-day" : layout === "document" ? "month" : "none");
+const here = page.url(targetPath(target));
+const filterUrl = (fact: string, value: string) => `${here}?${fact}=${encodeURIComponent(value)}`;
+const filtered = filters.some((f) => f.selected);
+const years = groupBy(entries, (e) => (e.date ?? "").slice(0, 4)).map((y) => ({
+  ...y,
+  days: groupBy(y.entries, (e) => e.date ?? ""),
+}));
+const months = groupBy(entries, (e) => (e.date ?? "").slice(0, 7));
+const describe = (e: Entry) => {
+  const d = (e.facts.description as Record<string, string> | undefined) ?? {};
+  return d[language] ?? "";
+};
+---
+<h1>{nameOf(names.name, language)}</h1>
+{names.intro && <p class="ref-lead">{nameOf(names.intro, language)}</p>}
+<Labels label={page.label} aiPolicy={page.links.aiPolicy} imported={w.imported} />
+<div class="ref-stats">
+  <div class="ref-stat"><b>{n(page.total)}</b><span>{nameOf(names.name, language)}</span></div>
+  {layout !== "profile" && entries.length > 0 && entries[entries.length - 1]?.date && (
+    <div class="ref-stat"><b>{dateLabel(entries[entries.length - 1]?.date ?? null, language, "year")}</b><span>{dateLabel(entries[0]?.date ?? null, language, "year")}</span></div>
+  )}
+</div>
+
+{filters.length > 0 && (
+  <form class="ref-filters" method="get" action={here}>
+    {filters.map((f) => (
+      <label>{nameOf(f.name, language)}
+        <select name={f.fact}>
+          <option value="">{w.all}</option>
+          {f.values.map((v) => <option value={v.value} selected={v.value === f.selected}>{`${f.labels[v.value] ?? v.value} (${n(v.count)})`}</option>)}
+        </select>
+      </label>
+    ))}
+    <button>{w.filter}</button>
+    {filtered && <a href={here}>{w.clear}</a>}
+  </form>
+)}
+
+{entries.length === 0 && <p>{w.nothing}</p>}
+
+{layout === "timeline" && grouping === "year-day" && (
+  <>
+    <nav class="ref-jump" aria-label={nameOf(names.name, language)}>
+      {years.map((y) => <a href={`#y-${y.key}`}>{dateLabel(`${y.key}-01-01`, language, "year")}</a>)}
+    </nav>
+    {years.map((y) => (
+      <section class="ref-group" id={`y-${y.key}`}>
+        <h2>{dateLabel(`${y.key}-01-01`, language, "year")} <span class="ref-muted">{n(y.entries.length)}</span></h2>
+        {y.days.map((d) => (
+          <section class="ref-day">
+            <h3><time datetime={d.key}>{dateLabel(d.key, language)}</time></h3>
+            <ol class="ref-list">
+              {d.entries.map((e) => (
+                <TimelineItem entry={e} language={language} words={w} kind={target.kind} outLinks={linkedOrNull(page.outLinks, e.id)} entryUrl={page.entryUrl} filterUrl={filterUrl} />
+              ))}
+            </ol>
+          </section>
+        ))}
+      </section>
+    ))}
+  </>
+)}
+{layout === "timeline" && grouping !== "year-day" && (
+  <ol class="ref-list">
+    {entries.map((e) => (
+      <TimelineItem entry={e} language={language} words={w} kind={target.kind} outLinks={linkedOrNull(page.outLinks, e.id)} entryUrl={page.entryUrl} filterUrl={filterUrl} />
+    ))}
+  </ol>
+)}
+
+{layout === "document" && (grouping === "month" ? months : [{ key: "", entries }]).map((m) => (
+  <section class="ref-group">
+    {m.key && <h2>{dateLabel(`${m.key}-01`, language, "month")} <span class="ref-muted">{n(m.entries.length)}</span></h2>}
+    <ul class="ref-tiles">
+      {m.entries.map((e) => (
+        <DocumentTile entry={e} language={language} kind={target.kind} label={nameOf(names.one, language)} href={page.entryUrl(e.kind, e.slug) ?? "#"} />
+      ))}
+    </ul>
+  </section>
+))}
+
+{layout === "profile" && entries.length > 0 && (
+  <div class="ref-table-wrap wide">
+    <table class="ref-table">
+      <thead><tr><th>{nameOf(target.kind.one, language)}</th><th>{w.linkedFrom}</th></tr></thead>
+      <tbody>
+        {entries.map((e) => (
+          <tr>
+            <td>
+              <a href={page.entryUrl(e.kind, e.slug) ?? "#"} dir="auto">{entryName(e, language)}</a>
+              {describe(e) && <div class="ref-muted">{describe(e)}</div>}
+            </td>
+            <td class="ref-num">{n(page.counts.get(e.id) ?? 0)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+)}

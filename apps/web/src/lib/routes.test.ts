@@ -15,12 +15,13 @@ describe("route", () => {
 
   it("knows the Reference's pages", () => {
     expect(route("/reference")).toEqual({ kind: "reference" });
-    expect(route("/reference/news/")).toEqual({ kind: "reference-news" });
-    expect(route("/reference/classics")).toEqual({ kind: "reference-classics" });
+    expect(route("/reference/news/")).toEqual({ kind: "reference-index", path: "news" });
     expect(route("/reference/papers/turing-1936-computable-numbers")).toEqual({
-      kind: "reference-paper",
+      kind: "reference-entry",
+      path: "papers",
       slug: "turing-1936-computable-numbers",
     });
+    expect(route("/reference/artists/sezen-aksu")).toMatchObject({ kind: "reference-entry" });
     expect(route("/reference/papers/Bad_Slug")).toEqual({ kind: "not-found" });
   });
 

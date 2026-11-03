@@ -1,0 +1,84 @@
+# The AI newsroom's Reference (D162, D170): the kinds of entry it holds and how the site shows them.
+# Every name covers each of the newsroom's languages.
+intro:
+  fa: مقاله‌ها، خبرهای لابراتوارها و سازمان‌ها و افرادی که پشت پوشش ما هستند، یک‌جا.
+  en: The papers, lab news, organisations and people behind our coverage, kept in one place.
+nav: [classics, news-event, organisation]
+
+kinds:
+  paper:
+    path: papers
+    layout: document
+    name: { fa: مقاله‌ها, en: Papers }
+    one: { fa: مقاله, en: Paper }
+    grouping: month
+    sections:
+      - { key: overview, name: { fa: این مقاله چیست, en: What this paper is } }
+      - { key: problem, name: { fa: مسئله, en: The problem } }
+      - { key: idea, name: { fa: ایده و روش, en: Idea and method } }
+      - { key: why, name: { fa: چرا این مقاله تاریخی است, en: Why it is historic } }
+      - { key: story, name: { fa: ماجرای مقاله, en: The story of the paper } }
+      - { key: after, name: { fa: بعد از این مقاله چه شد, en: What came after } }
+      - { key: post, name: { fa: متن کانال, en: From the channel } }
+
+  news-event:
+    path: news
+    layout: timeline
+    name: { fa: اخبار لابراتوارها و محصولات, en: Lab news }
+    one: { fa: خبر, en: News item }
+    intro:
+      fa: "خط زمانی خبرهای لابراتوارهای هوش مصنوعی، از تازه‌ترین به قدیمی‌ترین: مدل‌ها، محصول‌ها، ابزارها، انتشارهای متن‌باز، سرمایه‌گذاری‌ها و خبرهای سازمانی. هر خبر پیوند رسمی خودش را دارد."
+      en: "A timeline of what the AI labs released, newest first: models, products, tools, open-source releases, funding and company news. Each item links to its official page."
+    grouping: year-day
+    filters:
+      - { fact: org, name: { fa: لابراتوار یا شرکت, en: Lab or company } }
+      - fact: news_kind
+        name: { fa: نوع خبر, en: Kind of news }
+        values:
+          model: { fa: مدل, en: Model }
+          product: { fa: محصول, en: Product }
+          tool: { fa: ابزار, en: Tool }
+          research-blog: { fa: پژوهش, en: Research }
+          open-source: { fa: متن‌باز, en: Open source }
+          funding: { fa: سرمایه‌گذاری, en: Funding }
+          org: { fa: سازمان, en: Organisation }
+          other: { fa: دیگر, en: Other }
+
+  organisation:
+    path: organisations
+    layout: profile
+    name: { fa: سازمان‌ها, en: Organisations }
+    one: { fa: سازمان, en: Organisation }
+    intro:
+      fa: لابراتوارها، شرکت‌ها، دانشگاه‌ها و پژوهشگاه‌هایی که در خبرها و مقاله‌های این مرجع آمده‌اند.
+      en: The labs, companies, universities and research institutes in this Reference's news and papers.
+    grouping: none
+
+  product:
+    path: products
+    layout: profile
+    name: { fa: محصول‌ها و مدل‌ها, en: Products and models }
+    one: { fa: محصول, en: Product }
+    grouping: none
+
+  person:
+    path: people
+    layout: profile
+    name: { fa: افراد, en: People }
+    one: { fa: فرد, en: Person }
+    intro:
+      fa: نویسنده‌هایی که بیش از یک مقاله در این مرجع دارند.
+      en: Authors with more than one paper in this Reference.
+    grouping: none
+
+lists:
+  classics:
+    path: classics
+    kind: paper
+    fact: classic
+    name: { fa: مقاله‌های کلاسیک, en: Classic papers }
+    one: { fa: مقاله‌ی کلاسیک, en: Classic paper }
+    intro:
+      fa: مقاله‌های پایه‌ای که کارهای امروز روی آن‌ها بنا شده‌اند، هرکدام با زمینه، ماجرا و اثرش.
+      en: The papers today's work is built on, each with its context, its story and what came after.
+    grouping: month

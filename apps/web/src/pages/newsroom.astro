@@ -3,10 +3,10 @@
 import Base from "../layouts/Base.astro";
 import "../styles/site.css";
 import "../styles/reference.css";
-import ClassicList from "../components/reference/ClassicList.astro";
-import NewsTimeline from "../components/reference/NewsTimeline.astro";
-import PaperEntry from "../components/reference/PaperEntry.astro";
+import DocumentEntry from "../components/reference/DocumentEntry.astro";
+import ProfileEntry from "../components/reference/ProfileEntry.astro";
 import ReferenceHome from "../components/reference/ReferenceHome.astro";
+import ReferenceIndex from "../components/reference/ReferenceIndex.astro";
 import { directionOf, pageUrl } from "@anr/core";
 import { challengeForm, sendChallenge } from "../lib/challenge.ts";
 import { db } from "../lib/db.ts";
@@ -15,7 +15,6 @@ import { loadPage } from "../lib/page.ts";
 import { imageResponse, mediaRoute, publishedImage } from "../lib/media.ts";
 import { audioResponse, countDownload, episodeAudio, feedRenderer, podcastFeed, readerAddress, podcastRoute } from "../lib/podcast.ts";
 import { newsroomBySubdomain } from "../lib/reader.ts";
-import { entryPath } from "../lib/reference.ts";
 import { route } from "../lib/routes.ts";
 
 const site = Astro.locals.site;
@@ -107,14 +106,18 @@ if (page.kind === "challenge") {
 }
 const name = page.newsroom.name[page.language] ?? page.newsroom.slug;
 const w = page.words;
-// The site's sections; the current one is marked for the reader (aria-current).
-const here = page.kind.startsWith("reference-paper") ? "reference-classics" : page.kind;
+// The site's sections: its latest pieces, the Reference's nav (reference.yaml) and the Reference
+// home, when the newsroom has one. The current one is marked for the reader (aria-current).
+const current = new URL(Astro.url).pathname.replace(/\/+$/, "");
 const sections = [
-  { kind: "home", href: page.links.home, label: w.latest },
-  { kind: "reference-classics", href: page.links.classics, label: page.ref.classics },
-  { kind: "reference-news", href: page.links.news, label: page.ref.news },
-  { kind: "reference", href: page.links.reference, label: page.ref.reference },
+  { href: page.links.home, label: w.latest },
+  ...page.referenceNav,
+  ...(page.referenceNav.length > 0 ? [{ href: page.links.reference, label: page.ref.reference }] : []),
 ];
+const isHere = (href: string) => {
+  const path = new URL(href).pathname.replace(/\/+$/, "");
+  return path === current || (path.length > 4 && current.startsWith(`${path}/`));
+};
 const date = (d: Date) =>
   new Intl.DateTimeFormat(page.language, { dateStyle: "long", timeZone: page.newsroom.timezone }).format(d);
 ---
@@ -132,7 +135,7 @@ const date = (d: Date) =>
   <header>
     <strong><a href={page.links.home}>{name}</a></strong>
     <nav aria-label={name}>
-      {sections.map((s) => <a href={s.href} aria-current={s.kind === here ? "page" : undefined}>{s.label}</a>)}
+      {sections.map((s) => <a href={s.href} aria-current={isHere(s.href) ? "page" : undefined}>{s.label}</a>)}
     </nav>
     <form action={page.links.search} method="get" role="search">
       <input type="search" name="q" placeholder={w.searchPlaceholder} value={page.kind === "search" ? page.query : ""} />
@@ -193,9 +196,9 @@ const date = (d: Date) =>
       </>
     )}
     {page.kind === "reference" && <ReferenceHome page={page} />}
-    {page.kind === "reference-news" && <NewsTimeline page={page} />}
-    {page.kind === "reference-classics" && <ClassicList page={page} />}
-    {page.kind === "reference-paper" && <PaperEntry page={page} />}
+    {page.kind === "reference-index" && <ReferenceIndex page={page} />}
+    {page.kind === "reference-entry" && page.target.kind.layout === "document" && <DocumentEntry page={page} />}
+    {page.kind === "reference-entry" && page.target.kind.layout === "profile" && <ProfileEntry page={page} />}
     {(page.kind === "home" || page.kind === "search") && (
       <>
         <h1>{page.kind === "home" ? w.latest : w.search}</h1>
@@ -213,7 +216,7 @@ const date = (d: Date) =>
             <h2>{page.ref.reference}</h2>
             <ul>
               {page.entries.map((e) => (
-                <li><a href={page.url(entryPath(e.kind, e.slug))} dir="auto">{e.title}</a>{e.date && <> · <time datetime={e.date}>{e.date}</time></>}</li>
+                <li><a href={page.entryUrl(e.kind, e.slug) ?? "#"} dir="auto">{e.title}</a>{e.date && <> · <time datetime={e.date}>{e.date}</time></>}</li>
               ))}
             </ul>
           </>

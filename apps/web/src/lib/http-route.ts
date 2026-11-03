@@ -14,9 +14,8 @@ const TEMPLATES = {
   publication: "/:series/:date",
   ninjs: "/:series/:date.json",
   reference: "/reference",
-  "reference-news": "/reference/news",
-  "reference-classics": "/reference/classics",
-  "reference-paper": "/reference/papers/:slug",
+  "reference-index": "/reference/:path",
+  "reference-entry": "/reference/:path/:slug",
   "not-found": "/*",
 } as const;
 

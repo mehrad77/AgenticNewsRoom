@@ -16,6 +16,7 @@
     "@anr/core": "workspace:*",
     "@anr/db": "workspace:*",
     "@anr/render": "workspace:*",
+    "@anr/schemas": "workspace:*",
     "@anr/storage": "workspace:*",
     "@anr/telemetry": "workspace:*",
     "@astrojs/node": "11.1.9",

@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anr.local/schemas/reference.schema.json",
+  "title": "ReferenceConfig",
+  "description": "config/newsrooms/<slug>/reference.yaml: the kinds of entry a newsroom's Reference holds and how its site shows them (D170). The site draws each kind with one of a fixed set of layouts; nothing here is a page builder. A newsroom without this file has no Reference.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kinds"],
+  "$defs": {
+    "names": {
+      "type": "object",
+      "description": "Text per language.",
+      "minProperties": 1,
+      "additionalProperties": { "type": "string", "minLength": 1 },
+      "propertyNames": { "enum": ["fa", "en", "tr"] }
+    },
+    "slug": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "grouping": {
+      "description": "How the kind's or list's index groups entries, newest first: by year then day, by month, or not at all (a table of names).",
+      "enum": ["year-day", "month", "none"]
+    }
+  },
+  "properties": {
+    "intro": {
+      "$ref": "#/$defs/names",
+      "description": "The Reference home's opening line."
+    },
+    "nav": {
+      "type": "array",
+      "description": "Kinds and lists linked from the site's header, in order.",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/slug" }
+    },
+    "kinds": {
+      "type": "object",
+      "description": "Each kind of entry, keyed by the kind stored on its entries.",
+      "minProperties": 1,
+      "propertyNames": { "pattern": "^[a-z][a-z0-9-]*$" },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "layout", "name", "one"],
+        "properties": {
+          "path": {
+            "$ref": "#/$defs/slug",
+            "description": "URL segment: the index at /reference/<path>, an entry at /reference/<path>/<slug> (a timeline kind's entries are anchors on its index)."
+          },
+          "layout": {
+            "enum": ["profile", "document", "timeline"],
+            "description": "profile: a name, a description, facts and what points at it. document: facts and text in sections. timeline: dated items on one page."
+          },
+          "name": {
+            "$ref": "#/$defs/names",
+            "description": "The kind's name for its index (plural)."
+          },
+          "one": { "$ref": "#/$defs/names", "description": "One entry of the kind (singular)." },
+          "intro": { "$ref": "#/$defs/names" },
+          "grouping": { "$ref": "#/$defs/grouping" },
+          "sections": {
+            "type": "array",
+            "description": "document: the text sections, in order, by the key in an entry's body.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["key", "name"],
+              "properties": {
+                "key": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+                "name": { "$ref": "#/$defs/names" }
+              }
+            }
+          },
+          "filters": {
+            "type": "array",
+            "description": "timeline: facts readers can filter by, with labels for their values.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["fact", "name"],
+              "properties": {
+                "fact": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+                "name": { "$ref": "#/$defs/names" },
+                "values": {
+                  "type": "object",
+                  "propertyNames": { "pattern": "^[a-z0-9][a-z0-9_-]*$" },
+                  "additionalProperties": { "$ref": "#/$defs/names" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "lists": {
+      "type": "object",
+      "description": "Named lists over one kind: its entries whose boolean fact is true (e.g. the classic papers among papers).",
+      "propertyNames": { "pattern": "^[a-z][a-z0-9-]*$" },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "kind", "fact", "name", "one"],
+        "properties": {
+          "path": { "$ref": "#/$defs/slug" },
+          "kind": { "$ref": "#/$defs/slug" },
+          "fact": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+          "name": { "$ref": "#/$defs/names" },
+          "one": { "$ref": "#/$defs/names" },
+          "intro": { "$ref": "#/$defs/names" },
+          "grouping": { "$ref": "#/$defs/grouping" }
+        }
+      }
+    }
+  }
+}

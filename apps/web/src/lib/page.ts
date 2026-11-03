@@ -17,17 +17,17 @@ import {
   type ReaderPublication,
   search,
 } from "./reader.ts";
+import { entryName, type FoundEntry, searchEntries } from "./reference.ts";
 import {
-  classicPapers,
-  type Entry,
-  entryBySlug,
-  type FoundEntry,
-  newsEvents,
-  type ReferenceCounts,
-  referenceCounts,
-  searchEntries,
-  str,
-} from "./reference.ts";
+  entryPath,
+  hasReference,
+  nameOf,
+  type ReferenceConfig,
+  targetByKey,
+  targetNames,
+  targetPath,
+} from "./reference-config.ts";
+import { loadReference, type ReferenceView } from "./reference-page.ts";
 import { REFERENCE_WORDS, type ReferenceWords } from "./reference-words.ts";
 import { route } from "./routes.ts";
 
@@ -46,12 +46,11 @@ interface Common {
   words: Words;
   ref: ReferenceWords;
   title: string;
-  links: ReturnType<typeof policyUrls> & {
-    search: string;
-    reference: string;
-    news: string;
-    classics: string;
-  };
+  links: ReturnType<typeof policyUrls> & { search: string; reference: string };
+  /** The Reference's kinds and lists in the header (`nav` in reference.yaml); empty without one. */
+  referenceNav: { key: string; href: string; label: string }[];
+  /** An entry's URL on this language's site, or null when the newsroom has no such kind. */
+  entryUrl: (kind: string, slug: string) => string | null;
   /** A path on this language's site as an absolute URL. */
   url: (path: string) => string;
   /** The same page in the newsroom's other languages, for the language switch. */
@@ -63,28 +62,7 @@ export type Page =
   | ({ kind: "not-found" } & Common)
   | ({ kind: "home"; pieces: Listed[] } & Common)
   | ({ kind: "search"; query: string; pieces: Listed[]; entries: FoundEntry[] } & Common)
-  | ({
-      kind: "reference";
-      counts: ReferenceCounts;
-      news: Entry[];
-      classics: Entry[];
-      label: string;
-    } & Common)
-  | ({
-      kind: "reference-news";
-      news: Entry[];
-      total: number;
-      filters: NewsFilters;
-      label: string;
-    } & Common)
-  | ({ kind: "reference-classics"; classics: Entry[]; label: string } & Common)
-  | ({
-      kind: "reference-paper";
-      entry: Entry;
-      newer: Entry | null;
-      older: Entry | null;
-      label: string;
-    } & Common)
+  | (ReferenceView & { label: string; reference: ReferenceConfig } & Common)
   | ({ kind: "ai-policy" } & Common)
   | ({ kind: "corrections"; corrections: Awaited<ReturnType<typeof corrections>> } & Common)
   | ({ kind: "challenge"; challenge: ChallengeStatus } & Common)
@@ -97,35 +75,6 @@ export type Page =
       digitalSourceType: string;
     } & Common)
   | { kind: "ninjs"; json: Record<string, unknown> };
-
-export interface NewsFilters {
-  org: string;
-  kind: string;
-  orgs: { value: string; count: number }[];
-  kinds: { value: string; count: number }[];
-}
-
-/** The timeline's filters, from the query, and the values present with their counts. */
-export function filterNews(
-  all: Entry[],
-  query: URLSearchParams,
-): { news: Entry[]; filters: NewsFilters } {
-  const org = query.get("org") ?? "";
-  const kind = query.get("kind") ?? "";
-  const count = (values: string[]) =>
-    [...values.reduce((m, v) => m.set(v, (m.get(v) ?? 0) + 1), new Map<string, number>())]
-      .map(([value, n]) => ({ value, count: n }))
-      .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value));
-  return {
-    news: all.filter((e) => (!org || e.facts.org === org) && (!kind || e.facts.news_kind === kind)),
-    filters: {
-      org,
-      kind,
-      orgs: count(all.map((e) => str(e.facts.org)).filter((x): x is string => !!x)),
-      kinds: count(all.map((e) => str(e.facts.news_kind) ?? "other")),
-    },
-  };
-}
 
 export async function loadPage(
   deps: PageDeps,
@@ -160,8 +109,22 @@ export async function loadPage(
       ...policyUrls(site, language),
       search: pageUrl(site, language, "/search"),
       reference: pageUrl(site, language, "/reference"),
-      news: pageUrl(site, language, "/reference/news"),
-      classics: pageUrl(site, language, "/reference/classics"),
+    },
+    referenceNav: (newsroom.reference.nav ?? []).flatMap((key) => {
+      const t = targetByKey(newsroom.reference, key);
+      return t
+        ? [
+            {
+              key,
+              href: pageUrl(site, language, targetPath(t)),
+              label: nameOf(targetNames(t).name, language),
+            },
+          ]
+        : [];
+    }),
+    entryUrl: (kind, slug) => {
+      const p = entryPath(newsroom.reference, kind, slug);
+      return p ? pageUrl(site, language, p) : null;
     },
     url: (p) => pageUrl(site, language, p),
     languages: newsroom.languages.map((l) => ({ language: l, url: pageUrl(site, l, path) })),
@@ -188,52 +151,31 @@ export async function loadPage(
       ]);
       return { kind: "search", query, pieces, entries, ...common(words.search, "/search") };
     }
-    case "reference": {
-      const [counts, news, classics] = await Promise.all([
-        referenceCounts(deps.pool, newsroom.id),
-        newsEvents(deps.pool, newsroom.id),
-        classicPapers(deps.pool, newsroom.id),
-      ]);
+    case "reference":
+    case "reference-index":
+    case "reference-entry": {
+      if (!hasReference(newsroom.reference))
+        return { kind: "not-found", ...common(words.notFound) };
+      const view = await loadReference(
+        deps.pool,
+        newsroom.id,
+        newsroom.reference,
+        language,
+        r,
+        request.query,
+      );
+      if (!view) return { kind: "not-found", ...common(words.notFound) };
+      const title =
+        view.kind === "reference"
+          ? ref.reference
+          : view.kind === "reference-entry"
+            ? entryName(view.entry, language)
+            : nameOf(targetNames(view.target).name, language);
       return {
-        kind: "reference",
-        counts,
-        news: news.slice(0, 5),
-        classics: classics.slice(0, 4),
+        ...view,
         label: await label(),
-        ...common(ref.reference, "/reference"),
-      };
-    }
-    case "reference-news": {
-      const all = await newsEvents(deps.pool, newsroom.id);
-      const { news, filters } = filterNews(all, request.query);
-      return {
-        kind: "reference-news",
-        news,
-        total: all.length,
-        filters,
-        label: await label(),
-        ...common(ref.news, "/reference/news"),
-      };
-    }
-    case "reference-classics":
-      return {
-        kind: "reference-classics",
-        classics: await classicPapers(deps.pool, newsroom.id),
-        label: await label(),
-        ...common(ref.classics, "/reference/classics"),
-      };
-    case "reference-paper": {
-      const entry = await entryBySlug(deps.pool, newsroom.id, "paper", r.slug);
-      if (!entry) return { kind: "not-found", ...common(words.notFound) };
-      const list = entry.facts.classic ? await classicPapers(deps.pool, newsroom.id) : [];
-      const at = list.findIndex((e) => e.id === entry.id);
-      return {
-        kind: "reference-paper",
-        entry,
-        newer: at > 0 ? (list[at - 1] ?? null) : null,
-        older: at >= 0 ? (list[at + 1] ?? null) : null,
-        label: await label(),
-        ...common(entry.title, `/reference/papers/${entry.slug}`),
+        reference: newsroom.reference,
+        ...common(title, request.path),
       };
     }
     case "ai-policy":

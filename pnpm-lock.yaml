@@ -176,6 +176,9 @@ importers:
       '@anr/render':
         specifier: workspace:*
         version: link:../../packages/render
+      '@anr/schemas':
+        specifier: workspace:*
+        version: link:../../packages/schemas
       '@anr/storage':
         specifier: workspace:*
         version: link:../../packages/storage

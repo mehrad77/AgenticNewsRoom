@@ -1,0 +1,83 @@
+---
+// One dated item of a timeline kind (D170): its date, its filter facts (a fact that names a linked
+// entry links to it), its title, its text, the entries it mentions and its links.
+import { directionOf, type Language } from "@anr/core";
+import {
+  dateLabel,
+  type Entry,
+  entryName,
+  linkFor,
+  links,
+  numberLabel,
+  type OutLink,
+  str,
+  strings,
+  textIn,
+} from "../../lib/reference.ts";
+import type { KindConfig } from "../../lib/reference-config.ts";
+import type { ReferenceWords } from "../../lib/reference-words.ts";
+
+interface Props {
+  entry: Entry;
+  language: Language;
+  words: ReferenceWords;
+  kind: KindConfig;
+  outLinks: OutLink[];
+  entryUrl: (kind: string, slug: string) => string | null;
+  filterUrl: (fact: string, value: string) => string;
+}
+const { entry: e, language, words: w, kind, outLinks, entryUrl, filterUrl } = Astro.props;
+const f = e.facts;
+const text = textIn(e, language);
+const url = str(f.url);
+const urlType = str(f.url_type) ?? "official";
+const facts = (kind.filters ?? []).flatMap((filter) => {
+  const value = str(f[filter.fact]);
+  if (!value) return [];
+  const configured = (filter.values?.[value] as Record<string, string> | undefined)?.[language];
+  const own = (f[`${filter.fact}_names`] as Record<string, string> | undefined)?.[language];
+  const link = linkFor(outLinks, "made-by", value);
+  return [
+    {
+      label: configured ?? own ?? value,
+      href: link ? entryUrl(link.toKind, link.toSlug) : null,
+      chip: !link && !!filter.values,
+      filterHref: filterUrl(filter.fact, value),
+    },
+  ];
+});
+const mentions = outLinks.filter((l) => l.kind === "mentions");
+const telegram = strings(f.telegram);
+---
+<li class="ref-news" id={e.slug}>
+  <div class="ref-meta">
+    <time datetime={e.date}>{dateLabel(e.date, language)}</time>
+    {e.dateStatus === "approximate" && <span>{w.approximate}</span>}
+    {facts.map((x) =>
+      x.chip ? (
+        <a class="ref-chip" href={x.filterHref}>{x.label}</a>
+      ) : (
+        <>
+          <span aria-hidden="true">·</span>
+          {x.href ? <a href={x.href}><b>{x.label}</b></a> : <b>{x.label}</b>}
+        </>
+      ),
+    )}
+  </div>
+  <h4 dir="ltr" lang={e.titleLanguage}>{url ? <a href={url} rel="noopener">{e.title}</a> : e.title}</h4>
+  {text && str(text.body.summary) && <p lang={text.language} dir={directionOf(text.language)}>{str(text.body.summary)}</p>}
+  {mentions.length > 0 && (
+    <p class="ref-meta">
+      {w.related}:
+      {mentions.map((m) => {
+        const href = entryUrl(m.toKind, m.toSlug);
+        return href ? <a class="ref-chip" href={href} dir="auto">{m.label}</a> : <span class="ref-chip" dir="auto">{m.label}</span>;
+      })}
+    </p>
+  )}
+  <div class="ref-links">
+    {url && <a href={url} rel="noopener">{w.urlTypes[urlType] ?? w.urlTypes.other}</a>}
+    {links(f.links).map((l) => <a href={l.url} rel="noopener" dir="auto">{l.label}</a>)}
+    {telegram.map((t) => <a href={t} rel="noopener">{w.telegramPost(numberLabel(Number(t.split("/").pop()), language))}</a>)}
+  </div>
+</li>

@@ -57,6 +57,9 @@ interface Row {
 
 const COLUMNS =
   "id, kind, slug, title, title_language, to_char(date, 'YYYY-MM-DD') as date, date_status, facts, body, origin";
+/** The same columns of the entry aliased `e`. */
+const E_COLUMNS =
+  "e.id, e.kind, e.slug, e.title, e.title_language, to_char(e.date, 'YYYY-MM-DD') as date, e.date_status, e.facts, e.body, e.origin";
 
 const entry = (r: Row): Entry => ({
   id: r.id,
@@ -71,60 +74,50 @@ const entry = (r: Row): Entry => ({
   origin: r.origin,
 });
 
-/** Classic papers are paper entries with `facts.classic`. */
-const CLASSIC = "kind = 'paper' and (facts->>'classic')::boolean";
-
-export interface ReferenceCounts {
-  news: number;
-  classics: number;
-  newsOldest: string | null;
-  newsNewest: string | null;
+export interface KindCount {
+  kind: string;
+  count: number;
+  oldest: string | null;
+  newest: string | null;
 }
 
-export function referenceCounts(pool: Pool, newsroomId: string): Promise<ReferenceCounts> {
+/** How many listed entries each kind has, and its date range. */
+export function kindCounts(pool: Pool, newsroomId: string): Promise<KindCount[]> {
   return withNewsroom(pool, newsroomId, async (c) => {
-    const { rows } = await c.query<{
-      news: number;
-      classics: number;
-      oldest: string | null;
-      newest: string | null;
-    }>(
-      `select count(*) filter (where kind = 'news-event')::int as news,
-              count(*) filter (where ${CLASSIC})::int as classics,
-              to_char(min(date) filter (where kind = 'news-event'), 'YYYY-MM-DD') as oldest,
-              to_char(max(date) filter (where kind = 'news-event'), 'YYYY-MM-DD') as newest
-       from reference_entries where listed`,
+    const { rows } = await c.query<KindCount>(
+      `select kind, count(*)::int as count,
+              to_char(min(date), 'YYYY-MM-DD') as oldest, to_char(max(date), 'YYYY-MM-DD') as newest
+       from reference_entries where listed group by kind`,
     );
-    const r = rows[0];
-    return {
-      news: r?.news ?? 0,
-      classics: r?.classics ?? 0,
-      newsOldest: r?.oldest ?? null,
-      newsNewest: r?.newest ?? null,
-    };
+    return rows;
   });
 }
 
-/** The news timeline, newest first; the same day keeps the order the entries were recorded in. */
-export function newsEvents(pool: Pool, newsroomId: string): Promise<Entry[]> {
-  return withNewsroom(pool, newsroomId, async (c) => {
-    const { rows } = await c.query<Row>(
-      `select ${COLUMNS} from reference_entries
-       where listed and kind = 'news-event'
-       order by date desc nulls last, created_at desc,
-                substring(legacy_id from '^lab-news:(\\d+)$')::int desc nulls first`,
-    );
-    return rows.map(entry);
-  });
-}
+const ORDER: Record<string, string> = {
+  // Newest first; on one day, the order the source recorded them in (its numeric legacy id).
+  timeline: `date desc nulls last, created_at desc,
+             substring(legacy_id from ':(\\d+)$')::int desc nulls first`,
+  document: "date desc nulls last, slug",
+  profile: "title",
+};
 
-/** Classic papers, newest first, as the old archive listed them. */
-export function classicPapers(pool: Pool, newsroomId: string): Promise<Entry[]> {
+/**
+ * A kind's listed entries in its layout's order, optionally only those whose boolean `fact` is
+ * true (a list, D170).
+ */
+export function entriesOf(
+  pool: Pool,
+  newsroomId: string,
+  kind: string,
+  layout: string,
+  fact?: string,
+): Promise<Entry[]> {
   return withNewsroom(pool, newsroomId, async (c) => {
     const { rows } = await c.query<Row>(
       `select ${COLUMNS} from reference_entries
-       where listed and ${CLASSIC}
-       order by date desc nulls last, slug`,
+       where listed and kind = $1 and ($2::text is null or (facts->>$2)::boolean)
+       order by ${ORDER[layout] ?? ORDER.document}`,
+      [kind, fact ?? null],
     );
     return rows.map(entry);
   });
@@ -143,6 +136,58 @@ export function entryBySlug(
     );
     return rows[0] ? entry(rows[0]) : null;
   });
+}
+
+/** A link from an entry to another, as the page shows it: the name the source wrote, linked. */
+export interface OutLink {
+  kind: string;
+  label: string;
+  toKind: string;
+  toSlug: string;
+}
+
+/** The links out of these entries, by entry id; only to entries that are listed. */
+export function linksFrom(
+  pool: Pool,
+  newsroomId: string,
+  entryIds: string[],
+): Promise<Map<string, OutLink[]>> {
+  return withNewsroom(pool, newsroomId, async (c) => {
+    const { rows } = await c.query<
+      OutLink & { from_entry: string; to_kind: string; to_slug: string }
+    >(
+      `select l.from_entry, l.kind, l.label, t.kind as to_kind, t.slug as to_slug
+       from reference_entry_links l join reference_entries t on t.id = l.to_entry
+       where l.from_entry = any($1::uuid[]) and t.listed`,
+      [entryIds],
+    );
+    const out = new Map<string, OutLink[]>();
+    for (const r of rows) {
+      const list = out.get(r.from_entry) ?? [];
+      list.push({ kind: r.kind, label: r.label, toKind: r.to_kind, toSlug: r.to_slug });
+      out.set(r.from_entry, list);
+    }
+    return out;
+  });
+}
+
+/** The listed entries that point at an entry, newest first. */
+export function entriesLinkingTo(pool: Pool, newsroomId: string, entryId: string) {
+  return withNewsroom(pool, newsroomId, async (c) => {
+    const { rows } = await c.query<Row>(
+      `select distinct on (e.date, e.id) ${E_COLUMNS}
+       from reference_entry_links l join reference_entries e on e.id = l.from_entry
+       where l.to_entry = $1 and e.listed
+       order by e.date desc nulls last, e.id`,
+      [entryId],
+    );
+    return rows.map(entry);
+  });
+}
+
+/** The link that names this text on an entry, if any. */
+export function linkFor(links: OutLink[] | undefined, kind: string, label: string) {
+  return links?.find((l) => l.kind === kind && l.label === label) ?? null;
 }
 
 export interface FoundEntry {
@@ -167,13 +212,6 @@ export function searchEntries(pool: Pool, newsroomId: string, query: string) {
     );
     return rows.map(({ kind, slug, title, date }) => ({ kind, slug, title, date }));
   });
-}
-
-/** An entry's path on the site: papers have pages, news events are anchors on the timeline. */
-export function entryPath(kind: string, slug: string): string {
-  if (kind === "news-event") return `/reference/news#${slug}`;
-  if (kind === "paper") return `/reference/papers/${slug}`;
-  return `/reference/${kind}/${slug}`;
 }
 
 // ---------------------------------------------------------------- text
@@ -369,3 +407,58 @@ export function sectionsIn(
     return [];
   });
 }
+
+/** How many listed entries point at each of these entries. */
+export function linkedCounts(
+  pool: Pool,
+  newsroomId: string,
+  entryIds: string[],
+): Promise<Map<string, number>> {
+  return withNewsroom(pool, newsroomId, async (c) => {
+    const { rows } = await c.query<{ to_entry: string; n: number }>(
+      `select l.to_entry, count(distinct l.from_entry)::int as n
+       from reference_entry_links l join reference_entries f on f.id = l.from_entry
+       where l.to_entry = any($1::uuid[]) and f.listed group by l.to_entry`,
+      [entryIds],
+    );
+    return new Map(rows.map((r) => [r.to_entry, r.n]));
+  });
+}
+
+/** An entry's name in the page's language (`facts.names`), else its title as the source wrote it. */
+export function entryName(entry: Pick<Entry, "facts" | "title">, language: Language): string {
+  const names = entry.facts.names as Partial<Record<Language, string>> | undefined;
+  return names?.[language] ?? entry.title;
+}
+
+/** Listed entries by their Wikidata QID (`facts.qid`), so a profile links the people and places it names. */
+export function entriesByQid(
+  pool: Pool,
+  newsroomId: string,
+  qids: string[],
+): Promise<Map<string, { kind: string; slug: string }>> {
+  if (qids.length === 0) return Promise.resolve(new Map());
+  return withNewsroom(pool, newsroomId, async (c) => {
+    const { rows } = await c.query<{ qid: string; kind: string; slug: string }>(
+      `select facts->>'qid' as qid, kind, slug from reference_entries
+       where listed and facts->>'qid' = any($1::text[])`,
+      [qids],
+    );
+    return new Map(rows.map((r) => [r.qid, { kind: r.kind, slug: r.slug }]));
+  });
+}
+
+/** The QIDs a profile's Wikidata facts name (founders, parent, employer…). */
+export function qidsIn(facts: Record<string, unknown>): string[] {
+  const wd = facts.wikidata as Record<string, unknown> | undefined;
+  if (!wd) return [];
+  return Object.values(wd).flatMap((v) =>
+    Array.isArray(v)
+      ? v.flatMap((x) => (x && typeof x === "object" && typeof x.qid === "string" ? [x.qid] : []))
+      : [],
+  );
+}
+
+/** An entry's links out, or none. */
+export const linkedOrNull = (links: Map<string, OutLink[]>, entryId: string): OutLink[] =>
+  links.get(entryId) ?? [];

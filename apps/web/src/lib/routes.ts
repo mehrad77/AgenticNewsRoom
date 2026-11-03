@@ -8,11 +8,13 @@ export type Route =
   /** A reader's own challenge, opened with the token in its link (D114). */
   | { kind: "challenge"; id: string }
   | { kind: "publication"; path: string }
-  /** The Reference (D162): its home, the news timeline, the classic papers and a paper's page. */
+  /**
+   * The Reference (D162): its home, a kind's or a list's index at `/reference/<path>`, and an
+   * entry's page at `/reference/<path>/<slug>`. Which paths exist is the newsroom's config (D170).
+   */
   | { kind: "reference" }
-  | { kind: "reference-news" }
-  | { kind: "reference-classics" }
-  | { kind: "reference-paper"; slug: string }
+  | { kind: "reference-index"; path: string }
+  | { kind: "reference-entry"; path: string; slug: string }
   /** The publication's ninjs 3.2 twin: its page URL plus `.json`. */
   | { kind: "ninjs"; path: string }
   | { kind: "not-found" };
@@ -27,10 +29,9 @@ export function route(path: string): Route {
   if (p === "/ai-policy") return { kind: "ai-policy" };
   if (p === "/corrections") return { kind: "corrections" };
   if (p === "/reference") return { kind: "reference" };
-  if (p === "/reference/news") return { kind: "reference-news" };
-  if (p === "/reference/classics") return { kind: "reference-classics" };
-  const paper = /^\/reference\/papers\/([a-z0-9][a-z0-9-]*)$/.exec(p);
-  if (paper?.[1]) return { kind: "reference-paper", slug: paper[1] };
+  const ref = /^\/reference\/([a-z][a-z0-9-]*)(?:\/([a-z0-9][a-z0-9-]*))?$/.exec(p);
+  if (ref?.[1] && ref[2]) return { kind: "reference-entry", path: ref[1], slug: ref[2] };
+  if (ref?.[1]) return { kind: "reference-index", path: ref[1] };
   const challenge = /^\/challenge\/([0-9a-f-]{36})$/.exec(p);
   if (challenge?.[1]) return { kind: "challenge", id: challenge[1] };
   if (p.endsWith(".json") && PUBLICATION.test(p.slice(0, -5)))

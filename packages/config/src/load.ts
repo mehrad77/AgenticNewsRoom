@@ -8,6 +8,8 @@ export interface RawNewsroom {
   newsroom: unknown;
   policy: unknown;
   sources: unknown;
+  /** reference.yaml; undefined when the newsroom has no Reference (D170). */
+  reference: unknown;
   series: Record<string, unknown>;
   hasStyleGuide: boolean;
 }
@@ -74,6 +76,7 @@ export function loadConfig(root: string): RawConfig {
           ? (readYaml(join(dir, "sources.yaml")) ?? [])
           : undefined,
         series,
+        reference: readYaml(join(dir, "reference.yaml")),
         hasStyleGuide: existsSync(join(dir, "style.md")),
       };
     }),

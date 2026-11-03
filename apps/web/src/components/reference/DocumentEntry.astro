@@ -1,0 +1,173 @@
+---
+// A document-kind entry's page (D170): its facts (authors and affiliations link to their entries),
+// its text in the kind's configured sections, excerpts, related works, what points at it, and
+// links. Imported text carries its label beside the AI disclosure (D164).
+import { directionOf } from "@anr/core";
+import type { Page } from "../../lib/page.ts";
+import {
+  type DatePrecision,
+  dateLabel,
+  excerpts,
+  linkFor,
+  links,
+  numberLabel,
+  refs,
+  sectionsIn,
+  str,
+  strings,
+  textHtml,
+  textIn,
+} from "../../lib/reference.ts";
+import { nameOf, targetPath } from "../../lib/reference-config.ts";
+import Incoming from "./Incoming.astro";
+import Labels from "./Labels.astro";
+
+interface Props {
+  page: Extract<Page, { kind: "reference-entry" }>;
+}
+const { page } = Astro.props;
+const { ref: w, language, entry: e, target } = page;
+const f = e.facts;
+const configured = target.kind.sections ?? [];
+const sections = sectionsIn(e, language, configured.map((s) => s.key));
+const sectionName = (key: string) =>
+  nameOf(configured.find((s) => s.key === key)?.name, language);
+const untranslated = sections.some((s) => s.language !== language);
+const text = textIn(e, language);
+const quotes = excerpts(text?.body.excerpts);
+const quoteDir = directionOf(text?.language ?? language);
+const precision = (str(f.date_precision) ?? "day") as DatePrecision;
+const authors = strings(f.authors);
+const affiliations = strings(f.affiliations);
+const linkOf = (kind: string, label: string) => {
+  const l = linkFor(page.outLinks, kind, label);
+  return l ? page.entryUrl(l.toKind, l.toSlug) : null;
+};
+const citations =
+  f.citations && typeof f.citations === "object" ? (f.citations as Record<string, unknown>) : null;
+const citeSource =
+  str(citations?.source)?.match(/Semantic Scholar|OpenAlex|CrossRef/i)?.[0] ?? "Semantic Scholar";
+const citeSourceLabel =
+  language === "fa" && /semantic/i.test(citeSource) ? "سمنتیک اسکالر" : citeSource;
+const related = [
+  { key: "references", label: w.references, refs: refs(f.references) },
+  { key: "cited-by", label: w.citedBy, refs: refs(f.cited_by) },
+].filter((g) => g.refs.length > 0);
+const sources = links(f.sources);
+const telegram = strings(f.telegram);
+const url = str(f.url);
+const list = Object.values(page.reference.lists ?? {}).find(
+  (l) => l.kind === target.kindKey && f[l.fact] === true,
+);
+const crumb = list
+  ? { href: page.url(`/reference/${list.path}`), label: nameOf(list.one, language) }
+  : { href: page.url(targetPath(target)), label: nameOf(target.kind.one, language) };
+---
+<div class="ref-page">
+  <article>
+    <p class="ref-eyebrow">
+      <a href={crumb.href}>{crumb.label}</a>
+      {str(f.arxiv_id) && <> · <bdi dir="ltr">arXiv:{str(f.arxiv_id)}</bdi></>}
+    </p>
+    <h1 class="ref-title" dir="ltr" lang={e.titleLanguage}>{url ? <a href={url} rel="noopener">{e.title}</a> : e.title}</h1>
+    <Labels label={page.label} aiPolicy={page.links.aiPolicy} imported={e.origin === "imported" ? w.imported : null} />
+    <dl class="ref-facts">
+      {e.date && <><dt>{w.facts.date}</dt><dd><time datetime={e.date}>{dateLabel(e.date, language, precision)}</time></dd></>}
+      {authors.length > 0 && (
+        <><dt>{w.facts.authors}</dt><dd><bdi dir="ltr" class="ref-latin">{authors.map((a, i) => {
+          const href = linkOf("written-by", a);
+          return <>{i > 0 && ", "}{href ? <a href={href}>{a}</a> : a}</>;
+        })}</bdi></dd></>
+      )}
+      {str(f.venue) && <><dt>{w.facts.venue}</dt><dd><bdi dir="ltr" class="ref-latin">{str(f.venue)}</bdi></dd></>}
+      {citations && typeof citations.count === "number" && (
+        <><dt>{w.facts.citationsLabel}</dt><dd>{w.facts.citations(new Intl.NumberFormat(language).format(citations.count), citeSourceLabel, str(citations.as_of) ? dateLabel(str(citations.as_of), language) : "")}</dd></>
+      )}
+      {affiliations.length > 0 && (
+        <><dt>{w.facts.affiliations}</dt><dd><bdi dir="ltr" class="ref-latin">{affiliations.map((a, i) => {
+          const href = linkOf("affiliated-with", a);
+          return <>{i > 0 && "; "}{href ? <a href={href}>{a}</a> : a}</>;
+        })}</bdi></dd></>
+      )}
+    </dl>
+
+    {untranslated && <p class="ref-muted">{w.untranslated}</p>}
+    {sections.length > 0 && (
+      <section>
+        <h2>{w.text}</h2>
+        {sections.map((s) => (
+          <div class="ref-panel" data-section={s.name}>
+            <h3>{sectionName(s.name)}</h3>
+            <div lang={s.language} dir={directionOf(s.language)} set:html={textHtml(s.text)} />
+          </div>
+        ))}
+      </section>
+    )}
+
+    {quotes.length > 0 && (
+      <section dir={quoteDir}>
+        <h2>{w.excerpts}</h2>
+        {quotes.map((q) => (
+          <div class="ref-panel" data-section="excerpt">
+            {q.location && <h3><bdi dir="ltr">{q.location}</bdi></h3>}
+            <blockquote dir="ltr" lang="en">{q.original}</blockquote>
+            {q.translation && <p>{q.translation}</p>}
+            {q.note && <p class="ref-muted">{q.note}</p>}
+          </div>
+        ))}
+      </section>
+    )}
+
+    {related.length > 0 && (
+      <section>
+        <h2>{w.relatedWorks}</h2>
+        {related.map((g) => (
+          <div class="ref-panel" data-section={g.key}>
+            <h3>{g.label}</h3>
+            <ul>
+              {g.refs.map((r) => {
+                const href = r.entry ? page.entryUrl(r.entry.kind, r.entry.slug) : r.url;
+                const note = language === "fa" ? r.note : (r.noteEn ?? r.note);
+                return (
+                  <li>
+                    {href ? <a href={href} rel={r.entry ? undefined : "noopener"}><bdi dir="ltr" lang="en">{r.title}</bdi></a> : <bdi dir="ltr" lang="en">{r.title}</bdi>}
+                    {r.year && <span class="ref-muted"> ({numberLabel(r.year, language)})</span>}
+                    {note && <span class="ref-muted" dir="auto"> {note}</span>}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+      </section>
+    )}
+
+    <Incoming groups={page.incoming} links={page.incomingLinks} reference={page.reference} language={language} words={w} entryUrl={page.entryUrl} url={page.url} />
+
+    <nav class="ref-pager" aria-label={crumb.label}>
+      {page.newer ? <a href={page.entryUrl(page.newer.kind, page.newer.slug) ?? "#"}><span>{w.newer}</span><bdi dir="ltr" lang="en">{page.newer.title}</bdi></a> : <span />}
+      {page.older ? <a href={page.entryUrl(page.older.kind, page.older.slug) ?? "#"}><span>{w.older}</span><bdi dir="ltr" lang="en">{page.older.title}</bdi></a> : <span />}
+    </nav>
+  </article>
+
+  <aside class="ref-side">
+    {sources.length > 0 && (
+      <>
+        <h2>{w.sources}</h2>
+        <ul dir="ltr" lang="en">{sources.map((l) => <li><a href={l.url} rel="noopener">{l.label}</a></li>)}</ul>
+      </>
+    )}
+    {url && sources.length === 0 && (
+      <>
+        <h2>{w.links}</h2>
+        <ul><li><a href={url} rel="noopener" dir="ltr">{url}</a></li></ul>
+      </>
+    )}
+    {telegram.length > 0 && (
+      <>
+        <h2>{w.onTelegram}</h2>
+        <ul>{telegram.map((t) => <li><a href={t} rel="noopener">{w.telegramPost(numberLabel(Number(t.split("/").pop()), language))}</a></li>)}</ul>
+      </>
+    )}
+  </aside>
+</div>

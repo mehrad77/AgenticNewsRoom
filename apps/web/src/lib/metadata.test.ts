@@ -26,6 +26,7 @@ const newsroom: ReaderNewsroom = {
   timezone: "Europe/Istanbul",
   editorInChief: "Mehrad Rousta",
   correctionsOwner: "Mehrad Rousta",
+  reference: { kinds: {} },
 };
 const publication: ReaderPublication = {
   id: "p1",

@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   dateLabel,
-  entryPath,
   groupBy,
   inlineHtml,
   links,
@@ -90,10 +89,5 @@ describe("facts", () => {
       },
       { title: "U", year: null, note: null, noteEn: null, entry: null, url: null },
     ]);
-  });
-
-  it("knows where an entry lives", () => {
-    expect(entryPath("paper", "turing-1936")).toBe("/reference/papers/turing-1936");
-    expect(entryPath("news-event", "2026-10-24-x")).toBe("/reference/news#2026-10-24-x");
   });
 });

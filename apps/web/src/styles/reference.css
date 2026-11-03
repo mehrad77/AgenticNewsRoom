@@ -302,3 +302,30 @@
 [dir="rtl"] :is(.ref-title, .ref-tile h3, .ref-news h4) {
   text-align: right;
 }
+
+/* Profile index */
+.ref-table-wrap {
+  overflow-x: auto;
+}
+.ref-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface-raised);
+  border: 1px solid var(--stroke);
+}
+.ref-table th,
+.ref-table td {
+  padding: 0.6rem 0.9rem;
+  text-align: start;
+  border-bottom: 1px solid var(--stroke);
+  vertical-align: top;
+}
+.ref-table th {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  background: var(--surface-sunken);
+}
+.ref-table .ref-num {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}

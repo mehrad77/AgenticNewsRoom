@@ -2,10 +2,11 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { directionOf, type Language, RESERVED_SUBDOMAINS } from "@anr/core";
-import { type ModelsSchema, roleChains } from "@anr/schemas";
+import { type ModelsSchema, type ReferenceSchema, roleChains } from "@anr/schemas";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import addFormatsModule from "ajv-formats";
 import type { RawConfig } from "./load.ts";
+import { referenceProblems } from "./reference.ts";
 import { cronDaily, cronEvery, cronWeekly } from "./schedules.ts";
 
 const require = createRequire(import.meta.url);
@@ -162,6 +163,7 @@ export function validateConfig(config: RawConfig): string[] {
     policy: validator("policy"),
     sources: validator("sources"),
     series: validator("series"),
+    reference: validator("reference"),
     format: validator("format"),
   };
   const mediaTopics = liveQcodes("mediatopic");
@@ -238,6 +240,15 @@ export function validateConfig(config: RawConfig): string[] {
         errors.push(`${at}/sources.yaml source ${s.id}: ${(error as Error).message}`);
       }
     }
+
+    if (n.reference !== undefined && check(v.reference, n.reference, `${at}/reference.yaml`))
+      errors.push(
+        ...referenceProblems(
+          n.reference as ReferenceSchema,
+          newsroom.languages,
+          `${at}/reference.yaml`,
+        ),
+      );
 
     if (okPolicy) {
       const beats = (n.policy as { beats: Record<string, { media_topics: string[] }> }).beats;

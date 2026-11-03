@@ -4,6 +4,7 @@
 import type { Language } from "@anr/core";
 import { type Pool, withNewsroom } from "@anr/db";
 import { type MediaContext, mediaContext } from "@anr/render";
+import type { ReferenceSchema } from "@anr/schemas";
 
 /** The statuses a reader may see; also the predicate of the search and listing indexes. */
 const VISIBLE = "status in ('published', 'corrected')";
@@ -17,6 +18,8 @@ export interface ReaderNewsroom {
   timezone: string;
   editorInChief: string;
   correctionsOwner: string;
+  /** The newsroom's Reference config (reference.yaml, D170); no kinds when it has none. */
+  reference: ReferenceSchema;
 }
 
 export interface Listed {
@@ -64,8 +67,10 @@ export async function newsroomBySubdomain(
     timezone: string;
     editor_in_chief: string;
     corrections_owner: string;
+    reference: Partial<ReferenceSchema>;
   }>(
-    `select id, slug, subdomain, name, languages, timezone, editor_in_chief, corrections_owner
+    `select id, slug, subdomain, name, languages, timezone, editor_in_chief, corrections_owner,
+            reference
      from newsrooms where subdomain = $1 and removed_at is null`,
     [subdomain],
   );
@@ -80,6 +85,7 @@ export async function newsroomBySubdomain(
     timezone: n.timezone,
     editorInChief: n.editor_in_chief,
     correctionsOwner: n.corrections_owner,
+    reference: { ...n.reference, kinds: n.reference.kinds ?? {} },
   };
 }
 
