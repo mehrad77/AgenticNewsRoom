@@ -106,7 +106,7 @@ export type NoticeKind = (typeof NOTICE_KINDS)[number];
 
 /** Where a media item's licence comes from (D16, D119): a press kit, recorded by a person, or a
  * free Wikimedia Commons licence, recorded by code. */
-export const LICENCE_KINDS = ["press-kit", "commons"] as const;
+export const LICENCE_KINDS = ["press-kit", "commons", "own"] as const;
 export type LicenceKind = (typeof LICENCE_KINDS)[number];
 
 /** An editor's verdict on a sampled auto-published publication (D94). */

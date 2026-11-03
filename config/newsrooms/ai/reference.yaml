@@ -11,17 +11,9 @@ kinds:
     name: { fa: مقاله‌ها, en: Papers }
     one: { fa: مقاله, en: Paper }
     intro:
-      fa: مقاله‌های پژوهشی که هوش مصنوعی امروز روی آن‌ها ساخته شده، هر کدام با خلاصه‌ای از مسئله، ایده و آنچه بعدش آمد.
-      en: The research papers today's AI is built on, each summarised by its problem, its idea and what came after.
+      fa: مقاله‌های پژوهشی که هوش مصنوعی امروز روی آن‌ها ساخته شده، با نویسنده‌ها، تاریخ، محل انتشار و آنچه درباره‌شان نوشته‌ایم.
+      en: The research papers today's AI is built on, with their authors, dates, venues and what we have written about them.
     grouping: month
-    sections:
-      - { key: overview, name: { fa: این مقاله چیست, en: What this paper is } }
-      - { key: problem, name: { fa: مسئله, en: The problem } }
-      - { key: idea, name: { fa: ایده و روش, en: Idea and method } }
-      - { key: why, name: { fa: چرا این مقاله تاریخی است, en: Why it is historic } }
-      - { key: story, name: { fa: ماجرای مقاله, en: The story of the paper } }
-      - { key: after, name: { fa: بعد از این مقاله چه شد, en: What came after } }
-      - { key: post, name: { fa: متن کانال, en: From the channel } }
 
   organisation:
     path: organisations
@@ -52,15 +44,3 @@ kinds:
       fa: نویسنده‌هایی که بیش از یک مقاله در این مرجع دارند.
       en: Authors with more than one paper in this Reference.
     grouping: none
-
-lists:
-  classics:
-    path: classics
-    kind: paper
-    fact: classic
-    name: { fa: مقاله‌های کلاسیک, en: Classic papers }
-    one: { fa: مقاله‌ی کلاسیک, en: Classic paper }
-    intro:
-      fa: مقاله‌های پایه‌ای که کارهای امروز روی آن‌ها بنا شده‌اند، هرکدام با زمینه، ماجرا و اثرش.
-      en: The papers today's work is built on, each with its context, its story and what came after.
-    grouping: month

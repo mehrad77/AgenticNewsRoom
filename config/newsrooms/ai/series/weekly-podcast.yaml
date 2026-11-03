@@ -18,3 +18,9 @@ channels:
   podcast-rss: [fa, en] # one feed per language
   site: [fa, en]
   telegram: [fa]
+# Its page, listing every episode, and its link in the site's header (D179).
+index:
+  name: { fa: پادکست, en: Podcast }
+  intro:
+    fa: اپیزودهای پادکست اتاق خبر، با صدای هوش مصنوعی.
+    en: The newsroom's podcast episodes, voiced by AI.

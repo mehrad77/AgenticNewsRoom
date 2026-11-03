@@ -71,9 +71,20 @@
           "enum": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
         },
         "from": {
-          "type": "string",
-          "pattern": "^[a-z][a-z0-9-]*$",
-          "description": "A list in the newsroom's reference.yaml whose entries no published piece covers yet: the planner proposes from them (D175)."
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "fact"],
+          "description": "The Reference entries the planner proposes from (D175): those of `kind` whose boolean `fact` is true and that no published piece covers yet.",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]*$"
+            },
+            "fact": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]*$"
+            }
+          }
         }
       }
     },
@@ -241,6 +252,36 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "index": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "description": "The series' page at /<series>, listing its pieces newest first, and its link in the site's header (D179).",
+      "properties": {
+        "name": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          },
+          "propertyNames": {
+            "enum": ["fa", "en", "tr"]
+          }
+        },
+        "intro": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          },
+          "propertyNames": {
+            "enum": ["fa", "en", "tr"]
           }
         }
       }

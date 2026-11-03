@@ -74,8 +74,13 @@ const crumb = list
       {str(f.arxiv_id) && <> · <bdi dir="ltr">arXiv:{str(f.arxiv_id)}</bdi></>}
     </p>
     <h1 class="ref-title" dir="ltr" lang={e.titleLanguage}>{url ? <ExternalLink href={url} newTabLabel={w.newTab}>{e.title}</ExternalLink> : e.title}</h1>
-    <Labels label={page.label} aiPolicy={page.links.aiPolicy} imported={e.origin === "imported" ? w.imported : null} />
-    {str(f.piece) && <p class="ref-lead"><a href={page.url(str(f.piece) ?? "/")}>{w.readPiece}</a></p>}
+    <Labels label={page.label} aiPolicy={page.links.aiPolicy} imported={e.origin !== "imported" ? null : Object.keys(e.body).length > 0 ? w.imported : w.importedFacts} />
+    {(str(f.piece) || str(f.episode)) && (
+      <p class="ref-ours">
+        {str(f.piece) && <a href={page.url(str(f.piece) ?? "/")}>{w.readPiece}</a>}
+        {str(f.episode) && <a href={page.url(str(f.episode) ?? "/")}>{w.hearEpisode}</a>}
+      </p>
+    )}
     <DescriptionList class="ref-facts">
       {e.date && <><dt>{w.facts.date}</dt><dd><time datetime={e.date}>{dateLabel(e.date, language, precision)}</time></dd></>}
       {authors.length > 0 && (

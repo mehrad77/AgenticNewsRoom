@@ -12,9 +12,11 @@ import json
 import os
 import sys
 from collections import Counter
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
+from .art import wanted
 from .entities import link_entities
 from .mapping import (
     Entry,
@@ -97,7 +99,17 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
 
     imported = load(args.export, args.telegram_channel, args.site_data)
-    found = episodes(read_jsonl(args.export / "podcast-episodes.jsonl"))
+    episode_rows = read_jsonl(args.export / "podcast-episodes.jsonl")
+    found = episodes(episode_rows)
+    art = wanted(episode_rows, read_jsonl(args.export / "podcast-hosts.jsonl"))
+    # A classic paper links to the episode that tells it (D179).
+    told = {e.classic: e.path for e in found if e.classic}
+    imported.entries = [
+        replace(e, facts={**e.facts, "episode": told[e.slug]})
+        if e.kind == "paper" and e.slug in told
+        else e
+        for e in imported.entries
+    ]
     imported.url_map.update(podcast_urls(found))
     print(f"podcast: {len(found)} published episodes")
     translations = (
@@ -134,7 +146,7 @@ def main(argv: list[str] | None = None) -> int:
     # The old site's public files (its Commons images) sit beside its src/data.
     public = args.site_data.resolve().parents[1] / "public" if args.site_data else None
     inserted, updated = write(
-        url, args.newsroom, imported.entries, imported.links, public, found, args.audio_cache
+        url, args.newsroom, imported.entries, imported.links, public, found, args.audio_cache, art
     )
     print(f"written: {inserted} new, {updated} updated")
     return 0

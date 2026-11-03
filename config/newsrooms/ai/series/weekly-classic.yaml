@@ -2,7 +2,13 @@ name: { fa: مقاله‌ی کلاسیک هفته, en: Classic Paper of the Week
 format: classic-article
 languages: [fa, en]
 cadence: { weekly: wed 10:00 }
-pick: { planner_proposes: 3, by: mon, editor_picks_by: tue, from: classics } # D175
+pick: { planner_proposes: 3, by: mon, editor_picks_by: tue, from: { kind: paper, fact: classic } } # D175
 channels:
   site: [fa, en]
   telegram: [fa]
+# Its page, listing every classic article, and its link in the site's header (D179).
+index:
+  name: { fa: مقاله‌های کلاسیک, en: Classic articles }
+  intro:
+    fa: هر هفته یک مقاله‌ی پایه‌ای هوش مصنوعی و ماجرایش؛ مقاله را سردبیر انتخاب می‌کند.
+    en: Each week, one of the papers AI is built on and its story, chosen by the editor.

@@ -363,7 +363,7 @@ def classic_entries(
         )
         if listed:
             out.url_map[f"/papers/{slug}/"] = f"/reference/papers/{slug}"
-    out.url_map["/wiki/topics/classic/"] = "/reference/classics"
+    out.url_map["/wiki/topics/classic/"] = "/weekly-classic"
     return out
 
 

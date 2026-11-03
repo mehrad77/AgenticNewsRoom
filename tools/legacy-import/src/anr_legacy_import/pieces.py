@@ -20,6 +20,16 @@ CLASSIC_SERIES = "weekly-classic"
 # The series' cadences (config/newsrooms/ai/series): the slot an imported piece takes on its day.
 NEWS_AT = time(21, 0)
 CLASSIC_AT = time(10, 0)
+# The old classics' sections, in order, with their headings (the posted pieces' item headings).
+CLASSIC_SECTIONS: list[dict[str, Any]] = [
+    {"key": "overview", "name": {"fa": "این مقاله چیست", "en": "What this paper is"}},
+    {"key": "problem", "name": {"fa": "مسئله", "en": "The problem"}},
+    {"key": "idea", "name": {"fa": "ایده و روش", "en": "Idea and method"}},
+    {"key": "why", "name": {"fa": "چرا این مقاله تاریخی است", "en": "Why it is historic"}},
+    {"key": "story", "name": {"fa": "ماجرای مقاله", "en": "The story of the paper"}},
+    {"key": "after", "name": {"fa": "بعد از این مقاله چه شد", "en": "What came after"}},
+    {"key": "post", "name": {"fa": "متن کانال", "en": "From the channel"}},
+]
 MORE = {"fa": "و {n} خبر دیگر", "en": "and {n} more"}
 DIGITS_FA = str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹")
 
@@ -128,7 +138,7 @@ def paragraphs(text: str) -> list[str]:
 
 
 def classic_pieces(
-    entries: list[Entry], sections: list[dict[str, Any]], timezone: str
+    entries: list[Entry], timezone: str, sections: list[dict[str, Any]] = CLASSIC_SECTIONS
 ) -> list[Piece]:
     """Each classic the channel posted, as a weekly-classic piece on its posted day."""
     out: list[Piece] = []

@@ -71,7 +71,7 @@ def test_a_posted_classic_becomes_a_piece_on_its_posted_day() -> None:
         {"key": "overview", "name": {"fa": "چیست", "en": "What"}},
         {"key": "why", "name": {"fa": "چرا", "en": "Why"}},
     ]
-    pieces = classic_pieces([paper, unposted], sections, "Europe/Istanbul")
+    pieces = classic_pieces([paper, unposted], "Europe/Istanbul", sections)
     assert [(p.series, p.day, p.language) for p in pieces] == [
         ("weekly-classic", "2026-10-22", "fa"),
         ("weekly-classic", "2026-10-22", "en"),

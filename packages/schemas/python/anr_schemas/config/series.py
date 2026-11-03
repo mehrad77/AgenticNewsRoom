@@ -41,6 +41,14 @@ class EditorPicksBy(Enum):
     sun = "sun"
 
 
+class From(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    kind: constr(pattern=r"^[a-z][a-z0-9-]*$")
+    fact: constr(pattern=r"^[a-z][a-z0-9_]*$")
+
+
 class Pick(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -48,10 +56,10 @@ class Pick(BaseModel):
     planner_proposes: Literal[3]
     by: By
     editor_picks_by: EditorPicksBy
-    from_: constr(pattern=r"^[a-z][a-z0-9-]*$") | None = Field(
+    from_: From | None = Field(
         None,
         alias="from",
-        description="A list in the newsroom's reference.yaml whose entries no published piece covers yet: the planner proposes from them (D175).",
+        description="The Reference entries the planner proposes from (D175): those of `kind` whose boolean `fact` is true and that no published piece covers yet.",
     )
 
 
@@ -105,6 +113,14 @@ class Timeline(BaseModel):
     filters: list[Filter] | None = None
 
 
+class Index(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    name: dict[Literal["fa", "en", "tr"], constr(min_length=1)] = Field(..., min_length=1)
+    intro: dict[Literal["fa", "en", "tr"], constr(min_length=1)] | None = Field(None, min_length=1)
+
+
 class SeriesConfig(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -146,4 +162,8 @@ class SeriesConfig(BaseModel):
     timeline: Timeline | None = Field(
         None,
         description="The series' news items as a timeline on the site at /<path>, newest first (D173).",
+    )
+    index: Index | None = Field(
+        None,
+        description="The series' page at /<series>, listing its pieces newest first, and its link in the site's header (D179).",
     )

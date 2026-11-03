@@ -57,6 +57,8 @@ export interface ReferenceWords {
   older: string;
   /** A paper's link to the piece written about it (D172). */
   readPiece: string;
+  /** A paper's link to the podcast episode that tells it (D179). */
+  hearEpisode: string;
 }
 
 const en: ReferenceWords = {
@@ -117,6 +119,7 @@ const en: ReferenceWords = {
   newer: "Newer",
   older: "Older",
   readPiece: "Read our article on this paper",
+  hearEpisode: "Listen to our episode on it",
 };
 
 const fa: ReferenceWords = {
@@ -176,6 +179,7 @@ const fa: ReferenceWords = {
   newer: "تازه‌تر",
   older: "قدیمی‌تر",
   readPiece: "مقاله‌ی ما درباره‌ی این مقاله را بخوانید",
+  hearEpisode: "اپیزود ما درباره‌اش را بشنوید",
 };
 
 const tr: ReferenceWords = {
@@ -216,6 +220,7 @@ const tr: ReferenceWords = {
   newer: "Daha yeni",
   older: "Daha eski",
   readPiece: "Bu makale hakkındaki yazımızı okuyun",
+  hearEpisode: "Onu anlatan bölümümüzü dinleyin",
 };
 
 export const REFERENCE_WORDS: Record<Language, ReferenceWords> = { en, fa, tr };

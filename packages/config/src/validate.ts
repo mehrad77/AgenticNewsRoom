@@ -297,7 +297,7 @@ export function validateConfig(config: RawConfig): string[] {
         narrator?: Record<string, string>;
         assignment_at?: string;
         cadence: { daily?: string; weekly?: string };
-        pick?: { from?: string };
+        pick?: { from?: { kind: string; fact: string } };
         timeline?: {
           path: string;
           name: Record<string, string>;
@@ -309,6 +309,22 @@ export function validateConfig(config: RawConfig): string[] {
           }[];
         };
       };
+      // A series' page (D179): at /<series>, named in every language.
+      const index = (
+        s as { index?: { name: Record<string, string>; intro?: Record<string, string> } }
+      ).index;
+      if (index) {
+        if (RESERVED_PATHS.has(name))
+          errors.push(`${where} index path ${name} is taken by the site`);
+        for (const [label, names] of [
+          ["name", index.name],
+          ["intro", index.intro],
+        ] as const) {
+          const missing = names ? newsroom.languages.filter((l) => !names[l]) : [];
+          if (missing.length > 0)
+            errors.push(`${where} index ${label} has no ${missing.join(", ")}`);
+        }
+      }
       // A series' timeline (D173): a page of its own at /<path>, named in every language.
       if (series.timeline) {
         const t = series.timeline;
@@ -347,8 +363,8 @@ export function validateConfig(config: RawConfig): string[] {
       if (series.segments && series.pick) errors.push(`${where} has both segments and a pick`);
       if (series.pick && !weekly) errors.push(`${where} has a pick but no weekly cadence`);
       const from = series.pick?.from;
-      if (from && !(n.reference as ReferenceSchema | undefined)?.lists?.[from])
-        errors.push(`${where} picks from ${from}, which is not a list in reference.yaml`);
+      if (from && !(n.reference as ReferenceSchema | undefined)?.kinds?.[from.kind])
+        errors.push(`${where} picks from ${from.kind}, which is not a kind in reference.yaml`);
       if (!config.formats.includes(series.format))
         errors.push(`${where} uses unknown format ${series.format}`);
       for (const l of series.languages) {

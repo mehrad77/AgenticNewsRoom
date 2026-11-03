@@ -8,6 +8,7 @@ from typing import Any
 import psycopg
 from psycopg.types.json import Jsonb
 
+from .art import Art, store_art
 from .images import store_images
 from .mapping import Entry
 from .pieces import CLASSIC_SERIES, Piece, classic_pieces, news_issues
@@ -64,6 +65,7 @@ def write(
     public: Path | None = None,
     podcast: list[Episode] | None = None,
     audio_cache: Path | None = None,
+    art: list[Art] | None = None,
 ) -> tuple[int, int]:
     inserted = updated = 0
     with psycopg.connect(url) as conn, conn.transaction():
@@ -76,8 +78,7 @@ def write(
         newsroom_id, reference, timezone = row
         kinds = set((reference or {}).get("kinds", {}))
         # The archive's news and posted classics are pieces (D172); papers keep a link to theirs.
-        sections = (reference or {}).get("kinds", {}).get("paper", {}).get("sections", [])
-        pieces = news_issues(entries, links, timezone) + classic_pieces(entries, sections, timezone)
+        pieces = news_issues(entries, links, timezone) + classic_pieces(entries, timezone)
         entries = [_as_work(e) for e in entries if e.kind != "news-event"]
         entry_ids = {e.legacy_id for e in entries}
         links = [x for x in links if x[0] in entry_ids and x[1] in entry_ids]
@@ -101,8 +102,9 @@ def write(
         )
         written = write_pieces(conn, newsroom_id, pieces)
         print(f"pieces: {written} imported publications written")
+        covers = store_art(conn, newsroom_id, art, audio_cache) if art else {}
         if podcast:
-            n = write_episodes(conn, newsroom_id, podcast, audio_cache)
+            n = write_episodes(conn, newsroom_id, podcast, audio_cache, covers)
             print(f"podcast: {n} imported episodes written")
         entries, images = store_images(conn, newsroom_id, entries, public)
         print(f"images: {images} stored as licensed media")
@@ -155,16 +157,15 @@ def write(
 
 
 def _as_work(e: Entry) -> Entry:
-    """A posted classic's paper as a work (D172): its text is its piece's, linked from its facts."""
-    day = e.facts.get("posted_date")
-    if e.kind != "paper" or not isinstance(day, str):
+    """A paper as a work (D172, D179): its facts only, and the piece written about it, if any.
+
+    The old write-ups are not shown: a posted one is its piece's text, and the rest wait to be
+    picked and written."""
+    if e.kind != "paper":
         return e
-    body = {
-        lang: {"excerpts": text["excerpts"]}
-        for lang, text in e.body.items()
-        if text.get("excerpts")
-    }
-    return replace(e, body=body, facts={**e.facts, "piece": f"/{CLASSIC_SERIES}/{day}"})
+    day = e.facts.get("posted_date")
+    facts = {**e.facts, "piece": f"/{CLASSIC_SERIES}/{day}"} if isinstance(day, str) else e.facts
+    return replace(e, body={}, facts=facts)
 
 
 def write_pieces(conn: psycopg.Connection[Any], newsroom_id: object, pieces: list[Piece]) -> int:

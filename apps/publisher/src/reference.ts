@@ -1,4 +1,4 @@
-// Images the Reference shows (D119, D162): each listed entry's licensed image gets its published
+// Images the Reference shows (D119, D162) and the newsroom's own artwork (D180): each gets its published
 // copy here, as a piece's images do when it publishes, so the site can serve it at /m/<id>. Code
 // publishes; a paused newsroom publishes nothing (D144).
 import { isPaused, type Pool, withNewsroom } from "@anr/db";
@@ -19,8 +19,9 @@ export async function publishReferenceImages(
       const { rows } = await c.query<MediaRow>(
         `select ${MEDIA_COLUMNS} from media
          where published_file is null and licence is not null
-           and id::text in (select facts->'image'->>'media_id' from reference_entries
-                            where listed and facts ? 'image')
+           and (licence_kind = 'own'
+                or id::text in (select facts->'image'->>'media_id' from reference_entries
+                                where listed and facts ? 'image'))
          limit 50`,
       );
       if (rows.length === 0) return;

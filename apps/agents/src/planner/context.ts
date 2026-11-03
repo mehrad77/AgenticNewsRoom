@@ -174,10 +174,13 @@ export async function pickFacts(
   // Earlier picks and every published piece of the series, imported ones too (D172), so the
   // planner never proposes what the series already covered.
   const { rows } = await client.query<
-    Omit<PickFacts, "slot" | "focus" | "waiting"> & { calendar: unknown; from: string | null }
+    Omit<PickFacts, "slot" | "focus" | "waiting"> & {
+      calendar: unknown;
+      from: { kind: string; fact: string } | null;
+    }
   >(
     `select s.slug as series, coalesce(s.config->'name'->>'en', s.slug) as "seriesName", f.slug as format,
-            c.theme, c.angle, c.calendar, s.config->'pick'->>'from' as from,
+            c.theme, c.angle, c.calendar, s.config->'pick'->'from' as from,
             array(select t from (
                     select p.candidates->(p.chosen::int)->>'title' as t, p.week as at from picks p
                     where p.series_id = s.id and p.chosen is not null
@@ -203,24 +206,22 @@ export async function pickFacts(
 }
 
 /**
- * A Reference list's entries no piece covers yet (D175): listed, without a piece of their own and
- * not among the series' earlier titles, oldest first, as the list's fact and kind say.
+ * The Reference entries a pick proposes from that no piece covers yet (D175): of the kind, with
+ * the fact true, listed, without a piece of their own and not among the series' earlier titles.
  */
 async function waitingEntries(
   client: Client,
-  listKey: string,
+  from: { kind: string; fact: string },
   earlier: string[],
 ): Promise<PickFacts["waiting"]> {
   const { rows } = await client.query<{ title: string; year: number | null; url: string | null }>(
     `select e.title, (e.facts->>'year')::int as year, e.facts->>'url' as url
-     from newsrooms n, reference_entries e
-     where n.id = anr.current_newsroom_id() and e.listed
-       and e.kind = n.reference->'lists'->$1->>'kind'
-       and (e.facts->>(n.reference->'lists'->$1->>'fact'))::boolean
+     from reference_entries e
+     where e.listed and e.kind = $1 and (e.facts->>$2)::boolean
        and e.facts->>'piece' is null
-       and not (lower(e.title) = any($2::text[]))
+       and not (lower(e.title) = any($3::text[]))
      order by e.date nulls last, e.title`,
-    [listKey, earlier.map((t) => t.toLowerCase())],
+    [from.kind, from.fact, earlier.map((t) => t.toLowerCase())],
   );
   return rows;
 }

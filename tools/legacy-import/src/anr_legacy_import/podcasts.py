@@ -36,6 +36,8 @@ class Episode:
     transcript: str
     audio_url: str
     seconds: int
+    # The classic paper the episode tells, by its slug.
+    classic: str | None
     # [{"title", "start", "end"}], as the producer stores chapters.
     chapters: list[dict[str, Any]]
 
@@ -89,6 +91,9 @@ def episodes(rows: list[dict[str, Any]]) -> list[Episode]:
                 transcript=str(r.get("transcript_md") or "").strip(),
                 audio_url=str(r["audio_url"]),
                 seconds=seconds,
+                classic=str(r["classic_slug"])
+                if r.get("classic_slug") not in (None, "None")
+                else None,
                 chapters=chapters,
             )
         )
@@ -139,6 +144,7 @@ def write_episodes(
     newsroom_id: object,
     found: list[Episode],
     cache: Path | None,
+    covers: dict[str, dict[str, str]] | None = None,
 ) -> int:
     row = conn.execute(
         "select id, format_id from series where newsroom_id = %s and slug = %s",
@@ -167,7 +173,18 @@ def write_episodes(
             " order by s.created_at limit 1"
             " on conflict (newsroom_id, story_id, format_id, language)"
             " do update set body = excluded.body returning id",
-            (newsroom_id, format_id, LANGUAGE, Jsonb(e.body()), assignment[0]),
+            (
+                newsroom_id,
+                format_id,
+                LANGUAGE,
+                Jsonb(
+                    {
+                        **e.body(),
+                        **({"cover": covers[e.slug]} if covers and e.slug in covers else {}),
+                    }
+                ),
+                assignment[0],
+            ),
         ).fetchone()
         assert rendition
         publication = conn.execute(

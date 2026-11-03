@@ -316,6 +316,15 @@ main > h1,
 .ref-title a {
   text-decoration: none;
 }
+/* A work's links to what the newsroom made of it: its article, its episode (D179). */
+.ref-ours {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  margin: 0 0 var(--space-5);
+  font-size: var(--step-1);
+  font-weight: 600;
+}
 .ref-facts {
   margin: 0 0 var(--space-5);
   padding: var(--space-4) 0;
