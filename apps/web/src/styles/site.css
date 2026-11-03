@@ -131,16 +131,13 @@ main > article > h1:first-child {
   font-size: var(--step-3);
   line-height: 1.35;
 }
-/* An issue's items: each a block of its own, with room between them and a hairline apart. */
+/* An issue's items: each a block of its own, with room between them. */
 main > article > section {
-  margin-block: var(--space-6) 0;
-  padding-block-start: var(--space-5);
-  border-block-start: 1px solid var(--stroke);
+  margin-block: var(--space-7) 0;
 }
 main > article > .piece-imported + section,
 main > article > .piece-meta + section {
-  border-block-start: 0;
-  padding-block-start: 0;
+  margin-block-start: var(--space-5);
 }
 main > article > section > h2 {
   margin: 0 0 var(--space-3);
