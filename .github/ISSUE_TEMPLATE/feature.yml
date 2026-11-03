@@ -1,0 +1,29 @@
+name: Feature or design proposal
+description: Propose new behaviour or a design change.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What an editor, reader or operator cannot do today, and why it matters.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: How it could work. Use the charter's vocabulary (newsroom, lead, story, publication, channel…).
+    validations:
+      required: true
+  - type: checkboxes
+    id: charter
+    attributes:
+      label: Charter
+      options:
+        - label: I checked this against the charter's invariants in AGENTS.md; if it crosses one, the proposal says which and why.
+          required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

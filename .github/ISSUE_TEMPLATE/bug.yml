@@ -1,0 +1,48 @@
+name: Bug report
+description: Something in ANR does not work as the docs describe.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. pnpm db:up && pnpm dev
+        2. …
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - api (editor's desk API)
+        - web (reader sites, desk)
+        - agents
+        - publisher
+        - ingestion
+        - verifier
+        - config
+        - infra
+        - docs
+        - not sure
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: Commit or release, OS, and anything unusual in your setup.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant output. Remove secrets first.
+      render: shell
