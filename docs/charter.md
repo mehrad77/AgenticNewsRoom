@@ -28,7 +28,7 @@ ANR is an editorial operating system that runs the full cycle: plan, assign, res
 - **Source-grounded.** Every factual claim traces back to a lead the system has stored.
 - **Formats and channels, not routines.** Newsletters, articles and podcast episodes are formats; a site, a Telegram channel and a podcast feed are channels. A newsroom can run several of each.
 - **Openly AI-made.** Every publication and every AI host is disclosed as AI-made, on every channel, in a machine-readable way.
-- **A reference beside the publications.** Each newsroom's site has a Reference: pages for the organisations, people, products, benchmarks, topics, papers and news events its work touches. Code supplies the facts; any text an agent writes for an entry passes the same gate as a publication.
+- **A reference beside the publications.** Each newsroom's site has a Reference: pages for the people, organisations, works and events its work touches, of kinds the newsroom configures. Code supplies the facts; any text an agent writes for an entry passes the same gate as a publication.
 
 ## What ANR is not
 
@@ -38,7 +38,7 @@ Each line is a boundary: a feature request that crosses one needs a change to th
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------- |
 | A content farm           | Nothing is published for volume or SEO. Every publication traces to a plan, a pick or a series a human approved. |
 | Autonomous               | Agents propose and write. Humans decide what the newsroom covers.                                                |
-| A general CMS            | It renders its own sites from structured publications and reference entries of fixed kinds. No page builder, no WordPress replacement. |
+| A general CMS            | It renders its own sites from structured publications and reference entries, whose kinds each newsroom configures and code draws with a fixed set of layouts. No page builder, no WordPress replacement. |
 | A social scheduler       | Channels are outputs of the editorial pipeline, not a calendar of hand-written posts.                            |
 | A public news aggregator | The lead pool is internal input for editors, never shown to readers. The Reference shows entries built by code and checked text, not raw leads. |
 | A breaking-news wire     | Speed is measured in hours, not minutes.                                                                         |
@@ -65,7 +65,7 @@ These words mean one thing each, in code, in the data model and in conversation.
 | Series          | A named recurring output with its own identity, such as a specific podcast or newsletter                                |
 | Channel         | Where a publication goes out: a site, a Telegram channel, a podcast feed; later email or X. Set up in the editor's desk |
 | Reference       | A newsroom's reader-facing reference on its site: all its entries, by kind                                              |
-| Entry           | One reference page of a fixed kind (organisation, person, product, benchmark, topic, paper, news event): facts from code, and text that passed the gate or was imported |
+| Entry           | One reference page of a kind its newsroom configures (the AI newsroom's organisations, people, products, papers and news events; a culture newsroom's artists or venues): facts from code, and text that passed the gate or was imported |
 
 **Roles.** Humans are the Editor-in-Chief and editors, and one platform admin, an operator role with no editorial authority, who chooses which text-to-speech engines newsrooms may use and holds the platform's operational controls (pausing publishing, retrying, cancelling or draining work that ends in a hold or reruns, a backup check), which can never approve, publish or suppress anything. Agents are the planner, the desk (research and writing), the renderer, the fact-checker, the item matcher and the summariser. Code is the producer and the publisher.
 

@@ -18,8 +18,9 @@ A newsroom is configuration plus channels set up in the editor's desk. Adding on
 3. `policy.yaml`: every beat as `{ status, media_topics }`: status `open`, `restricted` or `banned`, and one or more IPTC Media Topic qcodes (`medtop:<8 digits>`) looked up in `packages/schemas/iptc/mediatopic.json`, never from memory, and not retired; `sources.min_independent` ≥ 2; `auto_publish` lists only formats that may publish as daily news without an editor (themed work never auto-publishes).
 4. `sources.yaml`: one entry per source with a verified URL, `publisher`, `tier` (1 = primary: the subject's own statement, filing or paper), `every`. Leave `terms_checked` unset: a person sets it after reading the source's terms, and ingestion never fetches a source without it.
 5. `series/<series>.yaml`: format (an existing folder in `config/formats/`), languages (subset of the newsroom's), cadence, picks or segments, podcast hosts and TTS voices per language, and channel kinds per language. Each channel kind needs the format's `templates/<kind>.liquid`.
-6. `style.md`: the newsroom's style guide with an "All languages" section and one section per language. Keep it short; it goes into every desk prompt (target under 5 KB of prompt in total).
-7. Run `pnpm config:check`, then `pnpm check`.
-8. Document the newsroom in `docs/first-newsrooms.md` (or a new doc linked from `docs/README.md`).
+6. Optional `reference.yaml` (schema: `packages/schemas/json/reference.schema.json`, D170): the kinds of entry the newsroom's Reference holds, each with a URL path, names in every language of the newsroom, and a layout (`profile`, `document` or `timeline`); named `lists` over one kind; and `nav`, the kinds and lists in the site's header. Pick kinds for the newsroom's topic (a culture newsroom: artists, labels, venues), never copy the AI newsroom's. Without the file the newsroom has no Reference.
+7. `style.md`: the newsroom's style guide with an "All languages" section and one section per language. Keep it short; it goes into every desk prompt (target under 5 KB of prompt in total).
+8. Run `pnpm config:check`, then `pnpm check`.
+9. Document the newsroom in `docs/first-newsrooms.md` (or a new doc linked from `docs/README.md`).
 
 Outside the repo (tell the user; do not do these): a DNS record for the subdomain, and the newsroom's channels (site, Telegram, podcast feeds) created by the Editor-in-Chief in the editor's desk.

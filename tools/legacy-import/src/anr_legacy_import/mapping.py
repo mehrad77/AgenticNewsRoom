@@ -85,6 +85,8 @@ class Imported:
     entries: list[Entry] = field(default_factory=list)
     # Old site path -> new path inside the newsroom's primary language.
     url_map: dict[str, str] = field(default_factory=dict)
+    # (from legacy id, to legacy id, link kind, label as the source wrote it)
+    links: list[tuple[str, str, str, str]] = field(default_factory=list)
 
 
 def slugify(text: str, limit: int = 60) -> str:

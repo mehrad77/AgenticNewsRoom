@@ -15,6 +15,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from .entities import link_entities
 from .mapping import (
     Entry,
     Imported,
@@ -42,18 +43,25 @@ def read_classics(directory: Path) -> list[dict[str, Any]]:
     ]
 
 
-def load(export: Path, channel: str | None) -> Imported:
-    news = news_entries(read_jsonl(export / "lab-news.jsonl"), channel)
+def load(export: Path, channel: str | None, site_data: Path | None = None) -> Imported:
+    news_rows = read_jsonl(export / "lab-news.jsonl")
+    classic_rows = read_classics(export / "classic-candidates")
+    news = news_entries(news_rows, channel)
     classics = classic_entries(
-        read_classics(export / "classic-candidates"),
-        read_jsonl(export / "posts.jsonl"),
-        news.entries,
-        channel,
+        classic_rows, read_jsonl(export / "posts.jsonl"), news.entries, channel
     )
-    return Imported(
-        entries=news.entries + classics.entries,
-        url_map={**news.url_map, **classics.url_map},
-    )
+    entries = news.entries + classics.entries
+    links: list[tuple[str, str, str, str]] = []
+    if site_data:
+        # The old wiki: organisations, products and people, linked from the news and papers.
+        cache = json.loads((site_data / "wikidata.json").read_text())["entries"]
+        aliases = json.loads((site_data / "org-aliases.json").read_text())["orgs"]
+        linked = link_entities(
+            read_jsonl(export / "entities.jsonl"), cache, aliases, news_rows, classic_rows, entries
+        )
+        entries += linked.entries
+        links = linked.links
+    return Imported(entries=entries, url_map={**news.url_map, **classics.url_map}, links=links)
 
 
 def report(entries: list[Entry]) -> str:
@@ -70,6 +78,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--newsroom", required=True, help="the target newsroom's slug")
     ap.add_argument("--export", required=True, type=Path, help="a legacy KB export directory")
     ap.add_argument("--telegram-channel", help="the old channel's username, for post links")
+    ap.add_argument(
+        "--site-data",
+        type=Path,
+        help="the old site's src/data (wikidata.json, org-aliases.json), for its wiki",
+    )
     ap.add_argument("--url-map", type=Path, help="write the old-path to new-path map here")
     ap.add_argument(
         "--translations", type=Path, help="English texts by key (translate.ts writes them, D169)"
@@ -78,7 +91,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--dry-run", action="store_true", help="count, write nothing")
     args = ap.parse_args(argv)
 
-    imported = load(args.export, args.telegram_channel)
+    imported = load(args.export, args.telegram_channel, args.site_data)
     translations = (
         {r["key"]: r["en"] for r in read_jsonl(args.translations) if r.get("en")}
         if args.translations
@@ -86,6 +99,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     imported.entries = [with_english(e, translations) for e in imported.entries]
     print(report(imported.entries))
+    print(f"links: {Counter(k for _, _, k, _ in imported.links)}")
     todo = {
         text_key(t): t
         for e in imported.entries
@@ -109,7 +123,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     from .write import write
 
-    inserted, updated = write(url, args.newsroom, imported.entries)
+    inserted, updated = write(url, args.newsroom, imported.entries, imported.links)
     print(f"written: {inserted} new, {updated} updated")
     return 0
 

@@ -46,7 +46,7 @@ The AI newsroom publishes one newsletter a day and one podcast a week. The weekl
 2. The desk researches the paper once into a story, then writes the site article.
 3. The article waits for an editor's approval and publishes on Wednesday at 10:00.
 
-**Reference.** The site's Reference starts with the old archive (D165): its papers, every classic paper, the lab news timeline since 2015, and its organisations, people, products, benchmarks and topics. It then grows from the pipeline (D163).
+**Reference.** The site's Reference starts with the old archive (D165): its papers, every classic paper, the lab news timeline since 2015, and its organisations, people, products, benchmarks and topics. Its kinds (papers with a classics list, news, organisations, products, people) are `config/newsrooms/ai/reference.yaml` (D170). It then grows from the pipeline (D163).
 
 **Weekly podcast.** One episode of about 30 minutes publishes on Friday at 18:00, in each language: the two current Persian hosts, Niloofar and Farzad, and two English hosts, Maya and Leo, with their own voices.
 
