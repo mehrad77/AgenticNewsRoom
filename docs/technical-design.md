@@ -250,7 +250,7 @@ The old system's archive comes into the `ai` newsroom once, through `tools/legac
 - Imported podcast episodes as published publications of the Persian feed, their audio copied to ANR's storage.
 - The URL map from every old path to its new one.
 
-`--dry-run` writes nothing and prints counts per kind next to the export's, which must reconcile before the production run. The cutover follows D167.
+`--dry-run` writes nothing and prints counts per kind next to the export's, which must reconcile before the production run. `--units` writes the Persian texts that still lack English; `pnpm --filter @anr/legacy-import translate <units> <translations>` translates them on the renderer's chain and appends to a translations cache keyed by each text's hash; `--translations` merges that cache into each entry's English body (D169). The cutover follows D167.
 
 ## Tenancy and configuration
 

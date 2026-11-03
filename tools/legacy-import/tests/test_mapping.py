@@ -126,3 +126,31 @@ def test_classic_entries_keep_sections_refs_and_posts() -> None:
 
 def test_telegram_text() -> None:
     assert telegram_text("a<br>b &amp; <i>c</i>") == "a\nb & c"
+
+
+def test_english_from_the_translation_cache() -> None:
+    from anr_legacy_import.mapping import persian_texts, text_key, with_english
+
+    cands: list[dict[str, Any]] = [
+        {
+            "slug": "t-1936",
+            "status": "researched",
+            "title": "T",
+            "year": 1936,
+            "summary_fa": "خلاصه",
+            "problem_fa": "مسئله",
+            "excerpts": [{"original_en": "We may", "translation_fa": "ما", "note_fa": "یادداشت"}],
+            "references_seen": [{"kind": "x", "ref": 1, "title": "R", "note_fa": "یادداشت مرجع"}],
+        }
+    ]
+    entry = classic_entries(cands, [], [], None).entries[0]
+    assert sorted(persian_texts(entry)) == sorted(["خلاصه", "مسئله", "یادداشت", "یادداشت مرجع"])
+    cache = {text_key("خلاصه"): "Summary", text_key("یادداشت"): "A note"}
+    en = with_english(entry, cache)
+    assert en.body["en"]["overview"] == "Summary" and "problem" not in en.body["en"]
+    assert en.body["en"]["excerpts"] == [
+        {"location": "", "original": "We may", "translation": "", "note": "A note"}
+    ]
+    assert en.facts["references"][0]["note_en"] is None
+    assert "Summary" in en.search_text
+    assert "en" not in with_english(entry, {}).body

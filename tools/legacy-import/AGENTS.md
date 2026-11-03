@@ -6,4 +6,5 @@ One-off import of the old system's knowledge base into a newsroom's Reference (D
 - `src/anr_legacy_import/mapping.py` is pure (rows in, entries out) and tested; which rows are listed follows the old site exactly. `write.py` upserts on `(newsroom_id, legacy_id)` as the system role, the only role that may write `origin = imported` (D164).
 - Nothing here names a newsroom (invariant 9): the target is `--newsroom`, the old channel's username is `--telegram-channel`.
 - Run: `pnpm --filter @anr/legacy-import legacy-import --newsroom ai --export <dir> --telegram-channel singularity_takinegi --dry-run`, then again without `--dry-run`.
+- English (D169): `--units <file>` writes the Persian texts still to translate; `pnpm --filter @anr/legacy-import translate <units> <translations>` (`translate/`, TypeScript, through `@anr/models` on the renderer's chain) appends checked translations to a cache keyed by the text's hash; `--translations <file>` merges the cache. `translate/units.ts` is pure and tested.
 - Imported so far: lab news and classic papers. Papers, the wiki and podcast episodes (D165) are still to come.

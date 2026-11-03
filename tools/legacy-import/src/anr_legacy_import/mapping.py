@@ -4,10 +4,11 @@ Pure functions: rows in, entries out. Which rows are listed follows the old site
 Reference shows what readers saw there.
 """
 
+import hashlib
 import html
 import re
 import unicodedata
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from html.parser import HTMLParser
 from typing import Any
 
@@ -359,3 +360,59 @@ def classic_entries(
             out.url_map[f"/papers/{slug}/"] = f"/reference/papers/{slug}"
     out.url_map["/wiki/topics/classic/"] = "/reference/classics"
     return out
+
+
+# ---------------------------------------------------------------- English (D169)
+
+
+def text_key(text: str) -> str:
+    """The cache key of one Persian text: its hash, so an edited source is translated again."""
+    return hashlib.sha256(text.strip().encode()).hexdigest()[:24]
+
+
+def persian_texts(entry: Entry) -> list[str]:
+    """Every Persian text an entry shows that needs an English version."""
+    if not entry.listed:
+        return []
+    fa = entry.body.get("fa", {})
+    en = entry.body.get("en", {})
+    out = [v for k, v in fa.items() if isinstance(v, str) and v.strip() and k not in en]
+    out += [e["note"] for e in fa.get("excerpts", []) if isinstance(e, dict) and e.get("note")]
+    for group in ("references", "cited_by"):
+        out += [r["note"] for r in entry.facts.get(group, []) if r.get("note")]
+    return out
+
+
+def with_english(entry: Entry, translations: dict[str, str]) -> Entry:
+    """The entry with its English text from the translation cache; texts not in it stay Persian."""
+    fa = entry.body.get("fa")
+    if not fa:
+        return entry
+    en: dict[str, Any] = dict(entry.body.get("en", {}))
+
+    def tr(text: str) -> str | None:
+        return translations.get(text_key(text))
+
+    for k, v in fa.items():
+        if isinstance(v, str) and k not in en and (t := tr(v)):
+            en[k] = t
+    # Excerpts' originals are English already; their notes come along once the text has English.
+    if fa.get("excerpts") and any(isinstance(v, str) for v in en.values()):
+        en["excerpts"] = [
+            {**e, "translation": "", "note": (tr(e["note"]) or "") if e.get("note") else ""}
+            for e in fa["excerpts"]
+        ]
+    facts = dict(entry.facts)
+    for group in ("references", "cited_by"):
+        if group in facts:
+            facts[group] = [
+                {**r, "note_en": tr(r["note"]) if r.get("note") else None} for r in facts[group]
+            ]
+    body = {**entry.body, "en": en} if en else entry.body
+    english = " ".join(v for v in en.values() if isinstance(v, str))
+    return replace(
+        entry,
+        body=body,
+        facts=facts,
+        search_text=f"{entry.search_text} {english}".strip(),
+    )

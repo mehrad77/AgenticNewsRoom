@@ -6,8 +6,8 @@ import {
   dateLabel,
   type Entry,
   str,
+  sectionsIn,
   teaser,
-  textIn,
 } from "../../lib/reference.ts";
 import type { ReferenceWords } from "../../lib/reference-words.ts";
 
@@ -18,8 +18,8 @@ interface Props {
   href: string;
 }
 const { entry: e, language, words: w, href } = Astro.props;
-const text = textIn(e, language);
-const summary = text ? teaser(text.body.overview ?? text.body.post ?? text.body.problem) : "";
+const first = sectionsIn(e, language, ["overview", "post", "problem"])[0];
+const summary = first ? teaser(first.text) : "";
 const precision = (str(e.facts.date_precision) ?? "day") as DatePrecision;
 ---
 <li class="ref-tile ref-tile--classic">
@@ -29,5 +29,5 @@ const precision = (str(e.facts.date_precision) ?? "day") as DatePrecision;
     <span>{w.classicLabel}</span>
   </div>
   <h3 dir="ltr" lang={e.titleLanguage}><a href={href}>{e.title}</a></h3>
-  {summary && text && <p lang={text.language} dir={directionOf(text.language)}>{summary}</p>}
+  {summary && first && <p lang={first.language} dir={directionOf(first.language)}>{summary}</p>}
 </li>

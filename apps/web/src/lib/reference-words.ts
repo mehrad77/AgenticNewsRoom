@@ -75,7 +75,8 @@ const en: ReferenceWords = {
   classicsCount: (n) => `${n} classic papers`,
   papersCount: (n) => `${n} papers`,
   oldest: (newest) => `oldest item (newest: ${newest})`,
-  imported: "Imported from the old archive. Not checked by ANR's verifier.",
+  imported:
+    "Imported from the old archive and machine-translated from Persian. Not checked by ANR's verifier.",
   approximate: "(approximate date)",
   orgLabel: "Lab or company",
   kindLabel: "Kind of news",
@@ -84,7 +85,7 @@ const en: ReferenceWords = {
   filter: "Filter",
   clear: "Clear filters",
   nothing: "Nothing here yet.",
-  inPersian: "This entry's text is in Persian.",
+  inPersian: "Parts of this entry are not translated yet and are shown in Persian.",
   newsKinds: NEWS_KINDS_EN,
   urlTypes: {
     official: "Official page",
@@ -217,7 +218,8 @@ const tr: ReferenceWords = {
   classicsCount: (n) => `${n} klasik makale`,
   papersCount: (n) => `${n} makale`,
   oldest: (newest) => `en eski haber (en yenisi: ${newest})`,
-  imported: "Eski arşivden aktarıldı. ANR'nin doğrulayıcısı bu metni kontrol etmedi.",
+  imported:
+    "Eski arşivden aktarıldı ve Farsçadan makine çevirisiyle çevrildi. ANR'nin doğrulayıcısı bu metni kontrol etmedi.",
   approximate: "(yaklaşık tarih)",
   orgLabel: "Laboratuvar ya da şirket",
   kindLabel: "Haber türü",
@@ -226,7 +228,7 @@ const tr: ReferenceWords = {
   filter: "Süz",
   clear: "Süzgeçleri temizle",
   nothing: "Burada henüz bir şey yok.",
-  inPersian: "Bu maddenin metni Farsçadır.",
+  inPersian: "Bu maddenin bazı bölümleri henüz çevrilmedi ve Farsça gösteriliyor.",
   classicLabel: "Klasik makale",
 };
 

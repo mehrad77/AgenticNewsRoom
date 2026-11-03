@@ -2,11 +2,21 @@
   "name": "@anr/legacy-import",
   "version": "0.0.0",
   "private": true,
-  "description": "Python tool; this file only lets turbo run its tasks.",
+  "type": "module",
+  "description": "Python import with a TypeScript translation step (D166, D169).",
   "scripts": {
     "legacy-import": "uv run --frozen --env-file ../../.env legacy-import",
+    "translate": "node --env-file-if-exists=../../.env translate/translate.ts",
     "lint": "uv run --frozen ruff check . && uv run --frozen ruff format --check .",
-    "typecheck": "uv run --frozen mypy src tests",
-    "test": "uv run --frozen pytest"
+    "typecheck": "uv run --frozen mypy src tests && tsc -p .",
+    "test": "uv run --frozen pytest && vitest run"
+  },
+  "dependencies": {
+    "@anr/models": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "typescript": "5.9.3",
+    "vitest": "5.0.5"
   }
 }

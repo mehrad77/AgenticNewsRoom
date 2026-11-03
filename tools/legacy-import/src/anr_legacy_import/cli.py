@@ -15,7 +15,15 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from .mapping import Entry, Imported, classic_entries, news_entries
+from .mapping import (
+    Entry,
+    Imported,
+    classic_entries,
+    news_entries,
+    persian_texts,
+    text_key,
+    with_english,
+)
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -63,11 +71,33 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--export", required=True, type=Path, help="a legacy KB export directory")
     ap.add_argument("--telegram-channel", help="the old channel's username, for post links")
     ap.add_argument("--url-map", type=Path, help="write the old-path to new-path map here")
+    ap.add_argument(
+        "--translations", type=Path, help="English texts by key (translate.ts writes them, D169)"
+    )
+    ap.add_argument("--units", type=Path, help="write the Persian texts still to translate here")
     ap.add_argument("--dry-run", action="store_true", help="count, write nothing")
     args = ap.parse_args(argv)
 
     imported = load(args.export, args.telegram_channel)
+    translations = (
+        {r["key"]: r["en"] for r in read_jsonl(args.translations) if r.get("en")}
+        if args.translations
+        else {}
+    )
+    imported.entries = [with_english(e, translations) for e in imported.entries]
     print(report(imported.entries))
+    todo = {
+        text_key(t): t
+        for e in imported.entries
+        for t in persian_texts(e)
+        if text_key(t) not in translations
+    }
+    print(f"english: {len(translations)} texts translated, {len(todo)} still Persian only")
+    if args.units:
+        with args.units.open("w") as f:
+            for key, text in todo.items():
+                f.write(json.dumps({"key": key, "text": text}, ensure_ascii=False) + "\n")
+        print(f"units: {len(todo)} -> {args.units}")
     if args.url_map:
         args.url_map.write_text(json.dumps(imported.url_map, indent=2, sort_keys=True) + "\n")
         print(f"url map: {len(imported.url_map)} paths -> {args.url_map}")

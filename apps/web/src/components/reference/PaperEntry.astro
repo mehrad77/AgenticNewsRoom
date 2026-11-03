@@ -13,6 +13,7 @@ import {
   refs,
   str,
   strings,
+  sectionsIn,
   textHtml,
   textIn,
 } from "../../lib/reference.ts";
@@ -34,9 +35,9 @@ const citations =
   f.citations && typeof f.citations === "object" ? (f.citations as Record<string, unknown>) : null;
 const citeSource = str(citations?.source)?.match(/Semantic Scholar|OpenAlex|CrossRef/i)?.[0] ?? "Semantic Scholar";
 const citeSourceLabel = language === "fa" && /semantic/i.test(citeSource) ? "سمنتیک اسکالر" : citeSource;
-const sections = ["overview", "problem", "idea", "why", "story", "after", "post"].filter(
-  (s) => typeof text?.body[s] === "string",
-);
+// Each section in the page's language, or in Persian until it is translated (D169).
+const sections = sectionsIn(e, language, ["overview", "problem", "idea", "why", "story", "after", "post"]);
+const untranslated = sections.some((s) => s.language !== language);
 const quotes = excerpts(text?.body.excerpts);
 const related = [
   { key: "references", label: w.references, refs: refs(f.references) },
@@ -64,14 +65,14 @@ const url = str(f.url);
       {affiliations.length > 0 && <><dt>{w.facts.affiliations}</dt><dd><bdi dir="ltr" class="ref-latin">{affiliations.join("; ")}</bdi></dd></>}
     </dl>
 
-    {text && language !== lang && <p class="ref-muted">{w.inPersian}</p>}
+    {untranslated && <p class="ref-muted">{w.inPersian}</p>}
     {sections.length > 0 && (
-      <section lang={lang} dir={dir}>
+      <section>
         <h2>{w.summaryHeading}</h2>
         {sections.map((s) => (
-          <div class="ref-panel" data-section={s}>
-            <h3>{w.sections[s]}</h3>
-            <Fragment set:html={textHtml(text?.body[s])} />
+          <div class="ref-panel" data-section={s.name}>
+            <h3>{w.sections[s.name]}</h3>
+            <div lang={s.language} dir={directionOf(s.language)} set:html={textHtml(s.text)} />
           </div>
         ))}
       </section>
@@ -84,7 +85,7 @@ const url = str(f.url);
           <div class="ref-panel" data-section="excerpt">
             {q.location && <h3><bdi dir="ltr">{q.location}</bdi></h3>}
             <blockquote dir="ltr" lang="en">{q.original}</blockquote>
-            <p>{q.translation}</p>
+            {q.translation && <p>{q.translation}</p>}
             {q.note && <p class="ref-muted">{q.note}</p>}
           </div>
         ))}
@@ -104,7 +105,9 @@ const url = str(f.url);
                     : r.url ? <a href={r.url} rel="noopener"><bdi dir="ltr" lang="en">{r.title}</bdi></a>
                     : <bdi dir="ltr" lang="en">{r.title}</bdi>}
                   {r.year && <span class="ref-muted"> ({numberLabel(r.year, language)})</span>}
-                  {r.note && <span class="ref-muted"> {r.note}</span>}
+                  {(language === "fa" ? r.note : (r.noteEn ?? r.note)) && (
+                    <span class="ref-muted" dir="auto"> {language === "fa" ? r.note : (r.noteEn ?? r.note)}</span>
+                  )}
                 </li>
               ))}
             </ul>

@@ -15,6 +15,8 @@ export interface EntryRef {
   title: string;
   year: number | null;
   note: string | null;
+  /** The note in English, when it was translated (D169). */
+  noteEn: string | null;
   entry: { kind: string; slug: string } | null;
   url: string | null;
 }
@@ -301,6 +303,7 @@ export function refs(v: unknown): EntryRef[] {
       title: r.title,
       year: typeof r.year === "number" ? r.year : null,
       note: str(r.note),
+      noteEn: str(r.note_en),
       entry:
         r.entry && typeof r.entry.kind === "string" && typeof r.entry.slug === "string"
           ? { kind: r.entry.kind, slug: r.entry.slug }
@@ -343,4 +346,26 @@ export function nameIn(facts: Record<string, unknown>, field: string, language: 
   const own =
     names && typeof names === "object" ? (names as Record<string, unknown>)[language] : null;
   return str(own) ?? str(facts[field]);
+}
+
+/** The language an entry's text is first written in, then the rest, for fallbacks. */
+const FALLBACK: readonly Language[] = ["fa", "en", "tr"];
+
+/**
+ * Each named section in the page's language, or else in the first language that has it: an entry
+ * translated only in part still shows every section (D169).
+ */
+export function sectionsIn(
+  entry: Entry,
+  language: Language,
+  names: readonly string[],
+): { name: string; language: Language; text: string }[] {
+  const order = [language, ...FALLBACK.filter((l) => l !== language)];
+  return names.flatMap((name) => {
+    for (const l of order) {
+      const text = entry.body[l]?.[name];
+      if (typeof text === "string" && text.trim()) return [{ name, language: l, text }];
+    }
+    return [];
+  });
 }

@@ -6,6 +6,7 @@ import {
   inlineHtml,
   links,
   refs,
+  sectionsIn,
   teaser,
   textHtml,
 } from "./reference.ts";
@@ -55,6 +56,18 @@ describe("dates and groups", () => {
   });
 });
 
+describe("sectionsIn", () => {
+  it("takes each section in the page's language, else the first language that has it", () => {
+    const entry = {
+      body: { fa: { overview: "خلاصه", problem: "مسئله" }, en: { overview: "Summary" } },
+    } as unknown as Parameters<typeof sectionsIn>[0];
+    expect(sectionsIn(entry, "en", ["overview", "problem", "why"])).toEqual([
+      { name: "overview", language: "en", text: "Summary" },
+      { name: "problem", language: "fa", text: "مسئله" },
+    ]);
+  });
+});
+
 describe("facts", () => {
   it("keeps only safe links and well-formed refs", () => {
     expect(links([{ label: "a", url: "https://x" }, { label: "b", url: "ftp://y" }, null])).toEqual(
@@ -67,8 +80,15 @@ describe("facts", () => {
         { nope: true },
       ]),
     ).toEqual([
-      { title: "T", year: 1990, note: null, entry: { kind: "paper", slug: "t" }, url: null },
-      { title: "U", year: null, note: null, entry: null, url: null },
+      {
+        title: "T",
+        year: 1990,
+        note: null,
+        noteEn: null,
+        entry: { kind: "paper", slug: "t" },
+        url: null,
+      },
+      { title: "U", year: null, note: null, noteEn: null, entry: null, url: null },
     ]);
   });
 
