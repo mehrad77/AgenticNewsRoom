@@ -127,7 +127,7 @@ auto_publish: [newsletter-issue]
   }
 ```
 
-Lab blogs are tier 1, one entry per lab (a feed where the lab has one, else its listing page). arXiv is one source over all the newsroom's categories, so a paper's primary category is judged against all of them (D59). Each source is fetched only after a person has read its terms and set `terms_checked`; milestone 2 completes the list.
+Lab blogs are tier 1, one entry per lab (a feed where the lab has one, else its listing page). arXiv is one source over all the newsroom's categories, so a paper's primary category is judged against all of them (D59). Each source is fetched only after a person has read its terms and set `terms_checked`.
 
 ```yaml
 # series/daily-newsletter.yaml (excerpt)
@@ -236,7 +236,7 @@ opinion: allowed_marked # opinion is labelled and never carries a factual claim
   }
 ```
 
-Milestone 6 adds the Turkish music press (tier 2, every 6 hours, one entry per outlet), label release feeds (tier 1, every 12 hours), venue calendars and festival line-ups (tier 2, daily), each after a person has checked its terms.
+Kültür also follows the Turkish music press (tier 2, every 6 hours, one entry per outlet), label release feeds (tier 1, every 12 hours), venue calendars and festival line-ups (tier 2, daily), each after a person has checked its terms.
 
 ```yaml
 # series/artist-story.yaml (excerpt)
@@ -277,6 +277,6 @@ These are the platform features the two newsrooms need. The first two rows chang
 | Claims checked once, not per language          | Both   | Claims live on the story. Each rendition points at story claims, so the fact-checker runs once per claim, and code checks that every rendition's facts map to a checked claim |
 | A podcast built from other series              | AI     | A segment can take its source from another series' output for the week, such as the newsletters                                                                               |
 | Right-to-left and left-to-right on one site    | Both   | The site picks direction per language, not per newsroom                                                                                                                       |
-| Text-to-speech in Persian, English and Turkish | Both   | Voices per host per language in the series config; English and Turkish voice quality is checked as part of milestone 5's gate                                                 |
+| Text-to-speech in Persian, English and Turkish | Both   | Voices per host per language in the series config; English and Turkish voice quality was checked by listening before launch                                                 |
 | Marked opinion                                 | Kültür | Opinion becomes a kind of claim: templates label it, and the fact-checker skips it                                                                                            |
 | Rights for images                              | Kültür | A media item records its licence; the publisher refuses media without one                                                                                                     |

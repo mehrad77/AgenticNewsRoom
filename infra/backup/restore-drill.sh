@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Milestone 7a's gate, on a fresh machine with the repo, Docker, sops and the operator's age key
+# The restore drill, on a fresh machine with the repo, Docker, sops and the operator's age key
 # (from the password manager): restore the latest backup from R2, then run the tenancy check,
 # config:check and config sync against it, in the tag's images.
 #   infra/backup/restore-drill.sh <tag>

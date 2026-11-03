@@ -1112,7 +1112,7 @@ export interface components {
             runs: components["schemas"]["AgentRun"][];
             /** @description The runs' summed cost. */
             cost_usd: number;
-            /** @description The publication's trace (D137), from its assignment on; none before milestone 7b. */
+            /** @description The publication's trace (D137), from its assignment on; none for publications assigned before traces were stored. */
             trace_id: string | null;
         };
         ApproveRequest: {

@@ -1,6 +1,6 @@
 # infra
 
-One server runs everything with Docker Compose: a Linux VM or dedicated server, or the operator's laptop, where ANR's own newsrooms run (D145). Postgres holds data and the pg-boss queue; private R2 buckets hold pgBackRest backups, raw pages, episode audio and published images (D132). Design: [`docs/technical-design.md#deploy-and-backups`](../docs/technical-design.md#deploy-and-backups) and [operations](../docs/technical-design.md#operations-and-observability). Items marked *7b* are planned in milestone 7b and do not exist yet.
+One server runs everything with Docker Compose: a Linux VM or dedicated server, or the operator's laptop, where ANR's own newsrooms run (D145). Postgres holds data and the pg-boss queue; private R2 buckets hold pgBackRest backups, raw pages, episode audio and published images (D132). Design: [`docs/technical-design.md#deploy-and-backups`](../docs/technical-design.md#deploy-and-backups) and [operations](../docs/technical-design.md#operations-and-observability).
 
 ## Production topology
 
@@ -19,7 +19,7 @@ Prod is the Compose project `anr-prod` (`compose.prod.yaml`); where dev shares t
 - `check.ts`: run by `pnpm lint` and the opt-in pre-commit hook (`git config core.hooksPath .githooks`); fails on any file in `secrets/` that is not SOPS-encrypted, and when `.env.example`'s secrets differ from `env.sh`'s.
 - `secrets/`: `prod.env` and `terraform.tfvars.json`, SOPS-encrypted to the operator's age key named in `.sops.yaml` (D125). Edit with `sops infra/secrets/prod.env`; the key is `~/.config/sops/age/keys.txt` (the scripts set `SOPS_AGE_KEY_FILE`, since sops on macOS looks elsewhere).
 - `terraform/`: the tunnel and its ingress, root and wildcard records, Access for `desk.` and `ops.`, and the R2 buckets (D136). Run through `tf.sh`, which decrypts the variables per command; state is in the `anr-terraform-state` bucket, locked.
-- `backup/`: pgBackRest to R2 (`backup.sh init|full|diff|incr|check|requests|info`, each run a `backup_runs` row), `restore.sh` into an empty volume, `restore-drill.sh <tag>` (7a's gate on a fresh machine) and `drill-local.sh` (the whole cycle against an S3 stand-in, milestone 1's gate). Running jobs use `docker exec` on the running container, so the host's scheduler needs no env.
+- `backup/`: pgBackRest to R2 (`backup.sh init|full|diff|incr|check|requests|info`, each run a `backup_runs` row), `restore.sh` into an empty volume, `restore-drill.sh <tag>` (the latest backup onto a fresh machine) and `drill-local.sh` (the whole cycle against an S3 stand-in). Running jobs use `docker exec` on the running container, so the host's scheduler needs no env.
 - `host/`: host profiles (D127). `linux/`: systemd user units with lingering (`install.sh`). `macos/`: launchd agents (`install.sh`), plus one running `caffeinate -s`.
 - `observability/`: the collector's config, otel-lgtm's Prometheus config and Grafana's entrypoint (`grafana/start.sh`), datasources, dashboards, alert rules and the ops chat's contact point, all provisioned read-only. Dashboards and rules are generated from `packages/telemetry/ops/` (`pnpm gen`); never edit them here. See Observability below.
 - `drills/`: chaos drills, each with its runbook beside it (D143, D159): `pause.sh` (host outage), `kill-worker.sh`, `fill-disk.sh`. Each takes the Compose project and needs `--prod` for `anr-prod`; ask the operator before running one there.
@@ -46,7 +46,7 @@ infra/observability/check-grafana-auth.sh       # production's sign-in in a thro
 infra/observability/check-scrub.sh              # a dirty span reaches Tempo clean (COMPOSE_PROJECT_NAME=anr-prod for prod)
 ```
 
-For milestone 7b the operator adds to `prod.env` (`sops infra/secrets/prod.env`), before deploying it:
+For observability the operator adds to `prod.env` (`sops infra/secrets/prod.env`), before deploying it:
 
 1. `CF_ACCESS_OPS_AUD`: `infra/terraform/tf.sh output -raw ops_access_aud`.
 2. The ops bot: create one with BotFather (not a newsroom's bot), send it a message from your Telegram account, and set `ANR_OPS_TELEGRAM_BOT_TOKEN` and `ANR_OPS_TELEGRAM_CHAT_ID` (your chat's id, from `https://api.telegram.org/bot<token>/getUpdates`). Without both, `deploy.sh` refuses; Grafana gets the Telegram contact point only when both are set. After the deploy, send Grafana's test notification from Alerting → Contact points.
@@ -66,7 +66,7 @@ infra/host/linux/install.sh                 # or infra/host/macos/install.sh
 
 ## First deploy
 
-Milestone 7a (`docs/build-plan.md`). The operator does the steps with accounts and keys. On macOS, use a clone of its own as the deploy checkout, so switching branches in dev never changes prod's scripts.
+The operator does the steps with accounts and keys. On macOS, use a clone of its own as the deploy checkout, so switching branches in dev never changes prod's scripts.
 
 1. Cloudflare: the zone for `ANR_ROOT_DOMAIN`, a Zero Trust team with One-time PIN login, R2. By hand: the `anr-terraform-state` bucket with an R2 token scoped to it, and a Cloudflare API token for Terraform (Account: Cloudflare Tunnel, Access: Apps and Policies, Workers R2 Storage, all Edit; Zone: DNS Edit, Zone Read). Both in the password manager.
 2. age on the server as the deploying user: `age-keygen -o ~/.config/sops/age/keys.txt` (mode 600), a copy in the password manager, the public key in `.sops.yaml`.

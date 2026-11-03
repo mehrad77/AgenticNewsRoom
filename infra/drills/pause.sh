@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Chaos drill (D143): a host outage, rehearsed by pausing every running container of a Compose
 # project except its telemetry, which stays up to see it and alert. The real drill sleeps or stops
-# the host instead (docs/build-plan.md, 7b). Runbook: infra/drills/pause.md.
+# the host instead (pause.md). Runbook: infra/drills/pause.md.
 #   infra/drills/pause.sh <project> [--prod] [minutes]      default 15
 set -euo pipefail
 cd "$(dirname "$0")"

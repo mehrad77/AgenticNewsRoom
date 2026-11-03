@@ -278,7 +278,7 @@ await system.query(
   `insert into notices (newsroom_id, kind, key, detail) values ($1, 'no-channel', 'telegram:fa', '{"kind": "telegram", "language": "fa"}')`,
   [newsroomId],
 );
-// Planning (milestone 5): two proposed themes for the next cycle, and an open weekly pick.
+// Planning: two proposed themes for the next cycle, and an open weekly pick.
 const classicId = await id(
   `insert into series (newsroom_id, slug, format_id, languages, config)
    select $1, 'weekly-classic', f.id, '{fa,en}', $2

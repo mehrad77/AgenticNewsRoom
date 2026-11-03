@@ -1,5 +1,5 @@
-"""Internal HTTP API. Only TypeScript pg-boss jobs (and, from milestone 3, the agents' request
-tool) call it; it is never exposed publicly.
+"""Internal HTTP API. Only TypeScript pg-boss jobs (and the agents' request tool) call
+it; it is never exposed publicly.
 
 Errors map onto statuses the caller can act on: 404 unknown ids, 422 never fetched (no terms,
 private address, robots.txt) or not an image, 429 the run's request cap, 502 the source failed

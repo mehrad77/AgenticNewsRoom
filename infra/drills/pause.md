@@ -1,6 +1,6 @@
 # Drill: host outage
 
-Rehearses the host going down (D143): `pause.sh` pauses every running container of the project except `lgtm` and `otel-collector`, so Grafana sees the outage from inside. The real drill (milestone 7b's operator task) sleeps or stops the host instead; then nothing on the host can alert, and only UptimeRobot does.
+Rehearses the host going down (D143): `pause.sh` pauses every running container of the project except `lgtm` and `otel-collector`, so Grafana sees the outage from inside. The real drill sleeps or stops the host instead; then nothing on the host can alert, and only UptimeRobot does.
 
 ## Before
 

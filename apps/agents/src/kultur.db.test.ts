@@ -1,4 +1,4 @@
-// The Kültür gate (milestone 6): the second newsroom runs from its configuration alone. A renamed
+// Kültür: the second newsroom runs from its configuration alone. A renamed
 // copy of config/newsrooms/kultur is synced into anr_test by the generic sync, then a chosen
 // weekly pick goes through the desk (tr), the renderer (en, fa), the real verifier and the gate,
 // with a marked opinion item and a licensed image. Models are scripted; nothing names Kültür.
@@ -237,7 +237,7 @@ async function setup() {
   return { newsroomId, seriesId, leadId, mediaId, pickId, dir };
 }
 
-describe("Kültür from configuration alone (milestone 6 gate)", () => {
+describe("Kültür from configuration alone", () => {
   it("writes, renders and checks a weekly artist story in tr, en and fa", async () => {
     const t = await setup();
     const sent: string[] = [];

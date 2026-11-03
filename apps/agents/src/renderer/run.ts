@@ -1,7 +1,6 @@
 // A renderer run for another language of a story (D77): the story's claims and first rendition in,
 // one rendition in the target language out, items tied to the same claims. No research, so no
-// research tools; validation and one retry as for the desk. Other formats and podcast scripts
-// arrive with milestone 5.
+// research tools; validation and one retry as for the desk.
 import type { AgentRunJob } from "@anr/core";
 import { withNewsroom } from "@anr/db";
 import { type BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
