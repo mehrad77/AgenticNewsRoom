@@ -149,7 +149,7 @@ Gate: **a simulated outage shows in Grafana and fires its alert: the host down a
 
 Operator tasks:
 
-- [ ] Ops Telegram bot from BotFather, its token in `infra/secrets/prod.env`, the operator's chat id as `ANR_OPS_TELEGRAM_CHAT_ID`. Not a newsroom channel (D140). *Done when Grafana's test notification arrives.*
+- [x] Ops Telegram bot from BotFather, its token in `infra/secrets/prod.env`, the operator's chat id as `ANR_OPS_TELEGRAM_CHAT_ID`. Not a newsroom channel (D140). *Done when Grafana's test notification arrives.*
 - [ ] UptimeRobot (free plan): an HTTPS monitor on `https://$ANR_ROOT_DOMAIN/healthz` every 5 minutes, alerting by its app's push and email (D141). *Done when stopping `cloudflared` for 10 minutes alerts the operator.*
 - [ ] Run the real host-outage drill across a newsletter slot (spending error budget on purpose): stop the VM or reboot it on Linux, `pmset sleepnow` on macOS; write its postmortem.
 
@@ -161,9 +161,9 @@ Agent tasks:
 - [x] The Python SDK in ingestion and verifier: FastAPI, httpx, psycopg, logs with trace ids over OTLP (D137). *Done when an ingest run's spans join the agents worker's `ingest-source` trace.*
 - [ ] Publication traces: trace id stored on the publication at assignment; every job for it continues the trace; span links to the cited leads' ingest spans; the desk's publication page links to the trace in Grafana (D137). *Done when one daily issue shows desk, renderers, gate and publisher in one trace.*
 - [x] GenAI spans: `invoke_agent` per graph run, a span per LangGraph node, `chat` per model call with the GenAI attributes, `execute_tool` per tool call, `anr.cost_usd`, `anr.model.chain` and `anr.model.attempts`; no prompt or answer text; a test pins the attribute names (D138).
-- [ ] Platform gauges from the agents worker every minute: queue depths, held publications and spend per newsroom (inside `withNewsroom()`), heartbeat ages, outages, backup runs, `pg_stat_archiver`; slot counters (sent on time, late, missed) from the publisher (D139). *Done when each gauge shows on its dashboard for both newsrooms, and a test proves the gauges read each newsroom under its own setting.*
+- [x] Platform gauges from the agents worker every minute: queue depths, held publications and spend per newsroom (inside `withNewsroom()`), heartbeat ages, outages, backup runs, `pg_stat_archiver`; slot counters (sent on time, late, missed) from the publisher (D139). *Done when each gauge shows on its dashboard for both newsrooms, and a test proves the gauges read each newsroom under its own setting.*
 - [ ] Dashboards as code: Overview, Queues, Publishing, Agents and spend, Backups and disk, Outages, Load tests. *Done when each loads from provisioning with data and no panel errors.*
 - [x] SLOs and alerts: the two SLOs with multi-window burn-rate alerts; backup check failed or missing, the volumes' disk at 40 GB and 20 GB free, lost heartbeat, tunnel without a connection, hold-rate spike, missed slot; the Telegram contact point (D140, D158). *Done when each rule fires against test data.*
 - [ ] k6 load tests in `tools/load/`: reader page, search, ninjs twin, podcast feed against the origin through Caddy; thresholds no errors and p95 under 500 ms at 20 requests a second; results to Grafana over OTLP (D142). *Done when a run passes and shows on the Load tests dashboard.*
-- [ ] Chaos drills in `infra/drills/`: `docker compose pause` of `anr-prod` across a slot, killing a worker, filling a scratch volume until the volumes' disk is at 15% free, then removing it; each with a runbook (D143). *Done when each script runs and cleans up after itself.*
+- [x] Chaos drills in `infra/drills/`: `docker compose pause` of `anr-prod` across a slot, killing a worker, filling a scratch volume until the disk with less free space is at 30 GB, then removing it; each with a runbook (D143, D153, D159). *Done when each script runs and cleans up after itself.*
 - [ ] Gate: each drill shows in Grafana and fires its alert in the ops chat, and has a postmortem in `docs/postmortems/` from the template.

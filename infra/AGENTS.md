@@ -22,7 +22,7 @@ Prod is the Compose project `anr-prod` (`compose.prod.yaml`); where dev shares t
 - `backup/`: pgBackRest to R2 (`backup.sh init|full|diff|incr|check|requests|info`, each run a `backup_runs` row), `restore.sh` into an empty volume, `restore-drill.sh <tag>` (7a's gate on a fresh machine) and `drill-local.sh` (the whole cycle against an S3 stand-in, milestone 1's gate). Running jobs use `docker exec` on the running container, so the host's scheduler needs no env.
 - `host/`: host profiles (D127). `linux/`: systemd user units with lingering (`install.sh`). `macos/`: launchd agents (`install.sh`), plus one running `caffeinate -s`.
 - `observability/`: the collector's config, otel-lgtm's Prometheus config and Grafana's entrypoint (`grafana/start.sh`), datasources, dashboards, alert rules and the ops chat's contact point, all provisioned read-only. Dashboards and rules are generated from `packages/telemetry/ops/` (`pnpm gen`); never edit them here. See Observability below.
-- *7b* `drills/`: chaos drills and their runbooks (D143).
+- `drills/`: chaos drills, each with its runbook beside it (D143, D159): `pause.sh` (host outage), `kill-worker.sh`, `fill-disk.sh`. Each takes the Compose project and needs `--prod` for `anr-prod`; ask the operator before running one there.
 
 ## Backups
 
