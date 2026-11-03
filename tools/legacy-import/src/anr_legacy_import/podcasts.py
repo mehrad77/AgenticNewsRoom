@@ -17,6 +17,8 @@ from typing import Any
 import psycopg
 from psycopg.types.json import Jsonb
 
+from .slots import pipeline_holds
+
 SERIES = "weekly-podcast"
 LANGUAGE = "fa"
 # IPTC digital source type of an episode voiced by AI and not edited by a person (packages/core).
@@ -155,6 +157,8 @@ def write_episodes(
     series_id, format_id = row
     written = 0
     for e in found:
+        if pipeline_holds(conn, newsroom_id, series_id, e.slot):
+            continue  # the pipeline already published this slot
         assignment = conn.execute(
             "insert into assignments (newsroom_id, series_id, slot) values (%s, %s, %s)"
             " on conflict (newsroom_id, series_id, slot) do update set slot = excluded.slot"

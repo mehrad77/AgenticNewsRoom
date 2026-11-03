@@ -13,6 +13,7 @@ from .images import store_images
 from .mapping import Entry
 from .pieces import CLASSIC_SERIES, Piece, classic_pieces, news_issues
 from .podcasts import Episode, write_episodes
+from .slots import pipeline_holds
 
 UPSERT = """
 insert into reference_entries
@@ -27,8 +28,8 @@ on conflict (newsroom_id, legacy_id) do update set
 returning (xmax = 0) as inserted
 """
 
-# A piece (D172): its assignment, story and rendition, then the published publication. An imported
-# publication never replaces one the pipeline made for the same slot.
+# A piece (D172): its assignment, story and rendition, then the published publication. A slot
+# the pipeline holds is skipped before any of these (slots.py); the publication's guard stays.
 ASSIGNMENT = """
 insert into assignments (newsroom_id, series_id, slot) values (%s, %s, %s)
 on conflict (newsroom_id, series_id, slot) do update set slot = excluded.slot
@@ -180,6 +181,8 @@ def write_pieces(conn: psycopg.Connection[Any], newsroom_id: object, pieces: lis
         if p.series not in series:
             raise SystemExit(f"the newsroom has no series {p.series!r}")
         series_id, format_id = series[p.series]
+        if pipeline_holds(conn, newsroom_id, series_id, p.slot):
+            continue  # the pipeline already published this slot
         assignment = conn.execute(ASSIGNMENT, (newsroom_id, series_id, p.slot)).fetchone()
         assert assignment
         conn.execute(STORY, {"n": newsroom_id, "a": assignment[0]})

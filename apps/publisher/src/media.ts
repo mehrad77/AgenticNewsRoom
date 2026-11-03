@@ -185,10 +185,19 @@ export async function publishCopies(
       const { data } = await deps.writer.write(source, m, workDir);
       const key = mediaPath(m.id, m.content_type).slice(1);
       await deps.store.put(key, data, m.content_type);
-      await client.query(
-        "update media set published_file = $2 where id = $1 and published_file is null",
-        [m.id, key],
-      );
+      // Going on after a failure, a savepoint keeps one failed update from aborting the
+      // transaction the rest of the images are recorded in.
+      if (!stopAtFailure) await client.query("savepoint publish_copy");
+      try {
+        await client.query(
+          "update media set published_file = $2 where id = $1 and published_file is null",
+          [m.id, key],
+        );
+      } catch (error) {
+        if (!stopAtFailure) await client.query("rollback to savepoint publish_copy");
+        throw error;
+      }
+      if (!stopAtFailure) await client.query("release savepoint publish_copy");
     } catch (error) {
       first ??= { id: m.id, error: (error as Error).message };
       if (stopAtFailure) return first;

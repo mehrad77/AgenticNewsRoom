@@ -56,6 +56,7 @@ async function cycleStats(client: Client, span: CycleSpan, timezone: string): Pr
             coalesce(sum((select sum(d.count) from downloads d where d.publication_id = p.id)), 0)::int as downloads
      from series s
      left join publications p on p.series_id = s.id and p.status in ('published', 'corrected')
+       and p.origin = 'pipeline'
        and (p.slot at time zone $3)::date >= $1::date and (p.slot at time zone $3)::date < $2::date
      where s.removed_at is null group by s.slug order by s.slug`,
     [span.starts, span.ends, timezone],

@@ -85,6 +85,8 @@ await registerJobs(drains.boss, {
     await queueAudio(pool, boss);
     const counts = await sweepDue(deps);
     if (Object.keys(counts).length > 0) console.log(`[publisher] sweep ${JSON.stringify(counts)}`);
+  },
+  images: async () => {
     const images = await publishReferenceImages(pool, deps.media);
     if (images.published + images.failed > 0)
       console.log(`[publisher] reference images ${JSON.stringify(images)}`);

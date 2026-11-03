@@ -239,7 +239,7 @@ export async function podcastFeed(
         "<item>",
         `  <title>${xml(e.title ?? "")}</title>`,
         `  <link>${xml(pageUrl(site, language, e.path))}</link>`,
-        `  <description><![CDATA[${e.summary ?? ""}\n\n${aiLabel}]]></description>`,
+        `  <description>${xml(`${e.summary ?? ""}\n\n${aiLabel}`)}</description>`,
         `  <enclosure url="${xml(`${siteOrigin(site)}${audioPath(e.id)}`)}" length="${e.bytes}" type="audio/mpeg"/>`,
         `  <guid isPermaLink="false">${e.id}-${language}</guid>`,
         `  <pubDate>${e.slot.toUTCString()}</pubDate>`,

@@ -43,10 +43,8 @@ class Piece:
     # The rendition's structured body, as the format's schema has it.
     body: dict[str, Any]
     search_text: str
-
-    @property
-    def day(self) -> str:
-        return self.slot.date().isoformat()
+    # The newsroom's local day, as its path and the site's timeline name it (not the UTC slot's).
+    day: str
 
 
 def _slot(day: str, at: time, timezone: str) -> datetime:
@@ -123,6 +121,7 @@ def news_issues(
                             ),
                         ]
                     ),
+                    day=day,
                 )
             )
     return out
@@ -171,6 +170,7 @@ def classic_pieces(
                         "paper": e.slug,
                     },
                     search_text=" ".join([e.title, *(p for i in items for p in i["paragraphs"])]),
+                    day=day,
                 )
             )
     return out

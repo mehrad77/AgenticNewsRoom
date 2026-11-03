@@ -34,6 +34,9 @@ def test_news_becomes_one_issue_per_day_and_language() -> None:
     day = pieces[2]
     # 21:00 in Istanbul is 18:00 UTC.
     assert day.slot.isoformat() == "2026-10-24T18:00:00+00:00"
+    # West of UTC the slot's UTC date is the next day; the piece keeps the newsroom's own day.
+    late = news_issues(entries, links, "America/Los_Angeles")[2]
+    assert (late.slot.date().isoformat(), late.day) == ("2026-10-25", "2026-10-24")
     assert day.title == "A و ۱ خبر دیگر"  # noqa: RUF001 (a Persian digit)
     first = day.body["items"][0]
     assert first == {

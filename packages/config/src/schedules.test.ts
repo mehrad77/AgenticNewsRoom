@@ -106,6 +106,7 @@ describe("after a gap (D130)", () => {
       // Each source's next run fetches what it missed; the sweep holds what is past its grace.
       "ingest-source": "skip",
       "publish-sweep": "skip",
+      "publish-images": "skip",
     });
   });
 });

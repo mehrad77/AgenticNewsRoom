@@ -4,7 +4,7 @@
   {% comment %}An issue of one item titled with its headline shows the headline once: the item's source goes under its text.{% endcomment %}
   {% assign single = false %}{% if rendition.items.size == 1 and rendition.items[0].headline == rendition.title %}{% assign single = true %}{% endif %}
   {% for item in rendition.items %}
-    {% if item.kind == "news" %}<section{% if item.anchor %} id="{{ item.anchor }}"{% endif %}>{% unless single %}<h2 dir="auto">{% if item.url %}<a href="{{ item.url }}">{{ item.headline }}</a>{% else %}{{ item.headline }}{% endif %}</h2>{% endunless %}<p>{{ item.body }}</p>{% if single and item.url %}{% assign host = item.url | split: "/" %}<p class="item-source"><a href="{{ item.url }}" dir="ltr">{{ host[2] | remove_first: "www." }}</a></p>{% endif %}</section>{% endif %}
+    {% if item.kind == "news" %}<section{% if item.anchor %} id="{{ item.anchor }}"{% endif %}>{% unless single %}<h2 dir="auto">{% if item.url %}<a href="{{ item.url }}">{{ item.headline }}</a>{% else %}{{ item.headline }}{% endif %}</h2>{% endunless %}<p dir="auto">{{ item.body }}</p>{% if single and item.url %}{% assign host = item.url | split: "/" %}<p class="item-source"><a href="{{ item.url }}" dir="ltr">{{ host[2] | remove_first: "www." }}</a></p>{% endif %}</section>{% endif %}
   {% endfor %}
   {% assign articles = rendition.items | where: "kind", "article" %}
   {% if articles.size > 0 %}<aside>{% for a in articles %}<p><a href="{{ leads[a.lead_id].url }}">{{ a.title }}</a> — {{ a.reason }}</p>{% endfor %}</aside>{% endif %}

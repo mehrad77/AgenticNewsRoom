@@ -10,6 +10,7 @@ from typing import Any
 
 import psycopg
 
+from .images import CONTENT_TYPES
 from .podcasts import SERIES, USER_AGENT
 
 MEDIA = "https://media.newsroom.shab.boo"
@@ -28,7 +29,7 @@ insert into media
   (newsroom_id, file, lead_id, creator, credit_line, copyright_notice, licence, source_url,
    file_url, content_type, description, added_by, licence_kind, licence_recorded_at,
    digital_source_type, role)
-values (%s, %s, null, %s, %s, %s, 'All rights reserved', %s, %s, 'image/jpeg', %s, %s, 'own',
+values (%s, %s, null, %s, %s, %s, 'All rights reserved', %s, %s, %s, %s, %s, 'own',
         now(), %s, %s)
 on conflict (newsroom_id, lead_id, file) do update set
   role = coalesce(excluded.role, media.role), description = excluded.description
@@ -66,6 +67,14 @@ def wanted(episodes: list[dict[str, Any]], hosts: list[dict[str, Any]]) -> list[
     return out
 
 
+def content_type_of(url: str) -> str:
+    """The image's type from its file name, as images.py reads Commons files."""
+    ext = url.split("?", 1)[0].rsplit(".", 1)[-1].lower()
+    if ext not in CONTENT_TYPES:
+        raise SystemExit(f"artwork {url} is not a png, jpeg or webp file")
+    return CONTENT_TYPES[ext]
+
+
 def _get(url: str, cache: Path | None) -> bytes:
     name = url.rsplit("/", 1)[-1]
     if cache and (cache / name).exists():
@@ -99,7 +108,8 @@ def store_art(
     store = Settings.from_env().raw_store()
     covers: dict[str, dict[str, str]] = {}
     for a in art:
-        key = store.put(_get(a.url, cache), "image/jpeg")
+        content_type = content_type_of(a.url)
+        key = store.put(_get(a.url, cache), content_type)
         if a.role:
             # A role moves to the newest file that takes it.
             conn.execute(
@@ -116,6 +126,7 @@ def store_art(
                 f"© {credit}",
                 a.url,
                 a.url,
+                content_type,
                 a.description,
                 added_by,
                 AI_MADE,

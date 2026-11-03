@@ -140,19 +140,11 @@ const inTranscript = new Set(ep.sections.map((s) => s.chapter));
     const bringIntoView = (el: HTMLElement) =>
       el.scrollIntoView({ block: "center", behavior: reduceMotion.matches ? "auto" : "smooth" });
 
-    const indexAt = (t: number) => {
-      let lo = 0;
-      let hi = starts.length - 1;
-      let at = -1;
-      while (lo <= hi) {
-        const mid = (lo + hi) >> 1;
-        if ((starts[mid] ?? Infinity) <= t) {
-          at = mid;
-          lo = mid + 1;
-        } else hi = mid - 1;
-      }
-      return at;
-    };
+    // The turn whose span holds t. Sections matched to chapters by title need not be in time
+    // order, so turns are searched by span, not by a binary search over their starts.
+    const ends = turns.map((el) => Number(el.dataset.end));
+    const indexAt = (t: number) =>
+      starts.findIndex((s, k) => s <= t && t < (ends[k] ?? Number.NEGATIVE_INFINITY));
 
     const updateFollow = () => {
       const turn = turns[current];
@@ -160,8 +152,7 @@ const inTranscript = new Set(ep.sections.map((s) => s.chapter));
     };
     const update = () => {
       const t = player.currentTime;
-      let i = indexAt(t);
-      if (i >= 0 && t >= Number(turns[i]?.dataset.end)) i = -1; // between untimed sections
+      const i = indexAt(t); // -1 between untimed sections
       if (i !== current) {
         const was = turns[current];
         const wasWatching = !!was && visible(was);
