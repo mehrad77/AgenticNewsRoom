@@ -21,6 +21,14 @@ export interface CheckedItem {
   textHash: string;
 }
 
+/** Each check's latest result: a rechecked story keeps its earlier rows, and the newer one counts. */
+export function latestChecks<T extends StoredCheck>(checks: readonly T[]): T[] {
+  const latest = new Map<string, T>();
+  for (const c of checks)
+    latest.set([c.claimId, c.renditionId, c.item, c.kind, c.name, c.position].join("|"), c);
+  return [...latest.values()];
+}
+
 /** Whether every check about a claim passed, a fact-check for each of its sources included. */
 export function claimPassed(claim: Claim, checks: readonly StoredCheck[]): boolean {
   if (claim.kind !== "fact") return false;

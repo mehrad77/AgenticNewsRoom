@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkedItems } from "./imported.ts";
+import { checkedItems, latestChecks } from "./imported.ts";
 import type { StoredCheck } from "./policy.ts";
 
 const claim = (id: string, ref: string) => ({ id, ref, kind: "fact", sources: [{}] });
@@ -87,5 +87,14 @@ describe("an imported story's checked items (D184)", () => {
       check({ kind: "item-match", name: "item-match", renditionId: "r1", item: "items.2" }),
     ]);
     expect(out.map((x) => x.item)).toEqual(["items.0"]);
+  });
+});
+
+describe("latestChecks", () => {
+  it("keeps each check's latest result, so a recheck's pass replaces an earlier fail", () => {
+    const earlier = check({ name: "claims", renditionId: "r1", result: "fail" });
+    const later = check({ name: "claims", renditionId: "r1", result: "pass" });
+    const other = check({ kind: "fact-check", name: "fact-check", claimId: "k1", position: 0 });
+    expect(latestChecks([earlier, other, later])).toEqual([later, other]);
   });
 });

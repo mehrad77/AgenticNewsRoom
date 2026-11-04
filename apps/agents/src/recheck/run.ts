@@ -34,6 +34,12 @@ export interface RecheckOptions {
   limit: number;
 }
 
+/** An item whose source or claims failed is tried again on later passes, this many times in all. */
+export const ITEM_TRIES = 3;
+
+/** The recheck's desk runs on a story's items. */
+const RECHECK_RUN = `x.story_id = st.id and x.role = 'desk' and x.task->>'key' = 'recheck'`;
+
 interface NewsItem {
   kind?: string;
   headline?: string;
@@ -81,13 +87,19 @@ async function stories(pool: Pool, o: RecheckOptions, pass: "source" | "check"):
                      where i->>'kind' = 'news' and i ? 'url')
          and ${
            pass === "source"
-             ? `not exists (select from agent_runs x where x.story_id = st.id
-                            and x.role = 'desk' and x.task->>'key' = 'recheck')`
-             : `not exists (select from agent_runs x where x.story_id = st.id and x.role = 'desk'
-                            and x.task->>'key' = 'recheck' and x.outcome is null)
-                and exists (select from agent_runs x where x.story_id = st.id
-                            and x.role = 'desk' and x.task->>'key' = 'recheck')
-                and not exists (select from checks k where k.rendition_id = r.id)
+             ? // An item with a source not yet tried, or tried fewer than ITEM_TRIES times and failed.
+               `exists (select from jsonb_array_elements(r.body->'items') with ordinality i(v, n)
+                        where i.v->>'kind' = 'news' and i.v ? 'url'
+                          and not exists (select from agent_runs x where ${RECHECK_RUN}
+                                          and (x.task->>'item')::int = i.n - 1
+                                          and (x.outcome is null or x.outcome = 'submitted'))
+                          and (select count(*) from agent_runs x where ${RECHECK_RUN}
+                               and (x.task->>'item')::int = i.n - 1) < ${ITEM_TRIES})`
+             : // Claims written since the story was last checked, none still being written.
+               `not exists (select from agent_runs x where ${RECHECK_RUN} and x.outcome is null)
+                and coalesce((select max(k.at) from checks k where k.rendition_id = r.id), '-infinity')
+                    < (select max(x.finished_at) from agent_runs x
+                       where ${RECHECK_RUN} and x.outcome = 'submitted')
                 and not exists (select from claims cl join leads l on l.id = cl.lead_id
                                 where cl.story_id = st.id and l.summary is null)`
          }
@@ -110,7 +122,15 @@ async function sourceStory(deps: RecheckDeps, o: RecheckOptions, story: Story): 
   if (!first) throw new Error("the desk chain is empty");
   // The import's writers, recorded once on the story (invariant 4).
   const families = importFamilies(deps.models);
-  if (families.length > 0)
+  const tried = await inNewsroom(async (c) => {
+    const { rows } = await c.query<{ item: number; outcome: string | null; key: string }>(
+      `select (task->>'item')::int as item, outcome, task->>'key' as key from agent_runs
+       where story_id = $1 and task->>'key' in ('recheck', 'recheck-import')`,
+      [story.storyId],
+    );
+    return rows;
+  });
+  if (families.length > 0 && !tried.some((t) => t.key === "recheck-import"))
     await inNewsroom(async (c) => {
       const { id } = await insertRun(c, {
         role: "renderer",
@@ -125,11 +145,23 @@ async function sourceStory(deps: RecheckDeps, o: RecheckOptions, story: Story): 
 
   const [base] = story.renditions;
   const count = base?.items.length ?? 0;
-  let ref = 0;
+  // New claims are numbered after the story's earlier ones.
+  let ref = await inNewsroom(async (c) => {
+    const { rows } = await c.query<{ n: number }>(
+      `select coalesce(max(substring(ref from 2)::int), 0)::int as n from claims
+       where story_id = $1 and ref ~ '^c[0-9]+$'`,
+      [story.storyId],
+    );
+    return rows[0]?.n ?? 0;
+  });
   let written = 0;
   const newLeads: string[] = [];
   for (let index = 0; index < count; index++) {
     const url = base?.items[index]?.url;
+    const runs = tried.filter((t) => t.key === "recheck" && t.item === index);
+    const done = runs.some((t) => t.outcome === null || t.outcome === "submitted");
+    // Written, being written, out of tries, or (an item naming no source) already told so.
+    if (done || runs.length >= ITEM_TRIES || (runs.length > 0 && !url)) continue;
     const { id: runId } = await inNewsroom((c) =>
       insertRun(c, {
         role: "desk",

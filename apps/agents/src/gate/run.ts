@@ -27,7 +27,7 @@ import { newMeter, type RunModel, TokenCapReached } from "../model.ts";
 import { assemblePrompt } from "../prompts/assemble.ts";
 import type { ModelRouter } from "../router.ts";
 import { finishRun, holdPublications, insertRun } from "../runs.ts";
-import { checkedItems, claimPassed } from "./imported.ts";
+import { checkedItems, claimPassed, latestChecks } from "./imported.ts";
 import { decide, type StoredCheck } from "./policy.ts";
 
 export { itemPaths, itemText };
@@ -189,7 +189,8 @@ async function storyChecks(
             (c.detail->>'position')::int as position
      from checks c
      where c.claim_id in (select id from claims where story_id = $1)
-        or c.rendition_id in (select id from renditions where story_id = $1)`,
+        or c.rendition_id in (select id from renditions where story_id = $1)
+     order by c.at`,
     [storyId],
   );
   return rows;
@@ -250,7 +251,9 @@ export async function runGate(deps: GateDeps, job: GateJob): Promise<string> {
   // 1. Code checks: the verifier stores them all in one transaction, or none. A stored verifier
   // error already holds, so a retried job does not ask again.
   let checks = await inStory((c) => storyChecks(c, job.storyId));
-  if (!checks.some((c) => c.kind === "code" && ["schema", "verifier"].includes(c.name))) {
+  // An imported story is checked again when the recheck wrote claims the verifier has not seen.
+  const unseen = imported && story.claims.some((cl) => !checks.some((c) => c.claimId === cl.id));
+  if (unseen || !checks.some((c) => c.kind === "code" && ["schema", "verifier"].includes(c.name))) {
     const outcome = await deps.verifier.verify(job.newsroomId, job.storyId);
     if (!outcome.ok) {
       await inStory(async (c) => {
@@ -439,7 +442,7 @@ export async function runGate(deps: GateDeps, job: GateJob): Promise<string> {
   );
   if (imported) {
     // Item by item (D184): one item's dead source does not stop the others being checked.
-    await importedChecks(deps, job, story, checks);
+    await importedChecks(deps, job, story, latestChecks(checks));
     const outcome = await inStory((c) => recordChecked(c, job.storyId, story));
     log(`[gate] story ${job.storyId}: ${outcome}`);
     return outcome;
@@ -708,7 +711,9 @@ async function importedChecks(
     { ...story, claims: story.claims.filter((c) => codeOk(c.id)) },
     checks,
   );
-  const now = await withNewsroom(deps.pool, job.newsroomId, (c) => storyChecks(c, job.storyId));
+  const now = latestChecks(
+    await withNewsroom(deps.pool, job.newsroomId, (c) => storyChecks(c, job.storyId)),
+  );
   const byRef = new Map(story.claims.map((c) => [c.ref, c]));
   await itemMatch(deps, job, story, now, (renditionId, path, item) => {
     const refs = (item.claim_ids as string[] | undefined) ?? [];
@@ -726,7 +731,7 @@ async function importedChecks(
 
 /** Records the imported story's items that passed, and forgets any that no longer do. */
 async function recordChecked(client: Client, storyId: string, story: GateStory): Promise<string> {
-  const checks = await storyChecks(client, storyId);
+  const checks = latestChecks(await storyChecks(client, storyId));
   const passed = checkedItems(story.publications, story.renditions, story.claims, checks);
   const ids = story.publications.map((p) => p.id);
   await client.query(

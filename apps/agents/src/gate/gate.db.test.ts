@@ -460,8 +460,22 @@ describe("an imported story (D184)", () => {
     };
     const options = { newsroomId, limit: 10 };
     expect(await sourcePass(deps, options)).toBe(1);
+    // The dead source is tried again on later passes, three times in all, then left labelled.
+    expect(await sourcePass(deps, options)).toBe(1);
+    expect(await sourcePass(deps, options)).toBe(1);
     expect(await sourcePass(deps, options)).toBe(0);
+    const { rows: tries } = await pools.system.query<{ item: number; n: number }>(
+      `select (task->>'item')::int as item, count(*)::int as n from agent_runs
+       where newsroom_id = $1 and task->>'key' = 'recheck' group by 1 order by 1`,
+      [newsroomId],
+    );
+    expect(tries).toEqual([
+      { item: 0, n: 1 },
+      { item: 1, n: 3 },
+    ]);
     expect(await checkPass(deps, options)).toBe(1);
+    // Checked again only once new claims are written.
+    expect(await checkPass(deps, options)).toBe(0);
 
     const { rows: pubs } = await pools.system.query<{ language: string; status: string }>(
       "select language, status from publications where newsroom_id = $1 order by language",
