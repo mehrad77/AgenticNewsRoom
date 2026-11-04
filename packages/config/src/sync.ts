@@ -16,6 +16,7 @@ import {
   platformSchedules,
   SCHEDULED_QUEUES,
 } from "./schedules.ts";
+import { SOURCE_COLUMNS, type SourceRow, sourceFromRow } from "./sources-db.ts";
 import { validateConfig } from "./validate.ts";
 
 export interface SyncCounts {
@@ -44,7 +45,8 @@ const interval = (every: string) => `${every.slice(0, -1)} ${SOURCE_UNITS[every.
  * Loads a validated config tree into Postgres. Runs at deploy as anr_system (it spans newsrooms),
  * in one transaction with the pg-boss schedule changes, so a failed sync changes nothing.
  * Items are upserted on their slug, so ids never change; items that left the config are
- * soft-deleted (removed_at) and revived with the same id if they return.
+ * soft-deleted (removed_at) and revived with the same id if they return. A source a person changed
+ * through the API is left as it is (D192), and source schedules come from the rows.
  */
 export async function syncConfig(pool: Pool, boss: PgBoss, config: RawConfig): Promise<SyncReport> {
   const errors = validateConfig(config);
@@ -250,6 +252,7 @@ async function syncNewsroom(
          terms_note = excluded.terms_note, fetch_pages = excluded.fetch_pages,
          vouches = excluded.vouches, updated_at = now(),
          removed_at = null
+       where sources.edited_at is null
        ${RETURNING}`,
       [
         newsroomId,
@@ -266,14 +269,23 @@ async function syncNewsroom(
         s.vouches ?? [],
       ],
     );
-    scheduledSources.push({ ...s, id: tally(report.sources, rows[0]) });
+    // A source a person changed through the API is Postgres's now (D192): the file's copy is left.
+    if (rows[0]) tally(report.sources, rows[0]);
+    else report.sources.kept++;
   }
-  report.sources.removed += await softDelete(
-    client,
-    "sources",
-    sources.map((s) => s.id),
-    newsroomId,
+  // Removing from the file removes only what the file still owns.
+  const { rowCount: removedSources } = await client.query(
+    `update sources set removed_at = now(), updated_at = now()
+     where newsroom_id = $2 and removed_at is null and edited_at is null and not (slug = any($1))`,
+    [sources.map((s) => s.id), newsroomId],
   );
+  report.sources.removed += removedSources ?? 0;
+  // Schedules follow the rows, whoever wrote them, so a sync never drops an API-added source's.
+  const { rows: sourceRows } = await client.query<SourceRow>(
+    `select ${SOURCE_COLUMNS} from sources where newsroom_id = $1 and removed_at is null`,
+    [newsroomId],
+  );
+  for (const r of sourceRows) scheduledSources.push({ ...sourceFromRow(r), id: r.id });
 
   const scheduledSeries = [];
   for (const [slug, s] of Object.entries(raw.series as Record<string, SeriesSchema>)) {

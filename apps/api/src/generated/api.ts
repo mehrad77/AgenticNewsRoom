@@ -375,6 +375,104 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/desk/newsrooms/{newsroom}/sources/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        /**
+         * The newsroom's sources as the text of its sources.yaml
+         * @description For review and backup, and to apply again after rolling back to a release before D192, whose sync rewrites sources from its own files.
+         */
+        get: operations["exportSources"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/sources/{source}/edit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                /** @description The source's id, from listSourceHealth. */
+                source: components["parameters"]["Source"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change a source's fields
+         * @description Only the fields given change; null puts one back to its default. Its slug stays, and its terms are set with setSourceTerms. Validated, rescheduled and audited (D192).
+         */
+        post: operations["updateSource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/sources/{source}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                /** @description The source's id, from listSourceHealth. */
+                source: components["parameters"]["Source"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a source
+         * @description Unscheduled at once; its leads stay. Audited (D192).
+         */
+        delete: operations["removeSource"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/sources/{source}/terms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                /** @description The source's id, from listSourceHealth. */
+                source: components["parameters"]["Source"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record that you have read a source's terms, or withdraw it
+         * @description Only after the person whose token this is has read the source's terms of use themself (D17): it is what lets ingestion fetch the source. An agent never decides this on its own. `read: false` withdraws it and unschedules the source. Records who and when; audited.
+         */
+        post: operations["setSourceTerms"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/desk/newsrooms/{newsroom}/queue": {
         parameters: {
             query?: never;
@@ -785,7 +883,11 @@ export interface paths {
         /** Each source's last fetch, failures and recent leads */
         get: operations["listSourceHealth"];
         put?: never;
-        post?: never;
+        /**
+         * Add a source
+         * @description Validated by the same rules as sources.yaml, audited, and scheduled once its terms are read (D192). Record that you read its terms with setSourceTerms; until then it is never fetched (D17).
+         */
+        post: operations["addSource"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1670,6 +1772,64 @@ export interface components {
                 note: string | null;
             }[];
         };
+        /** @description A source as sources.yaml has it, without its terms (D192). */
+        SourceInput: {
+            /** @description The source's slug. */
+            id: string;
+            /** @enum {string} */
+            kind: "rss" | "api" | "site";
+            /** Format: uri */
+            url: string;
+            /** @description Who publishes it; independence is counted per publisher. */
+            publisher?: string;
+            /** @enum {integer} */
+            tier: 1 | 2 | 3;
+            /** @description How often it is fetched: 30m, 6h, 1d. */
+            every: string;
+            /**
+             * @default leads
+             * @enum {string}
+             */
+            use: "leads" | "enrichment" | "vouch";
+            vouches?: string[];
+            terms_note?: string;
+            /** @default true */
+            pages: boolean;
+        };
+        /** @description Fields to change; null puts one back to its default. */
+        SourceChange: {
+            /** @enum {string} */
+            kind?: "rss" | "api" | "site";
+            /** Format: uri */
+            url?: string;
+            publisher?: string | null;
+            /** @enum {integer} */
+            tier?: 1 | 2 | 3;
+            every?: string;
+            /** @enum {string|null} */
+            use?: "leads" | "enrichment" | "vouch" | null;
+            vouches?: string[] | null;
+            terms_note?: string | null;
+            pages?: boolean | null;
+        };
+        /** @description A source as sources.yaml would have it, with its row id. */
+        SourceRecord: {
+            /** @description The slug. */
+            id: string;
+            /** Format: uuid */
+            source_id: string;
+            kind: string;
+            url: string;
+            publisher?: string;
+            tier: number;
+            every: string;
+            use?: string;
+            vouches?: string[];
+            /** Format: date */
+            terms_checked?: string;
+            terms_note?: string;
+            pages?: boolean;
+        };
         PersonalToken: {
             /** Format: uuid */
             id: string;
@@ -2498,6 +2658,8 @@ export interface components {
         Newsroom: string;
         /** @description The member's user id, from listMembers. */
         Member: string;
+        /** @description The source's id, from listSourceHealth. */
+        Source: string;
         Publication: string;
         Challenge: string;
         Media: string;
@@ -3050,6 +3212,135 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    exportSources: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description YAML. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/yaml": string;
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    updateSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                /** @description The source's id, from listSourceHealth. */
+                source: components["parameters"]["Source"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SourceChange"];
+            };
+        };
+        responses: {
+            /** @description The source. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceRecord"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    removeSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                /** @description The source's id, from listSourceHealth. */
+                source: components["parameters"]["Source"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        /** Format: uuid */
+                        source_id: string;
+                        /** @constant */
+                        removed: true;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setSourceTerms: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                /** @description The source's id, from listSourceHealth. */
+                source: components["parameters"]["Source"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    read: boolean;
+                    /** @description What the terms allow, kept as terms_note. */
+                    note?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The source. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceRecord"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     getReviewQueue: {
@@ -3662,6 +3953,37 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    addSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SourceInput"];
+            };
+        };
+        responses: {
+            /** @description The source as sources.yaml would have it, with its id. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceRecord"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
         };
     };
     getRecheck: {

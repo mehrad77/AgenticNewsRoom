@@ -73,7 +73,14 @@ import {
   schedule,
 } from "./desk/review.ts";
 import { agentRun, listAgentRuns, runFilters } from "./desk/runs.ts";
-import { sourceHealth } from "./desk/sources.ts";
+import {
+  addSource,
+  exportSources,
+  removeSource,
+  setSourceTerms,
+  sourceHealth,
+  updateSource,
+} from "./desk/sources.ts";
 import {
   allTokens,
   bearerToken,
@@ -90,8 +97,8 @@ type Health = components["schemas"]["Health"];
 
 export interface DeskDeps {
   pool: Pool;
-  /** Sends jobs; retries and cancels them for the Ops page (D144). */
-  boss: Pick<PgBoss, "send" | "retry" | "cancel">;
+  /** Sends jobs; retries and cancels them for the Ops page (D144); schedules sources (D192). */
+  boss: Pick<PgBoss, "send" | "retry" | "cancel" | "schedule" | "unschedule">;
   platform: PlatformKey;
   verify: VerifyAccess;
   /** Where the newsroom sites are, for the preview's links (as the publisher has them). */
@@ -469,6 +476,43 @@ export function createApp(deps?: DeskDeps) {
   app.get(`${base}/leads`, async (c) => {
     const f = leadFilters(c.req.query());
     return c.json(await inNewsroom(c, (db) => listLeads(db, f)));
+  });
+  // Sources in Postgres (D192): the Editor-in-Chief adds, changes and removes them and records
+  // that they read a source's terms; each write is validated, rescheduled and audited.
+  const writes = { boss };
+  app.get(`${base}/sources/export`, async (c) =>
+    c.body(await inNewsroom(c, (db) => exportSources(db)), 200, {
+      "content-type": "application/yaml; charset=utf-8",
+    }),
+  );
+  app.post(`${base}/sources`, async (c) => {
+    const b = await body(c);
+    return c.json(await inNewsroom(c, (db, actor) => addSource(db, writes, actor, b), chief), 201);
+  });
+  app.post(`${base}/sources/:source/edit`, async (c) => {
+    const b = await body(c);
+    return c.json(
+      await inNewsroom(
+        c,
+        (db, actor) => updateSource(db, writes, actor, id(c, "source"), b),
+        chief,
+      ),
+    );
+  });
+  app.delete(`${base}/sources/:source`, async (c) =>
+    c.json(
+      await inNewsroom(c, (db, actor) => removeSource(db, writes, actor, id(c, "source")), chief),
+    ),
+  );
+  app.post(`${base}/sources/:source/terms`, async (c) => {
+    const b = await body(c);
+    return c.json(
+      await inNewsroom(
+        c,
+        (db, actor) => setSourceTerms(db, writes, actor, id(c, "source"), b),
+        chief,
+      ),
+    );
   });
   app.post(`${base}/sources/:source/fetch`, async (c) =>
     c.json(await inNewsroom(c, (db, actor) => fetchSource(db, boss, actor, id(c, "source")))),

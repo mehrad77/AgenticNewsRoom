@@ -468,6 +468,215 @@ export const MCP_TOOLS: readonly McpTool[] = [
     }
   },
   {
+    "name": "exportSources",
+    "method": "GET",
+    "path": "/desk/newsrooms/{newsroom}/sources/export",
+    "title": "The newsroom's sources as the text of its sources.yaml",
+    "description": "The newsroom's sources as the text of its sources.yaml\n\nFor review and backup, and to apply again after rolling back to a release before D192, whose sync rewrites sources from its own files.",
+    "who": "member",
+    "readOnly": true,
+    "destructive": false,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "newsroom": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "The newsroom's slug."
+        }
+      },
+      "required": [
+        "newsroom"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "updateSource",
+    "method": "POST",
+    "path": "/desk/newsrooms/{newsroom}/sources/{source}/edit",
+    "title": "Change a source's fields",
+    "description": "Change a source's fields\n\nOnly the fields given change; null puts one back to its default. Its slug stays, and its terms are set with setSourceTerms. Validated, rescheduled and audited (D192).",
+    "who": "editor-in-chief",
+    "readOnly": false,
+    "destructive": false,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "newsroom": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "The newsroom's slug."
+        },
+        "source": {
+          "type": "string",
+          "format": "uuid",
+          "description": "The source's id, from listSourceHealth."
+        },
+        "body": {
+          "$ref": "#/$defs/SourceChange"
+        }
+      },
+      "required": [
+        "newsroom",
+        "source",
+        "body"
+      ],
+      "additionalProperties": false,
+      "$defs": {
+        "SourceChange": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Fields to change; null puts one back to its default.",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "rss",
+                "api",
+                "site"
+              ]
+            },
+            "url": {
+              "type": "string",
+              "format": "uri"
+            },
+            "publisher": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "tier": {
+              "type": "integer",
+              "enum": [
+                1,
+                2,
+                3
+              ]
+            },
+            "every": {
+              "type": "string",
+              "pattern": "^[0-9]+[mhd]$"
+            },
+            "use": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "leads",
+                "enrichment",
+                "vouch",
+                null
+              ]
+            },
+            "vouches": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "format": "uri"
+              }
+            },
+            "terms_note": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "pages": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "removeSource",
+    "method": "DELETE",
+    "path": "/desk/newsrooms/{newsroom}/sources/{source}",
+    "title": "Remove a source",
+    "description": "Remove a source\n\nUnscheduled at once; its leads stay. Audited (D192).",
+    "who": "editor-in-chief",
+    "readOnly": false,
+    "destructive": true,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "newsroom": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "The newsroom's slug."
+        },
+        "source": {
+          "type": "string",
+          "format": "uuid",
+          "description": "The source's id, from listSourceHealth."
+        }
+      },
+      "required": [
+        "newsroom",
+        "source"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "setSourceTerms",
+    "method": "POST",
+    "path": "/desk/newsrooms/{newsroom}/sources/{source}/terms",
+    "title": "Record that you have read a source's terms, or withdraw it",
+    "description": "Record that you have read a source's terms, or withdraw it\n\nOnly after the person whose token this is has read the source's terms of use themself (D17): it is what lets ingestion fetch the source. An agent never decides this on its own. `read: false` withdraws it and unschedules the source. Records who and when; audited.",
+    "who": "editor-in-chief",
+    "readOnly": false,
+    "destructive": false,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "newsroom": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "The newsroom's slug."
+        },
+        "source": {
+          "type": "string",
+          "format": "uuid",
+          "description": "The source's id, from listSourceHealth."
+        },
+        "body": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "read"
+          ],
+          "properties": {
+            "read": {
+              "type": "boolean"
+            },
+            "note": {
+              "type": "string",
+              "maxLength": 2000,
+              "description": "What the terms allow, kept as terms_note."
+            }
+          }
+        }
+      },
+      "required": [
+        "newsroom",
+        "source",
+        "body"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
     "name": "getReviewQueue",
     "method": "GET",
     "path": "/desk/newsrooms/{newsroom}/queue",
@@ -1314,6 +1523,107 @@ export const MCP_TOOLS: readonly McpTool[] = [
         "newsroom"
       ],
       "additionalProperties": false
+    }
+  },
+  {
+    "name": "addSource",
+    "method": "POST",
+    "path": "/desk/newsrooms/{newsroom}/sources",
+    "title": "Add a source",
+    "description": "Add a source\n\nValidated by the same rules as sources.yaml, audited, and scheduled once its terms are read (D192). Record that you read its terms with setSourceTerms; until then it is never fetched (D17).",
+    "who": "editor-in-chief",
+    "readOnly": false,
+    "destructive": false,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "newsroom": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "The newsroom's slug."
+        },
+        "body": {
+          "$ref": "#/$defs/SourceInput"
+        }
+      },
+      "required": [
+        "newsroom",
+        "body"
+      ],
+      "additionalProperties": false,
+      "$defs": {
+        "SourceInput": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "A source as sources.yaml has it, without its terms (D192).",
+          "required": [
+            "id",
+            "kind",
+            "url",
+            "tier",
+            "every"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9-]*$",
+              "description": "The source's slug."
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "rss",
+                "api",
+                "site"
+              ]
+            },
+            "url": {
+              "type": "string",
+              "format": "uri"
+            },
+            "publisher": {
+              "type": "string",
+              "description": "Who publishes it; independence is counted per publisher."
+            },
+            "tier": {
+              "type": "integer",
+              "enum": [
+                1,
+                2,
+                3
+              ]
+            },
+            "every": {
+              "type": "string",
+              "pattern": "^[0-9]+[mhd]$",
+              "description": "How often it is fetched: 30m, 6h, 1d."
+            },
+            "use": {
+              "type": "string",
+              "enum": [
+                "leads",
+                "enrichment",
+                "vouch"
+              ],
+              "default": "leads"
+            },
+            "vouches": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uri"
+              }
+            },
+            "terms_note": {
+              "type": "string"
+            },
+            "pages": {
+              "type": "boolean",
+              "default": true
+            }
+          }
+        }
+      }
     }
   },
   {
