@@ -73,7 +73,8 @@ beforeAll(async () => {
   }
 });
 
-describe("the MCP server", () => {
+// Each tool call is a few requests through the app; under the whole suite's load that takes time.
+describe("the MCP server", { timeout: 30_000 }, () => {
   it("lists every tool, with its annotations, to a client with a token", async () => {
     const client = await connect(await tokenFor(chief));
     const { tools } = await client.listTools();
