@@ -194,7 +194,13 @@ describe("recheckReport", () => {
     ]);
     expect(item(7)?.status).toBe("checks");
     expect(item(7)?.reasons).toEqual([
-      { language: "fa", check: "item-match", result: "missing", claim: null, reason: null },
+      {
+        language: "fa",
+        check: "fact-check",
+        result: "missing",
+        claim: "A style claim.",
+        reason: null,
+      },
     ]);
   });
 
