@@ -59,7 +59,7 @@ These come from the charter. A change that crosses one needs a charter change fi
 6. **Tenancy in the database.** Every tenant table has `newsroom_id` with forced row-level security; app code uses `withNewsroom()`.
 7. **Channels and secrets are never config.** Channels are data in Postgres (credentials encrypted); secrets are only the env vars in `.env.example`.
 8. **AI disclosure cannot be turned off.** Every channel template renders `config/formats/_partials/disclosure.liquid`.
-9. **A new newsroom is configuration only.** If adding one needs code, the platform is missing a feature; build it generically. A newsroom's configuration lives in Postgres and is set through the API; `config/newsrooms/` is only its seed, while formats, templates and the models catalog stay in git (D192).
+9. **A new newsroom is configuration only.** If adding one needs code, the platform is missing a feature; build it generically. A newsroom's configuration moves to Postgres, set through the API, sources first; `config/newsrooms/` then only seeds it, while formats, templates and the models catalog stay in git (D192).
 10. **Approvals live in Postgres.** A graph never waits for a human.
 11. **API-first.** Every desk and admin action is an operation in `apps/api/openapi.yaml` and an MCP tool generated from it (D190). A person's own agent may act with their token, as them (D189); ANR's newsroom agents never hold a token or reach the API.
 
