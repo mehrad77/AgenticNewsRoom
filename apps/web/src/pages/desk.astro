@@ -86,6 +86,7 @@ const notices = r.kind === "notices" ? await load(() => api.notices(r.newsroom))
 const schedule = r.kind === "schedule" ? await load(() => api.schedule(r.newsroom)) : undefined;
 const budget = r.kind === "budget" ? await load(() => api.budget(r.newsroom)) : undefined;
 const sources = r.kind === "sources" ? await load(() => api.sources(r.newsroom)) : undefined;
+const sourcesYaml = r.kind === "sources" ? await load(() => api.sourcesYaml(r.newsroom)) : undefined;
 const imported = r.kind === "imported" ? await load(() => api.recheck(r.newsroom)) : undefined;
 const measures = r.kind === "measures" ? await load(() => api.measures(r.newsroom)) : undefined;
 const plan = r.kind === "plan" ? await load(() => api.plan(r.newsroom)) : undefined;
@@ -166,7 +167,7 @@ const nav = [
     {n && samples && <Samples newsroom={n} samples={samples} issuesUrl={issuesUrl} />}
     {n && notices && <Notices newsroom={n} notices={notices} />}
     {budget && <Budget budget={budget} />}
-    {sources && <Sources sources={sources} newsroom={n} />}
+    {sources && <Sources sources={sources} newsroom={n} chief={role === "editor-in-chief"} yaml={sourcesYaml} />}
     {me && members && <People members={members} chief={role === "editor-in-chief"} me={me.email} />}
     {audit && <Audit entries={audit} filters={filters} />}
     {runs && <Runs runs={runs} filters={filters} />}

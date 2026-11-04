@@ -4,11 +4,15 @@ import { type SourceHealth, safeHref, when } from "../../lib/desk.ts";
 interface Props {
   sources: SourceHealth[];
   newsroom?: string;
+  /** The Editor-in-Chief changes sources here (D192). */
+  chief?: boolean;
+  /** The sources as sources.yaml, for the export. */
+  yaml?: string;
 }
-const { sources, newsroom } = Astro.props;
+const { sources, newsroom, chief, yaml } = Astro.props;
 ---
 <h1>Sources</h1>
-<p>Failing sources first. A source without checked terms is never fetched; terms are set in its newsroom's <code>sources.yaml</code>.</p>
+<p>Failing sources first. A source is never fetched until a person has read its terms and recorded it here (D17). Sources live in Postgres: what is changed here, the newsroom's <code>sources.yaml</code> no longer overwrites (D192).</p>
 {sources.length === 0 ? <p>No sources.</p> : (
   <div class="scroll"><table>
     <thead><tr><th>Source</th><th>Tier</th><th>Terms</th><th>Last fetch</th><th>Failures</th><th>Leads, 7 days</th><th></th></tr></thead>
@@ -20,8 +24,53 @@ const { sources, newsroom } = Astro.props;
         <td>{s.last_fetched_at ? when(s.last_fetched_at) : s.use === "vouch" ? "not fetched" : "never"} {s.last_status && <small>HTTP {s.last_status}</small>} {s.last_error && <small>{s.last_error}</small>}</td>
         <td>{s.consecutive_failures}</td>
         <td>{newsroom ? <a href={`/${newsroom}/leads?source=${s.slug}`}>{s.leads_7d}</a> : s.leads_7d}</td>
-        <td>{s.terms_checked && s.use === "leads" && <form method="post" class="inline"><input type="hidden" name="action" value="fetch-source" /><input type="hidden" name="id" value={s.id} /><button>Fetch now</button></form>}</td>
+        <td class="actions">
+          {s.terms_checked && s.use === "leads" && <form method="post"><input type="hidden" name="action" value="fetch-source" /><input type="hidden" name="id" value={s.id} /><button>Fetch now</button></form>}
+          {chief && (
+            <details>
+              <summary>Change</summary>
+              {s.terms_checked ? (
+                <form method="post"><input type="hidden" name="action" value="source-terms" /><input type="hidden" name="id" value={s.id} /><input type="hidden" name="read" value="no" /><button>Withdraw the terms</button></form>
+              ) : (
+                <form method="post" onsubmit="return confirm('Have you read this source\'s terms of use yourself?')">
+                  <input type="hidden" name="action" value="source-terms" /><input type="hidden" name="id" value={s.id} /><input type="hidden" name="read" value="yes" />
+                  <label>What they allow <input name="note" /></label>
+                  <button>I have read its terms</button>
+                </form>
+              )}
+              <form method="post">
+                <input type="hidden" name="action" value="edit-source" /><input type="hidden" name="id" value={s.id} />
+                <label>URL <input name="url" value={s.url} /></label>
+                <label>Tier <select name="tier">{[1, 2, 3].map((t) => <option selected={s.tier === t}>{t}</option>)}</select></label>
+                <label>Every <input name="every" placeholder="6h" /></label>
+                <button>Save</button>
+              </form>
+              <form method="post" onsubmit="return confirm('Remove this source? Its leads stay.')"><input type="hidden" name="action" value="remove-source" /><input type="hidden" name="id" value={s.id} /><button>Remove</button></form>
+            </details>
+          )}
+        </td>
       </tr>
     ))}</tbody>
   </table></div>
+)}
+{chief && (
+  <form method="post" class="card">
+    <h2>Add a source</h2>
+    <input type="hidden" name="action" value="add-source" />
+    <label>Slug <input name="slug" required pattern="[a-z0-9][a-z0-9-]*" /></label>
+    <label>Kind <select name="kind"><option>rss</option><option>site</option><option>api</option></select></label>
+    <label>URL <input name="url" type="url" required /></label>
+    <label>Publisher <input name="publisher" /></label>
+    <label>Tier <select name="tier"><option>1</option><option selected>2</option><option>3</option></select></label>
+    <label>Every <input name="every" value="6h" required pattern="[0-9]+[mhd]" /></label>
+    <label>Use <select name="use"><option>leads</option><option>enrichment</option><option>vouch</option></select></label>
+    <p class="meta">It is not fetched until you record that you read its terms.</p>
+    <button class="primary">Add</button>
+  </form>
+)}
+{yaml && (
+  <details class="card">
+    <summary>Export as sources.yaml</summary>
+    <pre>{yaml}</pre>
+  </details>
 )}

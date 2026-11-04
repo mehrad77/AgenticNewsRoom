@@ -147,6 +147,30 @@ export const CUE_FILES = [
   "jingle.flac",
 ] as const;
 
+/**
+ * A newsroom's sources by the rules of sources.yaml: its schema, unique ids and an interval cron
+ * can keep. Shared by `validateConfig` and the API's source writes (D192).
+ */
+export function sourcesProblems(sources: unknown, where: string): string[] {
+  const ajv = new Ajv2020({ allErrors: true, strict: true });
+  addFormats(ajv);
+  const valid = ajv.compile(JSON.parse(readFileSync(schemaPath("sources"), "utf8")));
+  if (!valid(sources))
+    return (valid.errors ?? []).map((e) => `${where}${e.instancePath} ${e.message}`);
+  const list = sources as { id: string; every: string }[];
+  const problems: string[] = [];
+  const ids = list.map((s) => s.id);
+  if (new Set(ids).size !== ids.length) problems.push(`${where} has duplicate ids`);
+  for (const s of list) {
+    try {
+      cronEvery(s.every);
+    } catch (error) {
+      problems.push(`${where} source ${s.id}: ${(error as Error).message}`);
+    }
+  }
+  return problems;
+}
+
 /** Returns a list of human-readable problems; empty means the config is valid. */
 export function validateConfig(config: RawConfig): string[] {
   const ajv = new Ajv2020({ allErrors: true, strict: true });
@@ -157,7 +181,6 @@ export function validateConfig(config: RawConfig): string[] {
     models: validator("models"),
     newsroom: validator("newsroom"),
     policy: validator("policy"),
-    sources: validator("sources"),
     series: validator("series"),
     reference: validator("reference"),
     format: validator("format"),
@@ -204,7 +227,7 @@ export function validateConfig(config: RawConfig): string[] {
     if (missing.length > 0) continue;
     const okNewsroom = check(v.newsroom, n.newsroom, `${at}/newsroom.yaml`);
     const okPolicy = check(v.policy, n.policy, `${at}/policy.yaml`);
-    check(v.sources, n.sources, `${at}/sources.yaml`);
+    errors.push(...sourcesProblems(n.sources ?? [], `${at}/sources.yaml`));
     if (!okNewsroom) continue;
 
     const newsroom = n.newsroom as {
@@ -226,18 +249,6 @@ export function validateConfig(config: RawConfig): string[] {
     if ((RESERVED_SUBDOMAINS as readonly string[]).includes(newsroom.subdomain))
       errors.push(`${at}/newsroom.yaml subdomain ${newsroom.subdomain} is the platform's (D123)`);
     subdomains.set(newsroom.subdomain, n.slug);
-
-    const sources = (Array.isArray(n.sources) ? n.sources : []) as { id: string; every: string }[];
-    const sourceIds = sources.map((s) => s.id);
-    if (new Set(sourceIds).size !== sourceIds.length)
-      errors.push(`${at}/sources.yaml has duplicate ids`);
-    for (const s of sources) {
-      try {
-        cronEvery(s.every);
-      } catch (error) {
-        errors.push(`${at}/sources.yaml source ${s.id}: ${(error as Error).message}`);
-      }
-    }
 
     if (n.reference !== undefined && check(v.reference, n.reference, `${at}/reference.yaml`))
       errors.push(

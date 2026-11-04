@@ -71,6 +71,27 @@ export interface ScheduledSeries {
   assignment_at?: string;
 }
 
+/**
+ * A source's fetch schedule, or none. D17: never fetched until a person has read the source's
+ * terms. Enrichment and vouching sources are not fetched into the lead pool.
+ */
+export function sourceSchedule(
+  newsroomId: string,
+  timezone: string,
+  s: ScheduledSource,
+): DesiredSchedule | null {
+  if (!s.terms_checked || (s.use ?? "leads") !== "leads") return null;
+  const data: IngestSourceJob = { newsroomId, sourceId: s.id };
+  return {
+    queue: QUEUES.ingestSource,
+    key: s.id,
+    cron: cronEvery(s.every),
+    tz: timezone,
+    data,
+    missed: "skip",
+  };
+}
+
 /** The schedules one newsroom's config asks for, in the newsroom's timezone. */
 export function newsroomSchedules(
   newsroomId: string,
@@ -80,18 +101,8 @@ export function newsroomSchedules(
 ): DesiredSchedule[] {
   const out: DesiredSchedule[] = [];
   for (const s of sources) {
-    // D17: never fetched until a person has read the source's terms. Enrichment sources are
-    // queried on demand, not fetched into the lead pool.
-    if (!s.terms_checked || (s.use ?? "leads") !== "leads") continue;
-    const data: IngestSourceJob = { newsroomId, sourceId: s.id };
-    out.push({
-      queue: QUEUES.ingestSource,
-      key: s.id,
-      cron: cronEvery(s.every),
-      tz: timezone,
-      data,
-      missed: "skip",
-    });
+    const schedule = sourceSchedule(newsroomId, timezone, s);
+    if (schedule) out.push(schedule);
   }
   for (const s of series) {
     // Daily news and weekly episodes are assigned by schedule; a picked series from its pick.

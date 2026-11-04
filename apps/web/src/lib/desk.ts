@@ -238,6 +238,13 @@ export function deskApi(base: string, token: string | null, fetchFn: typeof fetc
       call<AuditEntry[]>(`${n(newsroom)}/audit${query(filters)}`),
     runs: (newsroom: string, filters: Record<string, string>) =>
       call<AgentRunRow[]>(`${n(newsroom)}/agent-runs${query(filters)}`),
+    sourcesYaml: async (newsroom: string) => {
+      const res = await fetchFn(`${base}${n(newsroom)}/sources/export`, {
+        headers: token ? { "cf-access-jwt-assertion": token } : {},
+      });
+      if (!res.ok) throw new DeskApiError(res.status, `HTTP ${res.status}`);
+      return res.text();
+    },
     leads: (newsroom: string, filters: Record<string, string>) =>
       call<LeadRow[]>(`${n(newsroom)}/leads${query(filters)}`),
     tokens: () => call<PersonalToken[]>("/desk/me/tokens"),
@@ -344,6 +351,33 @@ export function deskApi(base: string, token: string | null, fetchFn: typeof fetc
         case "remove-member":
           await call(`${base}/members/${id}`, undefined, "DELETE");
           return `/${route.newsroom}/people`;
+        case "add-source":
+          await call(`${base}/sources`, {
+            id: field("slug"),
+            kind: field("kind"),
+            url: field("url"),
+            ...(field("publisher") && { publisher: field("publisher") }),
+            tier: Number(field("tier")),
+            every: field("every"),
+            ...(field("use") && field("use") !== "leads" && { use: field("use") }),
+          });
+          return `/${route.newsroom}/sources`;
+        case "edit-source":
+          await call(`${base}/sources/${id}/edit`, {
+            ...(field("url") && { url: field("url") }),
+            ...(field("tier") && { tier: Number(field("tier")) }),
+            ...(field("every") && { every: field("every") }),
+          });
+          return `/${route.newsroom}/sources`;
+        case "source-terms":
+          await call(`${base}/sources/${id}/terms`, {
+            read: field("read") === "yes",
+            ...(field("note") && { note: field("note") }),
+          });
+          return `/${route.newsroom}/sources`;
+        case "remove-source":
+          await call(`${base}/sources/${id}`, undefined, "DELETE");
+          return `/${route.newsroom}/sources`;
         case "fetch-source":
           await call(`${base}/sources/${id}/fetch`, {});
           return `/${route.newsroom}/sources`;

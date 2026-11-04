@@ -558,6 +558,132 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+  /desk/newsrooms/{newsroom}/sources/export:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+    get:
+      operationId: exportSources
+      summary: The newsroom's sources as the text of its sources.yaml
+      description: >-
+        For review and backup, and to apply again after rolling back to a release before D192, whose sync
+        rewrites sources from its own files.
+      tags: [desk]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
+      responses:
+        "200":
+          description: YAML.
+          content:
+            application/yaml:
+              schema: { type: string }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /desk/newsrooms/{newsroom}/sources/{source}/edit:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+      - $ref: "#/components/parameters/Source"
+    post:
+      operationId: updateSource
+      x-anr-who: editor-in-chief
+      summary: Change a source's fields
+      description: >-
+        Only the fields given change; null puts one back to its default. Its slug stays, and its terms are
+        set with setSourceTerms. Validated, rescheduled and audited (D192).
+      tags: [desk]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SourceChange" }
+      responses:
+        "200":
+          description: The source.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SourceRecord" }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /desk/newsrooms/{newsroom}/sources/{source}:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+      - $ref: "#/components/parameters/Source"
+    delete:
+      operationId: removeSource
+      x-anr-who: editor-in-chief
+      summary: Remove a source
+      description: Unscheduled at once; its leads stay. Audited (D192).
+      tags: [desk]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
+      responses:
+        "200":
+          description: Removed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, source_id, removed]
+                properties:
+                  id: { type: string }
+                  source_id: { type: string, format: uuid }
+                  removed: { type: boolean, const: true }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /desk/newsrooms/{newsroom}/sources/{source}/terms:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+      - $ref: "#/components/parameters/Source"
+    post:
+      operationId: setSourceTerms
+      x-anr-who: editor-in-chief
+      summary: Record that you have read a source's terms, or withdraw it
+      description: >-
+        Only after the person whose token this is has read the source's terms of use themself (D17): it is
+        what lets ingestion fetch the source. An agent never decides this on its own. `read: false`
+        withdraws it and unschedules the source. Records who and when; audited.
+      tags: [desk]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [read]
+              properties:
+                read: { type: boolean }
+                note:
+                  {
+                    type: string,
+                    maxLength: 2000,
+                    description: "What the terms allow, kept as terms_note.",
+                  }
+      responses:
+        "200":
+          description: The source.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SourceRecord" }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /desk/newsrooms/{newsroom}/queue:
     parameters:
       - $ref: "#/components/parameters/Newsroom"
@@ -1131,6 +1257,34 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: addSource
+      x-anr-who: editor-in-chief
+      summary: Add a source
+      description: >-
+        Validated by the same rules as sources.yaml, audited, and scheduled once its terms are read (D192).
+        Record that you read its terms with setSourceTerms; until then it is never fetched (D17).
+      tags: [desk]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SourceInput" }
+      responses:
+        "201":
+          description: The source as sources.yaml would have it, with its id.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SourceRecord" }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /desk/newsrooms/{newsroom}/recheck:
     parameters:
       - $ref: "#/components/parameters/Newsroom"
@@ -2049,6 +2203,12 @@ components:
       required: true
       description: The member's user id, from listMembers.
       schema: { type: string, format: uuid }
+    Source:
+      name: source
+      in: path
+      required: true
+      description: The source's id, from listSourceHealth.
+      schema: { type: string, format: uuid }
     Publication:
       name: publication
       in: path
@@ -2445,6 +2605,59 @@ components:
             properties:
               restored_at: { type: string, format: date-time }
               note: { type: [string, "null"] }
+    SourceInput:
+      type: object
+      additionalProperties: false
+      description: A source as sources.yaml has it, without its terms (D192).
+      required: [id, kind, url, tier, every]
+      properties:
+        id: { type: string, pattern: "^[a-z0-9][a-z0-9-]*$", description: "The source's slug." }
+        kind: { type: string, enum: [rss, api, site] }
+        url: { type: string, format: uri }
+        publisher:
+          { type: string, description: "Who publishes it; independence is counted per publisher." }
+        tier: { type: integer, enum: [1, 2, 3] }
+        every:
+          {
+            type: string,
+            pattern: "^[0-9]+[mhd]$",
+            description: "How often it is fetched: 30m, 6h, 1d.",
+          }
+        use: { type: string, enum: [leads, enrichment, vouch], default: leads }
+        vouches: { type: array, items: { type: string, format: uri } }
+        terms_note: { type: string }
+        pages: { type: boolean, default: true }
+    SourceChange:
+      type: object
+      additionalProperties: false
+      description: Fields to change; null puts one back to its default.
+      properties:
+        kind: { type: string, enum: [rss, api, site] }
+        url: { type: string, format: uri }
+        publisher: { type: [string, "null"] }
+        tier: { type: integer, enum: [1, 2, 3] }
+        every: { type: string, pattern: "^[0-9]+[mhd]$" }
+        use: { type: [string, "null"], enum: [leads, enrichment, vouch, null] }
+        vouches: { type: [array, "null"], items: { type: string, format: uri } }
+        terms_note: { type: [string, "null"] }
+        pages: { type: [boolean, "null"] }
+    SourceRecord:
+      type: object
+      description: A source as sources.yaml would have it, with its row id.
+      required: [id, source_id, kind, url, tier, every]
+      properties:
+        id: { type: string, description: "The slug." }
+        source_id: { type: string, format: uuid }
+        kind: { type: string }
+        url: { type: string }
+        publisher: { type: string }
+        tier: { type: integer }
+        every: { type: string }
+        use: { type: string }
+        vouches: { type: array, items: { type: string } }
+        terms_checked: { type: string, format: date }
+        terms_note: { type: string }
+        pages: { type: boolean }
     PersonalToken:
       type: object
       additionalProperties: false

@@ -149,6 +149,54 @@ describe("syncConfig", () => {
     expect(await mine("ingest-source")).toEqual([]);
   });
 
+  it("leaves a source a person changed through the API, and schedules it from its row (D192)", async () => {
+    const newsroomId = (
+      await rows(pools.system, "select id from newsrooms where slug = $1", [slug])
+    )[0]?.id as string;
+    const config = testConfig(suffix);
+    await syncConfig(pools.system, boss, config);
+    const fileSources = (config.newsrooms[0]?.sources ?? []) as { id: string }[];
+    const fileSource = fileSources[0]?.id as string;
+    // One file source changed through the API, and one source only the API knows.
+    await pools.system.query(
+      `update sources set fetch_every = '2 hours', edited_at = now() where newsroom_id = $1 and slug = $2`,
+      [newsroomId, fileSource],
+    );
+    const added = (
+      await rows(
+        pools.system,
+        `insert into sources (newsroom_id, slug, kind, url, tier, fetch_every, terms_checked, edited_at)
+         values ($1, 'api-added', 'rss', 'https://example.test/feed', 2, '30 minutes', '2026-11-01', now())
+         returning id`,
+        [newsroomId],
+      )
+    )[0]?.id as string;
+    // The file without the changed source: sync must neither rewrite nor remove it.
+    const without = testConfig(suffix);
+    const list = without.newsrooms[0]?.sources as { id: string }[];
+    without.newsrooms[0] = {
+      ...(without.newsrooms[0] as RawConfig["newsrooms"][number]),
+      sources: list.filter((s) => s.id !== fileSource),
+    };
+    await syncConfig(pools.system, boss, without);
+    const kept = await rows(
+      pools.system,
+      `select slug, extract(epoch from fetch_every)::int as seconds, removed_at is null as live
+       from sources where newsroom_id = $1 and slug = any($2) order by slug`,
+      [newsroomId, [fileSource, "api-added"]],
+    );
+    expect(kept).toEqual(
+      [
+        { slug: "api-added", seconds: 1800, live: true },
+        { slug: fileSource, seconds: 7200, live: true },
+      ].sort((a, b) => a.slug.localeCompare(b.slug)),
+    );
+    const schedules = (await boss.getSchedules("ingest-source")).filter(
+      (s) => (s.data as { sourceId?: string }).sourceId === added,
+    );
+    expect(schedules.map((s) => s.cron)).toEqual(["*/30 * * * *"]);
+  });
+
   it("refuses an invalid config and changes nothing", async () => {
     const before = await ids();
     const broken = testConfig(suffix);
