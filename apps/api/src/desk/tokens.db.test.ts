@@ -4,10 +4,15 @@ import { randomBytes } from "node:crypto";
 import { platformKey } from "@anr/db";
 import { createTestNewsroom, testPools } from "@anr/db/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { holdPlatformAdmin } from "../../test/platform-admin.ts";
 import { createApp } from "../app.ts";
 
 const pools = testPools();
-afterAll(() => pools.end());
+let releaseAdmin: () => Promise<void> = async () => {};
+afterAll(async () => {
+  await releaseAdmin();
+  await pools.end();
+});
 let signedIn: string | null = null;
 const app = createApp({
   pool: pools.app,
@@ -37,6 +42,7 @@ const chief = `chief-${randomBytes(4).toString("hex")}@example.test`;
 let chiefId = "";
 
 beforeAll(async () => {
+  releaseAdmin = await holdPlatformAdmin(pools.system);
   newsroomId = await createTestNewsroom(pools.system, "tokens");
   const { rows } = await pools.system.query<{ slug: string }>(
     "select slug from newsrooms where id = $1",
