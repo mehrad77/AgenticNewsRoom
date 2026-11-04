@@ -23,8 +23,8 @@ for (const l of recheck.days.flatMap((d) => d.items.flatMap((i) => i.languages))
   texts.set(l.language, (texts.get(l.language) ?? 0) + (l.checked ? 1 : 0));
 const days = all ? recheck.days : recheck.days.filter((d) => done(d) < d.items.length);
 ---
-<h1>Recheck</h1>
-<p>Imported news is checked like new news (D184): a source for each item, claims quoted from it, then the gate. Each language's text of an item loses its "imported" label once it passes; an item counts as checked here when all of them have. Runs are started with <code>pnpm --filter @anr/agents recheck --newsroom {newsroom}</code>.</p>
+<h1>Checking imported news</h1>
+<p>The archive's news was published by the old system without ANR's gate, so it is checked now the way new news is (D184): a source for each item, claims quoted from it, then the gate. Each language's text of an item loses its "imported" label once it passes; an item counts as checked here when all of them have. Runs are started with <code>pnpm --filter @anr/agents recheck --newsroom {newsroom}</code>.</p>
 {total === 0 ? <p>No imported news.</p> : (
   <>
     <p><strong>{recheck.counts.checked} of {total} items checked</strong> ({Math.round((100 * recheck.counts.checked) / total)}%).
@@ -37,7 +37,7 @@ const days = all ? recheck.days : recheck.days.filter((d) => done(d) < d.items.l
         <tbody>{recheck.causes.map((c) => <tr><td>{c.cause}</td><td>{c.items}</td></tr>)}</tbody>
       </table></div>
     )}
-    <p>{all ? <a href={`/${newsroom}/recheck`}>Show only days with unchecked items</a> : <a href={`/${newsroom}/recheck?show=all`}>Show every day ({recheck.days.length})</a>}</p>
+    <p>{all ? <a href={`/${newsroom}/imported`}>Show only days with unchecked items</a> : <a href={`/${newsroom}/imported?show=all`}>Show every day ({recheck.days.length})</a>}</p>
     {days.length === 0 && <p>Every imported item is checked.</p>}
     {days.map((d) => (
       <details class="card" open={d.items.some((i) => i.reasons.length > 0)}>

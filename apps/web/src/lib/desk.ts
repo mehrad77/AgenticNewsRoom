@@ -36,7 +36,7 @@ const PAGES = [
   "schedule",
   "budget",
   "sources",
-  "recheck",
+  "imported",
   "measures",
 ] as const;
 type Page = (typeof PAGES)[number];
