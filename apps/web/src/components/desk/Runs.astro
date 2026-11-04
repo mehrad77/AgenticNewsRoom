@@ -1,0 +1,29 @@
+---
+// Agent runs (D190): what each agent did, on which model, at what cost, and how it ended.
+import { type AgentRunRow, usd, when } from "../../lib/desk.ts";
+
+interface Props {
+  runs: AgentRunRow[];
+  filters: Record<string, string>;
+}
+const { runs, filters } = Astro.props;
+const ROLES = ["planner", "desk", "renderer", "fact-checker", "item-matcher", "summariser"];
+const OUTCOMES = ["submitted", "invalid", "error", "timed-out", "running"];
+---
+<h1>Agent runs</h1>
+<form method="get" class="actions">
+  <label>Role <select name="role"><option value="">any</option>{ROLES.map((r) => <option selected={filters.role === r}>{r}</option>)}</select></label>
+  <label>Outcome <select name="outcome"><option value="">any</option>{OUTCOMES.map((o) => <option selected={filters.outcome === o}>{o}</option>)}</select></label>
+  <button>Filter</button>
+</form>
+{runs.length === 0 ? <p>No runs.</p> : (
+  <div class="scroll"><table>
+    <thead><tr><th>Started</th><th>Role</th><th>Model</th><th>Outcome</th><th>Tokens</th><th>Cost</th></tr></thead>
+    <tbody>{runs.map((r) => (
+      <tr class={r.outcome === "error" || r.outcome === "timed-out" ? "fail" : ""}>
+        <td>{when(r.started_at)}</td><td>{r.role}</td><td>{r.model} <small>{r.provider}</small></td>
+        <td>{r.outcome}</td><td>{(r.tokens_in ?? 0) + (r.tokens_out ?? 0)}</td><td>{usd(r.cost_usd)}</td>
+      </tr>
+    ))}</tbody>
+  </table></div>
+)}

@@ -25,8 +25,12 @@ describe("the MCP server", () => {
     expect(new Set(MCP_TOOLS.map((t) => t.name)).size).toBe(MCP_TOOLS.length);
   });
 
-  it("leaves only token management to the desk session", () => {
-    expect(BROWSER_ONLY.map((o) => o.path).every((p) => p.includes("/tokens"))).toBe(true);
+  it("leaves only managing tokens and the admin role to the desk session", () => {
+    expect(
+      BROWSER_ONLY.map((o) => o.path).every(
+        (p) => p.includes("/tokens") || p.endsWith("/hand-over"),
+      ),
+    ).toBe(true);
   });
 
   it("covers every desk route the app serves", () => {

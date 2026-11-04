@@ -126,6 +126,255 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/desk/newsrooms/{newsroom}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        /** The newsroom's people and their roles */
+        get: operations["listMembers"];
+        put?: never;
+        /**
+         * Add a person to the newsroom by email
+         * @description Creates the user if there is none; they sign in through Cloudflare Access with that email. Audited. 409 if they are a member already.
+         */
+        post: operations["addMember"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/members/{member}/role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                /** @description The member's user id, from listMembers. */
+                member: components["parameters"]["Member"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change a member's role
+         * @description Audited. 409 if it would leave the newsroom without an Editor-in-Chief.
+         */
+        post: operations["setMemberRole"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/members/{member}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                /** @description The member's user id, from listMembers. */
+                member: components["parameters"]["Member"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a person from the newsroom
+         * @description Audited. 409 if it would leave the newsroom without an Editor-in-Chief.
+         */
+        delete: operations["removeMember"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        /**
+         * The newsroom's audit log, newest first
+         * @description Every approval, edit and change, with the person and, when they acted through an agent, the personal token (D189). Filter by `token` to see what one agent did.
+         */
+        get: operations["listAudit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/agent-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Agent runs, newest first
+         * @description What each agent did, on which model, at what cost, and how it ended.
+         */
+        get: operations["listAgentRuns"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/agent-runs/{run}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                run: string;
+            };
+            cookie?: never;
+        };
+        /** One agent run, with its task and how it ended */
+        get: operations["getAgentRun"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/leads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        /**
+         * The lead pool, newest first
+         * @description Headlines, summaries and sources of stored leads; internal input, never shown to readers.
+         */
+        get: operations["listLeads"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/newsrooms/{newsroom}/sources/{source}/fetch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                /** @description The source's id, from listSourceHealth. */
+                source: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Fetch a source now instead of at its next interval
+         * @description Queues the source's fetch, as its schedule would; one at a time per source. 409 when nobody has read its terms (it is never fetched then, D17) or it does not bring leads. Audited.
+         */
+        post: operations["fetchSource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/admin/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The platform audit log, newest first
+         * @description Platform admin only. Settings, ops controls, models and the admin role, with the token if any.
+         */
+        get: operations["listPlatformAudit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/admin/host": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Which release runs, the database's migration, backups and restores
+         * @description Platform admin only; read-only (D193). Deploys and restores stay commands on the host.
+         */
+        get: operations["getHostStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/admin/hand-over": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Hand the platform admin's role to another person
+         * @description Platform admin only, in a desk session through Cloudflare Access, never with a token (D191). The person must already have signed up (be a member somewhere). Audited.
+         */
+        post: operations["handOverAdmin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/desk/newsrooms/{newsroom}/queue": {
         parameters: {
             query?: never;
@@ -323,7 +572,10 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Messages from code to the Editor-in-Chief, unread first */
+        /**
+         * Messages from code to the Editor-in-Chief, unread first
+         * @description With `since`, only notices created after it, newest first, for an agent that polls.
+         */
         get: operations["listNotices"];
         put?: never;
         post?: never;
@@ -1296,6 +1548,128 @@ export interface components {
             /** @description The personal token this request came with, or null in a desk session. */
             via_token?: string | null;
         };
+        Member: {
+            /** Format: uuid */
+            user_id: string;
+            email: string;
+            role: components["schemas"]["Role"];
+            /** Format: date-time */
+            since: string;
+        };
+        AddMemberRequest: {
+            email: string;
+            role: components["schemas"]["Role"];
+        };
+        SetMemberRoleRequest: {
+            role: components["schemas"]["Role"];
+        };
+        AuditEntry: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            at: string;
+            /** @enum {string} */
+            actor_kind: "person" | "agent" | "code";
+            /** @description The person's email. */
+            person: string | null;
+            /** @description The agent role or code component. */
+            agent_or_code: string | null;
+            /**
+             * Format: uuid
+             * @description The personal token the person acted through.
+             */
+            token_id: string | null;
+            token_name: string | null;
+            action: string;
+            entity: string;
+            /** Format: uuid */
+            entity_id: string;
+            before: unknown;
+            after: unknown;
+        };
+        PlatformAuditEntry: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            at: string;
+            person: string | null;
+            code: string | null;
+            /** Format: uuid */
+            token_id: string | null;
+            token_name: string | null;
+            action: string;
+            entity: string;
+            key: string;
+            before: unknown;
+            after: unknown;
+        };
+        AgentRunRow: {
+            /** Format: uuid */
+            id: string;
+            role: string;
+            provider: string;
+            model: string;
+            prompt_version: string;
+            tokens_in?: number | null;
+            tokens_out?: number | null;
+            cost_usd?: number | null;
+            /** @enum {string} */
+            outcome: "submitted" | "invalid" | "error" | "timed-out" | "running";
+            /** Format: uuid */
+            assignment_id?: string | null;
+            /** Format: uuid */
+            story_id?: string | null;
+            /** Format: uuid */
+            lead_id?: string | null;
+            language?: string | null;
+            /** Format: date-time */
+            started_at: string;
+            /** Format: date-time */
+            finished_at: string | null;
+        };
+        LeadRow: {
+            /** Format: uuid */
+            id: string;
+            uri: string;
+            headline: string | null;
+            summary: string | null;
+            language: string;
+            tier: number;
+            /** @description The source's slug. */
+            source: string | null;
+            /** Format: date-time */
+            first_created: string | null;
+            /** Format: date-time */
+            fetched_at: string;
+        };
+        HostStatus: {
+            /** @description The release the API runs (ANR_VERSION). */
+            version: string | null;
+            deploys: {
+                tag: string;
+                /** Format: date-time */
+                at: string;
+                ok: boolean;
+                detail: string | null;
+            }[];
+            /** @description The last applied migration's version. */
+            migration: string | null;
+            /** @description The latest run of each kind. */
+            backups: {
+                kind: string;
+                /** Format: date-time */
+                started_at: string;
+                /** Format: date-time */
+                finished_at: string | null;
+                ok: boolean | null;
+                detail: string | null;
+            }[];
+            restores: {
+                /** Format: date-time */
+                restored_at: string;
+                note: string | null;
+            }[];
+        };
         PersonalToken: {
             /** Format: uuid */
             id: string;
@@ -2122,6 +2496,8 @@ export interface components {
     parameters: {
         /** @description The newsroom's slug. */
         Newsroom: string;
+        /** @description The member's user id, from listMembers. */
+        Member: string;
         Publication: string;
         Challenge: string;
         Media: string;
@@ -2292,6 +2668,388 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    listMembers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Members, the Editor-in-Chief first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Member"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    addMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddMemberRequest"];
+            };
+        };
+        responses: {
+            /** @description The new member. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Member"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    setMemberRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                /** @description The member's user id, from listMembers. */
+                member: components["parameters"]["Member"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetMemberRoleRequest"];
+            };
+        };
+        responses: {
+            /** @description The member. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Member"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    removeMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                /** @description The member's user id, from listMembers. */
+                member: components["parameters"]["Member"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        user_id: string;
+                        /** @constant */
+                        removed: true;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listAudit: {
+        parameters: {
+            query?: {
+                /** @description Such as approve, edit or add-member. */
+                action?: string;
+                /** @description The table acted on, such as publications. */
+                entity?: string;
+                entity_id?: string;
+                /** @description A person's email. */
+                person?: string;
+                /** @description A personal token's id. */
+                token?: string;
+                since?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Audit entries. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditEntry"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    listAgentRuns: {
+        parameters: {
+            query?: {
+                /** @description planner, desk, renderer, fact-checker, item-matcher or summariser. */
+                role?: string;
+                outcome?: "submitted" | "invalid" | "error" | "timed-out" | "running";
+                story?: string;
+                since?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Agent runs. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRunRow"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getAgentRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                run: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The run. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRunRow"] & {
+                        /** @description What the run was asked. */
+                        task?: unknown;
+                        /** @description How it ended, such as an error. */
+                        detail?: unknown;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listLeads: {
+        parameters: {
+            query?: {
+                /** @description A source's slug. */
+                source?: string;
+                since?: string;
+                /** @description Words in the headline or summary. */
+                q?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Leads. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeadRow"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    fetchSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+                /** @description The source's id, from listSourceHealth. */
+                source: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Queued, or already queued. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        slug: string;
+                        /** @description False when a fetch of it was queued already. */
+                        queued: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listPlatformAudit: {
+        parameters: {
+            query?: {
+                action?: string;
+                entity?: string;
+                person?: string;
+                token?: string;
+                since?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Platform audit entries. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlatformAuditEntry"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getHostStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Host status. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HostStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    handOverAdmin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    email: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Handed over. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        email: string;
+                        /** @constant */
+                        platform_admin: true;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
     getReviewQueue: {
@@ -2591,7 +3349,9 @@ export interface operations {
     };
     listNotices: {
         parameters: {
-            query?: never;
+            query?: {
+                since?: string;
+            };
             header?: never;
             path: {
                 /** @description The newsroom's slug. */

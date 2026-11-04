@@ -42,6 +42,432 @@ export const MCP_TOOLS: readonly McpTool[] = [
     }
   },
   {
+    "name": "listMembers",
+    "method": "GET",
+    "path": "/desk/newsrooms/{newsroom}/members",
+    "title": "The newsroom's people and their roles",
+    "description": "The newsroom's people and their roles",
+    "who": "member",
+    "readOnly": true,
+    "destructive": false,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "newsroom": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "The newsroom's slug."
+        }
+      },
+      "required": [
+        "newsroom"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "addMember",
+    "method": "POST",
+    "path": "/desk/newsrooms/{newsroom}/members",
+    "title": "Add a person to the newsroom by email",
+    "description": "Add a person to the newsroom by email\n\nCreates the user if there is none; they sign in through Cloudflare Access with that email. Audited. 409 if they are a member already.",
+    "who": "editor-in-chief",
+    "readOnly": false,
+    "destructive": false,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "newsroom": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "The newsroom's slug."
+        },
+        "body": {
+          "$ref": "#/$defs/AddMemberRequest"
+        }
+      },
+      "required": [
+        "newsroom",
+        "body"
+      ],
+      "additionalProperties": false,
+      "$defs": {
+        "AddMemberRequest": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "email",
+            "role"
+          ],
+          "properties": {
+            "email": {
+              "type": "string",
+              "maxLength": 320
+            },
+            "role": {
+              "$ref": "#/$defs/Role"
+            }
+          }
+        },
+        "Role": {
+          "type": "string",
+          "enum": [
+            "editor-in-chief",
+            "editor"
+          ]
+        }
+      }
+    }
+  },
+  {
+    "name": "setMemberRole",
+    "method": "POST",
+    "path": "/desk/newsrooms/{newsroom}/members/{member}/role",
+    "title": "Change a member's role",
+    "description": "Change a member's role\n\nAudited. 409 if it would leave the newsroom without an Editor-in-Chief.",
+    "who": "editor-in-chief",
+    "readOnly": false,
+    "destructive": false,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "newsroom": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "The newsroom's slug."
+        },
+        "member": {
+          "type": "string",
+          "format": "uuid",
+          "description": "The member's user id, from listMembers."
+        },
+        "body": {
+          "$ref": "#/$defs/SetMemberRoleRequest"
+        }
+      },
+      "required": [
+        "newsroom",
+        "member",
+        "body"
+      ],
+      "additionalProperties": false,
+      "$defs": {
+        "Role": {
+          "type": "string",
+          "enum": [
+            "editor-in-chief",
+            "editor"
+          ]
+        },
+        "SetMemberRoleRequest": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "role"
+          ],
+          "properties": {
+            "role": {
+              "$ref": "#/$defs/Role"
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "removeMember",
+    "method": "DELETE",
+    "path": "/desk/newsrooms/{newsroom}/members/{member}",
+    "title": "Remove a person from the newsroom",
+    "description": "Remove a person from the newsroom\n\nAudited. 409 if it would leave the newsroom without an Editor-in-Chief.",
+    "who": "editor-in-chief",
+    "readOnly": false,
+    "destructive": true,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "newsroom": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "The newsroom's slug."
+        },
+        "member": {
+          "type": "string",
+          "format": "uuid",
+          "description": "The member's user id, from listMembers."
+        }
+      },
+      "required": [
+        "newsroom",
+        "member"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "listAudit",
+    "method": "GET",
+    "path": "/desk/newsrooms/{newsroom}/audit",
+    "title": "The newsroom's audit log, newest first",
+    "description": "The newsroom's audit log, newest first\n\nEvery approval, edit and change, with the person and, when they acted through an agent, the personal token (D189). Filter by `token` to see what one agent did.",
+    "who": "member",
+    "readOnly": true,
+    "destructive": false,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "newsroom": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "The newsroom's slug."
+        },
+        "action": {
+          "type": "string",
+          "description": "Such as approve, edit or add-member."
+        },
+        "entity": {
+          "type": "string",
+          "description": "The table acted on, such as publications."
+        },
+        "entity_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "person": {
+          "type": "string",
+          "description": "A person's email."
+        },
+        "token": {
+          "type": "string",
+          "format": "uuid",
+          "description": "A personal token's id."
+        },
+        "since": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 500,
+          "default": 100
+        }
+      },
+      "required": [
+        "newsroom"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "listAgentRuns",
+    "method": "GET",
+    "path": "/desk/newsrooms/{newsroom}/agent-runs",
+    "title": "Agent runs, newest first",
+    "description": "Agent runs, newest first\n\nWhat each agent did, on which model, at what cost, and how it ended.",
+    "who": "member",
+    "readOnly": true,
+    "destructive": false,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "newsroom": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "The newsroom's slug."
+        },
+        "role": {
+          "type": "string",
+          "description": "planner, desk, renderer, fact-checker, item-matcher or summariser."
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "submitted",
+            "invalid",
+            "error",
+            "timed-out",
+            "running"
+          ]
+        },
+        "story": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "since": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 500,
+          "default": 100
+        }
+      },
+      "required": [
+        "newsroom"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "getAgentRun",
+    "method": "GET",
+    "path": "/desk/newsrooms/{newsroom}/agent-runs/{run}",
+    "title": "One agent run, with its task and how it ended",
+    "description": "One agent run, with its task and how it ended",
+    "who": "member",
+    "readOnly": true,
+    "destructive": false,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "newsroom": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "The newsroom's slug."
+        },
+        "run": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "newsroom",
+        "run"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "listLeads",
+    "method": "GET",
+    "path": "/desk/newsrooms/{newsroom}/leads",
+    "title": "The lead pool, newest first",
+    "description": "The lead pool, newest first\n\nHeadlines, summaries and sources of stored leads; internal input, never shown to readers.",
+    "who": "member",
+    "readOnly": true,
+    "destructive": false,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "newsroom": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "The newsroom's slug."
+        },
+        "source": {
+          "type": "string",
+          "description": "A source's slug."
+        },
+        "since": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "q": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Words in the headline or summary."
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200,
+          "default": 50
+        }
+      },
+      "required": [
+        "newsroom"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "fetchSource",
+    "method": "POST",
+    "path": "/desk/newsrooms/{newsroom}/sources/{source}/fetch",
+    "title": "Fetch a source now instead of at its next interval",
+    "description": "Fetch a source now instead of at its next interval\n\nQueues the source's fetch, as its schedule would; one at a time per source. 409 when nobody has read its terms (it is never fetched then, D17) or it does not bring leads. Audited.",
+    "who": "member",
+    "readOnly": false,
+    "destructive": false,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "newsroom": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "The newsroom's slug."
+        },
+        "source": {
+          "type": "string",
+          "format": "uuid",
+          "description": "The source's id, from listSourceHealth."
+        }
+      },
+      "required": [
+        "newsroom",
+        "source"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "listPlatformAudit",
+    "method": "GET",
+    "path": "/desk/admin/audit",
+    "title": "The platform audit log, newest first",
+    "description": "The platform audit log, newest first\n\nPlatform admin only. Settings, ops controls, models and the admin role, with the token if any.",
+    "who": "platform-admin",
+    "readOnly": true,
+    "destructive": false,
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "entity": {
+          "type": "string"
+        },
+        "person": {
+          "type": "string"
+        },
+        "token": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "since": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 500,
+          "default": 100
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "getHostStatus",
+    "method": "GET",
+    "path": "/desk/admin/host",
+    "title": "Which release runs, the database's migration, backups and restores",
+    "description": "Which release runs, the database's migration, backups and restores\n\nPlatform admin only; read-only (D193). Deploys and restores stay commands on the host.",
+    "who": "platform-admin",
+    "readOnly": true,
+    "destructive": false,
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    }
+  },
+  {
     "name": "getReviewQueue",
     "method": "GET",
     "path": "/desk/newsrooms/{newsroom}/queue",
@@ -478,7 +904,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     "method": "GET",
     "path": "/desk/newsrooms/{newsroom}/notices",
     "title": "Messages from code to the Editor-in-Chief, unread first",
-    "description": "Messages from code to the Editor-in-Chief, unread first",
+    "description": "Messages from code to the Editor-in-Chief, unread first\n\nWith `since`, only notices created after it, newest first, for an agent that polls.",
     "who": "member",
     "readOnly": true,
     "destructive": false,
@@ -489,6 +915,10 @@ export const MCP_TOOLS: readonly McpTool[] = [
           "type": "string",
           "pattern": "^[a-z][a-z0-9-]*$",
           "description": "The newsroom's slug."
+        },
+        "since": {
+          "type": "string",
+          "format": "date-time"
         }
       },
       "required": [
@@ -2148,5 +2578,11 @@ export const BROWSER_ONLY: readonly BrowserOnlyOperation[] = [
     "method": "POST",
     "path": "/desk/admin/tokens/{token}/revoke",
     "title": "Revoke anyone's personal token"
+  },
+  {
+    "name": "handOverAdmin",
+    "method": "POST",
+    "path": "/desk/admin/hand-over",
+    "title": "Hand the platform admin's role to another person"
   }
 ];

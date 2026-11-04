@@ -29,6 +29,11 @@ export type MediaItem = S["MediaItem"];
 export type PersonalToken = S["PersonalToken"];
 export type PersonalTokenWithEmail = S["PersonalTokenWithEmail"];
 export type IssuedToken = S["IssuedToken"];
+export type Member = S["Member"];
+export type AuditEntry = S["AuditEntry"];
+export type AgentRunRow = S["AgentRunRow"];
+export type LeadRow = S["LeadRow"];
+export type HostStatus = S["HostStatus"];
 
 /** Pages that list or show one newsroom's things, under `/<newsroom>/<page>`. */
 const PAGES = [
@@ -44,6 +49,10 @@ const PAGES = [
   "sources",
   "imported",
   "measures",
+  "people",
+  "audit",
+  "runs",
+  "leads",
 ] as const;
 type Page = (typeof PAGES)[number];
 
@@ -157,6 +166,22 @@ export function rolesFromForm(form: FormData): ModelRoles {
   };
 }
 
+/** A page's filters as a query string; empty values are left out. */
+export function query(filters: Record<string, string>): string {
+  const q = new URLSearchParams(Object.entries(filters).filter(([, v]) => v !== ""));
+  return q.size > 0 ? `?${q}` : "";
+}
+
+/** The filters a page reads from its own query string, by name. */
+export function pageFilters(url: URL, names: readonly string[]): Record<string, string> {
+  return Object.fromEntries(
+    names.flatMap((name) => {
+      const v = url.searchParams.get(name)?.trim();
+      return v ? [[name, v]] : [];
+    }),
+  );
+}
+
 export function deskApi(base: string, token: string | null, fetchFn: typeof fetch = fetch) {
   const call = async <T>(path: string, body?: unknown, method?: string): Promise<T> => {
     const res = await fetchFn(`${base}${path}`, {
@@ -207,6 +232,14 @@ export function deskApi(base: string, token: string | null, fetchFn: typeof fetc
       }
     },
     ops: () => call<OpsState>("/desk/admin/ops"),
+    host: () => call<HostStatus>("/desk/admin/host"),
+    members: (newsroom: string) => call<Member[]>(`${n(newsroom)}/members`),
+    audit: (newsroom: string, filters: Record<string, string>) =>
+      call<AuditEntry[]>(`${n(newsroom)}/audit${query(filters)}`),
+    runs: (newsroom: string, filters: Record<string, string>) =>
+      call<AgentRunRow[]>(`${n(newsroom)}/agent-runs${query(filters)}`),
+    leads: (newsroom: string, filters: Record<string, string>) =>
+      call<LeadRow[]>(`${n(newsroom)}/leads${query(filters)}`),
     tokens: () => call<PersonalToken[]>("/desk/me/tokens"),
     allTokens: () => call<PersonalTokenWithEmail[]>("/desk/admin/tokens"),
     /** Issues a token; the page shows it this once instead of redirecting. */
@@ -244,6 +277,9 @@ export function deskApi(base: string, token: string | null, fetchFn: typeof fetc
           case "unload":
             await call("/desk/admin/models/local/unload", { instance_id: value("instance_id") });
             return "/admin#local-models";
+          case "hand-over":
+            await call("/desk/admin/hand-over", { email: value("email") });
+            return "/";
           default:
             throw new DeskApiError(400, "unknown action");
         }
@@ -299,6 +335,18 @@ export function deskApi(base: string, token: string | null, fetchFn: typeof fetc
             ? `/${route.newsroom}/c/${route.id}`
             : `/${route.newsroom}`;
       switch (action) {
+        case "add-member":
+          await call(`${base}/members`, { email: field("email"), role: field("role") });
+          return `/${route.newsroom}/people`;
+        case "member-role":
+          await call(`${base}/members/${id}/role`, { role: field("role") });
+          return `/${route.newsroom}/people`;
+        case "remove-member":
+          await call(`${base}/members/${id}`, undefined, "DELETE");
+          return `/${route.newsroom}/people`;
+        case "fetch-source":
+          await call(`${base}/sources/${id}/fetch`, {});
+          return `/${route.newsroom}/sources`;
         case "approve":
           await call(`${base}/publications/${id}/approve`, { version: field("version") ?? "" });
           return `/${route.newsroom}`;

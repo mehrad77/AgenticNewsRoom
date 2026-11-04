@@ -122,14 +122,22 @@ fi
 # Creates the backup stanza if needed and fails the deploy if WAL archiving to R2 is broken.
 infra/backup/backup.sh init
 compose up -d --remove-orphans
+# Every deploy is a row the desk's Ops page reads (D193).
+record() {
+  compose exec -T postgres psql -U postgres -d anr -q -v tag="$tag" -v ok="$1" -v detail="${2:-}" \
+    -c "insert into deploys (tag, ok, detail) values (:'tag', :'ok', nullif(:'detail', ''))" ||
+    echo "deploy: warning: could not record the deploy" >&2
+}
 # /healthz answers 200 once Postgres answers and every worker has beaten (D128).
 for _ in $(seq 1 40); do
   if compose exec -T caddy wget -q -O /dev/null http://web:4321/healthz 2>/dev/null; then
     compose ps
+    record true
     echo "deploy: $tag is up"
     exit 0
   fi
   sleep 3
 done
 compose ps
+record false "/healthz did not answer 200 within 2 minutes"
 die "$tag started, but /healthz did not answer 200 within 2 minutes (docker compose -p anr-prod logs)"

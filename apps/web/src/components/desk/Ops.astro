@@ -1,18 +1,31 @@
 ---
 // The platform admin's Ops page (D144): switches the workers and the host obey within 30 seconds,
 // each audited. Grafana (ops.) is for looking at history; this page is for acting.
-import type { OpsState } from "../../lib/desk.ts";
+import type { HostStatus, OpsState } from "../../lib/desk.ts";
 
 interface Props {
   ops: OpsState;
   grafana: string;
+  /** What the host runs (D193); read-only. */
+  host?: HostStatus;
 }
-const { ops, grafana } = Astro.props;
+const { ops, grafana, host } = Astro.props;
 const when = (iso: string | null) =>
   iso ? new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }).format(new Date(iso)) + " UTC" : "—";
 ---
 <h1>Operations</h1>
 <p class="meta">Every action here is recorded in the platform audit log. Workers and the host follow it within 30 seconds. History and alerts are in <a href={grafana}>Grafana</a>.</p>
+
+{host && (
+  <section class="card">
+    <h2>Release</h2>
+    <p>
+      Running <strong>{host.version ?? "a development build"}</strong>; database at migration {host.migration ?? "—"}.
+      {host.deploys[0] && <> Last deploy: {host.deploys[0].tag}, {when(host.deploys[0].at)}{host.deploys[0].ok ? "" : ` (failed: ${host.deploys[0].detail ?? "unknown"})`}.</>}
+    </p>
+    <p class="meta">Deploys and restores are commands on the host (<code>infra/deploy.sh</code>); this is only what they left.</p>
+  </section>
+)}
 
 <section class="card">
   <h2>Publishing</h2>

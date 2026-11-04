@@ -11,6 +11,10 @@ import Notices from "../components/desk/Notices.astro";
 import Plan from "../components/desk/Plan.astro";
 import Admin from "../components/desk/Admin.astro";
 import Api from "../components/desk/Api.astro";
+import Audit from "../components/desk/Audit.astro";
+import Leads from "../components/desk/Leads.astro";
+import People from "../components/desk/People.astro";
+import Runs from "../components/desk/Runs.astro";
 import Ops from "../components/desk/Ops.astro";
 import Voices from "../components/desk/Voices.astro";
 import Publication from "../components/desk/Publication.astro";
@@ -22,7 +26,7 @@ import Sources from "../components/desk/Sources.astro";
 import Tokens from "../components/desk/Tokens.astro";
 import Base from "../layouts/Base.astro";
 import "../styles/desk.css";
-import { DeskApiError, deskApi, deskRoute, type IssuedToken } from "../lib/desk.ts";
+import { DeskApiError, deskApi, deskRoute, type IssuedToken, pageFilters } from "../lib/desk.ts";
 
 const route = deskRoute(Astro.locals.path);
 const api = deskApi(
@@ -90,6 +94,12 @@ const adminTts = r.kind === "admin" && me?.platform_admin ? await load(() => api
 const adminModels = r.kind === "admin" && me?.platform_admin ? await load(() => api.adminModels()) : undefined;
 const localModels = r.kind === "admin" && me?.platform_admin ? await load(() => api.localModels()) : undefined;
 const ops = r.kind === "ops" && me?.platform_admin ? await load(() => api.ops()) : undefined;
+const host = r.kind === "ops" && me?.platform_admin ? await load(() => api.host()) : undefined;
+const members = r.kind === "people" ? await load(() => api.members(r.newsroom)) : undefined;
+const filters = pageFilters(Astro.url, ["action", "entity", "entity_id", "person", "token", "role", "outcome", "source", "q"]);
+const audit = r.kind === "audit" ? await load(() => api.audit(r.newsroom, filters)) : undefined;
+const runs = r.kind === "runs" ? await load(() => api.runs(r.newsroom, filters)) : undefined;
+const leads = r.kind === "leads" ? await load(() => api.leads(r.newsroom, filters)) : undefined;
 const tokens = r.kind === "tokens" ? await load(() => api.tokens()) : undefined;
 const allTokens = r.kind === "tokens" && me?.platform_admin ? await load(() => api.allTokens()) : undefined;
 const grafana = `https://ops.${process.env.ANR_ROOT_DOMAIN ?? "localhost"}`;
@@ -112,6 +122,10 @@ const nav = [
   ["/sources", "Sources"],
   ["/imported", "Imported"],
   ["/channels", "Channels"],
+  ["/leads", "Leads"],
+  ["/runs", "Agent runs"],
+  ["/people", "People"],
+  ["/audit", "Audit"],
 ] as const;
 ---
 <Base title={n ? `${n} · Editor's desk` : "Editor's desk"} language="en" direction="ltr" class="desk">
@@ -141,7 +155,7 @@ const nav = [
     {voices && <Voices tts={voices} chief={role === "editor-in-chief"} />}
     {r.kind === "admin" && me?.platform_admin && (adminTts || adminModels) && <Admin tts={adminTts} models={adminModels} local={localModels} />}
     {r.kind === "admin" && me && !me.platform_admin && <h1>Only the platform admin can open this page.</h1>}
-    {ops && <Ops ops={ops} grafana={grafana} />}
+    {ops && <Ops ops={ops} grafana={grafana} host={host} />}
     {tokens && <Tokens tokens={tokens} issued={issued} everyone={allTokens} />}
     {r.kind === "api" && me && <Api apiBase={apiBase} />}
     {r.kind === "ops" && me && !me.platform_admin && <h1>Only the platform admin can open this page.</h1>}
@@ -152,7 +166,11 @@ const nav = [
     {n && samples && <Samples newsroom={n} samples={samples} issuesUrl={issuesUrl} />}
     {n && notices && <Notices newsroom={n} notices={notices} />}
     {budget && <Budget budget={budget} />}
-    {sources && <Sources sources={sources} />}
+    {sources && <Sources sources={sources} newsroom={n} />}
+    {me && members && <People members={members} chief={role === "editor-in-chief"} me={me.email} />}
+    {audit && <Audit entries={audit} filters={filters} />}
+    {runs && <Runs runs={runs} filters={filters} />}
+    {leads && <Leads leads={leads} filters={filters} />}
     {n && imported && <Imported newsroom={n} recheck={imported} chief={role === "editor-in-chief"} />}
     {measures && <Measures measures={measures} />}
     {r.kind === "not-found" && <h1>Not found</h1>}

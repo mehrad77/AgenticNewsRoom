@@ -156,6 +156,408 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+  /desk/newsrooms/{newsroom}/members:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+    get:
+      operationId: listMembers
+      summary: The newsroom's people and their roles
+      tags: [desk]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
+      responses:
+        "200":
+          description: Members, the Editor-in-Chief first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Member" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: addMember
+      x-anr-who: editor-in-chief
+      summary: Add a person to the newsroom by email
+      description: >-
+        Creates the user if there is none; they sign in through Cloudflare Access with that email.
+        Audited. 409 if they are a member already.
+      tags: [desk]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddMemberRequest"
+      responses:
+        "201":
+          description: The new member.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Member" }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /desk/newsrooms/{newsroom}/members/{member}/role:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+      - $ref: "#/components/parameters/Member"
+    post:
+      operationId: setMemberRole
+      x-anr-who: editor-in-chief
+      summary: Change a member's role
+      description: Audited. 409 if it would leave the newsroom without an Editor-in-Chief.
+      tags: [desk]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetMemberRoleRequest"
+      responses:
+        "200":
+          description: The member.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Member" }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /desk/newsrooms/{newsroom}/members/{member}:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+      - $ref: "#/components/parameters/Member"
+    delete:
+      operationId: removeMember
+      x-anr-who: editor-in-chief
+      summary: Remove a person from the newsroom
+      description: Audited. 409 if it would leave the newsroom without an Editor-in-Chief.
+      tags: [desk]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
+      responses:
+        "200":
+          description: Removed.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [user_id, removed]
+                properties:
+                  user_id: { type: string, format: uuid }
+                  removed: { type: boolean, const: true }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /desk/newsrooms/{newsroom}/audit:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+    get:
+      operationId: listAudit
+      summary: The newsroom's audit log, newest first
+      description: >-
+        Every approval, edit and change, with the person and, when they acted through an agent, the
+        personal token (D189). Filter by `token` to see what one agent did.
+      tags: [desk]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
+      parameters:
+        - {
+            name: action,
+            in: query,
+            schema: { type: string },
+            description: "Such as approve, edit or add-member.",
+          }
+        - {
+            name: entity,
+            in: query,
+            schema: { type: string },
+            description: "The table acted on, such as publications.",
+          }
+        - { name: entity_id, in: query, schema: { type: string, format: uuid } }
+        - { name: person, in: query, schema: { type: string }, description: "A person's email." }
+        - {
+            name: token,
+            in: query,
+            schema: { type: string, format: uuid },
+            description: "A personal token's id.",
+          }
+        - { name: since, in: query, schema: { type: string, format: date-time } }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 500, default: 100 },
+          }
+      responses:
+        "200":
+          description: Audit entries.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AuditEntry" }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /desk/newsrooms/{newsroom}/agent-runs:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+    get:
+      operationId: listAgentRuns
+      summary: Agent runs, newest first
+      description: What each agent did, on which model, at what cost, and how it ended.
+      tags: [desk]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
+      parameters:
+        - {
+            name: role,
+            in: query,
+            schema: { type: string },
+            description: "planner, desk, renderer, fact-checker, item-matcher or summariser.",
+          }
+        - {
+            name: outcome,
+            in: query,
+            schema: { type: string, enum: [submitted, invalid, error, timed-out, running] },
+          }
+        - { name: story, in: query, schema: { type: string, format: uuid } }
+        - { name: since, in: query, schema: { type: string, format: date-time } }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 500, default: 100 },
+          }
+      responses:
+        "200":
+          description: Agent runs.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AgentRunRow" }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /desk/newsrooms/{newsroom}/agent-runs/{run}:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+      - name: run
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getAgentRun
+      summary: One agent run, with its task and how it ended
+      tags: [desk]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
+      responses:
+        "200":
+          description: The run.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/AgentRunRow"
+                  - type: object
+                    properties:
+                      task: { description: What the run was asked. }
+                      detail: { description: "How it ended, such as an error." }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /desk/newsrooms/{newsroom}/leads:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+    get:
+      operationId: listLeads
+      summary: The lead pool, newest first
+      description: Headlines, summaries and sources of stored leads; internal input, never shown to readers.
+      tags: [desk]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
+      parameters:
+        - { name: source, in: query, schema: { type: string }, description: "A source's slug." }
+        - { name: since, in: query, schema: { type: string, format: date-time } }
+        - {
+            name: q,
+            in: query,
+            schema: { type: string, maxLength: 200 },
+            description: "Words in the headline or summary.",
+          }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 200, default: 50 },
+          }
+      responses:
+        "200":
+          description: Leads.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/LeadRow" }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /desk/newsrooms/{newsroom}/sources/{source}/fetch:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+      - name: source
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+        description: The source's id, from listSourceHealth.
+    post:
+      operationId: fetchSource
+      summary: Fetch a source now instead of at its next interval
+      description: >-
+        Queues the source's fetch, as its schedule would; one at a time per source. 409 when nobody has
+        read its terms (it is never fetched then, D17) or it does not bring leads. Audited.
+      tags: [desk]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
+      responses:
+        "200":
+          description: Queued, or already queued.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [id, slug, queued]
+                properties:
+                  id: { type: string, format: uuid }
+                  slug: { type: string }
+                  queued:
+                    { type: boolean, description: False when a fetch of it was queued already. }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /desk/admin/audit:
+    get:
+      operationId: listPlatformAudit
+      summary: The platform audit log, newest first
+      description: Platform admin only. Settings, ops controls, models and the admin role, with the token if any.
+      tags: [desk]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
+      parameters:
+        - { name: action, in: query, schema: { type: string } }
+        - { name: entity, in: query, schema: { type: string } }
+        - { name: person, in: query, schema: { type: string } }
+        - { name: token, in: query, schema: { type: string, format: uuid } }
+        - { name: since, in: query, schema: { type: string, format: date-time } }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 500, default: 100 },
+          }
+      responses:
+        "200":
+          description: Platform audit entries.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PlatformAuditEntry" }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /desk/admin/host:
+    get:
+      operationId: getHostStatus
+      summary: Which release runs, the database's migration, backups and restores
+      description: Platform admin only; read-only (D193). Deploys and restores stay commands on the host.
+      tags: [desk]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
+      responses:
+        "200":
+          description: Host status.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HostStatus" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /desk/admin/hand-over:
+    post:
+      operationId: handOverAdmin
+      summary: Hand the platform admin's role to another person
+      description: >-
+        Platform admin only, in a desk session through Cloudflare Access, never with a token (D191). The
+        person must already have signed up (be a member somewhere). Audited.
+      tags: [tokens]
+      security: [{ cfAccess: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [email]
+              properties:
+                email: { type: string }
+      responses:
+        "200":
+          description: Handed over.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [email, platform_admin]
+                properties:
+                  email: { type: string }
+                  platform_admin: { type: boolean, const: true }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /desk/newsrooms/{newsroom}/queue:
     parameters:
       - $ref: "#/components/parameters/Newsroom"
@@ -438,8 +840,11 @@ paths:
     get:
       operationId: listNotices
       summary: Messages from code to the Editor-in-Chief, unread first
+      description: With `since`, only notices created after it, newest first, for an agent that polls.
       tags: [desk]
       security: [{ cfAccess: [] }, { personalToken: [] }]
+      parameters:
+        - { name: since, in: query, schema: { type: string, format: date-time } }
       responses:
         "200":
           description: Notices.
@@ -1638,6 +2043,12 @@ components:
       required: true
       description: The newsroom's slug.
       schema: { type: string, pattern: "^[a-z][a-z0-9-]*$" }
+    Member:
+      name: member
+      in: path
+      required: true
+      description: The member's user id, from listMembers.
+      schema: { type: string, format: uuid }
     Publication:
       name: publication
       in: path
@@ -1887,6 +2298,153 @@ components:
         via_token:
           type: [string, "null"]
           description: The personal token this request came with, or null in a desk session.
+    Member:
+      type: object
+      additionalProperties: false
+      required: [user_id, email, role, since]
+      properties:
+        user_id: { type: string, format: uuid }
+        email: { type: string }
+        role: { $ref: "#/components/schemas/Role" }
+        since: { type: string, format: date-time }
+    AddMemberRequest:
+      type: object
+      additionalProperties: false
+      required: [email, role]
+      properties:
+        email: { type: string, maxLength: 320 }
+        role: { $ref: "#/components/schemas/Role" }
+    SetMemberRoleRequest:
+      type: object
+      additionalProperties: false
+      required: [role]
+      properties:
+        role: { $ref: "#/components/schemas/Role" }
+    AuditEntry:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          at,
+          actor_kind,
+          person,
+          agent_or_code,
+          token_id,
+          token_name,
+          action,
+          entity,
+          entity_id,
+          before,
+          after,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        at: { type: string, format: date-time }
+        actor_kind: { type: string, enum: [person, agent, code] }
+        person: { type: [string, "null"], description: The person's email. }
+        agent_or_code: { type: [string, "null"], description: The agent role or code component. }
+        token_id:
+          {
+            type: [string, "null"],
+            format: uuid,
+            description: The personal token the person acted through.,
+          }
+        token_name: { type: [string, "null"] }
+        action: { type: string }
+        entity: { type: string }
+        entity_id: { type: string, format: uuid }
+        before: {}
+        after: {}
+    PlatformAuditEntry:
+      type: object
+      additionalProperties: false
+      required: [id, at, person, code, token_id, token_name, action, entity, key, before, after]
+      properties:
+        id: { type: string, format: uuid }
+        at: { type: string, format: date-time }
+        person: { type: [string, "null"] }
+        code: { type: [string, "null"] }
+        token_id: { type: [string, "null"], format: uuid }
+        token_name: { type: [string, "null"] }
+        action: { type: string }
+        entity: { type: string }
+        key: { type: string }
+        before: {}
+        after: {}
+    AgentRunRow:
+      type: object
+      required: [id, role, provider, model, prompt_version, outcome, started_at, finished_at]
+      properties:
+        id: { type: string, format: uuid }
+        role: { type: string }
+        provider: { type: string }
+        model: { type: string }
+        prompt_version: { type: string }
+        tokens_in: { type: [integer, "null"] }
+        tokens_out: { type: [integer, "null"] }
+        cost_usd: { type: [number, "null"] }
+        outcome: { type: string, enum: [submitted, invalid, error, timed-out, running] }
+        assignment_id: { type: [string, "null"], format: uuid }
+        story_id: { type: [string, "null"], format: uuid }
+        lead_id: { type: [string, "null"], format: uuid }
+        language: { type: [string, "null"] }
+        started_at: { type: string, format: date-time }
+        finished_at: { type: [string, "null"], format: date-time }
+    LeadRow:
+      type: object
+      additionalProperties: false
+      required: [id, uri, headline, summary, language, tier, source, first_created, fetched_at]
+      properties:
+        id: { type: string, format: uuid }
+        uri: { type: string }
+        headline: { type: [string, "null"] }
+        summary: { type: [string, "null"] }
+        language: { type: string }
+        tier: { type: integer }
+        source: { type: [string, "null"], description: The source's slug. }
+        first_created: { type: [string, "null"], format: date-time }
+        fetched_at: { type: string, format: date-time }
+    HostStatus:
+      type: object
+      additionalProperties: false
+      required: [version, deploys, migration, backups, restores]
+      properties:
+        version: { type: [string, "null"], description: The release the API runs (ANR_VERSION). }
+        deploys:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [tag, at, ok, detail]
+            properties:
+              tag: { type: string }
+              at: { type: string, format: date-time }
+              ok: { type: boolean }
+              detail: { type: [string, "null"] }
+        migration: { type: [string, "null"], description: The last applied migration's version. }
+        backups:
+          type: array
+          description: The latest run of each kind.
+          items:
+            type: object
+            additionalProperties: false
+            required: [kind, started_at, finished_at, ok, detail]
+            properties:
+              kind: { type: string }
+              started_at: { type: string, format: date-time }
+              finished_at: { type: [string, "null"], format: date-time }
+              ok: { type: [boolean, "null"] }
+              detail: { type: [string, "null"] }
+        restores:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [restored_at, note]
+            properties:
+              restored_at: { type: string, format: date-time }
+              note: { type: [string, "null"] }
     PersonalToken:
       type: object
       additionalProperties: false

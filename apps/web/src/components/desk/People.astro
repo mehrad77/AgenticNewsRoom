@@ -1,0 +1,48 @@
+---
+// A newsroom's people (D190): everyone sees them; the Editor-in-Chief adds, changes and removes
+// them. A person signs in through Cloudflare Access with the email added here.
+import type { Member } from "../../lib/desk.ts";
+
+interface Props {
+  members: Member[];
+  chief: boolean;
+  /** The signed-in person's email: nobody removes themself here by accident. */
+  me: string;
+}
+const { members, chief, me } = Astro.props;
+---
+<h1>People</h1>
+<div class="scroll"><table>
+  <thead><tr><th>Email</th><th>Role</th>{chief && <th></th>}</tr></thead>
+  <tbody>{members.map((m) => (
+    <tr>
+      <td>{m.email}</td>
+      <td>{m.role}</td>
+      {chief && (
+        <td class="actions">
+          <form method="post">
+            <input type="hidden" name="action" value="member-role" /><input type="hidden" name="id" value={m.user_id} />
+            <input type="hidden" name="role" value={m.role === "editor" ? "editor-in-chief" : "editor"} />
+            <button>{m.role === "editor" ? "Make Editor-in-Chief" : "Make editor"}</button>
+          </form>
+          {m.email !== me && (
+            <form method="post" onsubmit={`return confirm('Remove ${m.email} from this newsroom?')`}>
+              <input type="hidden" name="action" value="remove-member" /><input type="hidden" name="id" value={m.user_id} />
+              <button>Remove</button>
+            </form>
+          )}
+        </td>
+      )}
+    </tr>
+  ))}</tbody>
+</table></div>
+{chief && (
+  <form method="post" class="card">
+    <h2>Add a person</h2>
+    <input type="hidden" name="action" value="add-member" />
+    <label>Email <input name="email" type="email" required /></label>
+    <label>Role <select name="role"><option value="editor">editor</option><option value="editor-in-chief">Editor-in-Chief</option></select></label>
+    <p class="meta">They sign in through Cloudflare Access with this email; the Access policy must let it in too.</p>
+    <button class="primary">Add</button>
+  </form>
+)}

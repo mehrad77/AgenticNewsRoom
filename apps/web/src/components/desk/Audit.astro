@@ -1,0 +1,33 @@
+---
+// The newsroom's audit log (D190): what was done and by whom; acts through a personal token name
+// the token (D189), so a person can review what their agent did.
+import { type AuditEntry, detail, when } from "../../lib/desk.ts";
+
+interface Props {
+  entries: AuditEntry[];
+  filters: Record<string, string>;
+}
+const { entries, filters } = Astro.props;
+---
+<h1>Audit log</h1>
+<form method="get" class="actions">
+  <label>Action <input name="action" value={filters.action ?? ""} placeholder="approve" /></label>
+  <label>Entity <input name="entity" value={filters.entity ?? ""} placeholder="publications" /></label>
+  <label>Person <input name="person" value={filters.person ?? ""} placeholder="email" /></label>
+  <label>Token id <input name="token" value={filters.token ?? ""} /></label>
+  <button>Filter</button>
+</form>
+{entries.length === 0 ? <p>Nothing recorded{Object.keys(filters).length > 0 ? " for this filter" : ""}.</p> : (
+  <div class="scroll"><table>
+    <thead><tr><th>When</th><th>Who</th><th>Action</th><th>On</th><th>Change</th></tr></thead>
+    <tbody>{entries.map((a) => (
+      <tr>
+        <td>{when(a.at)}</td>
+        <td>{a.person ?? a.agent_or_code}{a.token_name && <><br /><small>via token “{a.token_name}”</small></>}</td>
+        <td>{a.action}</td>
+        <td>{a.entity}<br /><small>{a.entity_id}</small></td>
+        <td><small>{a.before !== null && <>before {detail(a.before)}<br /></>}{a.after !== null && <>after {detail(a.after)}</>}</small></td>
+      </tr>
+    ))}</tbody>
+  </table></div>
+)}

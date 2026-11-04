@@ -3,14 +3,15 @@ import { type SourceHealth, safeHref, when } from "../../lib/desk.ts";
 
 interface Props {
   sources: SourceHealth[];
+  newsroom?: string;
 }
-const { sources } = Astro.props;
+const { sources, newsroom } = Astro.props;
 ---
 <h1>Sources</h1>
 <p>Failing sources first. A source without checked terms is never fetched; terms are set in its newsroom's <code>sources.yaml</code>.</p>
 {sources.length === 0 ? <p>No sources.</p> : (
   <div class="scroll"><table>
-    <thead><tr><th>Source</th><th>Tier</th><th>Terms</th><th>Last fetch</th><th>Failures</th><th>Leads, 7 days</th></tr></thead>
+    <thead><tr><th>Source</th><th>Tier</th><th>Terms</th><th>Last fetch</th><th>Failures</th><th>Leads, 7 days</th><th></th></tr></thead>
     <tbody>{sources.map((s) => (
       <tr class={s.consecutive_failures > 0 || !s.terms_checked ? "fail" : ""}>
         <td>{safeHref(s.url) ? <a href={safeHref(s.url)} rel="noreferrer">{s.slug}</a> : s.slug} <small>{s.kind}{s.use !== "leads" ? ` · ${s.use === "vouch" ? "vouches only" : s.use}` : ""}</small></td>
@@ -18,7 +19,8 @@ const { sources } = Astro.props;
         <td>{s.terms_checked ?? "not checked"}</td>
         <td>{s.last_fetched_at ? when(s.last_fetched_at) : s.use === "vouch" ? "not fetched" : "never"} {s.last_status && <small>HTTP {s.last_status}</small>} {s.last_error && <small>{s.last_error}</small>}</td>
         <td>{s.consecutive_failures}</td>
-        <td>{s.leads_7d}</td>
+        <td>{newsroom ? <a href={`/${newsroom}/leads?source=${s.slug}`}>{s.leads_7d}</a> : s.leads_7d}</td>
+        <td>{s.terms_checked && s.use === "leads" && <form method="post" class="inline"><input type="hidden" name="action" value="fetch-source" /><input type="hidden" name="id" value={s.id} /><button>Fetch now</button></form>}</td>
       </tr>
     ))}</tbody>
   </table></div>

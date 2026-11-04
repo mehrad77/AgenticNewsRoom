@@ -77,10 +77,15 @@ export async function fileIssue(client: Client, actor: Actor, id: string, url: s
   return sample(out[0]);
 }
 
-export async function listNotices(client: Client) {
+/** Notices, unread first; with `since`, only those created since then, newest first (D190). */
+export async function listNotices(client: Client, since?: string) {
   const { rows } = await client.query<{ created_at: Date; read_at: Date | null }>(
-    `select id, kind, key, detail, created_at, read_at from notices
-     order by read_at is not null, created_at desc limit 200`,
+    since
+      ? `select id, kind, key, detail, created_at, read_at from notices
+         where created_at > $1 order by created_at desc limit 200`
+      : `select id, kind, key, detail, created_at, read_at from notices
+         order by read_at is not null, created_at desc limit 200`,
+    since ? [since] : [],
   );
   return rows.map((r) => ({
     ...r,
