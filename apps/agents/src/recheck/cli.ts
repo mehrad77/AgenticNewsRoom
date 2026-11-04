@@ -1,8 +1,7 @@
-// pnpm --filter @anr/agents recheck --newsroom <slug> [--pass source|check|both] [--limit N] [--anytime]
+// pnpm --filter @anr/agents recheck --newsroom <slug> [--pass source|check|both] [--limit N]
 //   [--summarise]: summarise new sources here, where no agents worker runs (dev)
 // The one-off check of a newsroom's imported news (D184), run where the agents worker runs (it
-// needs ingestion and the verifier). Each pass takes up where the last stopped. Outside the
-// newsroom's daily writing (13:00-18:00 UTC) unless --anytime, so local models are not shared.
+// needs ingestion and the verifier). Each pass takes up where the last stopped.
 
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
@@ -23,17 +22,9 @@ const { values } = parseArgs({
     newsroom: { type: "string" },
     pass: { type: "string", default: "both" },
     limit: { type: "string", default: "20" },
-    anytime: { type: "boolean", default: false },
     summarise: { type: "boolean", default: false },
   },
 });
-const hour = new Date().getUTCHours();
-if (!values.anytime && hour >= 13 && hour < 18) {
-  console.error(
-    "recheck: the newsroom writes between 13:00 and 18:00 UTC; run later or pass --anytime",
-  );
-  process.exit(1);
-}
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString || !values.newsroom) {
   console.error("recheck: needs DATABASE_URL and --newsroom <slug>");
