@@ -1,5 +1,5 @@
 import type { MembershipRole } from "@anr/core";
-import { type Client, type PlatformKey, type Pool, withNewsroom } from "@anr/db";
+import { type Client, type PersonActor, type PlatformKey, type Pool, withNewsroom } from "@anr/db";
 import { createRenderer } from "@anr/render";
 import { setHttpRoute } from "@anr/telemetry";
 import { getConnInfo } from "@hono/node-server/conninfo";
@@ -62,6 +62,14 @@ import {
   schedule,
 } from "./desk/review.ts";
 import { sourceHealth } from "./desk/sources.ts";
+import {
+  allTokens,
+  bearerToken,
+  issueToken,
+  listTokens,
+  revokeToken,
+  tokenUser,
+} from "./desk/tokens.ts";
 import { adminTts, newsroomTts, setAdminTts, setNewsroomTts, type TtsCatalog } from "./desk/tts.ts";
 import type { components } from "./generated/api.ts";
 
@@ -194,19 +202,41 @@ export function createApp(deps?: DeskDeps) {
     return c.json(receipt, 201);
   });
 
-  // Every desk request: a verified Access JWT whose email is a user (D95).
+  // Every desk request: a verified Access JWT whose email is a user (D95), or a personal token,
+  // which acts as its person (D189, D191).
   app.use("/desk/*", async (c, next) => {
-    const email = await verify(c.req.header(ACCESS_HEADER));
-    const person = email ? await deskPerson(pool, email) : null;
-    if (!person) return c.json({ error: "sign in through Cloudflare Access" }, 401);
-    c.set("person", person);
+    const token = bearerToken(c.req.header("authorization"));
+    if (token) {
+      const user = await tokenUser(pool, token);
+      const person = user ? await deskPerson(pool, user.email) : null;
+      if (!person || !user) return c.json({ error: "the token is not valid" }, 401);
+      c.set("person", { ...person, tokenId: user.tokenId });
+    } else {
+      const email = await verify(c.req.header(ACCESS_HEADER));
+      const person = email ? await deskPerson(pool, email) : null;
+      if (!person) return c.json({ error: "sign in through Cloudflare Access" }, 401);
+      c.set("person", person);
+    }
     await next();
   });
+
+  /** The person acting, with the token they act through, if any. */
+  const actorOf = (c: Context<Env>): PersonActor => {
+    const person = c.get("person");
+    return person.tokenId
+      ? { kind: "person", userId: person.userId, tokenId: person.tokenId }
+      : { kind: "person", userId: person.userId };
+  };
+  /** Managing tokens and naming the admin need a desk session through Access, never a token. */
+  const browserOnly = (c: Context<Env>) => {
+    if (c.get("person").tokenId)
+      throw new DeskError(403, "only from the desk, signed in through Cloudflare Access");
+  };
 
   /** Runs `fn` in the path's newsroom, for a member with one of `roles`. */
   const inNewsroom = <T>(
     c: Context<Env>,
-    fn: (client: Client, actor: { kind: "person"; userId: string }) => Promise<T>,
+    fn: (client: Client, actor: PersonActor) => Promise<T>,
     roles: MembershipRole[] = ["editor-in-chief", "editor"],
   ): Promise<T> => {
     const person = c.get("person");
@@ -214,9 +244,7 @@ export function createApp(deps?: DeskDeps) {
     if (!membership) throw new DeskError(403, "you have no membership in this newsroom");
     if (!roles.includes(membership.role))
       throw new DeskError(403, `only the ${roles.join(" or ")} can do this`);
-    return withNewsroom(pool, membership.newsroomId, (client) =>
-      fn(client, { kind: "person", userId: person.userId }),
-    );
+    return withNewsroom(pool, membership.newsroomId, (client) => fn(client, actorOf(c)));
   };
 
   app.get("/desk/me", (c) => {
@@ -225,7 +253,22 @@ export function createApp(deps?: DeskDeps) {
       email: p.email,
       platform_admin: p.platformAdmin,
       memberships: p.memberships.map((m) => ({ newsroom: m.newsroom, name: m.name, role: m.role })),
+      via_token: p.tokenId ?? null,
     });
+  });
+
+  // Personal tokens (D191): issued, listed and revoked only from a desk session.
+  app.get("/desk/me/tokens", async (c) => {
+    browserOnly(c);
+    return c.json(await listTokens(pool, c.get("person").userId));
+  });
+  app.post("/desk/me/tokens", async (c) => {
+    browserOnly(c);
+    return c.json(await issueToken(pool, c.get("person").userId, await body(c)), 201);
+  });
+  app.post("/desk/me/tokens/:token/revoke", async (c) => {
+    browserOnly(c);
+    return c.json(await revokeToken(pool, c.get("person").userId, id(c, "token")));
   });
 
   const base = "/desk/newsrooms/:newsroom";
@@ -380,8 +423,18 @@ export function createApp(deps?: DeskDeps) {
   const admin = (c: Context<Env>) => {
     const person = c.get("person");
     if (!person.platformAdmin) throw new DeskError(403, "only the platform admin can do this");
-    return { kind: "person" as const, userId: person.userId };
+    return actorOf(c);
   };
+  app.get("/desk/admin/tokens", async (c) => {
+    admin(c);
+    browserOnly(c);
+    return c.json(await allTokens(pool));
+  });
+  app.post("/desk/admin/tokens/:token/revoke", async (c) => {
+    admin(c);
+    browserOnly(c);
+    return c.json(await revokeToken(pool, null, id(c, "token")));
+  });
   app.get("/desk/admin/tts", async (c) => {
     admin(c);
     return c.json(await adminTts(pool, tts));

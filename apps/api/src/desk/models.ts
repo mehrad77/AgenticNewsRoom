@@ -4,12 +4,12 @@
 // What can exist, at what price, stays reviewed configuration: the admin only orders catalog ids.
 import { effectiveRoles, formatNames, parseRoles, roleProblems } from "@anr/config";
 import { MODEL_ROLES_KEY } from "@anr/core";
-import type { Client, Pool } from "@anr/db";
+import type { Client, PersonActor, Pool } from "@anr/db";
 import { loadModelsConfig, type ModelsConfig, modelsFile } from "@anr/models";
 import { DeskError } from "./errors.ts";
 import { audit, inTransaction } from "./ops.ts";
 
-type Actor = { kind: "person"; userId: string };
+type Actor = PersonActor;
 type Db = Pick<Client, "query">;
 
 /** The models file (ANR_MODELS profile) and the formats a desk chain may be set for. */

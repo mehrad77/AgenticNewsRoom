@@ -18,9 +18,10 @@ import Imported from "../components/desk/Imported.astro";
 import Samples from "../components/desk/Samples.astro";
 import Schedule from "../components/desk/Schedule.astro";
 import Sources from "../components/desk/Sources.astro";
+import Tokens from "../components/desk/Tokens.astro";
 import Base from "../layouts/Base.astro";
 import "../styles/desk.css";
-import { DeskApiError, deskApi, deskRoute } from "../lib/desk.ts";
+import { DeskApiError, deskApi, deskRoute, type IssuedToken } from "../lib/desk.ts";
 
 const route = deskRoute(Astro.locals.path);
 const api = deskApi(
@@ -30,9 +31,15 @@ const api = deskApi(
 const issuesUrl = process.env.ANR_ISSUES_URL || "https://github.com/mehrad77/AgenticNewsRoom/issues/new";
 
 let error: string | undefined;
+// A token is shown once, on the page that issued it, so issuing does not redirect (D191).
+let issued: IssuedToken | undefined;
 if (Astro.request.method === "POST") {
   try {
-    return Astro.redirect(await api.act(route, await Astro.request.formData()), 303);
+    const form = await Astro.request.formData();
+    if (route.kind === "tokens" && form.get("action") === "issue-token") {
+      const days = Number(form.get("days")) || undefined;
+      issued = await api.issueToken(String(form.get("name") ?? "").trim(), days);
+    } else return Astro.redirect(await api.act(route, form), 303);
   } catch (e) {
     if (!(e instanceof DeskApiError)) throw e;
     error = e.message;
@@ -82,6 +89,8 @@ const adminTts = r.kind === "admin" && me?.platform_admin ? await load(() => api
 const adminModels = r.kind === "admin" && me?.platform_admin ? await load(() => api.adminModels()) : undefined;
 const localModels = r.kind === "admin" && me?.platform_admin ? await load(() => api.localModels()) : undefined;
 const ops = r.kind === "ops" && me?.platform_admin ? await load(() => api.ops()) : undefined;
+const tokens = r.kind === "tokens" ? await load(() => api.tokens()) : undefined;
+const allTokens = r.kind === "tokens" && me?.platform_admin ? await load(() => api.allTokens()) : undefined;
 const grafana = `https://ops.${process.env.ANR_ROOT_DOMAIN ?? "localhost"}`;
 const role = me?.memberships.find((m) => m.newsroom === n)?.role;
 if (r.kind === "not-found") Astro.response.status = 404;
@@ -107,6 +116,7 @@ const nav = [
     {n && <nav>{nav.map(([path, label]) => <a href={`/${n}${path}`} aria-current={Astro.locals.path === `/${n}${path}` ? "page" : undefined}>{label}</a>)}</nav>}
     {me?.platform_admin && <a href="/admin" aria-current={r.kind === "admin" ? "page" : undefined}>Admin</a>}
     {me?.platform_admin && <a href="/ops" aria-current={r.kind === "ops" ? "page" : undefined}>Ops</a>}
+    {me && <a href="/me/tokens" aria-current={r.kind === "tokens" ? "page" : undefined}>Tokens</a>}
     {me && <small>{me.email}</small>}
   </header>
   <main>
@@ -127,6 +137,7 @@ const nav = [
     {r.kind === "admin" && me?.platform_admin && (adminTts || adminModels) && <Admin tts={adminTts} models={adminModels} local={localModels} />}
     {r.kind === "admin" && me && !me.platform_admin && <h1>Only the platform admin can open this page.</h1>}
     {ops && <Ops ops={ops} grafana={grafana} />}
+    {tokens && <Tokens tokens={tokens} issued={issued} everyone={allTokens} />}
     {r.kind === "ops" && me && !me.platform_admin && <h1>Only the platform admin can open this page.</h1>}
     {channels && <Channels channels={channels} chief={role === "editor-in-chief"} />}
     {n && challenges && <Challenges newsroom={n} challenges={challenges} />}

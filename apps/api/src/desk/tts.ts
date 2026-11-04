@@ -2,11 +2,11 @@
 // file's catalogue; each newsroom's Editor-in-Chief picks one per language from those. The engine
 // a language would use now follows the publisher's own rule (chooseEngine in @anr/core).
 import { chooseEngine, enabledEngines, type Language, TTS_ENGINES_KEY } from "@anr/core";
-import { type Client, type Pool, recordAudit } from "@anr/db";
+import { type Client, type PersonActor, type Pool, recordAudit } from "@anr/db";
 import { buildCatalog, loadModelsConfig, modelsFile } from "@anr/models";
 import { DeskError } from "./errors.ts";
 
-type Actor = { kind: "person"; userId: string };
+type Actor = PersonActor;
 
 /** The engines the models file catalogues (`tts_engines`), and its default (`tts`). */
 export interface TtsCatalog {
@@ -77,9 +77,15 @@ export async function setAdminTts(pool: Pool, actor: Actor, catalog: TtsCatalog,
       [TTS_ENGINES_KEY, JSON.stringify(next), actor.userId],
     );
     await client.query(
-      `insert into platform_audit_log (actor_user_id, action, entity, key, before, after)
-       values ($1, 'set', 'platform_settings', $2, $3, $4)`,
-      [actor.userId, TTS_ENGINES_KEY, JSON.stringify(rows[0]?.value ?? null), JSON.stringify(next)],
+      `insert into platform_audit_log (actor_user_id, action, entity, key, before, after, via_token_id)
+       values ($1, 'set', 'platform_settings', $2, $3, $4, $5)`,
+      [
+        actor.userId,
+        TTS_ENGINES_KEY,
+        JSON.stringify(rows[0]?.value ?? null),
+        JSON.stringify(next),
+        actor.tokenId ?? null,
+      ],
     );
     await client.query("commit");
   } catch (error) {

@@ -26,6 +26,9 @@ export type NewsroomTts = S["NewsroomTts"];
 export type Challenge = S["Challenge"];
 export type ChallengeDetail = S["ChallengeDetail"];
 export type MediaItem = S["MediaItem"];
+export type PersonalToken = S["PersonalToken"];
+export type PersonalTokenWithEmail = S["PersonalTokenWithEmail"];
+export type IssuedToken = S["IssuedToken"];
 
 /** Pages that list or show one newsroom's things, under `/<newsroom>/<page>`. */
 const PAGES = [
@@ -50,6 +53,8 @@ export type DeskRoute =
   | { kind: "admin" }
   /** The platform admin's operations controls (D144). */
   | { kind: "ops" }
+  /** The signed-in person's personal tokens (D191). */
+  | { kind: "tokens" }
   | { kind: "queue"; newsroom: string }
   | { kind: "publication"; newsroom: string; id: string }
   | { kind: "challenge"; newsroom: string; id: string }
@@ -64,6 +69,7 @@ export function deskRoute(path: string): DeskRoute {
   if (p === "/" || p === "") return { kind: "home" };
   if (p === "/admin") return { kind: "admin" };
   if (p === "/ops") return { kind: "ops" };
+  if (p === "/me/tokens") return { kind: "tokens" };
   let m = new RegExp(`^/(${SLUG})$`).exec(p);
   if (m?.[1]) return { kind: "queue", newsroom: m[1] };
   m = new RegExp(`^/(${SLUG})/p/(${UUID})$`).exec(p);
@@ -198,6 +204,11 @@ export function deskApi(base: string, token: string | null, fetchFn: typeof fetc
       }
     },
     ops: () => call<OpsState>("/desk/admin/ops"),
+    tokens: () => call<PersonalToken[]>("/desk/me/tokens"),
+    allTokens: () => call<PersonalTokenWithEmail[]>("/desk/admin/tokens"),
+    /** Issues a token; the page shows it this once instead of redirecting. */
+    issueToken: (name: string, days: number | undefined) =>
+      call<IssuedToken>("/desk/me/tokens", { name, ...(days && { days }) }),
     newsroomTts: (newsroom: string) => call<NewsroomTts>(`${n(newsroom)}/tts`),
     /** Runs the action a desk form posted; returns where to go next. */
     async act(route: DeskRoute, form: FormData): Promise<string> {
@@ -255,6 +266,19 @@ export function deskApi(base: string, token: string | null, fetchFn: typeof fetc
         if (!target) throw new DeskApiError(400, "unknown action");
         await call(...target);
         return "/ops";
+      }
+      if (route.kind === "tokens") {
+        const id = String(form.get("id") ?? "");
+        switch (form.get("action")) {
+          case "revoke-token":
+            await call(`/desk/me/tokens/${encodeURIComponent(id)}/revoke`, {});
+            return "/me/tokens";
+          case "revoke-any-token":
+            await call(`/desk/admin/tokens/${encodeURIComponent(id)}/revoke`, {});
+            return "/me/tokens#everyone";
+          default:
+            throw new DeskApiError(400, "unknown action");
+        }
       }
       if (route.kind === "home" || route.kind === "not-found")
         throw new DeskApiError(404, "nothing to do here");

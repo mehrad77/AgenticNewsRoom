@@ -3,8 +3,10 @@ info:
   title: ANR API
   version: 0.0.0
   description: >-
-    Reads and writes for people at the editor's desk (reader sites read Postgres directly). Contract-first:
-    change this file, run `pnpm gen`, then implement. Agents never call this API.
+    Reads and writes for people at the editor's desk (reader sites read Postgres directly), in a desk
+    session through Cloudflare Access or with a personal token, which acts as its person (D189, D191).
+    Every operation a token may call is also a tool of the MCP server at /mcp (D190). Contract-first:
+    change this file, run `pnpm gen`, then implement. ANR's newsroom agents never call this API.
   license:
     name: Proprietary
     identifier: LicenseRef-Proprietary
@@ -29,7 +31,7 @@ paths:
       operationId: getDeskMe
       summary: The signed-in person and the newsrooms they belong to
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       responses:
         "200":
           description: The person and their memberships.
@@ -39,6 +41,121 @@ paths:
                 $ref: "#/components/schemas/DeskMe"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /desk/me/tokens:
+    get:
+      operationId: listMyTokens
+      summary: Your personal tokens
+      description: Only in a desk session through Cloudflare Access, never with a token (D191).
+      tags: [tokens]
+      security: [{ cfAccess: [] }]
+      responses:
+        "200":
+          description: Your tokens, newest first; never the tokens themselves.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PersonalToken" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: issueMyToken
+      summary: Issue a personal token for an agent of your own
+      description: >-
+        Only in a desk session through Cloudflare Access (D191). The token acts as you, with your roles,
+        until it expires or you revoke it; what it does is yours and audited with the token (D189).
+      tags: [tokens]
+      security: [{ cfAccess: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IssueTokenRequest"
+      responses:
+        "201":
+          description: The token, shown this once.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IssuedToken"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /desk/me/tokens/{token}/revoke:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: revokeMyToken
+      summary: Revoke one of your personal tokens
+      description: Only in a desk session through Cloudflare Access (D191).
+      tags: [tokens]
+      security: [{ cfAccess: [] }]
+      responses:
+        "200":
+          description: The token, revoked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PersonalToken"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /desk/admin/tokens:
+    get:
+      operationId: listAllTokens
+      summary: Every person's personal tokens
+      description: Platform admin only, in a desk session through Cloudflare Access (D191).
+      tags: [tokens]
+      security: [{ cfAccess: [] }]
+      responses:
+        "200":
+          description: Every token, newest first; never the tokens themselves.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PersonalTokenWithEmail" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /desk/admin/tokens/{token}/revoke:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: revokeAnyToken
+      summary: Revoke anyone's personal token
+      description: Platform admin only, in a desk session through Cloudflare Access (D191).
+      tags: [tokens]
+      security: [{ cfAccess: [] }]
+      responses:
+        "200":
+          description: The token, revoked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PersonalToken"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /desk/newsrooms/{newsroom}/queue:
     parameters:
       - $ref: "#/components/parameters/Newsroom"
@@ -46,7 +163,7 @@ paths:
       operationId: getReviewQueue
       summary: Publications held for an editor, with the reasons they are held
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       responses:
         "200":
           description: The review queue, oldest slot first.
@@ -68,7 +185,7 @@ paths:
       operationId: getDeskPublication
       summary: One publication with its text, claims, checks and posts
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       responses:
         "200":
           description: The publication.
@@ -90,7 +207,7 @@ paths:
       operationId: approvePublication
       summary: Approve a held publication; it goes out at its slot, or at once if that has passed
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       requestBody:
         required: true
         content:
@@ -120,7 +237,7 @@ paths:
       operationId: returnPublication
       summary: Return a held publication's assignment to the desk for a new draft
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       requestBody:
         required: true
         content:
@@ -155,7 +272,7 @@ paths:
       operationId: resolvePost
       summary: Say whether a post with an unknown result went out
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       requestBody:
         required: true
         content:
@@ -186,7 +303,7 @@ paths:
       operationId: listChannels
       summary: The newsroom's channels; credentials are never returned
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       responses:
         "200":
           description: Channels.
@@ -204,7 +321,7 @@ paths:
       operationId: addChannel
       summary: Add a channel (Editor-in-Chief); its credentials are sealed with the platform key
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       requestBody:
         required: true
         content:
@@ -235,7 +352,7 @@ paths:
       operationId: setChannelStatus
       summary: Turn a channel on or off (Editor-in-Chief)
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       requestBody:
         required: true
         content:
@@ -264,7 +381,7 @@ paths:
       operationId: listSamples
       summary: Auto-published publications sampled for review, unreviewed first
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       responses:
         "200":
           description: Samples.
@@ -289,7 +406,7 @@ paths:
       operationId: reviewSample
       summary: Record a sampled publication as fine, or as a miss the gate should have caught
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       requestBody:
         required: true
         content:
@@ -320,7 +437,7 @@ paths:
       operationId: listNotices
       summary: Messages from code to the Editor-in-Chief, unread first
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       responses:
         "200":
           description: Notices.
@@ -345,7 +462,7 @@ paths:
       operationId: readNotice
       summary: Mark a notice read
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       responses:
         "200":
           description: Marked.
@@ -367,7 +484,7 @@ paths:
       operationId: previewPublication
       summary: What would be sent now - every channel's parts and the site page - from the same renderer and context as the publisher
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       responses:
         "200":
           description: The preview.
@@ -389,7 +506,7 @@ paths:
       operationId: editPublication
       summary: Change text of a held publication; its label then says a person edited it
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       requestBody:
         required: true
         content:
@@ -421,7 +538,7 @@ paths:
       operationId: pullBackPublication
       summary: Hold a scheduled publication before its slot; it returns to the review queue
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       requestBody:
         required: true
         content:
@@ -452,7 +569,7 @@ paths:
       operationId: getSchedule
       summary: Publications whose slot is in the next days, in any status before published
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       parameters:
         - name: days
           in: query
@@ -483,7 +600,7 @@ paths:
       operationId: replaceChannelCredentials
       summary: Replace a channel's credentials (Editor-in-Chief); sealed, never returned, then checked
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       requestBody:
         required: true
         content:
@@ -516,7 +633,7 @@ paths:
       operationId: checkChannel
       summary: Ask the publisher whether the channel can be posted to (Editor-in-Chief); nothing is sent
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       responses:
         "200":
           description: Queued; the result appears on the channel.
@@ -541,7 +658,7 @@ paths:
       operationId: fileSampleIssue
       summary: Record the issue a sample miss was filed as
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       requestBody:
         required: true
         content:
@@ -572,7 +689,7 @@ paths:
       operationId: getBudget
       summary: This month's model spend against the newsroom's budget
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       responses:
         "200":
           description: The budget.
@@ -591,7 +708,7 @@ paths:
       operationId: listSourceHealth
       summary: Each source's last fetch, failures and recent leads
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       responses:
         "200":
           description: Sources, failing first.
@@ -612,7 +729,7 @@ paths:
       operationId: getRecheck
       summary: How far the recheck of imported news has got, and what stops each item (D184)
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       responses:
         "200":
           description: Imported days, newest first, with each item's status.
@@ -631,7 +748,7 @@ paths:
       operationId: startRecheck
       summary: Starts a recheck run; the agents worker works it round by round (D184)
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       responses:
         "200":
           description: The run, now open.
@@ -652,7 +769,7 @@ paths:
       operationId: stopRecheck
       summary: Asks the open recheck run to stop after the item in hand
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       responses:
         "200":
           description: The run, asked to stop.
@@ -673,7 +790,7 @@ paths:
       operationId: getMeasures
       summary: The charter's measures, week by week
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       parameters:
         - name: weeks
           in: query
@@ -698,7 +815,7 @@ paths:
       operationId: getPlan
       summary: The planner's theme proposals and weekly picks, current and coming
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       responses:
         "200":
           description: Themes of the current and next cycle, and picks from the last four weeks on.
@@ -722,7 +839,7 @@ paths:
       summary: Approve one proposed theme, as edited, for its cycle; the cycle's other proposals are declined
       description: Editor-in-Chief only (D105). Every changed field is audited.
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       requestBody:
         required: true
         content:
@@ -758,7 +875,7 @@ paths:
       summary: Choose one of a weekly pick's three candidates before its deadline
       description: Editor-in-Chief only (D105). Queues the assignment for the pick's slot; refused once the deadline has passed (D104).
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       requestBody:
         required: true
         content:
@@ -788,7 +905,7 @@ paths:
       summary: The text-to-speech engines in the models file, and which are enabled for newsrooms
       description: Platform admin only (D113).
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       responses:
         "200":
           description: The catalogue.
@@ -805,7 +922,7 @@ paths:
       summary: Enable a set of engines for every newsroom to choose from
       description: Platform admin only; audited in the platform audit log (D113).
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       requestBody:
         required: true
         content:
@@ -831,7 +948,7 @@ paths:
       summary: Publishing pauses, queues, failed and waiting jobs, backups and heartbeats
       description: Platform admin only (D144). Grafana shows history; this page acts.
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       responses:
         "200":
           description: The platform's state.
@@ -849,7 +966,7 @@ paths:
       summary: Pause publishing in one newsroom, or in every newsroom without one
       description: Platform admin only; audited in the platform audit log. The publisher stops before its next send or part (D144).
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       requestBody:
         required: true
         content:
@@ -877,7 +994,7 @@ paths:
       summary: Resume publishing in one newsroom, or everywhere
       description: Platform admin only; audited. A scheduled publication now past its slot by more than its format's grace is held as a missed slot; the rest send (D129, D144).
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       requestBody:
         required: true
         content:
@@ -905,7 +1022,7 @@ paths:
       summary: Drain a queue, or lift its drain
       description: Platform admin only; audited. Workers take no new job from a drained queue within 30 seconds; running ones finish and nothing is deleted. Only queues whose work ends in a hold or is done again (D144).
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       requestBody:
         required: true
         content:
@@ -931,7 +1048,7 @@ paths:
       summary: Retry a failed job
       description: Platform admin only; audited. A part recorded as unknown is still never re-sent (D89).
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       requestBody:
         required: true
         content:
@@ -959,7 +1076,7 @@ paths:
       summary: Cancel a job that has not started
       description: Platform admin only; audited. Refused for the deadline queues, publish-correction, assign, redraft and publish-sweep (D144).
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       requestBody:
         required: true
         content:
@@ -987,7 +1104,7 @@ paths:
       summary: Ask the host for a backup check now
       description: Platform admin only; audited. The host's job runs it within 30 seconds and records it in backup_runs (D131, D144).
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       responses:
         "200":
           description: Done.
@@ -1005,7 +1122,7 @@ paths:
       summary: The models file's catalog, and the role chains in force with where they come from
       description: Platform admin only. The chains in force are the admin's when they are valid against the current catalog, else the models file's; `problems` says why stored chains were set aside. The agents worker uses the same rule before each job.
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       responses:
         "200":
           description: The catalog and chains.
@@ -1023,7 +1140,7 @@ paths:
       summary: Set every role's chain of catalog models, used from each role's next run
       description: Platform admin only; audited in the platform audit log with before and after. Refused with the problems listed when a chain names an unknown model, one without tool calling or a price, an unknown format, or a fact-checker chain of fewer than two families.
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       requestBody:
         required: true
         content:
@@ -1048,7 +1165,7 @@ paths:
       summary: Go back to the models file's chains
       description: Platform admin only; audited. The setting is kept as null, which reads as the models file's chains.
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       responses:
         "200":
           description: Reset; the catalog and chains now in force.
@@ -1066,7 +1183,7 @@ paths:
       summary: The language models on the local model server (LM Studio), and which are loaded
       description: Platform admin only. The server is the models file's OpenAI-compatible provider at a plain-http address; its native REST API is asked with a 5 second timeout.
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       responses:
         "200":
           description: The server's language models.
@@ -1090,7 +1207,7 @@ paths:
       summary: Load a model on the local model server
       description: Platform admin only; audited. The context length defaults to 65536, or the model's maximum when that is smaller. Loading takes some seconds.
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       requestBody:
         required: true
         content:
@@ -1122,7 +1239,7 @@ paths:
       summary: Unload a loaded instance from the local model server
       description: Platform admin only; audited.
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       requestBody:
         required: true
         content:
@@ -1155,7 +1272,7 @@ paths:
       operationId: getNewsroomTts
       summary: The newsroom's TTS engine per language, and what each language would use now
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       responses:
         "200":
           description: One row per newsroom language.
@@ -1172,7 +1289,7 @@ paths:
       summary: Choose the engine for one language, or clear the choice to use the default
       description: Editor-in-Chief only; audited (D113).
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       requestBody:
         required: true
         content:
@@ -1231,7 +1348,7 @@ paths:
       operationId: listChallenges
       summary: Readers' challenges, open ones first, with their deadlines
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       responses:
         "200":
           description: Challenges.
@@ -1253,7 +1370,7 @@ paths:
       operationId: getChallenge
       summary: One challenge, with the story's claims and every publication a correction would cover
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       responses:
         "200":
           description: The challenge.
@@ -1275,7 +1392,7 @@ paths:
       operationId: acknowledgeChallenge
       summary: Acknowledge a challenge, with an optional note the reader sees
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       requestBody:
         required: true
         content:
@@ -1307,7 +1424,7 @@ paths:
       operationId: rejectChallenge
       summary: Answer a challenge without a correction; the reader sees the answer
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       requestBody:
         required: true
         content:
@@ -1339,7 +1456,7 @@ paths:
       operationId: upholdChallenge
       summary: Uphold a challenge, correcting every affected publication and checking the corrected claim (D115, D116)
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       requestBody:
         required: true
         content:
@@ -1371,7 +1488,7 @@ paths:
       operationId: fileChallengeIssue
       summary: Record the issue an upheld challenge's lesson was filed as
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       requestBody:
         required: true
         content:
@@ -1402,7 +1519,7 @@ paths:
       operationId: listMedia
       summary: The newsroom's images, unlicensed first
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       responses:
         "200":
           description: Up to 200 media items.
@@ -1419,7 +1536,7 @@ paths:
       operationId: addMedia
       summary: Add an image by URL; ingestion fetches it and reads its Photo Metadata
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       requestBody:
         required: true
         content:
@@ -1453,7 +1570,7 @@ paths:
       operationId: recordPressKit
       summary: Record that a press kit allows press use, with the credit
       tags: [desk]
-      security: [{ cfAccess: [] }]
+      security: [{ cfAccess: [] }, { personalToken: [] }]
       requestBody:
         required: true
         content:
@@ -1482,9 +1599,12 @@ tags:
     description: Operational endpoints.
   - name: desk
     description: >-
-      The editor's desk, behind Cloudflare Access. Every request carries the Access JWT; the API
-      verifies it, maps its email to a user and checks a membership in the newsroom named in the
-      path. Every approval and edit is written to the audit log.
+      The editor's desk, behind Cloudflare Access, or with a personal token. Every request carries
+      the Access JWT or the token; the API maps it to a user and checks a membership in the newsroom
+      named in the path. Every approval and edit is written to the audit log, with the token if any.
+  - name: tokens
+    description: >-
+      Personal tokens (D191), managed only in a desk session through Cloudflare Access.
   - name: reader
     description: >-
       Public writes from a newsroom's site on a reader's behalf: no sign-in, nothing stored about the
@@ -1496,6 +1616,12 @@ components:
       in: header
       name: Cf-Access-Jwt-Assertion
       description: The Cloudflare Access JWT, verified against the team's signing keys and audience.
+    personalToken:
+      type: http
+      scheme: bearer
+      description: >-
+        A personal token (`anr_…`), issued at the desk; it acts as the person who issued it, with their
+        roles and nothing more (D189, D191).
   parameters:
     Newsroom:
       name: newsroom
@@ -1525,7 +1651,7 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     Unauthorized:
-      description: No valid Cloudflare Access JWT, or no user for its email.
+      description: No valid Cloudflare Access JWT or personal token, or no user for it.
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
@@ -1749,6 +1875,56 @@ components:
                 type: object
                 additionalProperties: { type: string }
               role: { $ref: "#/components/schemas/Role" }
+        via_token:
+          type: [string, "null"]
+          description: The personal token this request came with, or null in a desk session.
+    PersonalToken:
+      type: object
+      additionalProperties: false
+      required: [id, name, created_at, expires_at, last_used_at, revoked_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        created_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+        last_used_at: { type: [string, "null"], format: date-time }
+        revoked_at: { type: [string, "null"], format: date-time }
+    PersonalTokenWithEmail:
+      allOf:
+        - $ref: "#/components/schemas/PersonalToken"
+        - type: object
+          required: [email]
+          properties:
+            email: { type: string }
+    IssuedToken:
+      allOf:
+        - $ref: "#/components/schemas/PersonalToken"
+        - type: object
+          required: [token]
+          properties:
+            token:
+              type: string
+              description: The token itself, shown this once; only its hash is kept.
+    IssueTokenRequest:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name:
+          {
+            type: string,
+            minLength: 1,
+            maxLength: 80,
+            description: "What the token is for, such as the agent holding it.",
+          }
+        days:
+          {
+            type: integer,
+            minimum: 1,
+            maximum: 365,
+            default: 90,
+            description: "Days until it expires.",
+          }
     Check:
       type: object
       additionalProperties: false

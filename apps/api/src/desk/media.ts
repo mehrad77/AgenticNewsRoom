@@ -2,11 +2,11 @@
 // reads its Photo Metadata. A free Wikimedia Commons licence is recorded by code; a press kit's
 // press-use terms are recorded here by a person, with the credit. A recorded licence never changes.
 import { type IngestMediaJob, QUEUES } from "@anr/core";
-import { auditedUpdate, type Client, onClient } from "@anr/db";
+import { auditedUpdate, type Client, onClient, type PersonActor } from "@anr/db";
 import type { PgBoss } from "pg-boss";
 import { DeskError } from "./errors.ts";
 
-type Actor = { kind: "person"; userId: string };
+type Actor = PersonActor;
 
 export interface MediaItem {
   id: string;

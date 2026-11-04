@@ -1,9 +1,9 @@
 // What an editor follows up on: the review sample of auto-published publications (D94) and the
 // notices code leaves for the Editor-in-Chief.
-import { auditedUpdate, type Client } from "@anr/db";
+import { auditedUpdate, type Client, type PersonActor } from "@anr/db";
 import { DeskError } from "./errors.ts";
 
-type Actor = { kind: "person"; userId: string };
+type Actor = PersonActor;
 
 const SAMPLE = `
   select s.id, s.publication_id as publication, p.title, p.language, s.sampled_at, s.outcome,
