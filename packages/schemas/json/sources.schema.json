@@ -17,8 +17,21 @@
         "description": "Who publishes it; independence is counted per publisher."
       },
       "tier": { "enum": [1, 2, 3] },
-      "every": { "type": "string", "pattern": "^[0-9]+[mhd]$" },
-      "use": { "enum": ["leads", "enrichment"], "default": "leads" },
+      "every": {
+        "type": "string",
+        "pattern": "^[0-9]+[mhd]$",
+        "description": "How often ingestion fetches it; unused for a vouch source."
+      },
+      "use": {
+        "enum": ["leads", "enrichment", "vouch"],
+        "default": "leads",
+        "description": "vouch: never fetched; it only vouches for its sections when an agent requests a page there (D187). Its `every` is unused."
+      },
+      "vouches": {
+        "type": "array",
+        "items": { "type": "string", "format": "uri" },
+        "description": "Further sections of the same publisher it vouches for: a host and its first path segment (`https://claude.com/resources`), D61, D187."
+      },
       "terms_checked": {
         "type": "string",
         "format": "date",

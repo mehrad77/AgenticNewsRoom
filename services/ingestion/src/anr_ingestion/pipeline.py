@@ -480,19 +480,28 @@ class Ingestor:
             if existing:
                 return self._lead(conn, existing), False
             site = registrable_domain(url)
+            # A source answers for its own host and for the hosts of the sections it lists (D187).
             on_site = [
                 s
                 for s in store.sources(conn)
-                if not s.removed and s.use == "leads" and registrable_domain(s.url) == site
+                if not s.removed
+                and s.use in ("leads", "vouch")
+                and site in {registrable_domain(u) for u in (s.url, *s.vouches)}
             ]
             wanted = section(url)
-            # A source vouches only for its own section of its host (`openai.com/index`), never
-            # for the rest of a shared host (`huggingface.co/<anyone>`): D61.
+            # A source vouches only for its own section of its host (`openai.com/index`) and the
+            # sections it lists, never for the rest of a shared host (`huggingface.co/<anyone>`):
+            # D61, D187.
             vouching = [
                 s
                 for s in on_site
                 if s.terms_checked is not None
-                and wanted in {section(s.url), *store.sections(conn, s.id)}
+                and wanted
+                in {
+                    section(s.url),
+                    *(section(v) for v in s.vouches),
+                    *store.sections(conn, s.id),
+                }
             ]
         source_id: str | None = None
         tier = UNVOUCHED_TIER  # Not vouched for: an injected page cannot promote itself.

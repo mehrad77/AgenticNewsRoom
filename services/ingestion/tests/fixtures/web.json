@@ -164,5 +164,20 @@
     "headers": {
       "Content-Type": "image/jpeg"
     }
+  },
+  "https://claude.com/robots.txt": {
+    "status": 404
+  },
+  "https://claude.com/resources/a-post": {
+    "file": "site-post.html"
+  },
+  "https://cursor.com/robots.txt": {
+    "status": 404
+  },
+  "https://cursor.com/blog/a-post": {
+    "file": "unknown-report.html"
+  },
+  "https://cursor.com/docs/a-page": {
+    "file": "openai-new.html"
   }
 }

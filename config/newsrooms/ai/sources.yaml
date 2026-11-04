@@ -16,6 +16,14 @@
     every: 1h,
     terms_checked: 2026-10-27,
     terms_note: "ToU 2026-01-01 bans programmatic extraction; the feed is an offered channel.",
+    # Other sections of the same site (D187), under the terms read for it.
+    vouches:
+      [
+        "https://developers.openai.com/api",
+        "https://help.openai.com/en",
+        "https://platform.openai.com/docs",
+        "https://alignment.openai.com/misalignment-reports",
+      ],
   }
 # Terms: https://www.anthropic.com/legal (no feed: the news listing page is read for post links)
 - {
@@ -27,6 +35,8 @@
     every: 2h,
     terms_checked: 2026-10-27,
     terms_note: "Consumer Terms 2025-10-08 ban scraping Services incl. websites; scope over /news unclear. EIC approved.",
+    # Other sections of the same site (D187), under the terms read for it.
+    vouches: ["https://www.anthropic.com/research", "https://www.anthropic.com/engineering"],
   }
 # Terms (all Google sites): https://policies.google.com/terms
 - {
@@ -38,6 +48,8 @@
     every: 1h,
     terms_checked: 2026-10-27,
     terms_note: "Google ToS 2026-07-30: automated access allowed when robots.txt is obeyed; robots allows /.",
+    # Other sections of the same site (D187), under the terms read for it.
+    vouches: ["https://deepmind.google/discover"],
   }
 - {
     id: google-ai-blog,
@@ -48,6 +60,13 @@
     every: 1h,
     terms_checked: 2026-10-27,
     terms_note: "Google ToS 2026-07-30: robots-based rule; robots allows the feed and posts. Feed has some non-AI posts.",
+    # Other sections of the same site (D187), under the terms read for it.
+    vouches:
+      [
+        "https://blog.google/technology",
+        "https://blog.google/products",
+        "https://blog.google/products-and-platforms",
+      ],
   }
 - {
     id: google-research-blog,
@@ -78,6 +97,8 @@
     every: 2h,
     terms_checked: 2026-10-27,
     terms_note: "MS ToU 2022-02-07: personal, non-commercial; the feed is an intended channel. Recheck if monetised.",
+    # Other sections of the same site (D187), under the terms read for it.
+    vouches: ["https://blogs.microsoft.com/blog", "https://news.microsoft.com/source"],
   }
 # Terms: https://mistral.ai/terms
 - {
@@ -112,6 +133,8 @@
     every: 2h,
     terms_checked: 2026-10-27,
     terms_note: "NVIDIA ToS 3.2(f) bans robots on material not made available; the feed is. Non-commercial.",
+    # Other sections of the same site (D187), under the terms read for it.
+    vouches: ["https://blogs.nvidia.com/blog", "https://nvidianews.nvidia.com/news"],
   }
 # Terms: https://aws.amazon.com/terms/
 - {
@@ -136,6 +159,8 @@
     pages: false,
     terms_checked: 2026-10-27,
     terms_note: "Apple Site Terms 2009-11-20 ban robots, no feed exception; EIC approved feed-only (pages: false).",
+    # Other sections of the same site (D187), under the terms read for it.
+    vouches: ["https://www.apple.com/newsroom"],
   }
 # Terms: GitHub Pages, https://docs.github.com/en/site-policy/github-terms/github-terms-of-service
 - {
@@ -199,4 +224,249 @@
     use: enrichment,
     terms_checked: 2026-10-27,
     terms_note: "S2 API License: credit Semantic Scholar where its data is used; data CC BY-NC / ODC-BY; back off on 429.",
+  }
+
+# Vouch only (D187): official pages the labs publish outside their feeds, cited by the archive's
+# news. Never fetched; each vouches for its own section (a host and its first path segment) when
+# an agent or the recheck requests a page there, once a person has read its terms and set
+# `terms_checked` (D17). Until then a request on its host is refused, as for any unread source.
+# Terms: https://www.anthropic.com/legal
+- {
+    id: claude-resources,
+    kind: site,
+    url: "https://claude.com/resources",
+    publisher: "Anthropic",
+    tier: 1,
+    every: 1d,
+    use: vouch,
+  }
+# Terms: https://www.anthropic.com/legal
+- {
+    id: claude-platform-docs,
+    kind: site,
+    url: "https://platform.claude.com/docs",
+    publisher: "Anthropic",
+    tier: 1,
+    every: 1d,
+    use: vouch,
+  }
+# Terms: https://openai.com/policies/terms-of-use/
+- {
+    id: chatgpt-learn,
+    kind: site,
+    url: "https://learn.chatgpt.com/docs",
+    publisher: "OpenAI",
+    tier: 1,
+    every: 1d,
+    use: vouch,
+  }
+# Terms (all Google sites): https://policies.google.com/terms
+- {
+    id: google-cloud-blog,
+    kind: site,
+    url: "https://cloud.google.com/blog",
+    publisher: "Google",
+    tier: 1,
+    every: 1d,
+    use: vouch,
+  }
+# Terms: https://docs.github.com/en/site-policy/github-terms/github-terms-of-service (a request elsewhere on github.com is refused until read)
+- {
+    id: github-openai,
+    kind: site,
+    url: "https://github.com/openai",
+    publisher: "OpenAI",
+    tier: 1,
+    every: 1d,
+    use: vouch,
+  }
+# Terms: as github-openai
+- {
+    id: github-anthropics,
+    kind: site,
+    url: "https://github.com/anthropics",
+    publisher: "Anthropic",
+    tier: 1,
+    every: 1d,
+    use: vouch,
+  }
+# Terms: as github-openai
+- {
+    id: github-deepseek,
+    kind: site,
+    url: "https://github.com/deepseek-ai",
+    publisher: "DeepSeek",
+    tier: 1,
+    every: 1d,
+    use: vouch,
+  }
+# Terms: as github-openai
+- {
+    id: github-ollama,
+    kind: site,
+    url: "https://github.com/ollama",
+    publisher: "Ollama",
+    tier: 1,
+    every: 1d,
+    use: vouch,
+  }
+# Terms: as github-openai
+- {
+    id: github-changelog,
+    kind: site,
+    url: "https://github.blog/changelog",
+    publisher: "GitHub",
+    tier: 1,
+    every: 1d,
+    use: vouch,
+  }
+# Terms: as github-openai
+- {
+    id: github-news,
+    kind: site,
+    url: "https://github.blog/news-insights",
+    publisher: "GitHub",
+    tier: 1,
+    every: 1d,
+    use: vouch,
+  }
+# Terms: https://www.microsoft.com/en-us/legal/terms-of-use
+- {
+    id: microsoft-ai-news,
+    kind: site,
+    url: "https://microsoft.ai/news",
+    publisher: "Microsoft AI",
+    tier: 1,
+    every: 1d,
+    use: vouch,
+  }
+# Terms: https://www.microsoft.com/en-us/legal/terms-of-use
+- {
+    id: windows-blog,
+    kind: site,
+    url: "https://blogs.windows.com/windowsexperience",
+    publisher: "Microsoft",
+    tier: 1,
+    every: 1d,
+    use: vouch,
+  }
+# Terms: linked from https://www.deepseek.com (find and read before setting terms_checked)
+- {
+    id: deepseek-news,
+    kind: site,
+    url: "https://api-docs.deepseek.com/news",
+    publisher: "DeepSeek",
+    tier: 1,
+    every: 1d,
+    use: vouch,
+  }
+# Terms: https://www.facebook.com/terms (Meta; its ai.meta.com terms were not approved, see meta-ai-blog)
+- {
+    id: meta-newsroom,
+    kind: site,
+    url: "https://about.fb.com/news",
+    publisher: "Meta",
+    tier: 1,
+    every: 1d,
+    use: vouch,
+  }
+# Terms: linked from https://cursor.com (find and read before setting terms_checked)
+- {
+    id: cursor-blog,
+    kind: site,
+    url: "https://cursor.com/blog",
+    publisher: "Anysphere (Cursor)",
+    tier: 1,
+    every: 1d,
+    use: vouch,
+  }
+# Terms: as cursor-blog
+- {
+    id: cursor-changelog,
+    kind: site,
+    url: "https://cursor.com/changelog",
+    publisher: "Anysphere (Cursor)",
+    tier: 1,
+    every: 1d,
+    use: vouch,
+  }
+# Terms: linked from https://cognition.ai (find and read before setting terms_checked)
+- {
+    id: cognition-blog,
+    kind: site,
+    url: "https://cognition.ai/blog",
+    publisher: "Cognition",
+    tier: 1,
+    every: 1d,
+    use: vouch,
+  }
+# Terms: as cognition-blog
+- {
+    id: devin-docs,
+    kind: site,
+    url: "https://docs.devin.ai/desktop",
+    publisher: "Cognition",
+    tier: 1,
+    every: 1d,
+    use: vouch,
+  }
+# Terms: linked from https://windsurf.com (find and read before setting terms_checked)
+- {
+    id: windsurf-blog,
+    kind: site,
+    url: "https://windsurf.com/blog",
+    publisher: "Codeium",
+    tier: 1,
+    every: 1d,
+    use: vouch,
+  }
+# Terms: linked from https://stability.ai (find and read before setting terms_checked)
+- {
+    id: stability-news,
+    kind: site,
+    url: "https://stability.ai/news",
+    publisher: "Stability AI",
+    tier: 1,
+    every: 1d,
+    use: vouch,
+  }
+# Terms: linked from https://vllm.ai (find and read before setting terms_checked)
+- {
+    id: vllm-blog,
+    kind: site,
+    url: "https://vllm.ai/blog",
+    publisher: "vLLM",
+    tier: 1,
+    every: 1d,
+    use: vouch,
+  }
+# Terms: linked from https://www.minimax.io (find and read before setting terms_checked)
+- {
+    id: minimax-docs,
+    kind: site,
+    url: "https://platform.minimax.io/docs",
+    publisher: "MiniMax",
+    tier: 1,
+    every: 1d,
+    use: vouch,
+  }
+# Terms: linked from https://ir.baidu.com (find and read before setting terms_checked)
+- {
+    id: baidu-ir,
+    kind: site,
+    url: "https://ir.baidu.com/news-releases",
+    publisher: "Baidu",
+    tier: 1,
+    every: 1d,
+    use: vouch,
+  }
+# Terms: linked from https://www.kimi.com (find and read before setting terms_checked)
+- {
+    id: kimi-news,
+    kind: site,
+    url: "https://www.kimi.com/en",
+    publisher: "Moonshot AI",
+    tier: 1,
+    every: 1d,
+    use: vouch,
   }

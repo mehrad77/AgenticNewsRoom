@@ -232,6 +232,35 @@ def test_request_source_known_section_takes_its_sources_tier(
     assert lead["tier"] == 1
 
 
+def test_request_source_listed_sections_and_vouch_sources_vouch(
+    ingestor: Ingestor, newsroom: Newsroom, database: Database
+) -> None:
+    # D187: a source vouches for the sections it lists, even on another host, and a vouch
+    # source (never fetched) vouches for its own section once its terms were read.
+    run = agent_run(database, newsroom)
+    database.system.execute(
+        "update sources set vouches = '{https://claude.com/resources}'"
+        " where newsroom_id = %s and slug = 'anthropic-news'",
+        (newsroom.id,),
+    )
+    database.system.execute(
+        """insert into sources (newsroom_id, slug, kind, url, publisher, tier, fetch_every, use,
+                                terms_checked)
+           values (%s, 'cursor', 'site', 'https://cursor.com/blog', 'Anysphere', 1, '1 day',
+                   'vouch', %s), (%s, 'unread', 'site', 'https://unread.example/news', 'U', 1,
+                   '1 day', 'vouch', null)""",
+        (newsroom.id, "2026-10-01", newsroom.id),
+    )
+    for url in ("https://claude.com/resources/a-post", "https://cursor.com/blog/a-post"):
+        lead, created = ingestor.request_source(newsroom.id, run, url)
+        assert created and lead["tier"] == 1
+    lead, _ = ingestor.request_source(newsroom.id, run, "https://cursor.com/docs/a-page")
+    assert lead["tier"] == 3
+    # Like any source, one whose terms nobody read refuses requests on its host (D17).
+    with pytest.raises(Refused, match="terms"):
+        ingestor.request_source(newsroom.id, run, "https://unread.example/news/x")
+
+
 def test_request_source_elsewhere_on_a_known_host_is_tier_3(
     ingestor: Ingestor, newsroom: Newsroom, database: Database
 ) -> None:
