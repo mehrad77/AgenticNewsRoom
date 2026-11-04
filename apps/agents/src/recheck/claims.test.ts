@@ -52,7 +52,15 @@ describe("the claims of an imported item", () => {
     });
   });
 
-  it("retry once with what was wrong, then give up", async () => {
+  it("snap a near-miss quote to the source's own sentence", async () => {
+    const { snapPassage } = await import("./claims.ts");
+    expect(snapPassage("The model has a context window of 1 million tokens", source)).toBe(
+      "The model has a context window of one million tokens.",
+    );
+    expect(snapPassage("Moonshot raised two billion dollars from investors", source)).toBeNull();
+  });
+
+  it("retry with what was wrong, then give up", async () => {
     const bad = JSON.stringify({
       claims: [{ text: "a", passage: "not in the source at all, no." }],
     });
@@ -64,7 +72,7 @@ describe("the claims of an imported item", () => {
     expect(await writeClaims(replies(bad, good), item, source)).toMatchObject({
       claims: [{ text: "Kimi K3.1 Pro" }],
     });
-    expect(await writeClaims(replies(bad, bad), item, source)).toEqual({
+    expect(await writeClaims(replies(bad, bad, bad), item, source)).toEqual({
       error: "claims[0].passage is not in the source text; copy it exactly",
     });
   });
