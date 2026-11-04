@@ -2,12 +2,8 @@
 // item counts as checked only when every check about it passed, and the reader site then shows it
 // with the AI label only. Anything missing, failed, partial, errored or timed out leaves it
 // labelled as imported (invariant 5: the gate can hold, never approve on less).
-import { itemHash, itemPaths } from "@anr/core";
+import { IMPORTED_RENDITION_CHECKS, itemHash, itemPaths } from "@anr/core";
 import type { StoredCheck } from "./policy.ts";
-
-/** Checks about a whole rendition that an imported item needs; length and style rules are about
- *  new writing, not the archive's, and are left to the pipeline's own pieces. */
-export const IMPORTED_RENDITION_CHECKS = ["schema", "verifier", "claims", "beats"];
 
 interface Claim {
   id: string;

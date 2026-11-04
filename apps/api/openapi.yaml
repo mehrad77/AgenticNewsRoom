@@ -605,6 +605,25 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+  /desk/newsrooms/{newsroom}/recheck:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+    get:
+      operationId: getRecheck
+      summary: How far the recheck of imported news has got, and what stops each item (D184)
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      responses:
+        "200":
+          description: Imported days, newest first, with each item's status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Recheck"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
   /desk/newsrooms/{newsroom}/measures:
     parameters:
       - $ref: "#/components/parameters/Newsroom"
@@ -1891,6 +1910,80 @@ components:
           type: array
           description: This month's latest runs.
           items: { $ref: "#/components/schemas/AgentRun" }
+    Recheck:
+      type: object
+      additionalProperties: false
+      required: [counts, causes, days]
+      properties:
+        counts:
+          type: object
+          additionalProperties: false
+          required: [checked, waiting, running, source, claims, checks]
+          properties:
+            checked: { type: integer }
+            waiting: { type: integer }
+            running: { type: integer }
+            source: { type: integer }
+            claims: { type: integer }
+            checks: { type: integer }
+        causes:
+          description: What stopped the items that are not checked, most common first.
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [cause, items]
+            properties:
+              cause: { type: string }
+              items: { type: integer }
+        days:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecheckDay"
+    RecheckDay:
+      type: object
+      additionalProperties: false
+      required: [story_id, slot, publication_id, title, items]
+      properties:
+        story_id: { type: string, format: uuid }
+        slot: { type: string, format: date-time }
+        publication_id: { type: [string, "null"], format: uuid }
+        title: { type: [string, "null"] }
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecheckItem"
+    RecheckItem:
+      type: object
+      additionalProperties: false
+      required: [index, headline, url, status, languages, reasons]
+      properties:
+        index: { type: integer }
+        headline: { type: [string, "null"] }
+        url: { type: [string, "null"] }
+        status: { type: string, enum: [checked, waiting, running, source, claims, checks] }
+        languages:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [language, checked]
+            properties:
+              language: { type: string }
+              checked: { type: boolean }
+        reasons:
+          description: Why it is not checked, first what stopped it; empty when checked or waiting.
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [language, check, result, claim, reason]
+            properties:
+              language: { type: [string, "null"] }
+              check: { type: string }
+              result: { type: string }
+              claim: { type: [string, "null"] }
+              reason: { type: [string, "null"] }
     SourceHealth:
       type: object
       additionalProperties: false

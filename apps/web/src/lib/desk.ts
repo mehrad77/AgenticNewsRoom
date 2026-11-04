@@ -14,6 +14,7 @@ export type Preview = S["Preview"];
 export type ScheduleItem = S["ScheduleItem"];
 export type Budget = S["Budget"];
 export type SourceHealth = S["SourceHealth"];
+export type Recheck = S["Recheck"];
 export type Measures = S["Measures"];
 export type Plan = S["Plan"];
 export type AdminTts = S["AdminTts"];
@@ -35,6 +36,7 @@ const PAGES = [
   "schedule",
   "budget",
   "sources",
+  "recheck",
   "measures",
 ] as const;
 type Page = (typeof PAGES)[number];
@@ -108,6 +110,7 @@ export function deskApi(base: string, token: string | null, fetchFn: typeof fetc
     schedule: (newsroom: string) => call<ScheduleItem[]>(`${n(newsroom)}/schedule`),
     budget: (newsroom: string) => call<Budget>(`${n(newsroom)}/budget`),
     sources: (newsroom: string) => call<SourceHealth[]>(`${n(newsroom)}/sources`),
+    recheck: (newsroom: string) => call<Recheck>(`${n(newsroom)}/recheck`),
     measures: (newsroom: string) => call<Measures>(`${n(newsroom)}/measures`),
     plan: (newsroom: string) => call<Plan>(`${n(newsroom)}/plan`),
     challenges: (newsroom: string) => call<Challenge[]>(`${n(newsroom)}/challenges`),

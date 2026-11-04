@@ -51,6 +51,7 @@ import {
   reviewQueue,
   schedule,
 } from "./desk/review.ts";
+import { recheck } from "./desk/recheck.ts";
 import { sourceHealth } from "./desk/sources.ts";
 import { adminTts, newsroomTts, setAdminTts, setNewsroomTts, type TtsCatalog } from "./desk/tts.ts";
 import type { components } from "./generated/api.ts";
@@ -339,6 +340,7 @@ export function createApp(deps?: DeskDeps) {
   });
   app.get(`${base}/budget`, async (c) => c.json(await inNewsroom(c, (db) => budget(db))));
   app.get(`${base}/sources`, async (c) => c.json(await inNewsroom(c, (db) => sourceHealth(db))));
+  app.get(`${base}/recheck`, async (c) => c.json(await inNewsroom(c, (db) => recheck(db))));
   app.get(`${base}/measures`, async (c) => {
     const weeks = count(c, "weeks", 8, 26);
     return c.json(await inNewsroom(c, (db) => measures(db, weeks)));

@@ -1,6 +1,15 @@
 // A rendition's items: the objects in its body that list claim_ids, each named by its path
 // (`items.3`). The gate checks them, and an imported item that passed is recorded by the hash of
 // its text (D184), so the reader site can tell whether it still reads as it did when checked.
+/** Checks about a whole rendition that an imported item needs (D184); length and style rules are
+ *  about new writing, not the archive's, and are left to the pipeline's own pieces. */
+export const IMPORTED_RENDITION_CHECKS: readonly string[] = [
+  "schema",
+  "verifier",
+  "claims",
+  "beats",
+];
+
 /** Every object in a rendition body that lists claim_ids, with its path (`items.3`). */
 export function itemPaths(value: unknown, path = ""): [string, Record<string, unknown>][] {
   if (Array.isArray(value)) return value.flatMap((v, i) => itemPaths(v, `${path}.${i}`));

@@ -452,6 +452,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/desk/newsrooms/{newsroom}/recheck": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        /** How far the recheck of imported news has got, and what stops each item (D184) */
+        get: operations["getRecheck"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/desk/newsrooms/{newsroom}/measures": {
         parameters: {
             query?: never;
@@ -1283,6 +1303,51 @@ export interface components {
             }[];
             /** @description This month's latest runs. */
             runs: components["schemas"]["AgentRun"][];
+        };
+        Recheck: {
+            counts: {
+                checked: number;
+                waiting: number;
+                running: number;
+                source: number;
+                claims: number;
+                checks: number;
+            };
+            /** @description What stopped the items that are not checked, most common first. */
+            causes: {
+                cause: string;
+                items: number;
+            }[];
+            days: components["schemas"]["RecheckDay"][];
+        };
+        RecheckDay: {
+            /** Format: uuid */
+            story_id: string;
+            /** Format: date-time */
+            slot: string;
+            /** Format: uuid */
+            publication_id: string | null;
+            title: string | null;
+            items: components["schemas"]["RecheckItem"][];
+        };
+        RecheckItem: {
+            index: number;
+            headline: string | null;
+            url: string | null;
+            /** @enum {string} */
+            status: "checked" | "waiting" | "running" | "source" | "claims" | "checks";
+            languages: {
+                language: string;
+                checked: boolean;
+            }[];
+            /** @description Why it is not checked, first what stopped it; empty when checked or waiting. */
+            reasons: {
+                language: string | null;
+                check: string;
+                result: string;
+                claim: string | null;
+                reason: string | null;
+            }[];
         };
         SourceHealth: {
             /** Format: uuid */
@@ -2315,6 +2380,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SourceHealth"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getRecheck: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The newsroom's slug. */
+                newsroom: components["parameters"]["Newsroom"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Imported days, newest first, with each item's status. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Recheck"];
                 };
             };
             401: components["responses"]["Unauthorized"];

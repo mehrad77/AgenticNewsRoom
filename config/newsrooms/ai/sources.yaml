@@ -3,6 +3,8 @@
 # entry) and set `terms_checked` to that date (D17); `terms_note` records anything worth keeping.
 # Terms read 2026-10-27. Not approved, so never scheduled: meta-ai-blog, xai-news, cohere-blog
 # (their terms ban automated access or the page blocks scripts) and qwen-blog (feed dead since 2025-09).
+# Vouch-only sources (D187): their terms confirmed by the editor on 2026-11-04, except meta-newsroom
+# (Meta's terms, the same ones that kept meta-ai-blog off).
 #
 # Lab blogs are tier 1: a lab's own post is a primary source for what the lab says it did.
 
@@ -239,6 +241,7 @@
     tier: 1,
     every: 1d,
     use: vouch,
+    terms_checked: 2026-11-04,
   }
 # Terms: https://www.anthropic.com/legal
 - {
@@ -249,6 +252,7 @@
     tier: 1,
     every: 1d,
     use: vouch,
+    terms_checked: 2026-11-04,
   }
 # Terms: https://openai.com/policies/terms-of-use/
 - {
@@ -259,6 +263,7 @@
     tier: 1,
     every: 1d,
     use: vouch,
+    terms_checked: 2026-11-04,
   }
 # Terms (all Google sites): https://policies.google.com/terms
 - {
@@ -269,6 +274,7 @@
     tier: 1,
     every: 1d,
     use: vouch,
+    terms_checked: 2026-11-04,
   }
 # Terms: https://docs.github.com/en/site-policy/github-terms/github-terms-of-service (a request elsewhere on github.com is refused until read)
 - {
@@ -279,6 +285,7 @@
     tier: 1,
     every: 1d,
     use: vouch,
+    terms_checked: 2026-11-04,
   }
 # Terms: as github-openai
 - {
@@ -289,6 +296,7 @@
     tier: 1,
     every: 1d,
     use: vouch,
+    terms_checked: 2026-11-04,
   }
 # Terms: as github-openai
 - {
@@ -299,6 +307,7 @@
     tier: 1,
     every: 1d,
     use: vouch,
+    terms_checked: 2026-11-04,
   }
 # Terms: as github-openai
 - {
@@ -309,6 +318,7 @@
     tier: 1,
     every: 1d,
     use: vouch,
+    terms_checked: 2026-11-04,
   }
 # Terms: as github-openai
 - {
@@ -319,6 +329,7 @@
     tier: 1,
     every: 1d,
     use: vouch,
+    terms_checked: 2026-11-04,
   }
 # Terms: as github-openai
 - {
@@ -329,6 +340,7 @@
     tier: 1,
     every: 1d,
     use: vouch,
+    terms_checked: 2026-11-04,
   }
 # Terms: https://www.microsoft.com/en-us/legal/terms-of-use
 - {
@@ -339,6 +351,7 @@
     tier: 1,
     every: 1d,
     use: vouch,
+    terms_checked: 2026-11-04,
   }
 # Terms: https://www.microsoft.com/en-us/legal/terms-of-use
 - {
@@ -349,8 +362,9 @@
     tier: 1,
     every: 1d,
     use: vouch,
+    terms_checked: 2026-11-04,
   }
-# Terms: linked from https://www.deepseek.com (find and read before setting terms_checked)
+# Terms: linked from https://www.deepseek.com
 - {
     id: deepseek-news,
     kind: site,
@@ -359,6 +373,7 @@
     tier: 1,
     every: 1d,
     use: vouch,
+    terms_checked: 2026-11-04,
   }
 # Terms: https://www.facebook.com/terms (Meta; its ai.meta.com terms were not approved, see meta-ai-blog)
 - {
@@ -370,7 +385,7 @@
     every: 1d,
     use: vouch,
   }
-# Terms: linked from https://cursor.com (find and read before setting terms_checked)
+# Terms: linked from https://cursor.com
 - {
     id: cursor-blog,
     kind: site,
@@ -379,6 +394,7 @@
     tier: 1,
     every: 1d,
     use: vouch,
+    terms_checked: 2026-11-04,
   }
 # Terms: as cursor-blog
 - {
@@ -389,8 +405,9 @@
     tier: 1,
     every: 1d,
     use: vouch,
+    terms_checked: 2026-11-04,
   }
-# Terms: linked from https://cognition.ai (find and read before setting terms_checked)
+# Terms: linked from https://cognition.ai
 - {
     id: cognition-blog,
     kind: site,
@@ -399,6 +416,7 @@
     tier: 1,
     every: 1d,
     use: vouch,
+    terms_checked: 2026-11-04,
   }
 # Terms: as cognition-blog
 - {
@@ -409,8 +427,9 @@
     tier: 1,
     every: 1d,
     use: vouch,
+    terms_checked: 2026-11-04,
   }
-# Terms: linked from https://windsurf.com (find and read before setting terms_checked)
+# Terms: linked from https://windsurf.com
 - {
     id: windsurf-blog,
     kind: site,
@@ -419,8 +438,9 @@
     tier: 1,
     every: 1d,
     use: vouch,
+    terms_checked: 2026-11-04,
   }
-# Terms: linked from https://stability.ai (find and read before setting terms_checked)
+# Terms: linked from https://stability.ai
 - {
     id: stability-news,
     kind: site,
@@ -429,8 +449,9 @@
     tier: 1,
     every: 1d,
     use: vouch,
+    terms_checked: 2026-11-04,
   }
-# Terms: linked from https://vllm.ai (find and read before setting terms_checked)
+# Terms: linked from https://vllm.ai
 - {
     id: vllm-blog,
     kind: site,
@@ -439,8 +460,9 @@
     tier: 1,
     every: 1d,
     use: vouch,
+    terms_checked: 2026-11-04,
   }
-# Terms: linked from https://www.minimax.io (find and read before setting terms_checked)
+# Terms: linked from https://www.minimax.io
 - {
     id: minimax-docs,
     kind: site,
@@ -449,8 +471,9 @@
     tier: 1,
     every: 1d,
     use: vouch,
+    terms_checked: 2026-11-04,
   }
-# Terms: linked from https://ir.baidu.com (find and read before setting terms_checked)
+# Terms: linked from https://ir.baidu.com
 - {
     id: baidu-ir,
     kind: site,
@@ -459,8 +482,9 @@
     tier: 1,
     every: 1d,
     use: vouch,
+    terms_checked: 2026-11-04,
   }
-# Terms: linked from https://www.kimi.com (find and read before setting terms_checked)
+# Terms: linked from https://www.kimi.com
 - {
     id: kimi-news,
     kind: site,
@@ -469,4 +493,5 @@
     tier: 1,
     every: 1d,
     use: vouch,
+    terms_checked: 2026-11-04,
   }

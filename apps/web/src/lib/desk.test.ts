@@ -26,7 +26,7 @@ describe("deskRoute", () => {
     expect(deskRoute("/AI")).toEqual({ kind: "not-found" });
     expect(deskRoute("/admin")).toEqual({ kind: "admin" });
     expect(deskRoute("/ops")).toEqual({ kind: "ops" });
-    for (const page of ["plan", "voices", "schedule", "budget", "sources", "measures"])
+    for (const page of ["plan", "voices", "schedule", "budget", "sources", "recheck", "measures"])
       expect(deskRoute(`/ai/${page}/`)).toEqual({ kind: page, newsroom: "ai" });
   });
 });
