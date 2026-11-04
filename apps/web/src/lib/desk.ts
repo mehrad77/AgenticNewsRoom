@@ -271,6 +271,12 @@ export function deskApi(base: string, token: string | null, fetchFn: typeof fetc
         case "read-notice":
           await call(`${base}/notices/${id}/read`, {});
           return `/${route.newsroom}/notices`;
+        case "start-recheck":
+          await call(`${base}/recheck/start`, {});
+          return `/${route.newsroom}/imported`;
+        case "stop-recheck":
+          await call(`${base}/recheck/stop`, {});
+          return `/${route.newsroom}/imported`;
         default:
           throw new DeskApiError(400, "unknown action");
       }

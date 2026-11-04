@@ -1,11 +1,19 @@
 ---
-import { type Recheck, safeHref } from "../../lib/desk.ts";
+import { type Recheck, safeHref, when } from "../../lib/desk.ts";
 
 interface Props {
   newsroom: string;
   recheck: Recheck;
+  chief: boolean;
 }
-const { newsroom, recheck } = Astro.props;
+const { newsroom, recheck, chief } = Astro.props;
+const run = recheck.run;
+const ended = {
+  done: "Finished: nothing left to try",
+  stopped: "Stopped",
+  blocked: "Blocked, no item's try spent",
+  failed: "Failed",
+} as const;
 const all = Astro.url.searchParams.get("show") === "all";
 const label = {
   checked: "checked",
@@ -24,7 +32,25 @@ for (const l of recheck.days.flatMap((d) => d.items.flatMap((i) => i.languages))
 const days = all ? recheck.days : recheck.days.filter((d) => done(d) < d.items.length);
 ---
 <h1>Checking imported news</h1>
-<p>The archive's news was published by the old system without ANR's gate, so it is checked now the way new news is (D184): a source for each item, claims quoted from it, then the gate. Each language's text of an item loses its "imported" label once it passes; an item counts as checked here when all of them have. Runs are started with <code>pnpm --filter @anr/agents recheck --newsroom {newsroom}</code>.</p>
+<p>The archive's news was published by the old system without ANR's gate, so it is checked now the way new news is (D184): a source for each item, claims quoted from it, then the gate. Each language's text of an item loses its "imported" label once it passes; an item counts as checked here when all of them have.</p>
+<div class="card">
+  {run && run.finished_at === null ? (
+    <p><strong>Running</strong> since {when(run.started_at)}{run.started_by && `, started by ${run.started_by}`}. {run.rounds} rounds so far: {run.sourced} days sourced, {run.checked} days checked. Last sign of life {when(run.heartbeat_at)}; reload to follow it.
+      {run.stop_requested && <strong> Stopping after the item in hand.</strong>}</p>
+  ) : run ? (
+    <p><strong>{run.outcome ? ended[run.outcome] : "Ended"}</strong> {when(run.finished_at)}{run.detail && `: ${run.detail}`}. That run: {run.rounds} rounds, {run.sourced} days sourced, {run.checked} days checked{run.started_by && `, started by ${run.started_by}`}.</p>
+  ) : <p>Not started yet.</p>}
+  {chief ? (
+    <div class="actions">
+      {run && run.finished_at === null ? (
+        !run.stop_requested && <form method="post"><input type="hidden" name="action" value="stop-recheck" /><button class="button">Stop</button></form>
+      ) : (
+        <form method="post"><input type="hidden" name="action" value="start-recheck" /><button class="button primary">{run ? "Run again" : "Start checking"}</button></form>
+      )}
+    </div>
+  ) : <p class="meta">Only the Editor-in-Chief can start or stop it.</p>}
+  <p class="meta">The agents worker takes a few days at a time on the newsroom's models, tries a failed item up to three times, and stops by itself when nothing is left; it will not start while the local models are not loaded.</p>
+</div>
 {total === 0 ? <p>No imported news.</p> : (
   <>
     <p><strong>{recheck.counts.checked} of {total} items checked</strong> ({Math.round((100 * recheck.counts.checked) / total)}%).

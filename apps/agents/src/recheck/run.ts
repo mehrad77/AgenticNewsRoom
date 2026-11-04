@@ -25,6 +25,8 @@ export interface RecheckDeps {
   gate: GateDeps;
   /** Summarises new sources here, for where no agents worker runs (dev); else the worker does. */
   summarise?: (newsroomId: string, runIds: string[]) => Promise<void>;
+  /** Asked between items: true ends the pass there, the item in hand finished. */
+  shouldStop?: () => Promise<boolean>;
   log?: (line: string) => void;
 }
 
@@ -162,6 +164,7 @@ async function sourceStory(deps: RecheckDeps, o: RecheckOptions, story: Story): 
     const done = runs.some((t) => t.outcome === null || t.outcome === "submitted");
     // Written, being written, out of tries, or (an item naming no source) already told so.
     if (done || runs.length >= ITEM_TRIES || (runs.length > 0 && !url)) continue;
+    if (await deps.shouldStop?.()) break;
     const { id: runId } = await inNewsroom((c) =>
       insertRun(c, {
         role: "desk",
@@ -270,14 +273,21 @@ export async function sourcePass(deps: RecheckDeps, o: RecheckOptions): Promise<
   if (deps.summarise)
     await deps.summarise(o.newsroomId, await waitingSummaries(deps.pool, o.newsroomId));
   const todo = await stories(deps.pool, o, "source");
-  for (const s of todo) await sourceStory(deps, o, s);
-  return todo.length;
+  let done = 0;
+  for (const s of todo) {
+    if (await deps.shouldStop?.()) break;
+    await sourceStory(deps, o, s);
+    done++;
+  }
+  return done;
 }
 
 /** The `check` pass: the gate on each story whose claims are written and sources placed. */
 export async function checkPass(deps: RecheckDeps, o: RecheckOptions): Promise<number> {
   const todo = await stories(deps.pool, o, "check");
+  let done = 0;
   for (const s of todo) {
+    if (await deps.shouldStop?.()) break;
     // An imported story has no beat; it takes the one its sources are placed in most, as the desk
     // would have chosen, so the verifier can clear it (D184).
     await withNewsroom(deps.pool, o.newsroomId, (c) =>
@@ -290,6 +300,7 @@ export async function checkPass(deps: RecheckDeps, o: RecheckOptions): Promise<n
       ),
     );
     await runGate(deps.gate, { newsroomId: o.newsroomId, storyId: s.storyId });
+    done++;
   }
-  return todo.length;
+  return done;
 }

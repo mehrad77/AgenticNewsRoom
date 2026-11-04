@@ -624,6 +624,48 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+  /desk/newsrooms/{newsroom}/recheck/start:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+    post:
+      operationId: startRecheck
+      summary: Starts a recheck run; the agents worker works it round by round (D184)
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      responses:
+        "200":
+          description: The run, now open.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecheckRun"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /desk/newsrooms/{newsroom}/recheck/stop:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+    post:
+      operationId: stopRecheck
+      summary: Asks the open recheck run to stop after the item in hand
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      responses:
+        "200":
+          description: The run, asked to stop.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecheckRun"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /desk/newsrooms/{newsroom}/measures:
     parameters:
       - $ref: "#/components/parameters/Newsroom"
@@ -1913,8 +1955,13 @@ components:
     Recheck:
       type: object
       additionalProperties: false
-      required: [counts, causes, days]
+      required: [run, counts, causes, days]
       properties:
+        run:
+          description: The latest run, if any.
+          oneOf:
+            - $ref: "#/components/schemas/RecheckRun"
+            - type: "null"
         counts:
           type: object
           additionalProperties: false
@@ -1940,6 +1987,38 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/RecheckDay"
+    RecheckRun:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          started_by,
+          started_at,
+          heartbeat_at,
+          stop_requested,
+          finished_at,
+          outcome,
+          detail,
+          rounds,
+          sourced,
+          checked,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        started_by:
+          { type: [string, "null"], description: "The email of the person who started it." }
+        started_at: { type: string, format: date-time }
+        heartbeat_at: { type: string, format: date-time }
+        stop_requested: { type: boolean }
+        finished_at: { type: [string, "null"], format: date-time }
+        outcome:
+          description: "done: nothing left; stopped: a person asked; blocked: models or ingestion unavailable, no try spent; failed: an error it could not get past."
+          enum: [done, stopped, blocked, failed, null]
+        detail: { type: [string, "null"] }
+        rounds: { type: integer }
+        sourced: { type: integer, description: "Stories sourced, over all rounds." }
+        checked: { type: integer, description: "Stories checked by the gate, over all rounds." }
     RecheckDay:
       type: object
       additionalProperties: false

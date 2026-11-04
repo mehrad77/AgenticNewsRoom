@@ -41,7 +41,7 @@ import {
 import { type DeskPerson, deskPerson } from "./desk/people.ts";
 import { approveTheme, choosePick, plan } from "./desk/plan.ts";
 import { type PreviewSite, previewPublication } from "./desk/preview.ts";
-import { recheck } from "./desk/recheck.ts";
+import { recheck, startRecheck, stopRecheck } from "./desk/recheck.ts";
 import {
   approve,
   deskPublication,
@@ -341,6 +341,12 @@ export function createApp(deps?: DeskDeps) {
   app.get(`${base}/budget`, async (c) => c.json(await inNewsroom(c, (db) => budget(db))));
   app.get(`${base}/sources`, async (c) => c.json(await inNewsroom(c, (db) => sourceHealth(db))));
   app.get(`${base}/recheck`, async (c) => c.json(await inNewsroom(c, (db) => recheck(db))));
+  app.post(`${base}/recheck/start`, async (c) =>
+    c.json(await inNewsroom(c, (db, actor) => startRecheck(db, boss, actor), chief)),
+  );
+  app.post(`${base}/recheck/stop`, async (c) =>
+    c.json(await inNewsroom(c, (db) => stopRecheck(db), chief)),
+  );
   app.get(`${base}/measures`, async (c) => {
     const weeks = count(c, "weeks", 8, 26);
     return c.json(await inNewsroom(c, (db) => measures(db, weeks)));

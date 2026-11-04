@@ -134,7 +134,7 @@ const nav = [
     {n && notices && <Notices newsroom={n} notices={notices} />}
     {budget && <Budget budget={budget} />}
     {sources && <Sources sources={sources} />}
-    {n && imported && <Imported newsroom={n} recheck={imported} />}
+    {n && imported && <Imported newsroom={n} recheck={imported} chief={role === "editor-in-chief"} />}
     {measures && <Measures measures={measures} />}
     {r.kind === "not-found" && <h1>Not found</h1>}
   </main>

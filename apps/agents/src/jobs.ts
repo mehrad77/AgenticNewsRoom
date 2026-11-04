@@ -9,6 +9,7 @@ import {
   type PlanJob,
   QUEUES,
   type QueueName,
+  type RecheckJob,
   type RedraftJob,
 } from "@anr/core";
 import type { PgBoss } from "pg-boss";
@@ -24,6 +25,7 @@ export const AGENTS_QUEUES: readonly QueueName[] = [
   QUEUES.agentRun,
   QUEUES.gate,
   QUEUES.redraft,
+  QUEUES.recheck,
 ];
 
 /**
@@ -40,6 +42,7 @@ export interface JobHandlers {
   "agent-run"?: (job: AgentRunJob) => Promise<void>;
   gate?: (job: GateJob) => Promise<void>;
   redraft?: (job: RedraftJob) => Promise<void>;
+  recheck?: (job: RecheckJob) => Promise<void>;
 }
 
 type Job =
@@ -51,7 +54,8 @@ type Job =
   | IngestMediaJob
   | AgentRunJob
   | GateJob
-  | RedraftJob;
+  | RedraftJob
+  | RecheckJob;
 
 export async function registerJobs(
   boss: Pick<PgBoss, "work">,

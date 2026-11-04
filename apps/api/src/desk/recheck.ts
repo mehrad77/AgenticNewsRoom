@@ -1,8 +1,16 @@
 // How far the recheck of imported news has got (D184), for the editor's desk: each imported day's
 // items, whether each language's text is checked, and the first thing that stopped it. Read-only;
 // "checked" is exactly what the reader site counts: a checked_items row whose hash matches the text.
-import { IMPORTED_RENDITION_CHECKS, itemHash } from "@anr/core";
-import type { Client } from "@anr/db";
+import {
+  IMPORTED_RENDITION_CHECKS,
+  itemHash,
+  QUEUES,
+  RECHECK_ROUND_TIMEOUT_SECONDS,
+  type RecheckJob,
+} from "@anr/core";
+import { type Client, onClient } from "@anr/db";
+import type { PgBoss } from "pg-boss";
+import { DeskError } from "./errors.ts";
 
 export type RecheckStatus = "checked" | "waiting" | "running" | "source" | "claims" | "checks";
 
@@ -33,7 +41,23 @@ export interface RecheckDay {
   items: RecheckItem[];
 }
 
+/** The newsroom's latest recheck run, started at the desk and worked by the agents worker. */
+export interface RecheckRun {
+  id: string;
+  started_by: string | null;
+  started_at: string;
+  heartbeat_at: string;
+  stop_requested: boolean;
+  finished_at: string | null;
+  outcome: "done" | "stopped" | "blocked" | "failed" | null;
+  detail: string | null;
+  rounds: number;
+  sourced: number;
+  checked: number;
+}
+
 export interface Recheck {
+  run: RecheckRun | null;
   counts: Record<RecheckStatus, number>;
   /** What stopped the items that are not checked, most common first. */
   causes: { cause: string; items: number }[];
@@ -96,7 +120,7 @@ export function causeOf(r: RecheckReason): string {
 }
 
 /** Each imported day's items and why each is not yet checked, from the rows `recheck` reads. */
-export function recheckReport(rows: RecheckRows): Recheck {
+export function recheckReport(rows: RecheckRows): Omit<Recheck, "run"> {
   const latest = new Map<string, RecheckRows["checks"][number]>();
   for (const k of rows.checks) {
     const position = (k.detail as { position?: number } | null)?.position ?? "";
@@ -287,12 +311,85 @@ export async function recheck(client: Client): Promise<Recheck> {
      order by at`,
     [ids, storyIds],
   );
-  return recheckReport({
-    renditions,
-    publications,
-    checked,
-    runs,
-    claims,
-    checks,
-  });
+  return {
+    run: await latestRun(client),
+    ...recheckReport({
+      renditions,
+      publications,
+      checked,
+      runs,
+      claims,
+      checks,
+    }),
+  };
+}
+
+/** A run whose worker has not touched it for a round's timeout was cut off; it can be restarted. */
+const STALE = `heartbeat_at < now() - make_interval(secs => ${RECHECK_ROUND_TIMEOUT_SECONDS})`;
+
+async function latestRun(client: Client): Promise<RecheckRun | null> {
+  const { rows } = await client.query<
+    Omit<RecheckRun, "started_at" | "heartbeat_at" | "finished_at"> & {
+      started_at: Date;
+      heartbeat_at: Date;
+      finished_at: Date | null;
+    }
+  >(
+    `select r.id, u.email as started_by, r.started_at, r.heartbeat_at,
+            r.stop_requested_at is not null as stop_requested, r.finished_at, r.outcome, r.detail,
+            r.rounds, r.sourced, r.checked
+     from recheck_runs r left join users u on u.id = r.started_by
+     order by r.started_at desc limit 1`,
+  );
+  const r = rows[0];
+  return r
+    ? {
+        ...r,
+        started_at: r.started_at.toISOString(),
+        heartbeat_at: r.heartbeat_at.toISOString(),
+        finished_at: r.finished_at?.toISOString() ?? null,
+      }
+    : null;
+}
+
+/** Starts a run: the agents worker takes it round by round (D184). One open run per newsroom. */
+export async function startRecheck(
+  client: Client,
+  boss: Pick<PgBoss, "send">,
+  actor: { userId: string },
+): Promise<RecheckRun | null> {
+  await client.query(
+    `update recheck_runs set finished_at = now(), outcome = 'failed',
+            detail = 'the agents worker stopped working it'
+     where finished_at is null and ${STALE}`,
+  );
+  const { rows } = await client.query<{ id: string; newsroom_id: string }>(
+    `insert into recheck_runs (newsroom_id, started_by)
+     values (anr.current_newsroom_id(), $1)
+     on conflict (newsroom_id) where finished_at is null do nothing
+     returning id, newsroom_id`,
+    [actor.userId],
+  );
+  const run = rows[0];
+  if (!run) throw new DeskError(409, "the recheck is already running");
+  const job: RecheckJob = { newsroomId: run.newsroom_id, recheckRunId: run.id };
+  await boss.send(QUEUES.recheck, job, { db: onClient(client), singletonKey: run.newsroom_id });
+  return latestRun(client);
+}
+
+/** Asks the open run to stop after the item in hand; a run nobody works stops at once. */
+export async function stopRecheck(client: Client): Promise<RecheckRun | null> {
+  await client.query(
+    `update recheck_runs set finished_at = now(), outcome = 'stopped'
+     where finished_at is null and ${STALE}`,
+  );
+  const { rowCount } = await client.query(
+    `update recheck_runs set stop_requested_at = coalesce(stop_requested_at, now())
+     where finished_at is null`,
+  );
+  if (rowCount === 0) {
+    const run = await latestRun(client);
+    if (!run || run.finished_at) throw new DeskError(409, "no recheck is running");
+  }
+  return latestRun(client);
 }
