@@ -79,6 +79,8 @@ const measures = r.kind === "measures" ? await load(() => api.measures(r.newsroo
 const plan = r.kind === "plan" ? await load(() => api.plan(r.newsroom)) : undefined;
 const voices = r.kind === "voices" ? await load(() => api.newsroomTts(r.newsroom)) : undefined;
 const adminTts = r.kind === "admin" && me?.platform_admin ? await load(() => api.adminTts()) : undefined;
+const adminModels = r.kind === "admin" && me?.platform_admin ? await load(() => api.adminModels()) : undefined;
+const localModels = r.kind === "admin" && me?.platform_admin ? await load(() => api.localModels()) : undefined;
 const ops = r.kind === "ops" && me?.platform_admin ? await load(() => api.ops()) : undefined;
 const grafana = `https://ops.${process.env.ANR_ROOT_DOMAIN ?? "localhost"}`;
 const role = me?.memberships.find((m) => m.newsroom === n)?.role;
@@ -122,7 +124,7 @@ const nav = [
     {n && schedule && <Schedule newsroom={n} items={schedule} />}
     {plan && <Plan plan={plan} chief={role === "editor-in-chief"} />}
     {voices && <Voices tts={voices} chief={role === "editor-in-chief"} />}
-    {adminTts && <Admin tts={adminTts} />}
+    {r.kind === "admin" && me?.platform_admin && (adminTts || adminModels) && <Admin tts={adminTts} models={adminModels} local={localModels} />}
     {r.kind === "admin" && me && !me.platform_admin && <h1>Only the platform admin can open this page.</h1>}
     {ops && <Ops ops={ops} grafana={grafana} />}
     {r.kind === "ops" && me && !me.platform_admin && <h1>Only the platform admin can open this page.</h1>}

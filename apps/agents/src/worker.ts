@@ -1,6 +1,7 @@
 // Agents worker: each agent run is one pg-boss job that runs one LangGraph.js graph and ends with
 // one submit. The daily assignment and the verifier gate run here too.
 import { fileURLToPath } from "node:url";
+import { formatNames } from "@anr/config";
 import type { AgentRole } from "@anr/core";
 import { createBoss, createPool, drainControl, startHeartbeat, withNewsroom } from "@anr/db";
 import { buildCatalog, loadModelsConfig, ModelGateway, missingKeys, modelsFile } from "@anr/models";
@@ -27,6 +28,7 @@ import { recheckDeps } from "./recheck/deps.ts";
 import { recheckRound } from "./recheck/round.ts";
 import { redraft } from "./redraft.ts";
 import { runRenderer } from "./renderer/run.ts";
+import { readStoredRoles, rolesRefresher } from "./roles.ts";
 import { ModelRouter } from "./router.ts";
 import { gatewayModel } from "./summariser/model.ts";
 import { enqueueSummaries, resumeSummaries, summariserHandler } from "./summariser/run.ts";
@@ -50,15 +52,27 @@ const stopGauges = startGauges(pool);
 const boss = createBoss(connectionString, "agents");
 await boss.start();
 const ingestion = ingestionClient(process.env.ANR_INGESTION_URL ?? "http://127.0.0.1:8101");
+// The role chains in force: the models file's, or the platform admin's from the desk. Read now and
+// before every job (registerJobs below), so a change applies from the next run without a restart.
+// Every handler shares this one router, so the swap reaches all of them.
+const refreshRoles = rolesRefresher({
+  router,
+  catalog: models,
+  formats: formatNames(configDir),
+  read: () => readStoredRoles(pool),
+});
+await refreshRoles();
 
 /** Whether any model a role may use has a key; a role without one waits in the queue. */
 const hasKey = (chain: readonly string[]) => chain.some((id) => catalog.entries.get(id)?.apiKey);
-const chains = (role: AgentRole): string[] =>
-  role === "desk"
-    ? [...models.roles.desk.default, ...Object.values(models.roles.desk.by_format ?? {}).flat()]
+const chains = (role: AgentRole): string[] => {
+  const roles = router.roles();
+  return role === "desk"
+    ? [...roles.desk.default, ...Object.values(roles.desk.by_format ?? {}).flat()]
     : role === "fact-checker"
-      ? [...models.roles["fact-checker"]]
+      ? [...roles["fact-checker"]]
       : router.resolve(role);
+};
 const canRun = (role: AgentRole) => hasKey(chains(role));
 
 const roleDeps: RoleDeps = {
@@ -78,98 +92,102 @@ const run =
 
 // Handlers are registered through the drain control, which works only undrained queues (D144).
 const drains = drainControl(pool, boss);
-await registerJobs(drains.boss, {
-  "ingest-source": async (job) => {
-    await handleIngestSource(job, {
-      ingestion,
-      onNewLeads: async (newsroomId, ids) => {
-        await enqueueSummaries(pool, boss, router, newsroomId, ids);
-      },
-    });
-    if (canRun("summariser")) await resumeSummaries(pool, boss, router);
-  },
-  assign: async (job) => {
-    const { pickId } = job;
-    let outcome = pickId
-      ? await assignPick(pool, boss, router, { ...job, pickId })
-      : await assignDaily(pool, boss, router, job);
-    // A weekly series built from segments: the episode (D107).
-    if (outcome.kind === "not-daily") outcome = await assignEpisode(pool, boss, router, job);
-    console.log(`[agents] assign ${job.seriesId}: ${JSON.stringify(outcome)}`);
-  },
-  plan: async (job) => {
-    const outcomes = await planTick(pool, boss, router, job);
-    if (outcomes.length > 0)
-      console.log(`[agents] plan ${job.newsroomId}: ${JSON.stringify(outcomes)}`);
-  },
-  "pick-deadline": async (job) => {
-    const outcome = await pickDeadline(pool, boss, job);
-    console.log(`[agents] pick ${job.pickId} deadline: ${outcome}`);
-  },
-  "challenge-deadline": async (job) => {
-    const outcome = await challengeDeadline(pool, boss, job);
-    console.log(`[agents] challenge ${job.challengeId} ${job.step} ${job.at}: ${outcome}`);
-  },
-  "ingest-media": async (job) => {
-    const outcome = await ingestMedia(pool, ingestion, job);
-    console.log(`[agents] media ${job.url}: ${JSON.stringify(outcome)}`);
-  },
-  "agent-run": dispatchAgentRun({
-    pool,
-    boss,
-    canRun,
-    handlers: {
-      summariser: summariserHandler({
-        pool,
-        boss,
-        router,
-        makeModel: (chain) => gatewayModel(gateway, chain),
-        throttle: Throttle.perMinute(Number(process.env.ANR_SUMMARISER_RPM ?? 10)),
-      }),
-      planner: run((deps, job) => runPlanner(deps, job)),
-      desk: run(runDesk),
-      renderer: run(async (deps, job) =>
-        (await withNewsroom(pool, job.newsroomId, (c) => isEpisodeRun(c, job.agentRunId)))
-          ? runEpisode(deps, job)
-          : runRenderer(deps, job),
-      ),
+await registerJobs(
+  drains.boss,
+  {
+    "ingest-source": async (job) => {
+      await handleIngestSource(job, {
+        ingestion,
+        onNewLeads: async (newsroomId, ids) => {
+          await enqueueSummaries(pool, boss, router, newsroomId, ids);
+        },
+      });
+      if (canRun("summariser")) await resumeSummaries(pool, boss, router);
     },
-  }),
-  redraft: async (job) => {
-    const outcome = await redraft(pool, boss, router, job);
-    console.log(`[agents] redraft ${job.assignmentId}: ${JSON.stringify(outcome)}`);
-  },
-  recheck: async (job) => {
-    const outcome = await recheckRound(
-      recheckDeps({
-        pool,
-        boss,
-        router,
-        models,
-        catalog,
-        gateway,
-        configDir,
-        ingestionUrl: process.env.ANR_INGESTION_URL ?? "http://127.0.0.1:8101",
-        verifierUrl: process.env.ANR_VERIFIER_URL ?? "http://127.0.0.1:8102",
-      }),
-      job,
-    );
-    console.log(`[agents] recheck ${job.recheckRunId}: ${outcome}`);
-  },
-  gate: async (job) => {
-    await runGate(
-      {
-        pool,
-        router,
-        configDir,
-        verifier: verifierClient(process.env.ANR_VERIFIER_URL ?? "http://127.0.0.1:8102"),
-        renderer: createRenderer(),
-        makeModel: (chain, tokenCap) => meteredModel(gateway, chain, { tokenCap }),
+    assign: async (job) => {
+      const { pickId } = job;
+      let outcome = pickId
+        ? await assignPick(pool, boss, router, { ...job, pickId })
+        : await assignDaily(pool, boss, router, job);
+      // A weekly series built from segments: the episode (D107).
+      if (outcome.kind === "not-daily") outcome = await assignEpisode(pool, boss, router, job);
+      console.log(`[agents] assign ${job.seriesId}: ${JSON.stringify(outcome)}`);
+    },
+    plan: async (job) => {
+      const outcomes = await planTick(pool, boss, router, job);
+      if (outcomes.length > 0)
+        console.log(`[agents] plan ${job.newsroomId}: ${JSON.stringify(outcomes)}`);
+    },
+    "pick-deadline": async (job) => {
+      const outcome = await pickDeadline(pool, boss, job);
+      console.log(`[agents] pick ${job.pickId} deadline: ${outcome}`);
+    },
+    "challenge-deadline": async (job) => {
+      const outcome = await challengeDeadline(pool, boss, job);
+      console.log(`[agents] challenge ${job.challengeId} ${job.step} ${job.at}: ${outcome}`);
+    },
+    "ingest-media": async (job) => {
+      const outcome = await ingestMedia(pool, ingestion, job);
+      console.log(`[agents] media ${job.url}: ${JSON.stringify(outcome)}`);
+    },
+    "agent-run": dispatchAgentRun({
+      pool,
+      boss,
+      canRun,
+      handlers: {
+        summariser: summariserHandler({
+          pool,
+          boss,
+          router,
+          makeModel: (chain) => gatewayModel(gateway, chain),
+          throttle: Throttle.perMinute(Number(process.env.ANR_SUMMARISER_RPM ?? 10)),
+        }),
+        planner: run((deps, job) => runPlanner(deps, job)),
+        desk: run(runDesk),
+        renderer: run(async (deps, job) =>
+          (await withNewsroom(pool, job.newsroomId, (c) => isEpisodeRun(c, job.agentRunId)))
+            ? runEpisode(deps, job)
+            : runRenderer(deps, job),
+        ),
       },
-      job,
-    );
+    }),
+    redraft: async (job) => {
+      const outcome = await redraft(pool, boss, router, job);
+      console.log(`[agents] redraft ${job.assignmentId}: ${JSON.stringify(outcome)}`);
+    },
+    recheck: async (job) => {
+      const outcome = await recheckRound(
+        recheckDeps({
+          pool,
+          boss,
+          router,
+          models,
+          catalog,
+          gateway,
+          configDir,
+          ingestionUrl: process.env.ANR_INGESTION_URL ?? "http://127.0.0.1:8101",
+          verifierUrl: process.env.ANR_VERIFIER_URL ?? "http://127.0.0.1:8102",
+        }),
+        job,
+      );
+      console.log(`[agents] recheck ${job.recheckRunId}: ${outcome}`);
+    },
+    gate: async (job) => {
+      await runGate(
+        {
+          pool,
+          router,
+          configDir,
+          verifier: verifierClient(process.env.ANR_VERIFIER_URL ?? "http://127.0.0.1:8102"),
+          renderer: createRenderer(),
+          makeModel: (chain, tokenCap) => meteredModel(gateway, chain, { tokenCap }),
+        },
+        job,
+      );
+    },
   },
-});
+  refreshRoles,
+);
 
 await drains.start();
 

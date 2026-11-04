@@ -9,6 +9,7 @@ import {
   missingKeys,
   modelsFile,
   NO_KEY,
+  roleChains,
 } from "./catalog.ts";
 import { probe } from "./probe.ts";
 
@@ -73,6 +74,25 @@ describe("catalog", () => {
     const catalog = buildCatalog(loadModelsConfig(modelsFile(configDir, "")), {});
     expect(missingKeys(catalog)).toEqual(["GEMINI_API_KEY"]);
   });
+
+  it("resolves Claude models from the Anthropic key, in no role chain yet", () => {
+    for (const profile of ["", "free"]) {
+      const config = loadModelsConfig(modelsFile(configDir, profile));
+      const catalog = buildCatalog(config, { ANTHROPIC_API_KEY: "sk" });
+      expect(catalog.entries.get("claude-opus")).toMatchObject({
+        kind: "anthropic",
+        model: "claude-opus-5-5",
+        family: "claude-opus-5-5",
+        apiKey: "sk",
+        timeoutMs: DEFAULT_TIMEOUT_MS,
+      });
+      const chained = roleChains(config).flatMap(([, chain]) => chain);
+      expect(chained.filter((id) => id.startsWith("claude-"))).toEqual([]);
+      expect(buildCatalog(config, {}).entries.get("claude-sonnet")?.missingEnv).toEqual([
+        "ANTHROPIC_API_KEY",
+      ]);
+    }
+  });
 });
 
 describe("probe", () => {
@@ -92,5 +112,23 @@ describe("probe", () => {
     expect(outcome("groq-qwen")).toBe("gone");
     expect(outcome("gemini-flash")).toBe("no-key");
     expect(rows.some((r) => r.catalogId === "gemini-flash-tts")).toBe(false);
+  });
+
+  it("skips an Anthropic model without its key, calling nothing", async () => {
+    const config = loadModelsConfig(modelsFile(configDir, ""));
+    config.roles.summariser = [...config.roles.summariser, "claude-haiku"];
+    const called: string[] = [];
+    const rows = await probe(buildCatalog(config, {}), (entry) => ({
+      async invoke() {
+        called.push(entry.id);
+        return new AIMessage({ content: "", tool_calls: [{ name: "ping", args: { ok: true } }] });
+      },
+    }));
+    expect(rows.find((r) => r.catalogId === "claude-haiku")).toMatchObject({
+      outcome: "no-key",
+      model: "anthropic/claude-haiku-5-5",
+      detail: "ANTHROPIC_API_KEY",
+    });
+    expect(called.filter((id) => id.startsWith("claude-"))).toEqual([]);
   });
 });

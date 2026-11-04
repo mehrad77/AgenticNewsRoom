@@ -77,6 +77,33 @@
         }
       }
     },
+    "anthropicProvider": {
+      "type": "object",
+      "description": "Anthropic's Messages API (Claude).",
+      "additionalProperties": false,
+      "required": ["kind", "key_env"],
+      "properties": {
+        "kind": {
+          "const": "anthropic"
+        },
+        "key_env": {
+          "$ref": "#/$defs/envVar"
+        },
+        "limits": {
+          "$ref": "#/$defs/limits"
+        },
+        "shared_quota": {
+          "type": "boolean",
+          "description": "The quota belongs to the account, not each model: a 429 on one model cools down every model of the provider."
+        },
+        "timeout_s": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 1800,
+          "description": "Seconds one call may take (default 120)."
+        }
+      }
+    },
     "openaiProvider": {
       "type": "object",
       "description": "Any OpenAI-compatible chat completions API.",
@@ -88,8 +115,8 @@
         },
         "base_url": {
           "type": "string",
-          "pattern": "^(https://|http://(127\\.0\\.0\\.1|localhost)(:[0-9]+)?(/|$))",
-          "description": "https, or plain http to this machine only (a local server such as LM Studio). May contain {account}, filled from account_env."
+          "pattern": "^(https://|http://(127\\.0\\.0\\.1|localhost|host\\.docker\\.internal)(:[0-9]+)?(/|$))",
+          "description": "https, or plain http to this machine only (a local server such as LM Studio), from a container as host.docker.internal. May contain {account}, filled from account_env."
         },
         "key_env": {
           "$ref": "#/$defs/envVar",
@@ -202,6 +229,9 @@
         "anyOf": [
           {
             "$ref": "#/$defs/googleProvider"
+          },
+          {
+            "$ref": "#/$defs/anthropicProvider"
           },
           {
             "$ref": "#/$defs/openaiProvider"

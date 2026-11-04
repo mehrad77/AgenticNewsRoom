@@ -30,6 +30,15 @@ import { fileIssue, listNotices, listSamples, readNotice, reviewSample } from ".
 import { measures } from "./desk/measures.ts";
 import { addMedia, isHttpUrl, listMedia, recordPressKit } from "./desk/media.ts";
 import {
+  adminModels,
+  loadLocalModel,
+  localModels,
+  type ModelsSetup,
+  resetModelRoles,
+  setModelRoles,
+  unloadLocalModel,
+} from "./desk/models.ts";
+import {
   cancelJob,
   opsState,
   pause,
@@ -69,6 +78,10 @@ export interface DeskDeps {
   renderer?: ReturnType<typeof createRenderer>;
   /** The models file's text-to-speech engines (D113). */
   tts?: TtsCatalog;
+  /** The models file and the formats, for the admin's role chains. */
+  models?: ModelsSetup;
+  /** Reaches the local model server (LM Studio) for the admin; tests pass a fake. */
+  fetch?: typeof fetch;
 }
 
 type Env = { Variables: { person: DeskPerson } };
@@ -146,7 +159,13 @@ export function createApp(deps?: DeskDeps) {
   app.get("/healthz", (c) => c.json<Health>({ status: "ok", service: "api" }));
 
   app.onError((error, c) => {
-    if (error instanceof DeskError) return c.json({ error: error.message }, error.status);
+    if (error instanceof DeskError)
+      return c.json(
+        error.problems
+          ? { error: error.message, problems: error.problems }
+          : { error: error.message },
+        error.status,
+      );
     console.error(`[api] ${c.req.method} ${c.req.path}: ${error.message}`);
     return c.json({ error: "internal error" }, 500);
   });
@@ -406,6 +425,37 @@ export function createApp(deps?: DeskDeps) {
   app.post("/desk/admin/ops/backup-check", async (c) =>
     c.json(await requestBackupCheck(pool, admin(c))),
   );
+  // Role chains and the local model server, for the platform admin only; every write is in
+  // platform_audit_log. The agents worker picks a chain change up before its next job.
+  const models = deps.models;
+  const modelsOf = () => {
+    if (!models) throw new DeskError(404, "this API has no models file");
+    return models;
+  };
+  const lmFetch = deps.fetch ?? fetch;
+  app.get("/desk/admin/models", async (c) => {
+    admin(c);
+    return c.json(await adminModels(pool, modelsOf()));
+  });
+  app.put("/desk/admin/models/roles", async (c) => {
+    const actor = admin(c);
+    return c.json(await setModelRoles(pool, actor, modelsOf(), await body(c)));
+  });
+  app.delete("/desk/admin/models/roles", async (c) =>
+    c.json(await resetModelRoles(pool, admin(c), modelsOf())),
+  );
+  app.get("/desk/admin/models/local", async (c) => {
+    admin(c);
+    return c.json(await localModels(modelsOf(), lmFetch));
+  });
+  app.post("/desk/admin/models/local/load", async (c) => {
+    const actor = admin(c);
+    return c.json(await loadLocalModel(pool, actor, modelsOf(), await body(c), lmFetch));
+  });
+  app.post("/desk/admin/models/local/unload", async (c) => {
+    const actor = admin(c);
+    return c.json(await unloadLocalModel(pool, actor, modelsOf(), await body(c), lmFetch));
+  });
   app.get(`${base}/tts`, async (c) => c.json(await inNewsroom(c, (db) => newsroomTts(db, tts))));
   app.post(`${base}/tts`, async (c) => {
     const b = await body(c);

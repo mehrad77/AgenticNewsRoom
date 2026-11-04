@@ -7,9 +7,11 @@
 
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+import { formatNames } from "@anr/config";
 import { createBoss, createPool } from "@anr/db";
 import { buildCatalog, loadModelsConfig, ModelGateway, modelsFile } from "@anr/models";
 import { registerJobs } from "../jobs.ts";
+import { readStoredRoles, rolesRefresher } from "../roles.ts";
 import { ModelRouter } from "../router.ts";
 import { gatewayModel } from "../summariser/model.ts";
 import { runSummariser } from "../summariser/run.ts";
@@ -41,6 +43,14 @@ const pool = createPool(connectionString);
 const boss = createBoss(connectionString, "agents");
 await boss.start();
 try {
+  // The chains set at the desk, read before each round as the worker does (D186).
+  const refreshRoles = rolesRefresher({
+    router,
+    catalog: models,
+    formats: formatNames(configDir),
+    read: () => readStoredRoles(pool),
+  });
+  await refreshRoles();
   const deps = recheckDeps({
     pool,
     boss,
@@ -66,9 +76,11 @@ try {
         : undefined,
   });
   if (values.work) {
-    await registerJobs(boss, {
-      recheck: async (job) => console.log(`[recheck] ${await recheckRound(deps, job)}`),
-    });
+    await registerJobs(
+      boss,
+      { recheck: async (job) => console.log(`[recheck] ${await recheckRound(deps, job)}`) },
+      refreshRoles,
+    );
     console.log("[recheck] working the recheck queue; Ctrl-C to stop");
     await new Promise<void>((resolve) => process.once("SIGINT", () => resolve()));
     process.exit(0);

@@ -25,13 +25,15 @@ export interface RecheckSetup {
   summarise?: RecheckDeps["summarise"];
 }
 
-/** The chains the recheck uses: the desk's (claims), the fact-checker's and the item matcher's. */
-export function recheckChains(s: Pick<RecheckSetup, "models" | "router">): string[] {
+/** The chains the recheck uses, as set at the desk or in the models file (D186): the desk's
+ *  (claims), the fact-checker's and the item matcher's. */
+export function recheckChains(s: Pick<RecheckSetup, "router">): string[] {
+  const roles = s.router.roles();
   return [
     ...new Set([
-      ...s.models.roles.desk.default,
-      ...Object.values(s.models.roles.desk.by_format ?? {}).flat(),
-      ...s.models.roles["fact-checker"],
+      ...roles.desk.default,
+      ...Object.values(roles.desk.by_format ?? {}).flat(),
+      ...roles["fact-checker"],
       ...s.router.resolve("item-matcher"),
     ]),
   ];

@@ -71,9 +71,31 @@ jobs:
           tags: anr-${{ matrix.image }}:scan
           cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}-${{ matrix.arch }}
+      # The action's own setup runs contrib/install.sh from Trivy's latest commit, unpinned; a
+      # change there broke every scan on 2026-11-03. The release tarball, checked against a pinned
+      # sha256, is the same binary without running anyone else's script.
+      - &install-trivy
+        name: Install Trivy
+        env:
+          TRIVY_VERSION: 0.70.0
+          ARCH: ${{ matrix.arch }}
+        run: |
+          case "$ARCH" in
+            amd64) asset=Linux-64bit sha=8b4376d5d6befe5c24d503f10ff136d9e0c49f9127a4279fd110b727929a5aa9 ;;
+            arm64) asset=Linux-ARM64 sha=2f6bb988b553a1bbac6bdd1ce890f5e412439564e17522b88a4541b4f364fc8d ;;
+            *) echo "no Trivy for $ARCH" >&2; exit 1 ;;
+          esac
+          tarball="$RUNNER_TEMP/trivy.tar.gz"
+          curl -fsSL --retry 3 -o "$tarball" \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_${asset}.tar.gz"
+          echo "$sha  $tarball" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/trivy-bin"
+          tar -xzf "$tarball" -C "$RUNNER_TEMP/trivy-bin" trivy
+          echo "$RUNNER_TEMP/trivy-bin" >> "$GITHUB_PATH"
       - name: Scan
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
+          skip-setup-trivy: true
           image-ref: anr-${{ matrix.image }}:scan
           ignore-unfixed: true
           severity: HIGH,CRITICAL
@@ -138,6 +160,7 @@ jobs:
             org.opencontainers.image.version=${{ github.ref_name }}
           cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}-${{ matrix.arch }}
+      - *install-trivy
       - name: Scan the pushed digest
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         env:
@@ -145,6 +168,7 @@ jobs:
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
           TRIVY_PLATFORM: linux/${{ matrix.arch }}
         with:
+          skip-setup-trivy: true
           image-ref: ${{ env.IMAGE }}@${{ steps.build.outputs.digest }}
           ignore-unfixed: true
           severity: HIGH,CRITICAL

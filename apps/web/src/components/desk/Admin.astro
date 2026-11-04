@@ -1,15 +1,30 @@
 ---
-import type { AdminTts } from "../../lib/desk.ts";
+import { type AdminModels, chainRows, type AdminTts, type LocalModels } from "../../lib/desk.ts";
 
 interface Props {
-  tts: AdminTts;
+  tts?: AdminTts;
+  models?: AdminModels;
+  local?: LocalModels | { error: string };
 }
-const { tts } = Astro.props;
+const { tts, models, local } = Astro.props;
+// A role's model needs tool calling and a price; a slot keeps its current id even if it no longer does.
+const usable = (models?.catalog ?? []).filter((m) => m.tools && m.price).map((m) => m.id);
+const rows = models ? chainRows(models.roles, models.formats) : [];
+const slots = (chain: string[]) => Array.from({ length: Math.max(4, chain.length + 1) }, (_, i) => chain[i] ?? "");
+const options = (current: string) => (current && !usable.includes(current) ? [current, ...usable] : usable);
+const fileChain = (name: string) =>
+  !models ? [] : name === "desk" ? models.file_roles.desk.default
+    : name.startsWith("desk.by_format.") ? (models.file_roles.desk.by_format?.[name.slice(15)] ?? [])
+    : (models.file_roles[name as Exclude<keyof AdminModels["file_roles"], "desk">] ?? []);
+const gb = (bytes: number | null) => (bytes === null ? "—" : `${(bytes / 1e9).toFixed(1)} GB`);
+const price = (p: { in: number; out: number } | null) => (p ? (p.in === 0 && p.out === 0 ? "free" : `$${p.in} / $${p.out}`) : "—");
 ---
 <h1>Platform admin</h1>
+{tts && (<>
 <h2>Text-to-speech engines</h2>
 <p>The engines in the models file. Newsrooms choose one per language from the ones enabled here; a newsroom with no choice, or whose engine is turned off, uses the default <strong>{tts.default}</strong>.</p>
 <form method="post">
+  <input type="hidden" name="action" value="tts" />
   <div class="scroll">
     <table>
       <tr><th>Enabled</th><th>Engine</th><th>Model</th><th>Languages</th><th>Runs</th></tr>
@@ -27,3 +42,122 @@ const { tts } = Astro.props;
   <button class="primary">Save</button>
 </form>
 <p class="meta">A local engine runs from <code>tools/tts-eval</code> (<code>serve.py</code>); start its server before episodes are voiced with it.</p>
+</>)}
+
+{models && (
+  <section id="models">
+    <h2>Models</h2>
+    <p>The models in the models file. Each agent role tries its chain in order and falls through when a model is limited or down. The fact-checker skips every family that wrote the story, so its chain needs at least two families. A change applies from each role's next run.</p>
+    <h3>Catalog</h3>
+    <div class="scroll">
+      <table>
+        <tr><th>Model</th><th>Family</th><th>Provider</th><th>Price in / out per million tokens</th><th>Local</th></tr>
+        {models.catalog.map((m) => (
+          <tr>
+            <td><strong>{m.id}</strong>{!m.tools && " (no tool calling)"}</td>
+            <td>{m.family}</td>
+            <td>{m.provider}</td>
+            <td>{price(m.price)}</td>
+            <td>{m.local ? "yes" : "no"}</td>
+          </tr>
+        ))}
+      </table>
+    </div>
+
+    <h3>Chains</h3>
+    {models.source === "desk" ? (
+      <p>These chains were set here, not in the models file.</p>
+    ) : (
+      <p>These chains are the models file's.</p>
+    )}
+    {models.problems.length > 0 && (
+      <p role="alert" class="fail">The chains set here no longer fit the models file, so the file's run instead: {models.problems.join("; ")}.</p>
+    )}
+    <form method="post">
+      <input type="hidden" name="action" value="roles" />
+      <div class="scroll">
+        <table>
+          <tr><th>Role</th><th>Chain, in order</th><th>Models file</th></tr>
+          {rows.map((row) => (
+            <tr>
+              <td><strong>{row.label}</strong>{row.optional && row.chain.length === 0 && <span class="meta"> (uses the desk's)</span>}</td>
+              <td>
+                <div class="actions chain">
+                  {slots(row.chain).map((current, i) => (
+                    <select name={`chain:${row.name}`} aria-label={`${row.label}, model ${i + 1}`}>
+                      <option value="" selected={current === ""}>—</option>
+                      {options(current).map((id) => <option value={id} selected={id === current}>{id}</option>)}
+                    </select>
+                  ))}
+                </div>
+              </td>
+              <td class="meta">{fileChain(row.name).join(" → ") || "—"}</td>
+            </tr>
+          ))}
+        </table>
+      </div>
+      <button class="primary">Save chains</button>
+    </form>
+    {models.source === "desk" && (
+      <form method="post" class="actions" onsubmit="return confirm('Go back to the models file\'s chains?')">
+        <input type="hidden" name="action" value="reset-roles" />
+        <button>Reset to the models file</button>
+      </form>
+    )}
+  </section>
+)}
+
+{local && (
+  <section id="local-models">
+    <h2>Local models (LM Studio)</h2>
+    {"error" in local ? (
+      <p role="alert"><strong>{local.error}</strong></p>
+    ) : (
+      <>
+        <p class="meta">LM Studio at <code>{local.url}</code> (provider <code>{local.provider}</code>). Loading takes a few seconds; a loaded model holds its memory until it is unloaded.</p>
+        <div class="scroll">
+          <table>
+            <tr><th>Model</th><th>Size</th><th>Tool use</th><th>Catalog</th><th>Loaded</th><th></th></tr>
+            {local.models.map((m) => (
+              <tr>
+                <td><strong>{m.display_name}</strong><br /><code>{m.key}</code></td>
+                <td>{m.params ?? "—"}, {gb(m.size_bytes)}</td>
+                <td>{m.tool_use ? "yes" : "no"}</td>
+                <td>{m.catalog_ids.join(", ") || "—"}</td>
+                <td>
+                  {m.loaded.length === 0 ? "no" : m.loaded.map((i) => (
+                    <div>{i.context_length ? `context ${i.context_length.toLocaleString("en")}` : "loaded"}</div>
+                  ))}
+                </td>
+                <td>
+                  {m.loaded.length > 0 ? m.loaded.map((i) => (
+                    <form method="post" class="inline">
+                      <input type="hidden" name="action" value="unload" />
+                      <input type="hidden" name="instance_id" value={i.id} />
+                      <button>Unload</button>
+                    </form>
+                  )) : (
+                    <form method="post" class="actions">
+                      <input type="hidden" name="action" value="load" />
+                      <input type="hidden" name="model" value={m.key} />
+                      <label>Context
+                        <input type="number" name="context_length" min="4096" max={m.max_context_length ?? undefined} step="1"
+                          value={Math.min(65536, m.max_context_length ?? 65536)} />
+                      </label>
+                      <button class="primary">Load</button>
+                    </form>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </table>
+        </div>
+      </>
+    )}
+  </section>
+)}
+
+<style>
+  /* A chain's slots sit side by side and wrap, in order. */
+  .chain select { width: auto; flex: 1 1 11rem; }
+</style>

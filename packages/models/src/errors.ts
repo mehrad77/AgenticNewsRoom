@@ -24,6 +24,8 @@ export interface Attempt {
 }
 
 const MAX_RETRY_AFTER_MS = 24 * 60 * 60 * 1000;
+/** Out of credit: no reset time comes, so wait an hour for a person to top the account up. */
+export const BILLING_COOLDOWN_MS = 60 * 60 * 1000;
 
 /** Every model in the chain was skipped or failed. The run ends as an error, so the gate holds. */
 export class AllModelsExhausted extends Error {
@@ -67,6 +69,7 @@ type ErrorLike = {
   statusCode?: unknown;
   code?: unknown;
   name?: unknown;
+  type?: unknown;
   message?: unknown;
   headers?: unknown;
   response?: { status?: unknown; headers?: unknown };
@@ -77,20 +80,26 @@ type ErrorLike = {
 
 const NETWORK_CODES = /^(ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|EPIPE|UND_ERR_)/;
 
-/** Sorts an error from any provider SDK (OpenAI-compatible or Gemini) into a FailureKind. */
+/** Sorts an error from any provider SDK (OpenAI-compatible, Gemini or Anthropic) into a FailureKind. */
 export function classify(error: unknown, now = Date.now()): Failure {
   const e = (typeof error === "object" && error !== null ? error : {}) as ErrorLike;
   const message = String(e.message ?? error).slice(0, 300);
   const status = [e.status, e.statusCode, e.response?.status].find(
     (s): s is number => typeof s === "number",
   );
-  const codes = [e.code, e.error?.code, e.error?.type].map((c) => String(c ?? ""));
+  const codes = [e.code, e.type, e.error?.code, e.error?.type].map((c) => String(c ?? ""));
   const retryAfterMs = retryAfter(e, now);
 
   // The text match is for SDK errors without a status; a 401 or 400 that mentions quota is fatal.
   const limitText = status === undefined && /RESOURCE_EXHAUSTED|rate.?limit|quota/i.test(message);
-  if (status === 429 || status === 402 || limitText) {
-    return { kind: "rate-limited", retryAfterMs, message };
+  if (status === 429 || limitText) return { kind: "rate-limited", retryAfterMs, message };
+  // Out of credit (a 402, or Anthropic's 400 "credit balance is too low"): the next model's
+  // account may still pay. Matched narrowly, so any other 400 stays fatal.
+  const billing =
+    codes.includes("billing_error") ||
+    /credit balance (is )?too low|insufficient (credits?|funds|balance)/i.test(message);
+  if (status === 402 || ((status === 400 || status === undefined) && billing)) {
+    return { kind: "rate-limited", retryAfterMs: retryAfterMs ?? BILLING_COOLDOWN_MS, message };
   }
   const retired =
     codes.some((c) => /model_not_found|model_decommissioned/.test(c)) ||
@@ -101,10 +110,16 @@ export function classify(error: unknown, now = Date.now()): Failure {
     return { kind: "gone", message };
   }
   // Too big for this model's limits or context window: another model may take it (D83).
-  const overContext = /context.?(length|window)|maximum context|too many tokens|n_ctx/i.test(
-    message,
-  );
-  if (status === 413 || (status === 400 && overContext)) return { kind: "too-large", message };
+  // LangChain rewraps Anthropic's 400 "prompt is too long" as a ContextOverflowError without a
+  // status (the 400 is its cause).
+  const overContext =
+    /context.?(length|window|limit)|maximum context|too many tokens|n_ctx|prompt is too long/i.test(
+      message,
+    );
+  const overflow = e.name === "ContextOverflowError";
+  if (status === 413 || (status === 400 && overContext) || overflow) {
+    return { kind: "too-large", message };
+  }
   // A local server that dropped the model (memory pressure) has it back on a later load.
   const unloaded = /model (is )?(unloaded|not loaded)|no models? loaded/i.test(message);
   if (status !== undefined) {
@@ -156,7 +171,8 @@ export function parseDuration(text: string): number | undefined {
 
 /**
  * How long the provider asked us to wait: Retry-After (seconds or a date), Groq's
- * x-ratelimit-reset-*, OpenRouter's x-ratelimit-reset (epoch ms), Gemini's RetryInfo.
+ * x-ratelimit-reset-*, OpenRouter's x-ratelimit-reset (epoch ms), Anthropic's
+ * anthropic-ratelimit-*-reset (RFC 3339 dates), Gemini's RetryInfo.
  */
 function retryAfter(e: ErrorLike, now: number): number | undefined {
   const headers = e.headers ?? e.response?.headers;
@@ -175,6 +191,10 @@ function retryAfter(e: ErrorLike, now: number): number | undefined {
     const d = header(headers, name);
     const ms = d === undefined ? undefined : parseDuration(d);
     if (ms !== undefined) waits.push(ms);
+  }
+  for (const kind of ["requests", "tokens", "input-tokens", "output-tokens"]) {
+    const d = header(headers, `anthropic-ratelimit-${kind}-reset`);
+    if (d !== undefined) waits.push(Date.parse(d) - now);
   }
   const reset = Number(header(headers, "x-ratelimit-reset"));
   // OpenRouter sends epoch ms; others send epoch seconds or seconds to wait.

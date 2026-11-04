@@ -11,7 +11,7 @@ export type Limits = NonNullable<ModelsConfig["models"][string]["limits"]>;
 export interface CatalogEntry {
   id: string;
   provider: string;
-  kind: "google" | "openai" | "local-tts";
+  kind: "google" | "anthropic" | "openai" | "local-tts";
   /** The provider's model id. */
   model: string;
   /** The weights, whoever serves them. */
