@@ -13,6 +13,6 @@ Hono on Node: reads and writes for people (editor's desk, reader sites). Contrac
 - One public write: a reader's challenge (`/reader/...`, D114), posted by the newsroom's site. It stores nothing about the reader and is rate-limited by a daily HMAC key; everything else is under `/desk/`.
 - Media (`src/desk/media.ts`, D119): adding an image queues `ingest-media`; a press kit's licence is recorded once by a member, audited; the database freezes it.
 - Dev: `pnpm --filter @anr/api dev` → http://localhost:8787/healthz. On the test database, signed in as `dev@anr.test`: `pnpm --filter @anr/api dev:test` → :8788 (the web app's `dev:test` desk calls it).
-- First Editor-in-Chief: `pnpm --filter @anr/api desk:grant <newsroom> <email> editor-in-chief`.
-- The one platform admin (TTS engines on offer, D113): `pnpm --filter @anr/api desk:admin <email>`.
+- First Editor-in-Chief: `pnpm --filter @anr/api desk:grant <newsroom> <email> editor-in-chief`; every later member through the desk or the API (`src/desk/members.ts`).
+- The one platform admin (TTS engines on offer, D113): `pnpm --filter @anr/api desk:admin <email>` the first time; then the admin hands the role over on the Admin page (desk session only).
 - The admin's models (`src/desk/models.ts`): role chains in `platform_settings` (`models.roles`, JSON null = the models file's), checked with `roleProblems` from `@anr/config`; and the local model server (LM Studio's REST API at the models file's plain-http OpenAI provider, without `/v1`), listed, loaded and unloaded; loading or unloading a model is not a model call, which stays the agents worker's. Every write is in `platform_audit_log`. `*.db.test.ts` files that set the platform admin hold `test/platform-admin.ts`'s lock.

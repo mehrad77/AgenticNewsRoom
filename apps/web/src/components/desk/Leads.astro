@@ -1,0 +1,26 @@
+---
+// The lead pool (D190): what the sources brought in, newest first. Internal input for editors,
+// never shown to readers.
+import { type LeadRow, safeHref, when } from "../../lib/desk.ts";
+
+interface Props {
+  leads: LeadRow[];
+  filters: Record<string, string>;
+}
+const { leads, filters } = Astro.props;
+---
+<h1>Leads</h1>
+<form method="get" class="actions">
+  <label>Source <input name="source" value={filters.source ?? ""} placeholder="slug" /></label>
+  <label>Words <input name="q" value={filters.q ?? ""} /></label>
+  <button>Filter</button>
+</form>
+{leads.length === 0 ? <p>No leads.</p> : (
+  <ul>{leads.map((l) => (
+    <li>
+      {safeHref(l.uri) ? <a href={safeHref(l.uri)} rel="noreferrer">{l.headline ?? l.uri}</a> : (l.headline ?? l.uri)}
+      <small class="meta"> · {l.source ?? "requested"} · tier {l.tier} · {when(l.fetched_at)}</small>
+      {l.summary && <p><small>{l.summary}</small></p>}
+    </li>
+  ))}</ul>
+)}

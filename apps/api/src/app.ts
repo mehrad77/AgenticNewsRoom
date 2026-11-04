@@ -8,6 +8,7 @@ import { type Context, Hono } from "hono";
 import { routePath } from "hono/route";
 import type { PgBoss } from "pg-boss";
 import { ACCESS_HEADER, type VerifyAccess } from "./desk/access.ts";
+import { auditFilters, newsroomAudit, platformAudit } from "./desk/auditlog.ts";
 import { budget } from "./desk/budget.ts";
 import {
   acknowledgeChallenge,
@@ -28,8 +29,17 @@ import {
 } from "./desk/channels.ts";
 import { DeskError } from "./desk/errors.ts";
 import { fileIssue, listNotices, listSamples, readNotice, reviewSample } from "./desk/followups.ts";
+import { hostStatus } from "./desk/host.ts";
+import { fetchSource, leadFilters, listLeads } from "./desk/leads.ts";
 import { measures } from "./desk/measures.ts";
 import { addMedia, isHttpUrl, listMedia, recordPressKit } from "./desk/media.ts";
+import {
+  addMember,
+  handOverAdmin,
+  listMembers,
+  removeMember,
+  setMemberRole,
+} from "./desk/members.ts";
 import {
   adminModels,
   loadLocalModel,
@@ -62,6 +72,7 @@ import {
   reviewQueue,
   schedule,
 } from "./desk/review.ts";
+import { agentRun, listAgentRuns, runFilters } from "./desk/runs.ts";
 import { sourceHealth } from "./desk/sources.ts";
 import {
   allTokens,
@@ -419,7 +430,47 @@ export function createApp(deps?: DeskDeps) {
     const weeks = count(c, "weeks", 8, 26);
     return c.json(await inNewsroom(c, (db) => measures(db, weeks)));
   });
-  app.get(`${base}/notices`, async (c) => c.json(await inNewsroom(c, (db) => listNotices(db))));
+  app.get(`${base}/notices`, async (c) => {
+    const since = c.req.query("since");
+    if (since !== undefined && Number.isNaN(Date.parse(since)))
+      throw new DeskError(400, "since: a date or time");
+    const from = since === undefined ? undefined : new Date(since).toISOString();
+    return c.json(await inNewsroom(c, (db) => listNotices(db, from)));
+  });
+  // People (D190): every member sees them; the Editor-in-Chief changes them.
+  app.get(`${base}/members`, async (c) => c.json(await inNewsroom(c, (db) => listMembers(db))));
+  app.post(`${base}/members`, async (c) => {
+    const b = await body(c);
+    return c.json(await inNewsroom(c, (db, actor) => addMember(db, actor, b), chief), 201);
+  });
+  app.post(`${base}/members/:member/role`, async (c) => {
+    const b = await body(c);
+    return c.json(
+      await inNewsroom(c, (db, actor) => setMemberRole(db, actor, id(c, "member"), b), chief),
+    );
+  });
+  app.delete(`${base}/members/:member`, async (c) =>
+    c.json(await inNewsroom(c, (db, actor) => removeMember(db, actor, id(c, "member")), chief)),
+  );
+  // What was done, and by whom; with a token, what was done through it (D189).
+  app.get(`${base}/audit`, async (c) => {
+    const f = auditFilters(c.req.query());
+    return c.json(await inNewsroom(c, (db) => newsroomAudit(db, f)));
+  });
+  app.get(`${base}/agent-runs`, async (c) => {
+    const f = runFilters(c.req.query());
+    return c.json(await inNewsroom(c, (db) => listAgentRuns(db, f)));
+  });
+  app.get(`${base}/agent-runs/:run`, async (c) =>
+    c.json(await inNewsroom(c, (db) => agentRun(db, id(c, "run")))),
+  );
+  app.get(`${base}/leads`, async (c) => {
+    const f = leadFilters(c.req.query());
+    return c.json(await inNewsroom(c, (db) => listLeads(db, f)));
+  });
+  app.post(`${base}/sources/:source/fetch`, async (c) =>
+    c.json(await inNewsroom(c, (db, actor) => fetchSource(db, boss, actor, id(c, "source")))),
+  );
   app.post(`${base}/notices/:notice/read`, async (c) =>
     c.json(await inNewsroom(c, (db) => readNotice(db, id(c, "notice")))),
   );
@@ -431,6 +482,20 @@ export function createApp(deps?: DeskDeps) {
     if (!person.platformAdmin) throw new DeskError(403, "only the platform admin can do this");
     return actorOf(c);
   };
+  app.get("/desk/admin/audit", async (c) => {
+    admin(c);
+    return c.json(await platformAudit(pool, auditFilters(c.req.query())));
+  });
+  app.get("/desk/admin/host", async (c) => {
+    admin(c);
+    return c.json(await hostStatus(pool, process.env.ANR_VERSION));
+  });
+  // Handing the platform admin's role over, only from a desk session (D191).
+  app.post("/desk/admin/hand-over", async (c) => {
+    const actor = admin(c);
+    browserOnly(c);
+    return c.json(await handOverAdmin(pool, actor, await body(c)));
+  });
   app.get("/desk/admin/tokens", async (c) => {
     admin(c);
     browserOnly(c);

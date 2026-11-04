@@ -9,6 +9,7 @@ import {
   editForm,
   issueLink,
   noticeFields,
+  query,
   rolesFromForm,
   type Sample,
   traceLink,
@@ -30,6 +31,8 @@ describe("deskRoute", () => {
     expect(deskRoute("/ops")).toEqual({ kind: "ops" });
     expect(deskRoute("/me/tokens")).toEqual({ kind: "tokens" });
     expect(deskRoute("/api")).toEqual({ kind: "api" });
+    expect(deskRoute("/ai/people")).toEqual({ kind: "people", newsroom: "ai" });
+    expect(query({ role: "desk", outcome: "" })).toBe("?role=desk");
     for (const page of ["plan", "voices", "schedule", "budget", "sources", "imported", "measures"])
       expect(deskRoute(`/ai/${page}/`)).toEqual({ kind: page, newsroom: "ai" });
   });

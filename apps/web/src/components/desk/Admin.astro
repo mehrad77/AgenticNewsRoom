@@ -161,3 +161,13 @@ const price = (p: { in: number; out: number } | null) => (p ? (p.in === 0 && p.o
   /* A chain's slots sit side by side and wrap, in order. */
   .chain select { width: auto; flex: 1 1 11rem; }
 </style>
+
+<section class="card" id="hand-over">
+  <h2>Hand over the platform admin's role</h2>
+  <p>There is one platform admin. The person must be a member of a newsroom already; you stop being the admin at once. Only here on the desk, never with a token.</p>
+  <form method="post" class="actions" onsubmit="return confirm('Hand the platform admin role over? You lose it at once.')">
+    <input type="hidden" name="action" value="hand-over" />
+    <label>Email <input name="email" type="email" required /></label>
+    <button>Hand over</button>
+  </form>
+</section>
