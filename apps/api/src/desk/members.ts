@@ -47,14 +47,15 @@ async function member(client: Client, userId: string) {
   return found;
 }
 
-/** Refuses a change that would leave the newsroom without an Editor-in-Chief. */
+/**
+ * Refuses a change that would leave the newsroom without an Editor-in-Chief. Every chief's row is
+ * locked first, so two chiefs demoting each other at once cannot both pass.
+ */
 async function keepChief(client: Client, userId: string) {
-  const { rows } = await client.query<{ others: number }>(
-    `select count(*)::int as others from memberships
-     where role = 'editor-in-chief' and user_id <> $1`,
-    [userId],
+  const { rows } = await client.query<{ user_id: string }>(
+    "select user_id from memberships where role = 'editor-in-chief' order by id for update",
   );
-  if ((rows[0]?.others ?? 0) === 0)
+  if (!rows.some((r) => r.user_id !== userId))
     throw new DeskError(409, "a newsroom keeps at least one Editor-in-Chief");
 }
 

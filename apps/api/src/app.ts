@@ -226,7 +226,9 @@ export function createApp(deps?: DeskDeps) {
     if (token) {
       const user = await tokenUser(pool, token);
       const person = user ? await deskPerson(pool, user.email) : null;
-      if (!person || !user) return c.json({ error: "the token is not valid" }, 401);
+      // A person removed from every newsroom, and not the admin, is offboarded: their tokens stop.
+      if (!person || !user || (person.memberships.length === 0 && !person.platformAdmin))
+        return c.json({ error: "the token is not valid" }, 401);
       c.set("person", { ...person, tokenId: user.tokenId });
     } else {
       const email = await verify(c.req.header(ACCESS_HEADER));

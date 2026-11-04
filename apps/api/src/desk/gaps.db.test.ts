@@ -104,8 +104,27 @@ describe("people", () => {
     ).toBe(409);
     expect((await call(at(`/members/${ids[chief]}`), { method: "DELETE" })).status).toBe(409);
 
+    // Removed from every newsroom, their token stops working.
+    const { json: leaver } = await call(at("/members"), {
+      body: { email: `leaver-${tag}@example.test`, role: "editor" },
+    });
+    const leaverToken = `anr_${randomBytes(32).toString("base64url")}`;
+    await pools.system.query(
+      "insert into personal_tokens (user_id, name, token_hash, expires_at) values ($1, 't', sha256($2::bytea), now() + interval '1 day')",
+      [leaver.user_id, leaverToken],
+    );
+    signedIn = null;
+    expect((await call("/desk/me", { token: leaverToken })).status).toBe(200);
+    signedIn = chief;
+    await call(at(`/members/${leaver.user_id}`), { method: "DELETE" });
+    signedIn = null;
+    expect((await call("/desk/me", { token: leaverToken })).status).toBe(401);
+    signedIn = chief;
+
     const audit = await call(at(`/audit?person=${encodeURIComponent(chief)}&entity=memberships`));
     expect(audit.json.map((a: { action: string }) => a.action)).toEqual([
+      "remove-member",
+      "add-member",
       "remove-member",
       "set-role",
       "add-member",
