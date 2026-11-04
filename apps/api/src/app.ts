@@ -41,6 +41,7 @@ import {
 import { type DeskPerson, deskPerson } from "./desk/people.ts";
 import { approveTheme, choosePick, plan } from "./desk/plan.ts";
 import { type PreviewSite, previewPublication } from "./desk/preview.ts";
+import { recheck } from "./desk/recheck.ts";
 import {
   approve,
   deskPublication,
@@ -51,7 +52,6 @@ import {
   reviewQueue,
   schedule,
 } from "./desk/review.ts";
-import { recheck } from "./desk/recheck.ts";
 import { sourceHealth } from "./desk/sources.ts";
 import { adminTts, newsroomTts, setAdminTts, setNewsroomTts, type TtsCatalog } from "./desk/tts.ts";
 import type { components } from "./generated/api.ts";
