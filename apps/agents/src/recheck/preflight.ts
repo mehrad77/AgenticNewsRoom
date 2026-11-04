@@ -1,6 +1,6 @@
 // Before a long recheck: every model of the chains it uses that a local server serves (LM Studio
 // on the laptop) must be loaded there, or the job would fall through to paid models or fail on
-// every call. A person can unload models at the desk (D186), so this is asked each time.
+// every call. Models can be unloaded at any time, so this is asked each time.
 import type { CatalogEntry } from "@anr/models";
 
 const LOCAL_HOSTS = new Set(["127.0.0.1", "localhost", "host.docker.internal", "[::1]"]);

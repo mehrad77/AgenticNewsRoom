@@ -58,15 +58,26 @@ interface Story {
   renditions: { id: string; language: Language; items: NewsItem[] }[];
 }
 
-/** The families that wrote imported text: the import translated with the catalog's Claude models,
- *  and the old system wrote with Claude too. Recorded on the story so neither checks it. */
-export const importFamilies = (models: ModelsConfig): string[] => [
-  ...new Set(
-    Object.values(models.models)
-      .filter((m) => m.provider === "anthropic")
-      .map((m) => m.family),
-  ),
-];
+/**
+ * The families that may have written imported text, so none of them checks it (invariant 4): the
+ * old system wrote the Persian with Claude, and the import translated it with Claude or on the
+ * renderer's chain (D169). Every Claude model in the catalog, whoever serves it, and every model
+ * of the renderer's chain; never empty, so a missing family fails closed.
+ */
+export function importFamilies(
+  models: ModelsConfig,
+  router: Pick<ModelRouter, "resolve" | "family">,
+): string[] {
+  const claude = Object.entries(models.models)
+    .filter(
+      ([id, m]) =>
+        m.provider === "anthropic" || [id, m.model, m.family].some((x) => /claude/i.test(x ?? "")),
+    )
+    .map(([, m]) => m.family);
+  const renderer = router.resolve("renderer").map((id) => router.family(id));
+  if (renderer.length === 0) throw new Error("the renderer chain is empty");
+  return [...new Set([...claude, ...renderer])];
+}
 
 /** Imported stories with news items, newest first (what readers see most), that this pass has not yet taken. */
 async function stories(pool: Pool, o: RecheckOptions, pass: "source" | "check"): Promise<Story[]> {
@@ -123,7 +134,8 @@ async function sourceStory(deps: RecheckDeps, o: RecheckOptions, story: Story): 
   const [first] = chain;
   if (!first) throw new Error("the desk chain is empty");
   // The import's writers, recorded once on the story (invariant 4).
-  const families = importFamilies(deps.models);
+  const families = importFamilies(deps.models, deps.router);
+  const [translator] = deps.router.resolve("renderer");
   const tried = await inNewsroom(async (c) => {
     const { rows } = await c.query<{ item: number; outcome: string | null; key: string }>(
       `select (task->>'item')::int as item, outcome, task->>'key' as key from agent_runs
@@ -132,11 +144,11 @@ async function sourceStory(deps: RecheckDeps, o: RecheckOptions, story: Story): 
     );
     return rows;
   });
-  if (families.length > 0 && !tried.some((t) => t.key === "recheck-import"))
+  if (translator && !tried.some((t) => t.key === "recheck-import"))
     await inNewsroom(async (c) => {
       const { id } = await insertRun(c, {
         role: "renderer",
-        ...deps.router.describe(first),
+        ...deps.router.describe(translator),
         promptVersion: "legacy-import",
         input: `recheck-import:${story.storyId}`,
         storyId: story.storyId,
