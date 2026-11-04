@@ -31,8 +31,8 @@ load_prod_env || die "could not load the production env"
 
 problems=()
 warnings=()
-# Settings and secrets production cannot run without (D124). Model keys other than the models
-# file's are optional.
+# Settings and secrets production cannot run without (D124). Of the model keys only Gemini's is
+# required; the others (ANTHROPIC_API_KEY) are optional.
 # Grafana signs in only through the ops application's Access audience and alerts only through the
 # ops bot, so it refuses to start without them (D123, D140).
 for name in ANR_ROOT_DOMAIN CF_ACCESS_TEAM_DOMAIN CF_ACCESS_AUD ANR_PLATFORM_KEY R2_ACCOUNT_ID \

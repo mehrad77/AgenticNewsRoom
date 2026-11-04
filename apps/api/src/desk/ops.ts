@@ -20,7 +20,8 @@ type Actor = { kind: "person"; userId: string };
 type Boss = Pick<PgBoss, "retry" | "cancel">;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
-async function audit(
+/** One row of the platform audit log. */
+export async function audit(
   db: Pick<Client, "query">,
   actor: Actor,
   action: string,
@@ -36,7 +37,7 @@ async function audit(
   );
 }
 
-async function inTransaction<T>(pool: Pool, fn: (client: Client) => Promise<T>): Promise<T> {
+export async function inTransaction<T>(pool: Pool, fn: (client: Client) => Promise<T>): Promise<T> {
   const client = await pool.connect();
   try {
     await client.query("begin");

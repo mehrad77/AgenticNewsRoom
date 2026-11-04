@@ -40,10 +40,13 @@ const dirs = (path: string) =>
     .map((d) => d.name)
     .sort();
 
+/** The formats in the config tree: its `formats/` folders, `_partials` and the like excepted. */
+export const formatNames = (root: string): string[] => dirs(join(root, "formats"));
+
 /** Reads the config tree (config/ at the repo root) without validating it. */
 export function loadConfig(root: string): RawConfig {
   const newsroomsDir = join(root, "newsrooms");
-  const formats = dirs(join(root, "formats"));
+  const formats = formatNames(root);
   const formatMeta: Record<string, unknown> = {};
   for (const f of formats) formatMeta[f] = readYaml(join(root, "formats", f, "format.yaml"));
   return {

@@ -17,6 +17,9 @@ export type SourceHealth = S["SourceHealth"];
 export type Measures = S["Measures"];
 export type Plan = S["Plan"];
 export type AdminTts = S["AdminTts"];
+export type AdminModels = S["AdminModels"];
+export type ModelRoles = S["ModelRoles"];
+export type LocalModels = S["LocalModels"];
 export type OpsState = S["OpsState"];
 export type NewsroomTts = S["NewsroomTts"];
 export type Challenge = S["Challenge"];
@@ -78,10 +81,75 @@ export class DeskApiError extends Error {
   }
 }
 
+/** The roles in the order the models file has them; the desk's per-format chains follow `desk`. */
+const ROLES = [
+  "planner",
+  "desk",
+  "renderer",
+  "fact-checker",
+  "item-matcher",
+  "summariser",
+] as const;
+
+/** One row of the Chains form: a role, or the desk for one format, and its chain. */
+export interface ChainRow {
+  /** The form field's suffix: a role, or `desk.by_format.<format>`. */
+  name: string;
+  label: string;
+  chain: string[];
+  /** A format without its own chain uses the desk's default. */
+  optional: boolean;
+}
+
+/** Every chain the admin can set, in the models file's order, with each format's desk chain. */
+export function chainRows(roles: ModelRoles, formats: readonly string[]): ChainRow[] {
+  const byFormat = roles.desk.by_format ?? {};
+  const all = [...new Set([...formats, ...Object.keys(byFormat)])];
+  return ROLES.flatMap((role): ChainRow[] =>
+    role === "desk"
+      ? [
+          { name: "desk", label: "desk", chain: roles.desk.default, optional: false },
+          ...all.map((f) => ({
+            name: `desk.by_format.${f}`,
+            label: `desk, ${f}`,
+            chain: byFormat[f] ?? [],
+            optional: true,
+          })),
+        ]
+      : [{ name: role, label: role, chain: roles[role], optional: false }],
+  );
+}
+
+/**
+ * The chains the Chains form posted: each row's slots in order (`chain:<row>`), "—" (empty) and
+ * repeats dropped. A format whose slots are all empty has no chain of its own.
+ */
+export function rolesFromForm(form: FormData): ModelRoles {
+  const chain = (name: string) => [
+    ...new Set(
+      form.getAll(`chain:${name}`).filter((v): v is string => typeof v === "string" && v !== ""),
+    ),
+  ];
+  const byFormat: Record<string, string[]> = {};
+  form.forEach((_, key) => {
+    const format = /^chain:desk\.by_format\.(.+)$/.exec(key)?.[1];
+    const c = format ? chain(`desk.by_format.${format}`) : [];
+    if (format && c.length > 0) byFormat[format] = c;
+  });
+  return {
+    planner: chain("planner"),
+    desk: { default: chain("desk"), by_format: byFormat },
+    renderer: chain("renderer"),
+    "fact-checker": chain("fact-checker"),
+    "item-matcher": chain("item-matcher"),
+    summariser: chain("summariser"),
+  };
+}
+
 export function deskApi(base: string, token: string | null, fetchFn: typeof fetch = fetch) {
-  const call = async <T>(path: string, body?: unknown): Promise<T> => {
+  const call = async <T>(path: string, body?: unknown, method?: string): Promise<T> => {
     const res = await fetchFn(`${base}${path}`, {
-      method: body === undefined ? "GET" : "POST",
+      method: method ?? (body === undefined ? "GET" : "POST"),
       headers: {
         "content-type": "application/json",
         ...(token ? { "cf-access-jwt-assertion": token } : {}),
@@ -115,15 +183,53 @@ export function deskApi(base: string, token: string | null, fetchFn: typeof fetc
       call<ChallengeDetail>(`${n(newsroom)}/challenges/${id}`),
     media: (newsroom: string) => call<MediaItem[]>(`${n(newsroom)}/media`),
     adminTts: () => call<AdminTts>("/desk/admin/tts"),
+    adminModels: () => call<AdminModels>("/desk/admin/models"),
+    /** The local model server's models, or why it cannot be asked (not running, say). */
+    async localModels(): Promise<LocalModels | { error: string }> {
+      try {
+        return await call<LocalModels>("/desk/admin/models/local");
+      } catch (e) {
+        if (e instanceof DeskApiError && [404, 502, 503].includes(e.status))
+          return { error: e.message };
+        throw e;
+      }
+    },
     ops: () => call<OpsState>("/desk/admin/ops"),
     newsroomTts: (newsroom: string) => call<NewsroomTts>(`${n(newsroom)}/tts`),
     /** Runs the action a desk form posted; returns where to go next. */
     async act(route: DeskRoute, form: FormData): Promise<string> {
       if (route.kind === "admin") {
-        // Every checked engine; an unchecked box sends nothing.
-        const engines = form.getAll("engine").filter((v): v is string => typeof v === "string");
-        await call("/desk/admin/tts", { engines });
-        return "/admin";
+        const value = (name: string) => {
+          const v = form.get(name);
+          return typeof v === "string" && v.trim() ? v.trim() : undefined;
+        };
+        switch (form.get("action") ?? "tts") {
+          case "tts": {
+            // Every checked engine; an unchecked box sends nothing.
+            const engines = form.getAll("engine").filter((v): v is string => typeof v === "string");
+            await call("/desk/admin/tts", { engines });
+            return "/admin";
+          }
+          case "roles":
+            await call("/desk/admin/models/roles", rolesFromForm(form), "PUT");
+            return "/admin#models";
+          case "reset-roles":
+            await call("/desk/admin/models/roles", undefined, "DELETE");
+            return "/admin#models";
+          case "load": {
+            const context = value("context_length");
+            await call("/desk/admin/models/local/load", {
+              model: value("model"),
+              ...(context && { context_length: Number(context) }),
+            });
+            return "/admin#local-models";
+          }
+          case "unload":
+            await call("/desk/admin/models/local/unload", { instance_id: value("instance_id") });
+            return "/admin#local-models";
+          default:
+            throw new DeskApiError(400, "unknown action");
+        }
       }
       if (route.kind === "ops") {
         const value = (name: string) => {

@@ -53,9 +53,14 @@ type Job =
   | GateJob
   | RedraftJob;
 
+/**
+ * Works each queue that has a handler. `before` runs ahead of every job, on every queue: the
+ * worker refreshes the role chains there, so each job sees the ones in force when it starts.
+ */
 export async function registerJobs(
   boss: Pick<PgBoss, "work">,
   handlers: JobHandlers = {},
+  before: () => Promise<void> = async () => {},
 ): Promise<void> {
   for (const queue of AGENTS_QUEUES) {
     const handler = handlers[queue as keyof JobHandlers] as
@@ -67,7 +72,10 @@ export async function registerJobs(
     }
     await boss.work<Job>(queue, async (jobs) => {
       // A throw fails the job and pg-boss retries it; a handler returns to complete it.
-      for (const job of jobs) await handler(job.data);
+      for (const job of jobs) {
+        await before();
+        await handler(job.data);
+      }
     });
   }
 }
