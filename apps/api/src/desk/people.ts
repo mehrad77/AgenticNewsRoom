@@ -16,6 +16,8 @@ export interface DeskPerson {
   /** The platform's one super admin (D113). */
   platformAdmin: boolean;
   memberships: Membership[];
+  /** The personal token this request came with (D191); none for a desk session through Access. */
+  tokenId?: string;
 }
 
 export async function deskPerson(pool: Pool, email: string): Promise<DeskPerson | null> {

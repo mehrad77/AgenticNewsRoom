@@ -1,0 +1,72 @@
+---
+// Personal tokens (D191): issued here, in a desk session through Access, never with a token. A
+// token acts as you through the API and the MCP server (D189); the API & MCP page says how to use it.
+import { type IssuedToken, type PersonalToken, type PersonalTokenWithEmail, when } from "../../lib/desk.ts";
+
+interface Props {
+  tokens: PersonalToken[];
+  issued?: IssuedToken;
+  /** Everyone's tokens, for the platform admin. */
+  everyone?: PersonalTokenWithEmail[];
+}
+const { tokens, issued, everyone } = Astro.props;
+const state = (t: PersonalToken) =>
+  t.revoked_at ? `revoked ${when(t.revoked_at)}` : new Date(t.expires_at) < new Date() ? "expired" : "active";
+const active = (t: PersonalToken) => state(t) === "active";
+---
+<h1>Personal tokens</h1>
+<p>
+  A personal token lets an agent of your own (Claude Code, an assistant app, a script) act as you
+  through ANR's API and MCP server, with your roles and nothing more. Whatever it does, approvals
+  included, is yours, and the audit log names the token. See <a href="/api">API &amp; MCP</a> for how to
+  connect one.
+</p>
+{issued && (
+  <div class="card" role="status">
+    <h2>Your new token: {issued.name}</h2>
+    <p><strong>Copy it now. It is not shown again;</strong> ANR keeps only its hash.</p>
+    <p><code class="token">{issued.token}</code></p>
+    <p class="meta">Expires {when(issued.expires_at)}.</p>
+  </div>
+)}
+<form method="post" class="card">
+  <h2>Issue a token</h2>
+  <input type="hidden" name="action" value="issue-token" />
+  <label>What it is for <input name="name" required maxlength="80" placeholder="Claude Code on my laptop" /></label>
+  <label>Days until it expires <input name="days" type="number" min="1" max="365" value="90" /></label>
+  <button class="primary">Issue</button>
+</form>
+<h2>Your tokens</h2>
+{tokens.length === 0 ? <p>None yet.</p> : (
+  <div class="scroll"><table>
+    <thead><tr><th>Name</th><th>Issued</th><th>Expires</th><th>Last used</th><th>State</th><th></th></tr></thead>
+    <tbody>{tokens.map((t) => (
+      <tr>
+        <td>{t.name}</td><td>{when(t.created_at)}</td><td>{when(t.expires_at)}</td>
+        <td>{t.last_used_at ? when(t.last_used_at) : "never"}</td><td>{state(t)}</td>
+        <td>{active(t) && <form method="post" class="inline"><input type="hidden" name="action" value="revoke-token" /><input type="hidden" name="id" value={t.id} /><button>Revoke</button></form>}</td>
+      </tr>
+    ))}</tbody>
+  </table></div>
+)}
+{everyone && (
+  <>
+    <h2 id="everyone">Everyone's tokens</h2>
+    {everyone.length === 0 ? <p>None.</p> : (
+      <div class="scroll"><table>
+        <thead><tr><th>Person</th><th>Name</th><th>Expires</th><th>Last used</th><th>State</th><th></th></tr></thead>
+        <tbody>{everyone.map((t) => (
+          <tr>
+            <td>{t.email}</td><td>{t.name}</td><td>{when(t.expires_at)}</td>
+            <td>{t.last_used_at ? when(t.last_used_at) : "never"}</td><td>{state(t)}</td>
+            <td>{active(t) && <form method="post" class="inline"><input type="hidden" name="action" value="revoke-any-token" /><input type="hidden" name="id" value={t.id} /><button>Revoke</button></form>}</td>
+          </tr>
+        ))}</tbody>
+      </table></div>
+    )}
+  </>
+)}
+
+<style>
+  code.token { word-break: break-all; user-select: all; font-size: 0.95rem; }
+</style>

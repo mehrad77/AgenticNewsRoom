@@ -38,6 +38,94 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/desk/me/tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Your personal tokens
+         * @description Only in a desk session through Cloudflare Access, never with a token (D191).
+         */
+        get: operations["listMyTokens"];
+        put?: never;
+        /**
+         * Issue a personal token for an agent of your own
+         * @description Only in a desk session through Cloudflare Access (D191). The token acts as you, with your roles, until it expires or you revoke it; what it does is yours and audited with the token (D189).
+         */
+        post: operations["issueMyToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/me/tokens/{token}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke one of your personal tokens
+         * @description Only in a desk session through Cloudflare Access (D191).
+         */
+        post: operations["revokeMyToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/admin/tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Every person's personal tokens
+         * @description Platform admin only, in a desk session through Cloudflare Access (D191).
+         */
+        get: operations["listAllTokens"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/admin/tokens/{token}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke anyone's personal token
+         * @description Platform admin only, in a desk session through Cloudflare Access (D191).
+         */
+        post: operations["revokeAnyToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/desk/newsrooms/{newsroom}/queue": {
         parameters: {
             query?: never;
@@ -1205,6 +1293,37 @@ export interface components {
                 };
                 role: components["schemas"]["Role"];
             }[];
+            /** @description The personal token this request came with, or null in a desk session. */
+            via_token?: string | null;
+        };
+        PersonalToken: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            expires_at: string;
+            /** Format: date-time */
+            last_used_at: string | null;
+            /** Format: date-time */
+            revoked_at: string | null;
+        };
+        PersonalTokenWithEmail: components["schemas"]["PersonalToken"] & {
+            email: string;
+        };
+        IssuedToken: components["schemas"]["PersonalToken"] & {
+            /** @description The token itself, shown this once; only its hash is kept. */
+            token: string;
+        };
+        IssueTokenRequest: {
+            /** @description What the token is for, such as the agent holding it. */
+            name: string;
+            /**
+             * @description Days until it expires.
+             * @default 90
+             */
+            days: number;
         };
         Check: {
             /** Format: uuid */
@@ -1936,7 +2055,7 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
-        /** @description No valid Cloudflare Access JWT, or no user for its email. */
+        /** @description No valid Cloudflare Access JWT or personal token, or no user for it. */
         Unauthorized: {
             headers: {
                 [name: string]: unknown;
@@ -2052,6 +2171,127 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+        };
+    };
+    listMyTokens: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Your tokens, newest first; never the tokens themselves. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonalToken"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    issueMyToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IssueTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description The token, shown this once. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssuedToken"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    revokeMyToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The token, revoked. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonalToken"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listAllTokens: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every token, newest first; never the tokens themselves. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonalTokenWithEmail"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    revokeAnyToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The token, revoked. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonalToken"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     getReviewQueue: {

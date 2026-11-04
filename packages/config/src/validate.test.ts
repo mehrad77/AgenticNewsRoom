@@ -23,15 +23,18 @@ describe("validateConfig", () => {
     expect(errors).toMatch(/formats\/podcast-episode\/format\.yaml.*grace/);
   });
 
-  it.each(["desk", "ops"])("rejects a newsroom at the reserved subdomain %s", (subdomain) => {
-    const config = loadConfig(root);
-    const ai = config.newsrooms.find((n) => n.slug === "ai");
-    if (!ai) throw new Error("ai newsroom missing");
-    (ai.newsroom as { subdomain: string }).subdomain = subdomain;
-    expect(validateConfig(config)).toContain(
-      `newsrooms/ai/newsroom.yaml subdomain ${subdomain} is the platform's (D123)`,
-    );
-  });
+  it.each(["desk", "ops", "api"])(
+    "rejects a newsroom at the reserved subdomain %s",
+    (subdomain) => {
+      const config = loadConfig(root);
+      const ai = config.newsrooms.find((n) => n.slug === "ai");
+      if (!ai) throw new Error("ai newsroom missing");
+      (ai.newsroom as { subdomain: string }).subdomain = subdomain;
+      expect(validateConfig(config)).toContain(
+        `newsrooms/ai/newsroom.yaml subdomain ${subdomain} is the platform's (D123)`,
+      );
+    },
+  );
 
   it("takes the home's news from a series of the newsroom that has a timeline", () => {
     const config = loadConfig(root);

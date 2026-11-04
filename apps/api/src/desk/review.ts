@@ -1,12 +1,12 @@
 // The review queue and an editor's decisions on it. Every decision is an audited update in the
 // same transaction as the change it records (approvals live in Postgres, invariant 10).
 import { QUEUES, type RedraftJob, type TextField, withText } from "@anr/core";
-import { auditedUpdate, type Client, onClient, recordAudit } from "@anr/db";
+import { auditedUpdate, type Client, onClient, type PersonActor, recordAudit } from "@anr/db";
 import { DRAFT_SCHEMAS } from "@anr/schemas";
 import type { PgBoss } from "pg-boss";
 import { DeskError } from "./errors.ts";
 
-type Actor = { kind: "person"; userId: string };
+type Actor = PersonActor;
 
 interface CheckRow {
   id: string;

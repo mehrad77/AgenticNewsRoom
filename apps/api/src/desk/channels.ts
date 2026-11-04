@@ -5,6 +5,7 @@ import {
   auditedUpdate,
   type Client,
   onClient,
+  type PersonActor,
   type PlatformKey,
   recordAudit,
   sealCredentials,
@@ -12,7 +13,7 @@ import {
 import type { PgBoss } from "pg-boss";
 import { DeskError } from "./errors.ts";
 
-type Actor = { kind: "person"; userId: string };
+type Actor = PersonActor;
 
 interface Row {
   id: string;

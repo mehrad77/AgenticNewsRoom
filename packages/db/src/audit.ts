@@ -3,11 +3,11 @@
 import pg from "pg";
 import type { Client } from "./index.ts";
 
-/** Who acted: a person at the desk, an agent role, or a code component. */
-export type Actor =
-  | { kind: "person"; userId: string }
-  | { kind: "agent"; role: string }
-  | { kind: "code"; name: string };
+/** A person at the desk or through the API; `tokenId` when they acted with a personal token (D189). */
+export type PersonActor = { kind: "person"; userId: string; tokenId?: string };
+
+/** Who acted: a person, an agent role, or a code component. */
+export type Actor = PersonActor | { kind: "agent"; role: string } | { kind: "code"; name: string };
 
 export interface AuditEntry {
   actor: Actor;
@@ -24,8 +24,9 @@ export interface AuditEntry {
 export async function recordAudit(client: Client, entry: AuditEntry): Promise<string> {
   const { actor } = entry;
   const { rows } = await client.query<{ id: string }>(
-    `insert into audit_log (actor_kind, actor_user_id, actor_name, action, entity, entity_id, before, after)
-     values ($1, $2, $3, $4, $5, $6, $7, $8) returning id`,
+    `insert into audit_log (actor_kind, actor_user_id, actor_name, action, entity, entity_id, before, after,
+                            via_token_id)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9) returning id`,
     [
       actor.kind,
       actor.kind === "person" ? actor.userId : null,
@@ -35,6 +36,7 @@ export async function recordAudit(client: Client, entry: AuditEntry): Promise<st
       entry.entityId,
       entry.before === undefined ? null : JSON.stringify(entry.before),
       entry.after === undefined ? null : JSON.stringify(entry.after),
+      actor.kind === "person" ? (actor.tokenId ?? null) : null,
     ],
   );
   return rows[0]?.id ?? "";

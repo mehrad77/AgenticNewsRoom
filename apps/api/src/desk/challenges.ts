@@ -9,11 +9,18 @@ import {
   type PublishCorrectionJob,
   QUEUES,
 } from "@anr/core";
-import { auditedUpdate, type Client, onClient, type Pool, withNewsroom } from "@anr/db";
+import {
+  auditedUpdate,
+  type Client,
+  onClient,
+  type PersonActor,
+  type Pool,
+  withNewsroom,
+} from "@anr/db";
 import type { PgBoss } from "pg-boss";
 import { DeskError } from "./errors.ts";
 
-type Actor = { kind: "person"; userId: string };
+type Actor = PersonActor;
 type Boss = Pick<PgBoss, "send">;
 
 /** Challenges per (UTC) day: from one reader to a newsroom, to one piece, and to a newsroom. */

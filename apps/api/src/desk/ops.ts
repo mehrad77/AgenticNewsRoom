@@ -7,6 +7,7 @@ import {
   auditedUpdate,
   type Client,
   onClient,
+  type PersonActor,
   PGBOSS_SCHEMA,
   type Pool,
   STALE_MINUTES,
@@ -16,7 +17,7 @@ import {
 import type { PgBoss } from "pg-boss";
 import { DeskError } from "./errors.ts";
 
-type Actor = { kind: "person"; userId: string };
+type Actor = PersonActor;
 type Boss = Pick<PgBoss, "retry" | "cancel">;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -31,9 +32,17 @@ export async function audit(
   after: unknown,
 ) {
   await db.query(
-    `insert into platform_audit_log (actor_user_id, action, entity, key, before, after)
-     values ($1, $2, $3, $4, $5, $6)`,
-    [actor.userId, action, entity, key, JSON.stringify(before), JSON.stringify(after)],
+    `insert into platform_audit_log (actor_user_id, action, entity, key, before, after, via_token_id)
+     values ($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      actor.userId,
+      action,
+      entity,
+      key,
+      JSON.stringify(before),
+      JSON.stringify(after),
+      actor.tokenId ?? null,
+    ],
   );
 }
 

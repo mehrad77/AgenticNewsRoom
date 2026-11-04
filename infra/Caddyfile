@@ -44,6 +44,20 @@ http://desk.{$ANR_ROOT_DOMAIN} {
 	}
 }
 
+# The API for a person's own agent (D191): outside Access, so a client without a browser can reach
+# it; the API answers 401 to anything but a valid personal token or Access JWT. Only the desk's
+# routes, the MCP server and the contract are served here.
+http://api.{$ANR_ROOT_DOMAIN} {
+	import no_trace_headers
+	@agent path /desk/* /mcp /mcp/* /openapi.yaml /healthz
+	handle @agent {
+		reverse_proxy api:8787
+	}
+	handle {
+		respond 404
+	}
+}
+
 # The root and every newsroom's site. Reader sites reach the API only server-side, from the web app.
 :80 {
 	import no_trace_headers

@@ -2,11 +2,11 @@
 // cycle; choose one of a weekly pick's candidates before its deadline. Each is an audited update in
 // the transaction that makes it, and a choice queues its assignment there too (invariant 10).
 import { type AssignJob, QUEUES } from "@anr/core";
-import { auditedUpdate, type Client, onClient } from "@anr/db";
+import { auditedUpdate, type Client, onClient, type PersonActor } from "@anr/db";
 import type { PgBoss } from "pg-boss";
 import { DeskError } from "./errors.ts";
 
-type Actor = { kind: "person"; userId: string };
+type Actor = PersonActor;
 
 interface Week {
   week: string;

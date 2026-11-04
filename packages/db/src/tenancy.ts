@@ -15,6 +15,7 @@ export const PLATFORM_TABLES: Readonly<Record<string, string>> = {
   backup_runs: "one backup holds every newsroom's data (D131)",
   ops_requests: "the platform admin's requests to the host, such as a backup check (D144)",
   queue_drains: "a pg-boss queue serves every newsroom (D144)",
+  personal_tokens: "a person's token acts in every newsroom they belong to (D191)",
 };
 
 const TENANT_FUNCTION = "anr.current_newsroom_id()";
