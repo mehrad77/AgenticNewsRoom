@@ -23,6 +23,7 @@ ANR replaces it with a new product in a new repo, AgenticNewsRoom, on a new doma
 ANR is an editorial operating system that runs the full cycle: plan, assign, research, draft, check, approve, publish, measure.
 
 - **Human-directed.** People choose each editorial cycle's theme and the weekly picks, set policy and approve. Agents propose and write; they never set the agenda.
+- **API-first.** Everything a person can do in the editor's desk they can also do through ANR's API and its MCP server, themselves or through an agent of their own that holds a token they issued. What that agent does is the person's act, recorded as theirs and as done through that token.
 - **Many newsrooms, many languages.** Each newsroom has its own topic, languages, editorial policy, sources, team, domains and channels.
 - **Research once, render many times.** A story holds the researched claims and the leads behind them. Renditions write it in a format and a language, and a publication bundles renditions into what goes out in one slot.
 - **Source-grounded.** Every factual claim traces back to a lead the system has stored.
@@ -69,6 +70,8 @@ These words mean one thing each, in code, in the data model and in conversation.
 
 **Roles.** Humans are the Editor-in-Chief and editors, and one platform admin, an operator role with no editorial authority, who chooses which text-to-speech engines newsrooms may use and holds the platform's operational controls (pausing publishing, retrying, cancelling or draining work that ends in a hold or reruns, a backup check), which can never approve, publish or suppress anything. Agents are the planner, the desk (research and writing), the renderer, the fact-checker, the item matcher and the summariser. Code is the producer and the publisher.
 
+**Acting through an agent.** A person may give an agent of their own (a coding assistant, an assistant app, a script) a personal token. The agent then acts as that person through the API or the MCP server, with that person's role and nothing more, and every act is theirs: an approval made this way is the person's approval. The newsroom's own agents above are not such agents: they never hold a token, never reach the API or the MCP server, and keep their four tools.
+
 ## Architecture direction
 
 Every step has exactly one owner: humans decide, agents curate and write, code does the rest.
@@ -107,7 +110,7 @@ Themed work follows the solid path, from the cycle's plan to an approved publica
 3. **Desk agents** receive one assignment with its leads already gathered. They research, write and submit structured JSON: a story, its claims and a rendition. If a source is missing, they ask ingestion to fetch and store it; they never cite anything unstored, and never write HTML, publish or record posts.
 4. **Formats are configuration:** a JSON Schema for the draft, templates per channel kind, code checks and a short writing guide.
 5. **Publishing is code only.** The publisher renders approved publications from templates, sends them to their channels and records each post as part of sending, idempotently. For a podcast, an agent writes the script; code does the voices, mixing, upload and feed.
-6. **Tenancy.** A new newsroom is configuration (sources, series, style guide and credibility policy) plus channels set up in the editor's desk. Every tenant table carries the newsroom id.
+6. **Tenancy.** A new newsroom is configuration (sources, series, style guide and credibility policy), set at the desk or through the API, plus channels set up the same way. Every tenant table carries the newsroom id.
 
 ## Editorial safeguards
 
@@ -131,7 +134,7 @@ v1 runs two newsrooms: the AI newsroom in Persian and English, and Kültür, a T
 | Formats       | Newsletter issue, classic article, artist story, podcast episode; each story rendered in one or more languages                   |
 | Channels      | Website on its own subdomain, Telegram, podcast RSS; each newsroom sets up its own in the editor's desk                          |
 | Planning      | Editorial cycles of any length and weekly picks, with agent proposals and human approval                                            |
-| Editor's desk | Where editors sign in, approve plans and picks, review drafts, manage channels and handle corrections                            |
+| Editor's desk | Where editors sign in, approve plans and picks, review drafts, manage channels and handle corrections; all of it also through the API and the MCP server |
 | Safeguards    | All four above                                                                                                                   |
 | Measures      | Hold rate, sample misses, corrections per 100 publications, editor minutes per week, cost per publication, audience per language |
 
@@ -147,6 +150,7 @@ All decisions below are settled. The full log, including technical decisions, is
 | AI disclosure       | Platform-wide and mandatory, part of ANR's identity, never a per-newsroom setting.                                                                                                       |
 | Old system          | Migrated once, then retired. Its routines stop, its archive is imported into the AI newsroom with imported text labelled, and its site redirects to ANR (D161). |
 | Publishing boundary | Only code sends to channels. Agents do curation and editorial work only.                                                                                                                 |
+| API-first           | Every desk action is an API operation and an MCP tool. A person may act through an agent of their own holding their token; the act is theirs (D189, D190).                             |
 | Approval            | Themed publications wait for an editor. From day one, daily news publishes on its own when no check holds it; editors review a 10% sample afterwards, and each miss becomes a new check. |
 | Agent runtime       | Agents run as LangGraph.js graphs that the platform triggers, calling models through a router (Gemini by default), not as scheduled coding-agent sessions.                               |
 | Planning            | The planner proposes 2–3 themes per editorial cycle and three weekly candidates per series; the Editor-in-Chief picks and edits.                                                                     |

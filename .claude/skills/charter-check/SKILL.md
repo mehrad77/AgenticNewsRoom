@@ -20,6 +20,7 @@ For each, say "holds" or show where it breaks:
 8. Disclosure cannot be turned off; every template renders the disclosure partial.
 9. A newsroom-specific need is solved by configuration, never by code that names a newsroom.
 10. No graph waits for a human.
+11. Every new desk or admin action is an operation in `apps/api/openapi.yaml` (so it is also an MCP tool); nothing a person does exists only as a command or a config edit. Tokens act as their person and nothing more; no newsroom agent gets a token or the MCP server.
 
 ## 2. Boundaries (`docs/charter.md#what-anr-is-not`)
 
