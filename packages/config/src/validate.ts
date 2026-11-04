@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { directionOf, type Language, RESERVED_SUBDOMAINS } from "@anr/core";
+import { directionOf, type Language, RESERVED_SLUGS, RESERVED_SUBDOMAINS } from "@anr/core";
 import type { ModelsSchema, ReferenceSchema } from "@anr/schemas";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import addFormatsModule from "ajv-formats";
@@ -214,6 +214,8 @@ export function validateConfig(config: RawConfig): string[] {
       timezone: string;
     };
     if (newsroom.slug !== n.slug) errors.push(`${at}/newsroom.yaml slug must equal folder name`);
+    if ((RESERVED_SLUGS as readonly string[]).includes(newsroom.slug))
+      errors.push(`${at}/newsroom.yaml slug ${newsroom.slug} is a desk page's`);
     try {
       new Intl.DateTimeFormat("en", { timeZone: newsroom.timezone });
     } catch {

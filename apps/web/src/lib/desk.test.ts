@@ -29,6 +29,7 @@ describe("deskRoute", () => {
     expect(deskRoute("/admin")).toEqual({ kind: "admin" });
     expect(deskRoute("/ops")).toEqual({ kind: "ops" });
     expect(deskRoute("/me/tokens")).toEqual({ kind: "tokens" });
+    expect(deskRoute("/api")).toEqual({ kind: "api" });
     for (const page of ["plan", "voices", "schedule", "budget", "sources", "imported", "measures"])
       expect(deskRoute(`/ai/${page}/`)).toEqual({ kind: page, newsroom: "ai" });
   });

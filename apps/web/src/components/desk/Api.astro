@@ -1,0 +1,121 @@
+---
+// API & MCP (D190): how a person connects an agent of their own, how-to recipes (Markdown in
+// src/api-howto), and a reference of every operation, generated from the same file as the MCP
+// server's tools, so it cannot drift from the API.
+import { BROWSER_ONLY, MCP_TOOLS } from "@anr/api/mcp-tools";
+
+interface Props {
+  /** Where an agent reaches the API: https://api.<root>, or the local API in development. */
+  apiBase: string;
+}
+const { apiBase } = Astro.props;
+const mcpUrl = `${apiBase}/mcp`;
+const recipes = Object.entries(
+  import.meta.glob<{ frontmatter: { title: string; who: string }; Content: unknown }>(
+    "../../api-howto/*.md",
+    { eager: true },
+  ),
+)
+  .sort(([a], [b]) => a.localeCompare(b))
+  .map(([file, module]) => ({ id: file.replace(/^.*\/\d+-|\.md$/g, ""), ...module }));
+const WHO = {
+  anyone: "anyone signed in",
+  member: "any member",
+  "editor-in-chief": "Editor-in-Chief",
+  "platform-admin": "platform admin",
+} as const;
+const claudeCode = `claude mcp add --transport http anr ${mcpUrl} \\
+  --header "Authorization: Bearer $ANR_TOKEN"`;
+const json = JSON.stringify(
+  { mcpServers: { anr: { type: "http", url: mcpUrl, headers: { Authorization: "Bearer anr_…" } } } },
+  null,
+  2,
+);
+const env = `export ANR_API=${apiBase}
+export ANR_TOKEN=anr_…   # from the Tokens page`;
+---
+<h1>API &amp; MCP</h1>
+<p>
+  Everything you can do on this desk, an agent of your own can do through ANR's API or its MCP
+  server: Claude Code, an assistant app, a script. It acts as you, with your roles and nothing more,
+  and what it does is yours. An approval it makes is your approval, and the audit log names the
+  token it came through.
+</p>
+<nav class="toc">
+  <a href="#start">Get started</a> · <a href="#mcp">Connect an MCP client</a> ·
+  <a href="#http">Call the HTTP API</a> · <a href="#howto">How-tos</a> ·
+  <a href="#reference">Reference</a>
+</nav>
+
+<h2 id="start">Get started</h2>
+<ol>
+  <li>Issue a personal token on the <a href="/me/tokens">Tokens</a> page. It is shown once. It expires after 90 days unless you choose otherwise, and you can revoke it there at any time.</li>
+  <li>Give it only to an agent you control. Anyone holding it can do whatever you can.</li>
+  <li>Connect the agent to the MCP server, or call the HTTP API with it.</li>
+</ol>
+<p class="meta">
+  Tokens are issued and revoked only here on the desk, never with a token. ANR's own newsroom
+  agents (the planner, the desk, the fact-checker and the rest) never get this server, and never
+  add it to LM Studio's MCP servers for them: they keep their four tools.
+</p>
+
+<h2 id="mcp">Connect an MCP client</h2>
+<p>The server is at <code>{mcpUrl}</code> (Streamable HTTP). It has one tool per API operation, named by its operation id.</p>
+<h3>Claude Code</h3>
+<pre><code>{claudeCode}</code></pre>
+<h3>Other clients (JSON configuration)</h3>
+<pre><code>{json}</code></pre>
+<p>Ask the agent to start with <code>getDeskMe</code>: it returns your newsrooms by slug and your role in each, and most tools take that slug as <code>newsroom</code>.</p>
+
+<h2 id="http">Call the HTTP API</h2>
+<pre><code>{env}</code></pre>
+<pre><code>curl -s "$ANR_API/desk/me" -H "Authorization: Bearer $ANR_TOKEN"</code></pre>
+<p>
+  The contract is <a href={`${apiBase}/openapi.yaml`}><code>{apiBase}/openapi.yaml</code></a> (OpenAPI 3.1).
+  Errors are JSON, <code>{"{"}"error": "…"{"}"}</code>:
+</p>
+<ul>
+  <li><strong>401</strong>: no token, or it was revoked or has expired.</li>
+  <li><strong>403</strong>: your role cannot do this, or it can only be done here on the desk.</li>
+  <li><strong>404</strong>: nothing with that id in this newsroom.</li>
+  <li><strong>409</strong>: the thing is not in a state that allows it, such as a publication changed since you read it.</li>
+</ul>
+
+<h2 id="howto">How-tos</h2>
+<p>Each step names the MCP tool; the HTTP call is the same operation.</p>
+{recipes.map((r) => {
+  const Content = r.Content as any;
+  return (
+    <details class="card" id={r.id}>
+      <summary><strong>{r.frontmatter.title}</strong> <span class="meta">· {r.frontmatter.who}</span></summary>
+      <Content />
+    </details>
+  );
+})}
+
+<h2 id="reference">Reference</h2>
+<p>{MCP_TOOLS.length} tools, one per operation a token may call.</p>
+<div class="scroll"><table class="reference">
+  <thead><tr><th>Tool</th><th>HTTP</th><th>Who</th><th>Kind</th></tr></thead>
+  <tbody>{MCP_TOOLS.map((t) => (
+    <tr>
+      <td><code>{t.name}</code><br /><small>{t.title}</small></td>
+      <td><code>{t.method} {t.path}</code></td>
+      <td>{WHO[t.who]}</td>
+      <td>{t.readOnly ? "reads" : t.destructive ? "decides or stops" : "changes"}</td>
+    </tr>
+  ))}</tbody>
+</table></div>
+<h3>Only on the desk</h3>
+<ul>{BROWSER_ONLY.map((o) => <li><code>{o.method} {o.path}</code>: {o.title}</li>)}</ul>
+
+<style>
+  pre, details :global(pre.astro-code) {
+    overflow-x: auto; background: #f5f5f4 !important; color: #1c1917 !important;
+    padding: 0.75rem; border-radius: 6px;
+  }
+  details :global(pre.astro-code span) { color: inherit !important; }
+  .toc { margin: 0 0 1rem; }
+  table.reference td { vertical-align: top; }
+  details.card summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; gap: 0.25rem; flex-wrap: wrap; }
+</style>

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import type { MembershipRole } from "@anr/core";
 import { type Client, type PersonActor, type PlatformKey, type Pool, withNewsroom } from "@anr/db";
 import { createRenderer } from "@anr/render";
@@ -72,6 +73,7 @@ import {
 } from "./desk/tokens.ts";
 import { adminTts, newsroomTts, setAdminTts, setNewsroomTts, type TtsCatalog } from "./desk/tts.ts";
 import type { components } from "./generated/api.ts";
+import { handleMcp } from "./mcp.ts";
 
 type Health = components["schemas"]["Health"];
 
@@ -147,6 +149,8 @@ function id(c: Context, name: string): string {
   return value;
 }
 
+const OPENAPI = readFileSync(new URL("../openapi.yaml", import.meta.url), "utf8");
+
 export function createApp(deps?: DeskDeps) {
   const app = new Hono<Env>();
 
@@ -165,6 +169,8 @@ export function createApp(deps?: DeskDeps) {
   });
 
   app.get("/healthz", (c) => c.json<Health>({ status: "ok", service: "api" }));
+  // The contract, public: what a person's agent reads to learn the API (D190).
+  app.get("/openapi.yaml", (c) => c.body(OPENAPI, 200, { "content-type": "application/yaml" }));
 
   app.onError((error, c) => {
     if (error instanceof DeskError)
@@ -632,6 +638,10 @@ export function createApp(deps?: DeskDeps) {
       ),
     );
   });
+
+  // The MCP server (D190): each tool is one of the routes above, called with the request's own
+  // credentials.
+  app.all("/mcp", (c) => handleMcp(c.req.raw, (path, init) => app.request(path, init)));
 
   return app;
 }
