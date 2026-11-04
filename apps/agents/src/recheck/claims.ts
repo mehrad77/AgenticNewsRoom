@@ -24,6 +24,12 @@ Answer with JSON only: {"claims": [{"text": "...", "passage": "..."}]}.
 - "passage": a passage copied character for character from the source text that supports the
   claim: one or two whole sentences, at least ${MIN_PASSAGE_CHARS} characters. Never translate,
   shorten or paraphrase it.
+- "Names" lists the organisations and products the item is about: each must appear in some
+  claim's text too.
+- When the headline is the source's own title (often in English in a Persian item), add one claim
+  that the source carries that title, with the title in quotes in the claim's text, e.g.
+  Mistral AI published "Introducing Mistral Large 4"; its passage is the source's sentence or
+  heading that holds the title.
 - If the source does not support something the item says, do not invent a passage: leave that
   fact out of "claims" and add it to "unsupported": ["..."].`;
 
@@ -31,6 +37,8 @@ export interface ItemInput {
   language: string;
   headline: string;
   body: string;
+  /** The names the item carries besides its text (`org`, `related`): the verifier checks them too. */
+  names?: string[];
 }
 
 export interface SourceText {
@@ -45,8 +53,9 @@ export interface SourceText {
  */
 export function uncovered(item: ItemInput, claims: readonly { text: string }[]): string[] {
   const said = quoteKey(claims.map((c) => c.text).join(" "), item.language);
-  const text = quoteKey(`${item.headline} ${item.body}`, item.language);
-  const raw = `${item.headline} ${item.body}`.normalize("NFKC");
+  const all = [item.headline, item.body, ...(item.names ?? [])].join(" ");
+  const text = quoteKey(all, item.language);
+  const raw = all.normalize("NFKC");
   const numbers = text.match(/\d+(?:[.,]\d+)*/g) ?? [];
   const words = (raw.match(/[A-Za-z][A-Za-z0-9.+-]*[A-Za-z0-9]|[A-Za-z]{2,}/g) ?? []).filter(
     (w) => w.length > 1 && (item.language === "fa" || /[A-Z0-9]/.test(w)),
@@ -97,7 +106,7 @@ const Answer = z.object({
 });
 
 export const claimsQuestion = (item: ItemInput, source: SourceText) =>
-  `Item (${item.language}):\n${item.headline}\n${item.body}\n\nSource text (${source.language}):\n${source.text.slice(0, SOURCE_CHARS)}`;
+  `Item (${item.language}):\n${item.headline}\n${item.body}${item.names?.length ? `\nNames: ${item.names.join(", ")}` : ""}\n\nSource text (${source.language}):\n${source.text.slice(0, SOURCE_CHARS)}`;
 
 /** The answer's claims, or what is wrong with it, in words the model can act on. */
 export function parseClaims(
@@ -122,7 +131,9 @@ export function parseClaims(
     if (quoteKey(c.passage, source.language).length < MIN_PASSAGE_CHARS)
       errors.push(`claims[${i}].passage is too short to prove anything`);
     else if (!quoteFoundIn(c.passage, source))
-      errors.push(`claims[${i}].passage is not in the source text; copy it exactly`);
+      errors.push(
+        `claims[${i}].passage is not in the source text; copy it exactly: "${c.passage.slice(0, 80)}"`,
+      );
   });
   if (a.data.claims.length === 0 && a.data.unsupported.length === 0)
     errors.push("no claims: list the item's facts");

@@ -39,6 +39,8 @@ interface NewsItem {
   headline?: string;
   body?: string;
   url?: string;
+  org?: string;
+  related?: string[];
   claim_ids?: string[];
 }
 
@@ -171,7 +173,12 @@ async function sourceStory(deps: RecheckDeps, o: RecheckOptions, story: Story): 
       if (!item?.headline) continue;
       const out = await writeClaims(
         model,
-        { language: r.language, headline: item.headline, body: item.body ?? "" },
+        {
+          language: r.language,
+          headline: item.headline,
+          body: item.body ?? "",
+          names: [...(item.org ? [item.org] : []), ...(item.related ?? [])],
+        },
         { text: lead.body, language: lead.language },
       );
       if ("error" in out) {

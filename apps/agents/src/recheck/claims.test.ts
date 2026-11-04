@@ -46,7 +46,7 @@ describe("the claims of an imported item", () => {
     );
     expect(out).toEqual({
       errors: [
-        "claims[0].passage is not in the source text; copy it exactly",
+        'claims[0].passage is not in the source text; copy it exactly: "Moonshot released a model with two million tokens."',
         "claims[1].passage is too short to prove anything",
       ],
     });
@@ -73,7 +73,8 @@ describe("the claims of an imported item", () => {
       claims: [{ text: "Kimi K3.1 Pro" }],
     });
     expect(await writeClaims(replies(bad, bad, bad), item, source)).toEqual({
-      error: "claims[0].passage is not in the source text; copy it exactly",
+      error:
+        'claims[0].passage is not in the source text; copy it exactly: "not in the source at all, no."',
     });
   });
 });
@@ -85,5 +86,18 @@ describe("uncovered", () => {
     expect(uncovered(en, [{ text: "IBM's Deep Blue won in 1997" }])).toEqual(["New", "York"]);
     const fa = { language: "fa", headline: "IBM defeats Kasparov", body: "در سال ۱۹۹۷." };
     expect(uncovered(fa, [{ text: "IBM defeats Kasparov در 1997" }])).toEqual([]);
+  });
+});
+
+describe("an item's names", () => {
+  it("must be in the claims too, as the verifier checks them", async () => {
+    const { uncovered } = await import("./claims.ts");
+    const item = {
+      language: "fa",
+      headline: "Mistral Large 4",
+      body: "مدل تازه.",
+      names: ["Mistral AI"],
+    };
+    expect(uncovered(item, [{ text: "Mistral Large 4 منتشر شد" }])).toEqual(["AI"]);
   });
 });
