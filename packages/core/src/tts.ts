@@ -36,6 +36,12 @@ export function chooseEngine(
 export const TTS_ENGINES_KEY = "tts.engines";
 
 /**
+ * The platform setting with the admin's role chains, shaped like the models file's `roles`. No row,
+ * or JSON null, means the models file's chains (@anr/config `effectiveRoles`).
+ */
+export const MODEL_ROLES_KEY = "models.roles";
+
+/**
  * The engines the platform admin has enabled, from the stored setting: those of them the models
  * file offers; before any choice, the default alone.
  */

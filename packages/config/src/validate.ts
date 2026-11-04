@@ -2,11 +2,12 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { directionOf, type Language, RESERVED_SUBDOMAINS } from "@anr/core";
-import { type ModelsSchema, type ReferenceSchema, roleChains } from "@anr/schemas";
+import type { ModelsSchema, ReferenceSchema } from "@anr/schemas";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import addFormatsModule from "ajv-formats";
 import type { RawConfig } from "./load.ts";
 import { referenceProblems } from "./reference.ts";
+import { roleProblems } from "./roles.ts";
 import { cronDaily, cronEvery, cronWeekly } from "./schedules.ts";
 
 const require = createRequire(import.meta.url);
@@ -110,20 +111,7 @@ function modelsProblems(m: ModelsSchema, file: string, formats: string[]): strin
       errors.push(`${file} model ${id}: ${model.model} has web access`);
     }
   }
-  const chains = roleChains(m);
-  for (const format of Object.keys(m.roles.desk.by_format ?? {})) {
-    if (!formats.includes(format)) errors.push(`${file} desk.by_format: unknown format ${format}`);
-  }
-  for (const [role, chain] of chains) {
-    for (const id of chain) {
-      const model = m.models[id];
-      if (!model) errors.push(`${file} ${role}: unknown model ${id}`);
-      // Every agent ends with the submit tool.
-      else if (!model.tools) errors.push(`${file} ${role}: ${id} has no tool calling`);
-      // Budgets count spend from prices; an unpriced model would spend unseen (D82).
-      else if (!model.price) errors.push(`${file} ${role}: ${id} has no price`);
-    }
-  }
+  errors.push(...roleProblems(m, m.roles, formats).map((p) => `${file} ${p}`));
   if (!m.models[m.tts]) errors.push(`${file} tts: unknown model ${m.tts}`);
   else if (!m.models[m.tts]?.price) errors.push(`${file} tts: ${m.tts} has no price`);
   // The engines an admin may enable and a newsroom choose per language (D113).
@@ -135,10 +123,6 @@ function modelsProblems(m: ModelsSchema, file: string, formats: string[]): strin
   }
   if (m.tts_engines && !m.tts_engines.includes(m.tts))
     errors.push(`${file} tts: ${m.tts} is not one of tts_engines`);
-  const families = new Set(m.roles["fact-checker"].flatMap((id) => m.models[id]?.family ?? []));
-  if (families.size < 2) {
-    errors.push(`${file} fact-checker needs models from at least two families`);
-  }
   return errors;
 }
 

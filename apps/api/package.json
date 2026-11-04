@@ -18,6 +18,7 @@
     "desk:admin": "node scripts/admin.ts"
   },
   "dependencies": {
+    "@anr/config": "workspace:*",
     "@anr/core": "workspace:*",
     "@anr/db": "workspace:*",
     "@anr/models": "workspace:*",

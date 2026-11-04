@@ -5,7 +5,8 @@ The agents worker: LangGraph.js graphs for the planner, desk, renderer, fact-che
 Hard limits (charter; see `docs/technical-design.md#agent-runs`):
 - An agent has exactly four tools: read a lead, search its newsroom's lead pool, request a new source (through ingestion), submit. No web access, no send, no other writes.
 - A graph never waits for a human; approvals, holds and schedules are Postgres rows.
-- Agents name a role; `src/router.ts` picks the role's chain from the models file (`ANR_MODELS`), and `@anr/models` calls it. The fact-checker's chain never contains a family that wrote the story.
+- Agents name a role; `src/router.ts` picks the role's chain, and `@anr/models` calls it. The fact-checker's chain never contains a family that wrote the story.
+- Chains: the models file (`ANR_MODELS`) is the catalog and the default; the platform admin may set others at the desk (`platform_settings` key `models.roles`). `src/roles.ts` reads the setting at start and before every job (`registerJobs`' `before` hook) and swaps it into the shared router with `setRoles()`, so a change applies from the next run. Stored chains that fail `roleProblems` against the current catalog are set aside for the file's with one warning (`effectiveRoles` in `@anr/config`, the rule the desk shows).
 - Submits are validated against the format's JSON Schema; one retry with the errors, then the assignment is held.
 - Every model call writes an Agent run row (role, the provider and model that answered, prompt version, input hash, tokens, cost). Pass the run's first answering model as `sticky` to later calls.
 

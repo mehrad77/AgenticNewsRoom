@@ -7,6 +7,7 @@ import {
 } from "./adapters.ts";
 import type { Catalog, CatalogEntry } from "./catalog.ts";
 import { AllModelsExhausted, type Attempt, classify, ModelCallFailed } from "./errors.ts";
+import { historyFor } from "./history.ts";
 import { LimitTracker, UNAVAILABLE_COOLDOWN_MS } from "./limits.ts";
 import { chatSpan } from "./telemetry.ts";
 
@@ -87,7 +88,7 @@ export class ModelGateway {
       }
       this.#limits.recordRequest(entry);
       try {
-        const message = await this.#client(entry).invoke(req.messages, {
+        const message = await this.#client(entry).invoke(historyFor(entry.kind, req.messages), {
           tools: req.tools,
           toolChoice: req.toolChoice,
           signal: req.signal,

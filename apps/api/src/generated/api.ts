@@ -704,6 +704,110 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/desk/admin/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The models file's catalog, and the role chains in force with where they come from
+         * @description Platform admin only. The chains in force are the admin's when they are valid against the current catalog, else the models file's; `problems` says why stored chains were set aside. The agents worker uses the same rule before each job.
+         */
+        get: operations["getAdminModels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/admin/models/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set every role's chain of catalog models, used from each role's next run
+         * @description Platform admin only; audited in the platform audit log with before and after. Refused with the problems listed when a chain names an unknown model, one without tool calling or a price, an unknown format, or a fact-checker chain of fewer than two families.
+         */
+        put: operations["setModelRoles"];
+        post?: never;
+        /**
+         * Go back to the models file's chains
+         * @description Platform admin only; audited. The setting is kept as null, which reads as the models file's chains.
+         */
+        delete: operations["resetModelRoles"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/admin/models/local": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The language models on the local model server (LM Studio), and which are loaded
+         * @description Platform admin only. The server is the models file's OpenAI-compatible provider at a plain-http address; its native REST API is asked with a 5 second timeout.
+         */
+        get: operations["getLocalModels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/admin/models/local/load": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Load a model on the local model server
+         * @description Platform admin only; audited. The context length defaults to 65536, or the model's maximum when that is smaller. Loading takes some seconds.
+         */
+        post: operations["loadLocalModel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/desk/admin/models/local/unload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unload a loaded instance from the local model server
+         * @description Platform admin only; audited.
+         */
+        post: operations["unloadLocalModel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/desk/newsrooms/{newsroom}/tts": {
         parameters: {
             query?: never;
@@ -931,6 +1035,8 @@ export interface components {
         };
         Error: {
             error: string;
+            /** @description Each problem, when the request was refused for several (role chains). */
+            problems?: string[];
         };
         OpsDone: {
             ok: boolean;
@@ -1433,6 +1539,94 @@ export interface components {
         AdminTtsRequest: {
             engines: string[];
         };
+        /** @description Catalog ids, tried in order. */
+        ModelChain: string[];
+        /** @description Each role's chain, shaped like the models file's `roles`. */
+        ModelRoles: {
+            planner: components["schemas"]["ModelChain"];
+            desk: {
+                default: components["schemas"]["ModelChain"];
+                /** @description A format's own chain, by format slug. */
+                by_format?: {
+                    [key: string]: components["schemas"]["ModelChain"];
+                };
+            };
+            renderer: components["schemas"]["ModelChain"];
+            "fact-checker": components["schemas"]["ModelChain"];
+            "item-matcher": components["schemas"]["ModelChain"];
+            summariser: components["schemas"]["ModelChain"];
+        };
+        CatalogModel: {
+            /** @description Catalog id in the models file. */
+            id: string;
+            provider: string;
+            /** @description The provider's kind in the models file, such as google, openai or local-tts. */
+            provider_kind: string;
+            /** @description The provider's model id. */
+            model: string;
+            /** @description The weights, whoever serves them. */
+            family: string;
+            /** @description Supports tool calling; every role needs it. */
+            tools: boolean;
+            /** @description USD per million tokens; a role's model needs one. */
+            price: {
+                in: number;
+                out: number;
+            } | null;
+            /** @description Served by a model server on this machine (an OpenAI-compatible provider at a plain-http address). */
+            local: boolean;
+        };
+        AdminModels: {
+            catalog: components["schemas"]["CatalogModel"][];
+            /** @description The formats a desk chain may be set for. */
+            formats: string[];
+            roles: components["schemas"]["ModelRoles"];
+            /**
+             * @description Whether the chains in force are the models file's or the admin's.
+             * @enum {string}
+             */
+            source: "file" | "desk";
+            /** @description Why the admin's stored chains are set aside for the file's; empty otherwise. */
+            problems: string[];
+            file_roles: components["schemas"]["ModelRoles"];
+        };
+        LocalModelInstance: {
+            /** @description The instance id, which unloading names. */
+            id: string;
+            context_length: number | null;
+        };
+        LocalModel: {
+            /** @description The server's model key, which loading names. */
+            key: string;
+            display_name: string;
+            size_bytes: number | null;
+            /** @description Parameter count, such as 20B. */
+            params: string | null;
+            max_context_length: number | null;
+            /** @description Trained for tool use. */
+            tool_use: boolean;
+            loaded: components["schemas"]["LocalModelInstance"][];
+            /** @description Catalog models served by this one. */
+            catalog_ids: string[];
+        };
+        LocalModels: {
+            /** @description The models file's provider for this server. */
+            provider: string;
+            url: string;
+            models: components["schemas"]["LocalModel"][];
+        };
+        LocalModelLoad: {
+            model: string;
+            context_length?: number;
+        };
+        LocalModelLoaded: {
+            model: string;
+            context_length: number;
+            instance_id: string | null;
+        };
+        LocalModelUnload: {
+            instance_id: string;
+        };
         NewsroomTtsLanguage: {
             language: components["schemas"]["Language"];
             chosen: string | null;
@@ -1649,6 +1843,24 @@ export interface components {
         };
         /** @description Too many challenges from this reader, or to this piece, today. */
         TooManyRequests: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description A server the API asked for the admin (the local model server) refused or failed. */
+        BadGateway: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description A server the API asks for the admin (the local model server) is not running. */
+        ServiceUnavailable: {
             headers: {
                 [name: string]: unknown;
             };
@@ -2670,6 +2882,162 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    getAdminModels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The catalog and chains. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminModels"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    setModelRoles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModelRoles"];
+            };
+        };
+        responses: {
+            /** @description Saved; the catalog and chains now in force. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminModels"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    resetModelRoles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reset; the catalog and chains now in force. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminModels"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getLocalModels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The server's language models. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocalModels"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            502: components["responses"]["BadGateway"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    loadLocalModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LocalModelLoad"];
+            };
+        };
+        responses: {
+            /** @description Loaded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocalModelLoaded"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            502: components["responses"]["BadGateway"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    unloadLocalModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LocalModelUnload"];
+            };
+        };
+        responses: {
+            /** @description Unloaded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpsDone"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            502: components["responses"]["BadGateway"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getNewsroomTts: {

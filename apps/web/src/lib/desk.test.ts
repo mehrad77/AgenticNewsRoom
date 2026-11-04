@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   type ChallengeDetail,
+  chainRows,
   challengeIssueLink,
   deskApi,
   deskRoute,
@@ -8,6 +9,7 @@ import {
   editForm,
   issueLink,
   noticeFields,
+  rolesFromForm,
   type Sample,
   traceLink,
 } from "./desk.ts";
@@ -239,5 +241,134 @@ describe("traceLink", () => {
   });
   it("uses dev's Grafana on localhost", () => {
     expect(traceLink("localhost", id)).toMatch(/^http:\/\/localhost:3000\/explore\?/);
+  });
+});
+
+describe("the admin's models (role chains and LM Studio)", () => {
+  const roles = {
+    planner: ["a", "b"],
+    desk: { default: ["a"], by_format: { "newsletter-issue": ["b"] } },
+    renderer: ["a"],
+    "fact-checker": ["b", "c"],
+    "item-matcher": ["b"],
+    summariser: ["c"],
+  };
+
+  it("lists a row per role, and one per format for the desk", () => {
+    const rows = chainRows(roles, ["classic-article", "newsletter-issue"]);
+    expect(rows.map((r) => [r.name, r.chain, r.optional])).toEqual([
+      ["planner", ["a", "b"], false],
+      ["desk", ["a"], false],
+      ["desk.by_format.classic-article", [], true],
+      ["desk.by_format.newsletter-issue", ["b"], true],
+      ["renderer", ["a"], false],
+      ["fact-checker", ["b", "c"], false],
+      ["item-matcher", ["b"], false],
+      ["summariser", ["c"], false],
+    ]);
+  });
+
+  it("reads the chains form in slot order, dropping empty slots, repeats and empty formats", () => {
+    const form = new FormData();
+    form.set("action", "roles");
+    const slots: [string, string[]][] = [
+      ["planner", ["b", "", "a", "b"]],
+      ["desk", ["a", ""]],
+      ["desk.by_format.classic-article", ["", ""]],
+      ["desk.by_format.newsletter-issue", ["c", "a"]],
+      ["renderer", ["a"]],
+      ["fact-checker", ["", "c", "b"]],
+      ["item-matcher", ["b"]],
+      ["summariser", ["c"]],
+    ];
+    for (const [name, values] of slots) for (const v of values) form.append(`chain:${name}`, v);
+    expect(rolesFromForm(form)).toEqual({
+      planner: ["b", "a"],
+      desk: { default: ["a"], by_format: { "newsletter-issue": ["c", "a"] } },
+      renderer: ["a"],
+      "fact-checker": ["c", "b"],
+      "item-matcher": ["b"],
+      summariser: ["c"],
+    });
+  });
+
+  it("sends chains, a reset, a load and an unload to the admin's routes", async () => {
+    const calls: { url: string; method: string; body: unknown }[] = [];
+    const fetchFn = (async (url: string, init: RequestInit) => {
+      calls.push({
+        url,
+        method: String(init.method),
+        body: init.body === undefined ? undefined : JSON.parse(String(init.body)),
+      });
+      return new Response("{}");
+    }) as unknown as typeof fetch;
+    const api = deskApi("http://api.test", null, fetchFn);
+    const form = (fields: [string, string][]) => {
+      const f = new FormData();
+      for (const [k, v] of fields) f.append(k, v);
+      return f;
+    };
+    const admin = { kind: "admin" } as const;
+    expect(
+      await api.act(
+        admin,
+        form([
+          ["action", "roles"],
+          ["chain:planner", "a"],
+        ]),
+      ),
+    ).toBe("/admin#models");
+    expect(await api.act(admin, form([["action", "reset-roles"]]))).toBe("/admin#models");
+    expect(
+      await api.act(
+        admin,
+        form([
+          ["action", "load"],
+          ["model", "openai/gpt-oss-20b"],
+          ["context_length", "32768"],
+        ]),
+      ),
+    ).toBe("/admin#local-models");
+    await api.act(
+      admin,
+      form([
+        ["action", "load"],
+        ["model", "google/gemma-4-12b"],
+        ["context_length", ""],
+      ]),
+    );
+    await api.act(
+      admin,
+      form([
+        ["action", "unload"],
+        ["instance_id", "openai/gpt-oss-20b"],
+      ]),
+    );
+    expect(calls.map((c) => [c.method, c.url])).toEqual([
+      ["PUT", "http://api.test/desk/admin/models/roles"],
+      ["DELETE", "http://api.test/desk/admin/models/roles"],
+      ["POST", "http://api.test/desk/admin/models/local/load"],
+      ["POST", "http://api.test/desk/admin/models/local/load"],
+      ["POST", "http://api.test/desk/admin/models/local/unload"],
+    ]);
+    expect(calls[0]?.body).toMatchObject({ planner: ["a"] });
+    expect(calls[1]?.body).toBeUndefined();
+    expect(calls[2]?.body).toEqual({ model: "openai/gpt-oss-20b", context_length: 32768 });
+    expect(calls[3]?.body).toEqual({ model: "google/gemma-4-12b" });
+    expect(calls[4]?.body).toEqual({ instance_id: "openai/gpt-oss-20b" });
+    await expect(api.act(admin, form([["action", "nope"]]))).rejects.toThrow("unknown");
+  });
+
+  it("shows why LM Studio cannot be asked instead of failing the page", async () => {
+    const down = (async () =>
+      new Response(JSON.stringify({ error: "LM Studio is not running at http://x:1234" }), {
+        status: 503,
+      })) as unknown as typeof fetch;
+    expect(await deskApi("http://api.test", null, down).localModels()).toEqual({
+      error: "LM Studio is not running at http://x:1234",
+    });
+    const forbidden = (async () =>
+      new Response(JSON.stringify({ error: "no" }), { status: 403 })) as unknown as typeof fetch;
+    await expect(deskApi("http://api.test", null, forbidden).localModels()).rejects.toThrow("no");
   });
 });

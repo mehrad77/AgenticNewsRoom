@@ -938,6 +938,155 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+  /desk/admin/models:
+    get:
+      operationId: getAdminModels
+      summary: The models file's catalog, and the role chains in force with where they come from
+      description: Platform admin only. The chains in force are the admin's when they are valid against the current catalog, else the models file's; `problems` says why stored chains were set aside. The agents worker uses the same rule before each job.
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      responses:
+        "200":
+          description: The catalog and chains.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminModels"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /desk/admin/models/roles:
+    put:
+      operationId: setModelRoles
+      summary: Set every role's chain of catalog models, used from each role's next run
+      description: Platform admin only; audited in the platform audit log with before and after. Refused with the problems listed when a chain names an unknown model, one without tool calling or a price, an unknown format, or a fact-checker chain of fewer than two families.
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModelRoles"
+      responses:
+        "200":
+          description: Saved; the catalog and chains now in force.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminModels"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    delete:
+      operationId: resetModelRoles
+      summary: Go back to the models file's chains
+      description: Platform admin only; audited. The setting is kept as null, which reads as the models file's chains.
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      responses:
+        "200":
+          description: Reset; the catalog and chains now in force.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminModels"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /desk/admin/models/local:
+    get:
+      operationId: getLocalModels
+      summary: The language models on the local model server (LM Studio), and which are loaded
+      description: Platform admin only. The server is the models file's OpenAI-compatible provider at a plain-http address; its native REST API is asked with a 5 second timeout.
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      responses:
+        "200":
+          description: The server's language models.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LocalModels"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /desk/admin/models/local/load:
+    post:
+      operationId: loadLocalModel
+      summary: Load a model on the local model server
+      description: Platform admin only; audited. The context length defaults to 65536, or the model's maximum when that is smaller. Loading takes some seconds.
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LocalModelLoad"
+      responses:
+        "200":
+          description: Loaded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LocalModelLoaded"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /desk/admin/models/local/unload:
+    post:
+      operationId: unloadLocalModel
+      summary: Unload a loaded instance from the local model server
+      description: Platform admin only; audited.
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LocalModelUnload"
+      responses:
+        "200":
+          description: Unloaded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpsDone"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
   /desk/newsrooms/{newsroom}/tts:
     parameters:
       - $ref: "#/components/parameters/Newsroom"
@@ -1339,6 +1488,16 @@ components:
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
+    BadGateway:
+      description: A server the API asked for the admin (the local model server) refused or failed.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ServiceUnavailable:
+      description: A server the API asks for the admin (the local model server) is not running.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
   schemas:
     Health:
       type: object
@@ -1357,6 +1516,10 @@ components:
       required: [error]
       properties:
         error: { type: string }
+        problems:
+          type: array
+          description: Each problem, when the request was refused for several (role chains).
+          items: { type: string }
     OpsDone:
       type: object
       additionalProperties: false
@@ -2101,6 +2264,138 @@ components:
         engines:
           type: array
           items: { type: string }
+    ModelChain:
+      type: array
+      description: Catalog ids, tried in order.
+      minItems: 1
+      uniqueItems: true
+      items: { type: string }
+    ModelRoles:
+      type: object
+      additionalProperties: false
+      description: Each role's chain, shaped like the models file's `roles`.
+      required: [planner, desk, renderer, fact-checker, item-matcher, summariser]
+      properties:
+        planner: { $ref: "#/components/schemas/ModelChain" }
+        desk:
+          type: object
+          additionalProperties: false
+          required: [default]
+          properties:
+            default: { $ref: "#/components/schemas/ModelChain" }
+            by_format:
+              type: object
+              description: A format's own chain, by format slug.
+              additionalProperties: { $ref: "#/components/schemas/ModelChain" }
+        renderer: { $ref: "#/components/schemas/ModelChain" }
+        fact-checker: { $ref: "#/components/schemas/ModelChain" }
+        item-matcher: { $ref: "#/components/schemas/ModelChain" }
+        summariser: { $ref: "#/components/schemas/ModelChain" }
+    CatalogModel:
+      type: object
+      additionalProperties: false
+      required: [id, provider, provider_kind, model, family, tools, price, local]
+      properties:
+        id: { type: string, description: "Catalog id in the models file." }
+        provider: { type: string }
+        provider_kind:
+          {
+            type: string,
+            description: "The provider's kind in the models file, such as google, openai or local-tts.",
+          }
+        model: { type: string, description: "The provider's model id." }
+        family: { type: string, description: "The weights, whoever serves them." }
+        tools: { type: boolean, description: "Supports tool calling; every role needs it." }
+        price:
+          type: [object, "null"]
+          description: USD per million tokens; a role's model needs one.
+          additionalProperties: false
+          required: [in, out]
+          properties:
+            in: { type: number }
+            out: { type: number }
+        local:
+          type: boolean
+          description: Served by a model server on this machine (an OpenAI-compatible provider at a plain-http address).
+    AdminModels:
+      type: object
+      additionalProperties: false
+      required: [catalog, formats, roles, source, problems, file_roles]
+      properties:
+        catalog:
+          type: array
+          items: { $ref: "#/components/schemas/CatalogModel" }
+        formats:
+          type: array
+          description: The formats a desk chain may be set for.
+          items: { type: string }
+        roles: { $ref: "#/components/schemas/ModelRoles" }
+        source:
+          type: string
+          enum: [file, desk]
+          description: Whether the chains in force are the models file's or the admin's.
+        problems:
+          type: array
+          description: Why the admin's stored chains are set aside for the file's; empty otherwise.
+          items: { type: string }
+        file_roles: { $ref: "#/components/schemas/ModelRoles" }
+    LocalModelInstance:
+      type: object
+      additionalProperties: false
+      required: [id, context_length]
+      properties:
+        id: { type: string, description: "The instance id, which unloading names." }
+        context_length: { type: [integer, "null"] }
+    LocalModel:
+      type: object
+      additionalProperties: false
+      required:
+        [key, display_name, size_bytes, params, max_context_length, tool_use, loaded, catalog_ids]
+      properties:
+        key: { type: string, description: "The server's model key, which loading names." }
+        display_name: { type: string }
+        size_bytes: { type: [integer, "null"] }
+        params: { type: [string, "null"], description: "Parameter count, such as 20B." }
+        max_context_length: { type: [integer, "null"] }
+        tool_use: { type: boolean, description: "Trained for tool use." }
+        loaded:
+          type: array
+          items: { $ref: "#/components/schemas/LocalModelInstance" }
+        catalog_ids:
+          type: array
+          description: Catalog models served by this one.
+          items: { type: string }
+    LocalModels:
+      type: object
+      additionalProperties: false
+      required: [provider, url, models]
+      properties:
+        provider: { type: string, description: "The models file's provider for this server." }
+        url: { type: string }
+        models:
+          type: array
+          items: { $ref: "#/components/schemas/LocalModel" }
+    LocalModelLoad:
+      type: object
+      additionalProperties: false
+      required: [model]
+      properties:
+        model: { type: string }
+        context_length: { type: integer, minimum: 4096 }
+    LocalModelLoaded:
+      type: object
+      additionalProperties: false
+      required: [model, context_length, instance_id]
+      properties:
+        model: { type: string }
+        context_length: { type: integer }
+        instance_id: { type: [string, "null"] }
+    LocalModelUnload:
+      type: object
+      additionalProperties: false
+      required: [instance_id]
+      properties:
+        instance_id: { type: string }
     NewsroomTtsLanguage:
       type: object
       additionalProperties: false

@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { platformKey } from "@anr/db";
 import { createTestNewsroom, testPools } from "@anr/db/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { holdPlatformAdmin } from "../../test/platform-admin.ts";
 import { createApp } from "../app.ts";
 import type { TtsCatalog } from "./tts.ts";
 
@@ -11,6 +12,7 @@ const pools = testPools();
 // platform_settings is shared by everything on anr_test: this file puts it back as it found it.
 let saved: unknown;
 let savedAdmin: string | undefined;
+let releaseAdmin = async () => {};
 afterAll(async () => {
   // An upsert: no role may delete a platform setting. JSON null reads as "nothing chosen".
   await pools.system.query(
@@ -21,6 +23,7 @@ afterAll(async () => {
   await pools.system.query("update users set platform_admin = false where platform_admin");
   if (savedAdmin)
     await pools.system.query("update users set platform_admin = true where id = $1", [savedAdmin]);
+  await releaseAdmin();
   await pools.end();
 });
 const tts: TtsCatalog = {
@@ -49,6 +52,7 @@ let newsroomId = "";
 let slug = "";
 
 beforeAll(async () => {
+  releaseAdmin = await holdPlatformAdmin(pools.system);
   saved = (
     await pools.system.query<{ value: unknown }>(
       "select value from platform_settings where key = 'tts.engines'",
@@ -85,7 +89,7 @@ beforeAll(async () => {
       [newsroomId, await user(email), role],
     );
   }
-});
+}, 60_000);
 
 const call = async (path: string, body?: unknown): Promise<Response> =>
   app.request(path, {

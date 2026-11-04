@@ -3,6 +3,7 @@ import { createBoss, createPool, platformKey, startHeartbeat } from "@anr/db";
 import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
 import { accessVerifier } from "./desk/access.ts";
+import { modelsSetup } from "./desk/models.ts";
 import { ttsCatalog } from "./desk/tts.ts";
 
 const connectionString = process.env.DATABASE_URL;
@@ -11,6 +12,8 @@ if (!connectionString) throw new Error("DATABASE_URL is not set");
 const boss = createBoss(connectionString, "api", { supervise: false, schedule: false });
 await boss.start();
 
+const configDir =
+  process.env.ANR_CONFIG_DIR ?? fileURLToPath(new URL("../../../config", import.meta.url));
 const pool = createPool(connectionString);
 startHeartbeat(pool, "api");
 const app = createApp({
@@ -27,9 +30,8 @@ const app = createApp({
     rootDomain: process.env.ANR_ROOT_DOMAIN ?? "localhost",
     devPort: Number(process.env.WEB_PORT ?? 4321),
   },
-  tts: ttsCatalog(
-    process.env.ANR_CONFIG_DIR ?? fileURLToPath(new URL("../../../config", import.meta.url)),
-  ),
+  tts: ttsCatalog(configDir),
+  models: modelsSetup(configDir),
 });
 
 const port = Number(process.env.PORT ?? 8787);

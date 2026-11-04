@@ -11,16 +11,35 @@ export interface RouteContext {
   writerFamilies?: readonly string[];
 }
 
+type Roles = ModelsConfig["roles"];
+
 /**
  * Maps a role to an ordered chain of catalog models; @anr/models calls the chain and falls
- * through it. Agents name a role, never a model. Changing a model or vendor is a change to
- * config/models*.yaml, not to code.
+ * through it. Agents name a role, never a model. The models file (config/models*.yaml) is the
+ * catalog and the default chains; the platform admin may set other chains at the desk, which the
+ * worker swaps in with setRoles() before each job.
  */
 export class ModelRouter {
   private readonly config: ModelsConfig;
+  private current: Roles;
 
   constructor(config: ModelsConfig) {
     this.config = config;
+    this.current = config.roles;
+  }
+
+  /**
+   * Puts chains in force, or with null the models file's again. The caller validates them against
+   * this catalog first (@anr/config effectiveRoles). One assignment, so a run that already resolved
+   * its chain keeps it, and the next resolve() sees the new one.
+   */
+  setRoles(roles: Roles | null): void {
+    this.current = roles ?? this.config.roles;
+  }
+
+  /** The chains in force. */
+  roles(): Roles {
+    return this.current;
   }
 
   static fromFile(path: string): ModelRouter {
@@ -28,7 +47,7 @@ export class ModelRouter {
   }
 
   resolve(role: AgentRole, ctx: RouteContext = {}): string[] {
-    const roles = this.config.roles;
+    const roles = this.current;
     switch (role) {
       case "desk":
         return (ctx.format && roles.desk.by_format?.[ctx.format]) || roles.desk.default;

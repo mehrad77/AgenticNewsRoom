@@ -46,6 +46,22 @@ class GoogleProvider(BaseModel):
     )
 
 
+class AnthropicProvider(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    kind: Literal["anthropic"]
+    key_env: EnvVar
+    limits: Limits | None = None
+    shared_quota: bool | None = Field(
+        None,
+        description="The quota belongs to the account, not each model: a 429 on one model cools down every model of the provider.",
+    )
+    timeout_s: conint(ge=10, le=1800) | None = Field(
+        None, description="Seconds one call may take (default 120)."
+    )
+
+
 class OpenaiProvider(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -160,8 +176,8 @@ class ModelsConfig(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    providers: dict[Id, GoogleProvider | OpenaiProvider | LocalTtsProvider] = Field(
-        ..., min_length=1
+    providers: dict[Id, GoogleProvider | AnthropicProvider | OpenaiProvider | LocalTtsProvider] = (
+        Field(..., min_length=1)
     )
     models: dict[Id, Model] = Field(..., min_length=1)
     roles: Roles
