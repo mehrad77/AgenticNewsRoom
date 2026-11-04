@@ -36,6 +36,17 @@ describe("validateConfig", () => {
     },
   );
 
+  it("rejects a newsroom slug that is a desk page's", () => {
+    const config = loadConfig(root);
+    const ai = config.newsrooms.find((n) => n.slug === "ai");
+    if (!ai) throw new Error("ai newsroom missing");
+    ai.slug = "api";
+    (ai.newsroom as { slug: string }).slug = "api";
+    expect(validateConfig(config)).toContain(
+      "newsrooms/api/newsroom.yaml slug api is a desk page's",
+    );
+  });
+
   it("takes the home's news from a series of the newsroom that has a timeline", () => {
     const config = loadConfig(root);
     const ai = config.newsrooms.find((n) => n.slug === "ai");

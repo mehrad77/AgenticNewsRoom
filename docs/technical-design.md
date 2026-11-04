@@ -85,6 +85,12 @@ flowchart TB
 
 Services never call each other's data directly: each reads and writes Postgres, and pg-boss jobs in the same database move work along. Agents reach Postgres only through their four tools. Readers and editors reach the server only through Cloudflare and the tunnel; telemetry flows one way, to the collector.
 
+## API and MCP
+
+Everything a person does at the desk is an operation in `apps/api/openapi.yaml`, and every operation a personal token may call is a tool of the MCP server at `/mcp` on the API (D190). `pnpm gen` writes the tools from the spec (`apps/api/scripts/gen-mcp.ts` → `src/generated/mcp-tools.ts`): one per operation, named by its `operationId`, its input the path and query parameters plus the request body as `body`, marked read-only for a GET and destructive for one that decides, removes or stops something; `x-anr-who` in the spec names the operations only the Editor-in-Chief may call. A tool call is an ordinary request to the API's own route with the caller's credentials, so it has the same roles, checks and audit, and the MCP layer never reads Postgres. The server is stateless (Streamable HTTP, one server per request, JSON answers) and answers 401 without a valid token. A test fails when a desk route is missing from the spec, or an operation has no tool. Only token management stays out of it: it is done in a desk session (D191).
+
+A person's agent reaches it at `https://api.$ANR_ROOT_DOMAIN/mcp` with `Authorization: Bearer anr_…`; the spec is public at `/openapi.yaml`. The desk's API & MCP page explains how to connect a client, lists how-tos (Markdown in `apps/web/src/api-howto/`) and a reference table generated from the same file as the tools. ANR's newsroom agents never use this server (invariant 2).
+
 ## Data model
 
 Every tenant row carries `newsroom_id`, enforced by row-level security (see Tenancy), and references other tenant rows through composite foreign keys on `(newsroom_id, id)`, so no row can point into another newsroom. The entities follow the charter's vocabulary; Check, Post, Media, User and Membership, Agent run, Audit log and the audience counters are added here. Tables are named in the plural (`publications`, `checks`). A lead's stored text and the audit log cannot be changed once written; triggers refuse it.

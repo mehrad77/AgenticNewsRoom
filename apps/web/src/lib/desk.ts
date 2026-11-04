@@ -55,6 +55,8 @@ export type DeskRoute =
   | { kind: "ops" }
   /** The signed-in person's personal tokens (D191). */
   | { kind: "tokens" }
+  /** How to use the API and the MCP server (D190). */
+  | { kind: "api" }
   | { kind: "queue"; newsroom: string }
   | { kind: "publication"; newsroom: string; id: string }
   | { kind: "challenge"; newsroom: string; id: string }
@@ -70,6 +72,7 @@ export function deskRoute(path: string): DeskRoute {
   if (p === "/admin") return { kind: "admin" };
   if (p === "/ops") return { kind: "ops" };
   if (p === "/me/tokens") return { kind: "tokens" };
+  if (p === "/api") return { kind: "api" };
   let m = new RegExp(`^/(${SLUG})$`).exec(p);
   if (m?.[1]) return { kind: "queue", newsroom: m[1] };
   m = new RegExp(`^/(${SLUG})/p/(${UUID})$`).exec(p);
@@ -280,7 +283,7 @@ export function deskApi(base: string, token: string | null, fetchFn: typeof fetc
             throw new DeskApiError(400, "unknown action");
         }
       }
-      if (route.kind === "home" || route.kind === "not-found")
+      if (route.kind === "home" || route.kind === "api" || route.kind === "not-found")
         throw new DeskApiError(404, "nothing to do here");
       const action = String(form.get("action") ?? "");
       const id = String(form.get("id") ?? "");

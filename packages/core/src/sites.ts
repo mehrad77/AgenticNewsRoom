@@ -2,6 +2,8 @@ import type { Language } from "./languages.ts";
 
 /** The platform's own subdomains, the desk's and Grafana's; no newsroom may take one (D123). */
 export const RESERVED_SUBDOMAINS = ["desk", "ops", "api"] as const;
+/** The desk's own top-level pages; a newsroom slug cannot be one, or its pages would be hidden. */
+export const RESERVED_SLUGS = ["admin", "ops", "api", "me"] as const;
 
 /** Where a newsroom's site lives (docs/technical-design.md#tenancy-and-configuration). */
 export interface SiteAddress {

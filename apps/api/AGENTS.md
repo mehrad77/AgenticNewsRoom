@@ -2,8 +2,9 @@
 
 Hono on Node: reads and writes for people (editor's desk, reader sites). Contract-first.
 
-- Change `openapi.yaml` first, run `pnpm gen` (writes `src/generated/api.ts`), then implement the route in `src/app.ts`. `redocly lint` runs in `pnpm check`.
-- Tenant data only through `withNewsroom()` from `@anr/db`; desk requests carry the Cloudflare Access JWT, verified before any handler (`src/desk/access.ts`), and need a membership in the path's newsroom (D95).
+- API-first (D190): a new desk or admin action is a spec change, then `pnpm gen` (writes `src/generated/api.ts` and the MCP tools in `src/generated/mcp-tools.ts`), then the route in `src/app.ts`. Give it `security: [{ cfAccess: [] }, { personalToken: [] }]` so it is an MCP tool, and `x-anr-who: editor-in-chief` when only the Editor-in-Chief may call it. `mcp-tools.test.ts` fails when a route or tool is missing. When it is a new task, add a how-to to `apps/web/src/api-howto/`. `redocly lint` runs in `pnpm check`.
+- Tenant data only through `withNewsroom()` from `@anr/db`; desk requests carry the Cloudflare Access JWT, verified before any handler (`src/desk/access.ts`), or a personal token (`src/desk/tokens.ts`, D191), and need a membership in the path's newsroom (D95). A route takes its actor from `inNewsroom()` or `admin()`, so the audit log names the token. Token management calls `browserOnly()`.
+- The MCP server (`src/mcp.ts`, `/mcp`) calls the API's own routes with the caller's credentials; it never reads Postgres.
 - Logic lives in `src/desk/*.ts`, routes in `src/app.ts`; `*.db.test.ts` drive the app with `app.request()` against `anr_test`.
 - Channel credentials are sealed with `sealCredentials()` on the way in and never returned or written to the audit log.
 - Every approval and edit writes an audit-log row.

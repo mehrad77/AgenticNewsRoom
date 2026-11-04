@@ -319,6 +319,7 @@ paths:
           $ref: "#/components/responses/Forbidden"
     post:
       operationId: addChannel
+      x-anr-who: editor-in-chief
       summary: Add a channel (Editor-in-Chief); its credentials are sealed with the platform key
       tags: [desk]
       security: [{ cfAccess: [] }, { personalToken: [] }]
@@ -350,6 +351,7 @@ paths:
         schema: { type: string, format: uuid }
     post:
       operationId: setChannelStatus
+      x-anr-who: editor-in-chief
       summary: Turn a channel on or off (Editor-in-Chief)
       tags: [desk]
       security: [{ cfAccess: [] }, { personalToken: [] }]
@@ -598,6 +600,7 @@ paths:
         schema: { type: string, format: uuid }
     post:
       operationId: replaceChannelCredentials
+      x-anr-who: editor-in-chief
       summary: Replace a channel's credentials (Editor-in-Chief); sealed, never returned, then checked
       tags: [desk]
       security: [{ cfAccess: [] }, { personalToken: [] }]
@@ -631,6 +634,7 @@ paths:
         schema: { type: string, format: uuid }
     post:
       operationId: checkChannel
+      x-anr-who: editor-in-chief
       summary: Ask the publisher whether the channel can be posted to (Editor-in-Chief); nothing is sent
       tags: [desk]
       security: [{ cfAccess: [] }, { personalToken: [] }]
@@ -746,6 +750,7 @@ paths:
       - $ref: "#/components/parameters/Newsroom"
     post:
       operationId: startRecheck
+      x-anr-who: editor-in-chief
       summary: Starts a recheck run; the agents worker works it round by round (D184)
       tags: [desk]
       security: [{ cfAccess: [] }, { personalToken: [] }]
@@ -767,6 +772,7 @@ paths:
       - $ref: "#/components/parameters/Newsroom"
     post:
       operationId: stopRecheck
+      x-anr-who: editor-in-chief
       summary: Asks the open recheck run to stop after the item in hand
       tags: [desk]
       security: [{ cfAccess: [] }, { personalToken: [] }]
@@ -836,6 +842,7 @@ paths:
         schema: { type: string, format: uuid }
     post:
       operationId: approveTheme
+      x-anr-who: editor-in-chief
       summary: Approve one proposed theme, as edited, for its cycle; the cycle's other proposals are declined
       description: Editor-in-Chief only (D105). Every changed field is audited.
       tags: [desk]
@@ -872,6 +879,7 @@ paths:
         schema: { type: string, format: uuid }
     post:
       operationId: choosePick
+      x-anr-who: editor-in-chief
       summary: Choose one of a weekly pick's three candidates before its deadline
       description: Editor-in-Chief only (D105). Queues the assignment for the pick's slot; refused once the deadline has passed (D104).
       tags: [desk]
@@ -1286,6 +1294,7 @@ paths:
           $ref: "#/components/responses/Forbidden"
     post:
       operationId: setNewsroomTts
+      x-anr-who: editor-in-chief
       summary: Choose the engine for one language, or clear the choice to use the default
       description: Editor-in-Chief only; audited (D113).
       tags: [desk]
