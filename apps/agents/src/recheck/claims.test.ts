@@ -46,7 +46,7 @@ describe("the claims of an imported item", () => {
     );
     expect(out).toEqual({
       errors: [
-        'claims[0].passage is not in the source text; copy it exactly: "Moonshot released a model with two million tokens."',
+        'claims[0].passage is not in the source text; copy it exactly: "Moonshot released a model with two million tokens."; the closest sentence in the source is "Moonshot AI released Kimi K3.1 Pro today. The model has a context window of one million tokens.": quote it whole if it says the claim, else drop the claim',
         "claims[1].passage is too short to prove anything",
       ],
     });
@@ -74,7 +74,7 @@ describe("the claims of an imported item", () => {
     });
     expect(await writeClaims(replies(bad, bad, bad), item, source)).toEqual({
       error:
-        'claims[0].passage is not in the source text; copy it exactly: "not in the source at all, no."',
+        'claims[0].passage is not in the source text; copy it exactly: "not in the source at all, no."; if the source does not say it, drop the claim',
     });
   });
 });
@@ -86,6 +86,18 @@ describe("uncovered", () => {
     expect(uncovered(en, [{ text: "IBM's Deep Blue won in 1997" }])).toEqual(["New", "York"]);
     const fa = { language: "fa", headline: "IBM defeats Kasparov", body: "در سال ۱۹۹۷." };
     expect(uncovered(fa, [{ text: "IBM defeats Kasparov در 1997" }])).toEqual([]);
+  });
+
+  it("ask only for what the verifier checks: no sentence starts, no title-cased headline words", async () => {
+    const { uncovered } = await import("./claims.ts");
+    const item = {
+      language: "en",
+      headline: "Devin Desktop Comes To Windsurf",
+      body: "The app ships today. Desktop users get v3.11.212 of Devin.",
+      names: ["Cognition"],
+    };
+    expect(uncovered(item, [{ text: "Cognition ships Devin v3.11.212 in Windsurf" }])).toEqual([]);
+    expect(uncovered(item, [{ text: "Cognition ships Devin" }])).toEqual(["3.11.212", "v3.11.212"]);
   });
 });
 

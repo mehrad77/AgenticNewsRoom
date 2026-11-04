@@ -8,7 +8,7 @@ import { textOf } from "../converse.ts";
 import { MIN_PASSAGE_CHARS, parseJson, quoteFoundIn, quoteKey } from "../desk/validate.ts";
 import type { ChatLike } from "../model.ts";
 
-export const CLAIMS_PROMPT_VERSION = "recheck-claims-1";
+export const CLAIMS_PROMPT_VERSION = "recheck-claims-2";
 
 /** The source's text the model reads; longer pages are cut, and a quote past the cut cannot match. */
 export const SOURCE_CHARS = 16_000;
@@ -46,21 +46,80 @@ export interface SourceText {
   language: string;
 }
 
-/**
- * What the item states that no claim's text carries: its numbers and its Latin-script names (in
- * Persian text every Latin word; elsewhere words with a capital letter or a digit). A superset of
- * the verifier's item check, so an answer kept here does not fail it for words left out.
- */
+// The verifier's item-claims rule (services/verifier/src/anr_verifier/items.py), so the claims
+// are asked for exactly what the gate will look for and nothing it would not.
+const COMMON = new Set([
+  "a",
+  "an",
+  "the",
+  "it",
+  "its",
+  "this",
+  "that",
+  "these",
+  "i",
+  "in",
+  "on",
+  "at",
+  "and",
+]);
+const LATIN_WORD = /[A-Za-z][A-Za-z0-9]*(?:[-.][A-Za-z0-9]+)*/g;
+const SENTENCE_START = /(?:^|[.!?:;]\s+|\n)\s*$/;
+
+/** The numbers a text states, as the verifier reads them (1,000 and 1000 alike; 2.50 as 2.5). */
+export function statedNumbers(text: string): string[] {
+  const folded = quoteKey(text)
+    .replace(/\u066b/g, ".")
+    .replace(/\u066c/g, ",");
+  return [
+    ...new Set(
+      (folded.match(/\d+(?:[.,]\d+)*/g) ?? []).map((m) => {
+        const value = /^\d{1,3}(?:,\d{3})+(?:\.\d+)?$/.test(m)
+          ? m.replaceAll(",", "")
+          : m.replaceAll(",", ".");
+        return value.includes(".") ? value.replace(/0+$/, "").replace(/\.$/, "") : value;
+      }),
+    ),
+  ];
+}
+
+/** The Latin-script names a text states: in Persian every Latin word; elsewhere acronyms, model-like
+ *  tokens, words with an inner capital, and capitalised words that do not start a sentence (none
+ *  of those in a title-cased headline). */
+export function statedNames(text: string, language: string): string[] {
+  const all = [...text.matchAll(LATIN_WORD)];
+  const words = all.map((m) => m[0]).filter((w) => w.length > 1 && !COMMON.has(w.toLowerCase()));
+  const titled =
+    words.length >= 3 && words.filter((w) => /^[A-Z]/.test(w)).length >= 0.6 * words.length;
+  const found = new Set<string>();
+  for (const m of all) {
+    const word = m[0];
+    if (word.length < 2) continue;
+    if (language === "fa") {
+      found.add(word);
+      continue;
+    }
+    if (COMMON.has(word.toLowerCase())) continue;
+    const acronym = word === word.toUpperCase() && /[A-Z]/.test(word);
+    const modelish = /\d/.test(word) && /[A-Za-z]/.test(word);
+    const capital = !titled && /^[A-Z]/.test(word) && !SENTENCE_START.test(text.slice(0, m.index));
+    const inner = /[A-Z]/.test(word.slice(1));
+    if (acronym || modelish || capital || inner) found.add(word);
+  }
+  return [...found];
+}
+
+/** The item's names and numbers that no claim's text states: the verifier would hold the item. */
 export function uncovered(item: ItemInput, claims: readonly { text: string }[]): string[] {
-  const said = quoteKey(claims.map((c) => c.text).join(" "), item.language);
-  const all = [item.headline, item.body, ...(item.names ?? [])].join(" ");
-  const text = quoteKey(all, item.language);
-  const raw = all.normalize("NFKC");
-  const numbers = text.match(/\d+(?:[.,]\d+)*/g) ?? [];
-  const words = (raw.match(/[A-Za-z][A-Za-z0-9.+-]*[A-Za-z0-9]|[A-Za-z]{2,}/g) ?? []).filter(
-    (w) => w.length > 1 && (item.language === "fa" || /[A-Z0-9]/.test(w)),
-  );
-  return [...new Set([...numbers, ...words])].filter((w) => !said.includes(quoteKey(w)));
+  const said = claims.map((c) => c.text).join(" ");
+  const saidKey = quoteKey(said);
+  const saidNumbers = new Set(statedNumbers(said));
+  const texts = [item.headline, item.body, ...(item.names ?? [])];
+  const numbers = statedNumbers(texts.join(" ")).filter((n) => !saidNumbers.has(n));
+  const names = texts
+    .flatMap((t) => statedNames(t, item.language))
+    .filter((n) => !saidKey.includes(n.toLowerCase()));
+  return [...new Set([...numbers, ...names])];
 }
 
 const tokens = (text: string, language: string) =>
@@ -76,6 +135,18 @@ const tokens = (text: string, language: string) =>
  */
 export const SNAP_OVERLAP = 0.8;
 export function snapPassage(passage: string, source: SourceText): string | null {
+  const best = closestSentence(passage, source);
+  return best && best.score >= SNAP_OVERLAP && quoteFoundIn(best.text, source) ? best.text : null;
+}
+
+/** Below this share of a missed passage's words, the closest sentence is not worth suggesting. */
+export const SUGGEST_OVERLAP = 0.4;
+
+/** The source's sentence, or two adjacent ones, holding most of the passage's words. */
+export function closestSentence(
+  passage: string,
+  source: SourceText,
+): { text: string; score: number } | null {
   const want = new Set(tokens(passage, source.language));
   if (want.size === 0) return null;
   const sentences = source.text
@@ -92,7 +163,7 @@ export function snapPassage(passage: string, source: SourceText): string | null 
       if (!best || score > best.score || (score === best.score && text.length < best.text.length))
         best = { text, score };
     }
-  return best && best.score >= SNAP_OVERLAP && quoteFoundIn(best.text, source) ? best.text : null;
+  return best;
 }
 
 export interface WrittenClaim {
@@ -130,10 +201,17 @@ export function parseClaims(
   claims.forEach((c, i) => {
     if (quoteKey(c.passage, source.language).length < MIN_PASSAGE_CHARS)
       errors.push(`claims[${i}].passage is too short to prove anything`);
-    else if (!quoteFoundIn(c.passage, source))
+    else if (!quoteFoundIn(c.passage, source)) {
+      // The model can copy what it was reaching for, or drop a claim the source does not hold.
+      const near = closestSentence(c.passage, source);
       errors.push(
-        `claims[${i}].passage is not in the source text; copy it exactly: "${c.passage.slice(0, 80)}"`,
+        `claims[${i}].passage is not in the source text; copy it exactly: "${c.passage.slice(0, 80)}"${
+          near && near.score >= SUGGEST_OVERLAP && quoteFoundIn(near.text, source)
+            ? `; the closest sentence in the source is "${near.text.slice(0, 300)}": quote it whole if it says the claim, else drop the claim`
+            : "; if the source does not say it, drop the claim"
+        }`,
       );
+    }
   });
   if (a.data.claims.length === 0 && a.data.unsupported.length === 0)
     errors.push("no claims: list the item's facts");
