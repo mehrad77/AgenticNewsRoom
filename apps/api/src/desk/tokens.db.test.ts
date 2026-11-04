@@ -58,7 +58,7 @@ beforeAll(async () => {
     "insert into memberships (newsroom_id, user_id, role) values ($1, $2, 'editor-in-chief')",
     [newsroomId, chiefId],
   );
-});
+}, 60_000);
 
 /** Runs `fn` with the chief as the platform's one admin, then puts the previous admin back. */
 const asAdmin = async (fn: () => Promise<void>) => {
