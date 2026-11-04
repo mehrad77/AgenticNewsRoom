@@ -57,13 +57,25 @@ describe("the claims of an imported item", () => {
       claims: [{ text: "a", passage: "not in the source at all, no." }],
     });
     const good = JSON.stringify({
-      claims: [{ text: "a", passage: "The model has a context window of one million tokens." }],
+      claims: [
+        { text: "Kimi K3.1 Pro", passage: "The model has a context window of one million tokens." },
+      ],
     });
     expect(await writeClaims(replies(bad, good), item, source)).toMatchObject({
-      claims: [{ text: "a" }],
+      claims: [{ text: "Kimi K3.1 Pro" }],
     });
     expect(await writeClaims(replies(bad, bad), item, source)).toEqual({
       error: "claims[0].passage is not in the source text; copy it exactly",
     });
+  });
+});
+
+describe("uncovered", () => {
+  it("list numbers and names the claims leave out", async () => {
+    const { uncovered } = await import("./claims.ts");
+    const en = { language: "en", headline: "IBM Deep Blue wins", body: "In 1997 in New York." };
+    expect(uncovered(en, [{ text: "IBM's Deep Blue won in 1997" }])).toEqual(["New", "York"]);
+    const fa = { language: "fa", headline: "IBM defeats Kasparov", body: "در سال ۱۹۹۷." };
+    expect(uncovered(fa, [{ text: "IBM defeats Kasparov در 1997" }])).toEqual([]);
   });
 });

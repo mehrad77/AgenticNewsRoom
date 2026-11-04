@@ -18,7 +18,9 @@ You get the item (in its own language) and the stored text of the source it is b
 Answer with JSON only: {"claims": [{"text": "...", "passage": "..."}]}.
 - One claim per fact the item states: who did what, names, numbers, dates. Together the claims
   must cover everything the item says; leave nothing out.
-- "text": the claim, in the item's language, in the item's own words as far as possible.
+- "text": the claim, in the item's language, in the item's own words as far as possible. Every
+  name, number and Latin-script word the item uses, its headline included, must appear in some
+  claim's text exactly as the item writes it.
 - "passage": a passage copied character for character from the source text that supports the
   claim: one or two whole sentences, at least ${MIN_PASSAGE_CHARS} characters. Never translate,
   shorten or paraphrase it.
@@ -34,6 +36,22 @@ export interface ItemInput {
 export interface SourceText {
   text: string;
   language: string;
+}
+
+/**
+ * What the item states that no claim's text carries: its numbers and its Latin-script names (in
+ * Persian text every Latin word; elsewhere words with a capital letter or a digit). A superset of
+ * the verifier's item check, so an answer kept here does not fail it for words left out.
+ */
+export function uncovered(item: ItemInput, claims: readonly { text: string }[]): string[] {
+  const said = quoteKey(claims.map((c) => c.text).join(" "), item.language);
+  const text = quoteKey(`${item.headline} ${item.body}`, item.language);
+  const raw = `${item.headline} ${item.body}`.normalize("NFKC");
+  const numbers = text.match(/\d+(?:[.,]\d+)*/g) ?? [];
+  const words = (raw.match(/[A-Za-z][A-Za-z0-9.+-]*[A-Za-z0-9]|[A-Za-z]{2,}/g) ?? []).filter(
+    (w) => w.length > 1 && (item.language === "fa" || /[A-Z0-9]/.test(w)),
+  );
+  return [...new Set([...numbers, ...words])].filter((w) => !said.includes(quoteKey(w)));
 }
 
 export interface WrittenClaim {
@@ -53,6 +71,7 @@ export const claimsQuestion = (item: ItemInput, source: SourceText) =>
 export function parseClaims(
   reply: string,
   source: SourceText,
+  item?: ItemInput,
 ): { claims: WrittenClaim[]; unsupported: string[] } | { errors: string[] } {
   const value = parseJson(reply);
   if (typeof value === "string") return { errors: [value] };
@@ -70,6 +89,11 @@ export function parseClaims(
   });
   if (a.data.claims.length === 0 && a.data.unsupported.length === 0)
     errors.push("no claims: list the item's facts");
+  const missing = item && errors.length === 0 ? uncovered(item, a.data.claims) : [];
+  if (missing.length > 0)
+    errors.push(
+      `these are in the item but in no claim's text; put each in a claim, exactly as written: ${missing.join(", ")}`,
+    );
   return errors.length > 0
     ? { errors }
     : { claims: a.data.claims, unsupported: a.data.unsupported };
@@ -87,7 +111,7 @@ export async function writeClaims(
   ];
   for (let attempt = 0; attempt < 2; attempt++) {
     const reply = await model.invoke(messages);
-    const parsed = parseClaims(textOf(reply), source);
+    const parsed = parseClaims(textOf(reply), source, item);
     if (!("errors" in parsed)) return parsed;
     messages.push(
       reply,

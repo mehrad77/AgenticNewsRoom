@@ -23,6 +23,8 @@ export interface RecheckDeps {
   ingestion: Pick<IngestionClient, "requestSource">;
   makeModel: (chain: readonly string[]) => RunModel;
   gate: GateDeps;
+  /** Summarises new sources here, for where no agents worker runs (dev); else the worker does. */
+  summarise?: (newsroomId: string, runIds: string[]) => Promise<void>;
   log?: (line: string) => void;
 }
 
@@ -56,7 +58,7 @@ export const importFamilies = (models: ModelsConfig): string[] => [
   ),
 ];
 
-/** Imported stories with news items, oldest first, that this pass has not yet taken. */
+/** Imported stories with news items, newest first (what readers see most), that this pass has not yet taken. */
 async function stories(pool: Pool, o: RecheckOptions, pass: "source" | "check"): Promise<Story[]> {
   return withNewsroom(pool, o.newsroomId, async (c) => {
     const { rows } = await c.query<{
@@ -88,7 +90,7 @@ async function stories(pool: Pool, o: RecheckOptions, pass: "source" | "check"):
                                 where cl.story_id = st.id and l.summary is null)`
          }
        group by st.id, a.slot
-       order by a.slot
+       order by a.slot desc
        limit $1`,
       [o.limit],
     );
@@ -202,15 +204,32 @@ async function sourceStory(deps: RecheckDeps, o: RecheckOptions, story: Story): 
     });
     written++;
   }
-  if (newLeads.length > 0)
-    await enqueueSummaries(deps.pool, deps.boss, deps.router, o.newsroomId, newLeads);
+  if (newLeads.length > 0) {
+    const runs = await enqueueSummaries(deps.pool, deps.boss, deps.router, o.newsroomId, newLeads);
+    await deps.summarise?.(o.newsroomId, runs);
+  }
   const line = `story ${story.storyId}: claims for ${written} of ${count} items`;
   log(`[recheck] ${line}`);
   return line;
 }
 
+/** Summariser runs still waiting on the sources the recheck cited (a run that stopped midway). */
+export async function waitingSummaries(pool: Pool, newsroomId: string): Promise<string[]> {
+  return withNewsroom(pool, newsroomId, async (c) => {
+    const { rows } = await c.query<{ id: string }>(
+      `select r.id from agent_runs r join leads l on l.id = r.lead_id
+       where r.role = 'summariser' and r.outcome is null and l.summary is null
+         and exists (select from claims cl join agent_runs d on d.story_id = cl.story_id
+                     where cl.lead_id = l.id and d.role = 'desk' and d.task->>'key' = 'recheck')`,
+    );
+    return rows.map((r) => r.id);
+  });
+}
+
 /** The `source` pass: sources and claims for stories not yet taken. */
 export async function sourcePass(deps: RecheckDeps, o: RecheckOptions): Promise<number> {
+  if (deps.summarise)
+    await deps.summarise(o.newsroomId, await waitingSummaries(deps.pool, o.newsroomId));
   const todo = await stories(deps.pool, o, "source");
   for (const s of todo) await sourceStory(deps, o, s);
   return todo.length;
