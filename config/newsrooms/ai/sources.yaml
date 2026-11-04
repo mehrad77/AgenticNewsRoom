@@ -3,8 +3,8 @@
 # entry) and set `terms_checked` to that date (D17); `terms_note` records anything worth keeping.
 # Terms read 2026-10-27. Not approved, so never scheduled: meta-ai-blog, xai-news, cohere-blog
 # (their terms ban automated access or the page blocks scripts) and qwen-blog (feed dead since 2025-09).
-# Vouch-only sources (D187): their terms confirmed by the editor on 2026-11-04, except meta-newsroom
-# (Meta's terms, the same ones that kept meta-ai-blog off).
+# Vouch-only sources (D187): their terms confirmed by the editor on 2026-11-04, meta-newsroom included
+# (a request for one page, not the scheduled fetching that kept meta-ai-blog off).
 #
 # Lab blogs are tier 1: a lab's own post is a primary source for what the lab says it did.
 
@@ -384,6 +384,7 @@
     tier: 1,
     every: 1d,
     use: vouch,
+    terms_checked: 2026-11-04,
   }
 # Terms: linked from https://cursor.com
 - {
