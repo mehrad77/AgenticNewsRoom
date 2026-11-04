@@ -2,7 +2,7 @@
 // language, newest first, each an anchor on the timeline page that links to its piece. Items are
 // shaped like timeline entries, so the Reference's timeline layout draws them, and the names they
 // carry (`org`, `related`) link to the Reference entries that bear them.
-import type { Language } from "@anr/core";
+import { itemHash, type Language } from "@anr/core";
 import { type Pool, withNewsroom } from "@anr/db";
 import type { Entry, OutLink } from "./reference.ts";
 import type { KindConfig, Names } from "./reference-config.ts";
@@ -61,7 +61,16 @@ const LATIN_LANGUAGES = new Set(["en", "tr"]);
 
 /** The items of one piece, as timeline entries; `leadUrl` is the item's first claim's lead. */
 export function itemsOf(
-  piece: { id: string; series: string; path: string; day: string; origin: string; items: Item[] },
+  piece: {
+    id: string;
+    series: string;
+    path: string;
+    day: string;
+    origin: string;
+    items: Item[];
+    /** An imported piece's items the gate checked (D184): item path to the text's hash then. */
+    checked?: Record<string, string>;
+  },
   language: Language,
   leadUrl: (claimId: string) => string | undefined,
 ): Entry[] {
@@ -89,7 +98,12 @@ export function itemsOf(
           related: item.related ?? [],
         },
         body: { [language]: { summary: item.body ?? "" } },
-        origin: piece.origin === "imported" ? "imported" : "pipeline",
+        // An imported item is labelled until the gate checked it as it reads now (D184).
+        origin:
+          piece.origin === "imported" &&
+          piece.checked?.[`items.${i}`] !== itemHash(item as Record<string, unknown>)
+            ? "imported"
+            : "pipeline",
       },
     ];
   });
@@ -158,9 +172,12 @@ export function timelineItems(
       origin: string;
       story_id: string;
       items: Item[] | null;
+      checked: Record<string, string> | null;
     }>(
       `select p.id, p.path, to_char(p.slot at time zone $3, 'YYYY-MM-DD') as day, p.origin,
-              r.story_id, r.body->'items' as items
+              r.story_id, r.body->'items' as items,
+              (select jsonb_object_agg(ci.item, ci.text_hash) from checked_items ci
+               where ci.publication_id = p.id) as checked
        from publications p
        join series s on s.id = p.series_id
        join publication_renditions pr on pr.publication_id = p.id and pr.position = 1
@@ -187,7 +204,7 @@ export function timelineItems(
     );
     const names = nameIndex(profiles);
     const entries = rows.flatMap((r) =>
-      itemsOf({ ...r, series, items: r.items ?? [] }, language, (id) =>
+      itemsOf({ ...r, series, items: r.items ?? [], checked: r.checked ?? {} }, language, (id) =>
         leadUrl.get(`${r.story_id}:${id}`),
       ),
     );

@@ -22,6 +22,7 @@ class Tier(Enum):
 class Use(Enum):
     leads = "leads"
     enrichment = "enrichment"
+    vouch = "vouch"
 
 
 class SourcesConfigItem(BaseModel):
@@ -35,8 +36,17 @@ class SourcesConfigItem(BaseModel):
         None, description="Who publishes it; independence is counted per publisher."
     )
     tier: Tier
-    every: constr(pattern=r"^[0-9]+[mhd]$")
-    use: Use | None = "leads"
+    every: constr(pattern=r"^[0-9]+[mhd]$") = Field(
+        ..., description="How often ingestion fetches it; unused for a vouch source."
+    )
+    use: Use | None = Field(
+        "leads",
+        description="vouch: never fetched; it only vouches for its sections when an agent requests a page there (D187). Its `every` is unused.",
+    )
+    vouches: list[AnyUrl] | None = Field(
+        None,
+        description="Further sections of the same publisher it vouches for: a host and its first path segment (`https://claude.com/resources`), D61, D187.",
+    )
     terms_checked: date | None = Field(
         None, description="Set by a person after reading the source's terms."
     )

@@ -35,6 +35,9 @@ SKIP_KEYS = {
     "url_type",
     "anchor",
     "approximate",
+    # Its source and further links (D173, D184): addresses set by code, not text the item states.
+    "url",
+    "links",
 }
 
 

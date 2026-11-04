@@ -15,6 +15,7 @@ import { assignDaily } from "../assign.ts";
 import { type RoleDeps, runDesk } from "../desk/run.ts";
 import { type ChatLike, meteredChat } from "../model.ts";
 import { FACT_CHECKER_ROLE } from "../prompts/roles.ts";
+import { checkPass, sourcePass } from "../recheck/run.ts";
 import { runRenderer } from "../renderer/run.ts";
 import { ModelRouter } from "../router.ts";
 import { type GateDeps, runGate, verifierClient } from "./run.ts";
@@ -325,5 +326,178 @@ describe("the verifier gate (D79, D80)", () => {
     expect(await sweepStuck(pools.app, late)).toBeGreaterThanOrEqual(2);
     expect((await t.publications()).map((p) => p.status)).toEqual(["with-editor", "with-editor"]);
     expect(await t.holds()).toEqual([{ name: "deadline", result: "timed-out" }]);
+  }, 30_000);
+});
+
+describe("an imported story (D184)", () => {
+  it("is checked item by item, records what passed and never changes a publication", async () => {
+    const newsroomId = await createTestNewsroom(pools.system, "recheck");
+    await pools.system.query(
+      `update newsrooms set languages = '{fa,en}', timezone = 'Europe/Istanbul',
+              policy = '{"budget": {"monthly_usd": 30, "check_reserve_usd": 3},
+                         "sources": {"min_independent": 2, "tier1_alone": true}}'
+       where id = $1`,
+      [newsroomId],
+    );
+    const one = async (sql: string, params: unknown[]) =>
+      (await pools.system.query<{ id: string }>(sql, params)).rows[0]?.id ?? "";
+    const labs = await one(
+      "insert into beats (newsroom_id, slug, status, media_topics) values ($1, 'labs', 'open', '{medtop:20001298}') returning id",
+      [newsroomId],
+    );
+    const seriesId = await one(
+      `insert into series (newsroom_id, slug, format_id, languages, config)
+       select $1, 'daily-newsletter', f.id, '{fa,en}', '{"cadence": {"daily": "21:00"}}'
+       from formats f where f.slug = 'newsletter-issue' returning id`,
+      [newsroomId],
+    );
+    const source = "Example Lab released Orbit on Monday. Orbit is 40 percent faster than Comet.";
+    const leadId = await one(
+      `insert into leads (newsroom_id, uri, headline, body, language, content_hash, tier, summary, fetched_at)
+       values ($1, 'https://lab.example/orbit', 'Orbit', $2, 'en', 'h2', 1, 's', now()) returning id`,
+      [newsroomId, source],
+    );
+    await pools.system.query(
+      "insert into lead_beats (newsroom_id, lead_id, beat_id) values ($1, $2, $3)",
+      [newsroomId, leadId, labs],
+    );
+    // The import's rows, as the system role writes them.
+    const slot = "2025-05-22T18:00:00Z";
+    const assignmentId = await one(
+      "insert into assignments (newsroom_id, series_id, slot) values ($1, $2, $3) returning id",
+      [newsroomId, seriesId, slot],
+    );
+    const storyId = await one(
+      "insert into stories (newsroom_id, assignment_id) values ($1, $2) returning id",
+      [newsroomId, assignmentId],
+    );
+    const items = (fa: boolean) => [
+      {
+        kind: "news",
+        headline: "Orbit",
+        body: fa ? "آزمایشگاه Example Lab مدل Orbit را منتشر کرد." : "Example Lab released Orbit.",
+        claim_ids: [],
+        url: "https://lab.example/orbit",
+        anchor: "orbit",
+      },
+      {
+        kind: "news",
+        headline: "Gone",
+        body: fa ? "خبری که منبعش رفته." : "A story whose source is gone.",
+        claim_ids: [],
+        url: "https://gone.example/x",
+        anchor: "gone",
+      },
+    ];
+    for (const language of ["fa", "en"]) {
+      const renditionId = await one(
+        `insert into renditions (newsroom_id, story_id, format_id, language, body)
+         select $1, $2, f.id, $3, $4 from formats f where f.slug = 'newsletter-issue' returning id`,
+        [
+          newsroomId,
+          storyId,
+          language,
+          { language, title: "Orbit", items: items(language === "fa") },
+        ],
+      );
+      const publicationId = await one(
+        `insert into publications (newsroom_id, series_id, assignment_id, slot, language, status,
+                                   published_at, path, title, origin)
+         values ($1, $2, $3, $4, $5, 'published', $4, '/daily-newsletter/2025-05-22', 'Orbit', 'imported')
+         returning id`,
+        [newsroomId, seriesId, assignmentId, slot, language],
+      );
+      await pools.system.query(
+        "insert into publication_renditions (newsroom_id, publication_id, position, rendition_id) values ($1, $2, 1, $3)",
+        [newsroomId, publicationId, renditionId],
+      );
+    }
+
+    const claims = (text: string) =>
+      new AIMessage(
+        JSON.stringify({ claims: [{ text, passage: "Example Lab released Orbit on Monday." }] }),
+      );
+    const answers = [
+      claims("آزمایشگاه Example Lab مدل Orbit را منتشر کرد"),
+      claims("Example Lab released Orbit"),
+    ];
+    const writer: ChatLike = {
+      async invoke() {
+        const next = answers.shift();
+        if (!next) throw new Error("no more answers");
+        return next;
+      },
+    };
+    const { model } = checkers(SUPPORTED, '{"verdict": "match"}');
+    const deps = {
+      pool: pools.app,
+      boss: { send: async () => "job" } as unknown as Pick<PgBoss, "send">,
+      router,
+      models: { models: {} } as never,
+      ingestion: {
+        requestSource: async (_n: string, _r: string, url: string) =>
+          url.includes("orbit")
+            ? ({
+                kind: "lead",
+                result: { lead_id: leadId, uri: url, headline: "Orbit", tier: 1, created: false },
+              } as const)
+            : ({ kind: "failed", detail: "404" } as const),
+      },
+      makeModel: () => meteredChat(writer, "writer"),
+      gate: {
+        pool: pools.app,
+        router,
+        configDir,
+        verifier: verifierClient(verifierUrl),
+        renderer: createRenderer(),
+        makeModel: (chain: readonly string[], tokenCap: number) => {
+          expect(chain).not.toContain("writer");
+          return meteredChat(model, "checker", { tokenCap });
+        },
+        log: () => {},
+      },
+      log: () => {},
+    };
+    const options = { newsroomId, limit: 10 };
+    expect(await sourcePass(deps, options)).toBe(1);
+    // The dead source is tried again on later passes, three times in all, then left labelled.
+    expect(await sourcePass(deps, options)).toBe(1);
+    expect(await sourcePass(deps, options)).toBe(1);
+    expect(await sourcePass(deps, options)).toBe(0);
+    const { rows: tries } = await pools.system.query<{ item: number; n: number }>(
+      `select (task->>'item')::int as item, count(*)::int as n from agent_runs
+       where newsroom_id = $1 and task->>'key' = 'recheck' group by 1 order by 1`,
+      [newsroomId],
+    );
+    expect(tries).toEqual([
+      { item: 0, n: 1 },
+      { item: 1, n: 3 },
+    ]);
+    expect(await checkPass(deps, options)).toBe(1);
+    // Checked again only once new claims are written.
+    expect(await checkPass(deps, options)).toBe(0);
+
+    const { rows: pubs } = await pools.system.query<{ language: string; status: string }>(
+      "select language, status from publications where newsroom_id = $1 order by language",
+      [newsroomId],
+    );
+    expect(pubs).toEqual([
+      { language: "en", status: "published" },
+      { language: "fa", status: "published" },
+    ]);
+    const { rows: checked } = await pools.system.query<{ language: string; item: string }>(
+      `select p.language, ci.item from checked_items ci join publications p on p.id = ci.publication_id
+       where ci.newsroom_id = $1 order by p.language`,
+      [newsroomId],
+    );
+    expect(checked).toEqual([
+      { language: "en", item: "items.0" },
+      { language: "fa", item: "items.0" },
+    ]);
+    const { rows: policy } = await pools.system.query(
+      "select from checks where newsroom_id = $1 and kind = 'policy'",
+      [newsroomId],
+    );
+    expect(policy).toHaveLength(0);
   }, 30_000);
 });

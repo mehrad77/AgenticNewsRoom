@@ -2,7 +2,14 @@
 // item matcher, then policy per publication. Every result is a Check; each stage skips what an
 // earlier attempt stored, so a retried job resumes. Anything that cannot run is stored as an error
 // and holds (invariant 5); the gate never waits for a person.
-import type { AgentRole, CheckResult, GateJob, Language } from "@anr/core";
+import {
+  type AgentRole,
+  type CheckResult,
+  type GateJob,
+  itemPaths,
+  itemText,
+  type Language,
+} from "@anr/core";
 import { auditedUpdate, type Client, type Pool, withNewsroom } from "@anr/db";
 import { AllModelsExhausted, inAgent, ModelCallFailed } from "@anr/models";
 import {
@@ -20,7 +27,11 @@ import { newMeter, type RunModel, TokenCapReached } from "../model.ts";
 import { assemblePrompt } from "../prompts/assemble.ts";
 import type { ModelRouter } from "../router.ts";
 import { finishRun, holdPublications, insertRun } from "../runs.ts";
+import { checkedItems, claimPassed, latestChecks } from "./imported.ts";
 import { decide, type StoredCheck } from "./policy.ts";
+
+export { itemPaths, itemText };
+
 import {
   askVerdict,
   FACT_CHECKER_ROLE,
@@ -102,6 +113,8 @@ interface GatePublication {
   language: string;
   status: string;
   rendition_id: string | null;
+  /** `imported`: the legacy import wrote it, published; the gate only records what passed (D184). */
+  origin: string;
 }
 interface GateStory {
   newsroomSlug: string;
@@ -120,57 +133,6 @@ interface GateStory {
   claims: GateClaim[];
   renditions: GateRendition[];
   publications: GatePublication[];
-}
-
-/** Every object in a rendition body that lists claim_ids, with its path (`items.3`). */
-export function itemPaths(value: unknown, path = ""): [string, Record<string, unknown>][] {
-  if (Array.isArray(value)) return value.flatMap((v, i) => itemPaths(v, `${path}.${i}`));
-  if (value && typeof value === "object") {
-    const record = value as Record<string, unknown>;
-    const own: [string, Record<string, unknown>][] = "claim_ids" in record ? [[path, record]] : [];
-    return [
-      ...own,
-      ...Object.entries(record)
-        .filter(([k]) => k !== "claim_ids")
-        .flatMap(([k, v]) => itemPaths(v, path ? `${path}.${k}` : k)),
-    ];
-  }
-  return [];
-}
-
-/** Labels and delivery hints, not reader-facing text; the verifier's SKIP_KEYS. */
-const ITEM_SKIP = new Set([
-  "kind",
-  "claim_ids",
-  "lead_id",
-  "media_id",
-  "segment",
-  "beat",
-  "cue",
-  "direction",
-  "speaker",
-  "host",
-  "news_kind",
-  "url_type",
-  "anchor",
-  "approximate",
-]);
-/** An item's own text, nested lists included; a nested object with its own claim_ids is its own item. */
-export function itemText(item: Record<string, unknown>): string {
-  const texts = (value: unknown): string[] => {
-    if (typeof value === "string") return [value];
-    if (Array.isArray(value)) return value.flatMap(texts);
-    if (value && typeof value === "object" && !("claim_ids" in value)) {
-      return Object.entries(value)
-        .filter(([k]) => !ITEM_SKIP.has(k))
-        .flatMap(([, v]) => texts(v));
-    }
-    return [];
-  };
-  return Object.entries(item)
-    .filter(([k]) => !ITEM_SKIP.has(k))
-    .flatMap(([, v]) => texts(v))
-    .join("\n");
 }
 
 async function loadStory(client: Client, storyId: string): Promise<GateStory | null> {
@@ -204,7 +166,7 @@ async function loadStory(client: Client, storyId: string): Promise<GateStory | n
     [storyId],
   );
   const publications = await client.query<GatePublication>(
-    `select p.id, p.language, p.status,
+    `select p.id, p.language, p.status, p.origin,
             (select pr.rendition_id from publication_renditions pr where pr.publication_id = p.id
              order by pr.position limit 1) as rendition_id
      from publications p where p.assignment_id = $1 order by p.language`,
@@ -227,7 +189,8 @@ async function storyChecks(
             (c.detail->>'position')::int as position
      from checks c
      where c.claim_id in (select id from claims where story_id = $1)
-        or c.rendition_id in (select id from renditions where story_id = $1)`,
+        or c.rendition_id in (select id from renditions where story_id = $1)
+     order by c.at`,
     [storyId],
   );
   return rows;
@@ -279,12 +242,18 @@ export async function runGate(deps: GateDeps, job: GateJob): Promise<string> {
     withNewsroom(deps.pool, job.newsroomId, fn);
   const story = await inStory((c) => loadStory(c, job.storyId));
   if (!story) return "no story";
-  if (!story.publications.some((p) => p.status === "drafted")) return "nothing to gate";
+  // An imported story (D184) is checked as it stands: published, never sent, its status untouched.
+  const imported =
+    story.publications.length > 0 && story.publications.every((p) => p.origin === "imported");
+  if (!imported && !story.publications.some((p) => p.status === "drafted"))
+    return "nothing to gate";
 
   // 1. Code checks: the verifier stores them all in one transaction, or none. A stored verifier
   // error already holds, so a retried job does not ask again.
   let checks = await inStory((c) => storyChecks(c, job.storyId));
-  if (!checks.some((c) => c.kind === "code" && ["schema", "verifier"].includes(c.name))) {
+  // An imported story is checked again when the recheck wrote claims the verifier has not seen.
+  const unseen = imported && story.claims.some((cl) => !checks.some((c) => c.claimId === cl.id));
+  if (unseen || !checks.some((c) => c.kind === "code" && ["schema", "verifier"].includes(c.name))) {
     const outcome = await deps.verifier.verify(job.newsroomId, job.storyId);
     if (!outcome.ok) {
       await inStory(async (c) => {
@@ -303,7 +272,8 @@ export async function runGate(deps: GateDeps, job: GateJob): Promise<string> {
 
   // 2. Disclosure: every message of every channel the series uses for the language shows the
   // label, split exactly as the publisher sends it (D79, D88). A post that cannot split errors.
-  if (!checks.some((c) => c.name === "disclosure")) {
+  // Channel checks (disclosure, credits, AI voices) are about what is sent; imported pieces never are.
+  if (!imported && !checks.some((c) => c.name === "disclosure")) {
     await inStory(async (c) => {
       for (const r of story.renditions) {
         const kinds = Object.entries(story.channels)
@@ -368,7 +338,7 @@ export async function runGate(deps: GateDeps, job: GateJob): Promise<string> {
 
   // 2b. Credits: every image an item shows is licensed, and every channel's output carries its
   // credit (D16, D119). The verifier checked the media rows; this checks what readers see.
-  if (!checks.some((c) => c.name === "media-credit")) {
+  if (!imported && !checks.some((c) => c.name === "media-credit")) {
     await inStory(async (c) => {
       for (const r of story.renditions) {
         const shown = mediaIds(r.body);
@@ -419,7 +389,7 @@ export async function runGate(deps: GateDeps, job: GateJob): Promise<string> {
 
   // 2c. AI voices: a series with hosts opens every episode with code-rendered lines in which each
   // host and the narrator says they are AI; the audio pipeline voices exactly these lines.
-  if (story.series.hosts && !checks.some((c) => c.name === "ai-voices")) {
+  if (!imported && story.series.hosts && !checks.some((c) => c.name === "ai-voices")) {
     await inStory(async (c) => {
       for (const r of story.renditions) {
         const hosts = Object.keys(story.series.hosts?.[r.language] ?? {});
@@ -470,6 +440,13 @@ export async function runGate(deps: GateDeps, job: GateJob): Promise<string> {
   const storyFailed = failed.some(
     (c) => c.claimId !== null || ["verifier", "beats", "claims"].includes(c.name),
   );
+  if (imported) {
+    // Item by item (D184): one item's dead source does not stop the others being checked.
+    await importedChecks(deps, job, story, latestChecks(checks));
+    const outcome = await inStory((c) => recordChecked(c, job.storyId, story));
+    log(`[gate] story ${job.storyId}: ${outcome}`);
+    return outcome;
+  }
   if (!storyFailed) {
     await factCheck(deps, job, story, checks);
     const clean = new Set(
@@ -653,12 +630,21 @@ async function factCheck(deps: GateDeps, job: GateJob, story: GateStory, checks:
   );
 }
 
-async function itemMatch(deps: GateDeps, job: GateJob, story: GateStory, checks: StoredCheck[]) {
+async function itemMatch(
+  deps: GateDeps,
+  job: GateJob,
+  story: GateStory,
+  checks: StoredCheck[],
+  /** Which items to ask about; every item by default. */
+  wanted: (renditionId: string, path: string, item: Record<string, unknown>) => boolean = () =>
+    true,
+) {
   const byRef = new Map(story.claims.map((c) => [c.ref, c]));
   const pending = story.renditions.flatMap((r) =>
     itemPaths(r.body)
       .filter(
-        ([path]) =>
+        ([path, item]) =>
+          wanted(r.id, path, item) &&
           !checks.some((x) => x.kind === "item-match" && x.renditionId === r.id && x.item === path),
       )
       .map(([path, item]) => ({ rendition: r, path, item })),
@@ -703,6 +689,67 @@ async function itemMatch(deps: GateDeps, job: GateJob, story: GateStory, checks:
       }),
     ),
   );
+}
+
+/**
+ * The model checks of an imported story (D184), item by item: the fact-checker on each claim whose
+ * code checks all passed, then the item matcher on each item whose claims all passed. A claim or
+ * item that failed earlier costs no model's time and stays labelled.
+ */
+async function importedChecks(
+  deps: GateDeps,
+  job: GateJob,
+  story: GateStory,
+  checks: StoredCheck[],
+) {
+  const codeOk = (claimId: string) =>
+    checks.filter((c) => c.claimId === claimId).every((c) => c.result === "pass") &&
+    checks.some((c) => c.claimId === claimId && c.name === "quote-match");
+  await factCheck(
+    deps,
+    job,
+    { ...story, claims: story.claims.filter((c) => codeOk(c.id)) },
+    checks,
+  );
+  const now = latestChecks(
+    await withNewsroom(deps.pool, job.newsroomId, (c) => storyChecks(c, job.storyId)),
+  );
+  const byRef = new Map(story.claims.map((c) => [c.ref, c]));
+  await itemMatch(deps, job, story, now, (renditionId, path, item) => {
+    const refs = (item.claim_ids as string[] | undefined) ?? [];
+    const own = now.filter((c) => c.renditionId === renditionId && c.item === path);
+    return (
+      refs.length > 0 &&
+      own.every((c) => c.result === "pass") &&
+      refs.every((ref) => {
+        const claim = byRef.get(ref);
+        return claim !== undefined && claimPassed(claim, now);
+      })
+    );
+  });
+}
+
+/** Records the imported story's items that passed, and forgets any that no longer do. */
+async function recordChecked(client: Client, storyId: string, story: GateStory): Promise<string> {
+  const checks = latestChecks(await storyChecks(client, storyId));
+  const passed = checkedItems(story.publications, story.renditions, story.claims, checks);
+  const ids = story.publications.map((p) => p.id);
+  await client.query(
+    `delete from checked_items where publication_id = any($1::uuid[])
+       and not ((publication_id, item) in (select * from unnest($2::uuid[], $3::text[])))`,
+    [ids, passed.map((x) => x.publicationId), passed.map((x) => x.item)],
+  );
+  for (const x of passed)
+    await client.query(
+      `insert into checked_items (newsroom_id, publication_id, rendition_id, item, text_hash)
+       values (anr.current_newsroom_id(), $1, $2, $3, $4)
+       on conflict (newsroom_id, publication_id, item)
+       do update set rendition_id = excluded.rendition_id, text_hash = excluded.text_hash,
+                     checked_at = now()`,
+      [x.publicationId, x.renditionId, x.item, x.textHash],
+    );
+  const total = story.renditions.reduce((n, r) => n + itemPaths(r.body).length, 0);
+  return `imported: ${passed.length} of ${total} items checked`;
 }
 
 type Asked = Omit<NewCheck, "result"> & { verdict: Awaited<ReturnType<typeof askVerdict>> };

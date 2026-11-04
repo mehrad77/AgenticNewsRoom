@@ -14,6 +14,7 @@ export type Preview = S["Preview"];
 export type ScheduleItem = S["ScheduleItem"];
 export type Budget = S["Budget"];
 export type SourceHealth = S["SourceHealth"];
+export type Recheck = S["Recheck"];
 export type Measures = S["Measures"];
 export type Plan = S["Plan"];
 export type AdminTts = S["AdminTts"];
@@ -38,6 +39,7 @@ const PAGES = [
   "schedule",
   "budget",
   "sources",
+  "imported",
   "measures",
 ] as const;
 type Page = (typeof PAGES)[number];
@@ -176,6 +178,7 @@ export function deskApi(base: string, token: string | null, fetchFn: typeof fetc
     schedule: (newsroom: string) => call<ScheduleItem[]>(`${n(newsroom)}/schedule`),
     budget: (newsroom: string) => call<Budget>(`${n(newsroom)}/budget`),
     sources: (newsroom: string) => call<SourceHealth[]>(`${n(newsroom)}/sources`),
+    recheck: (newsroom: string) => call<Recheck>(`${n(newsroom)}/recheck`),
     measures: (newsroom: string) => call<Measures>(`${n(newsroom)}/measures`),
     plan: (newsroom: string) => call<Plan>(`${n(newsroom)}/plan`),
     challenges: (newsroom: string) => call<Challenge[]>(`${n(newsroom)}/challenges`),
@@ -374,6 +377,12 @@ export function deskApi(base: string, token: string | null, fetchFn: typeof fetc
         case "read-notice":
           await call(`${base}/notices/${id}/read`, {});
           return `/${route.newsroom}/notices`;
+        case "start-recheck":
+          await call(`${base}/recheck/start`, {});
+          return `/${route.newsroom}/imported`;
+        case "stop-recheck":
+          await call(`${base}/recheck/stop`, {});
+          return `/${route.newsroom}/imported`;
         default:
           throw new DeskApiError(400, "unknown action");
       }

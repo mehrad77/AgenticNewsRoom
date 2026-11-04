@@ -29,6 +29,8 @@ class Source:
     removed: bool
     fetch_pages: bool = True
     """False: a feed item's own text is the lead; its page is never fetched (D70)."""
+    vouches: tuple[str, ...] = ()
+    """Further sections of the same publisher it vouches for (D187)."""
 
 
 @dataclass(frozen=True)
@@ -68,11 +70,13 @@ def _source(row: dict[str, Any]) -> Source:
         terms_checked=row["terms_checked"],
         removed=row["removed_at"] is not None,
         fetch_pages=row["fetch_pages"],
+        vouches=tuple(row["vouches"] or ()),
     )
 
 
 _SOURCE_COLUMNS = (
-    "id, newsroom_id, slug, kind, url, publisher, tier, use, terms_checked, removed_at, fetch_pages"
+    "id, newsroom_id, slug, kind, url, publisher, tier, use, terms_checked, removed_at,"
+    " fetch_pages, vouches"
 )
 
 

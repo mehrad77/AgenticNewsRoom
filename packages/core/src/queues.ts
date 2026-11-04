@@ -24,6 +24,8 @@ export const QUEUES = {
   gate: "gate",
   /** Agents worker: a new desk run for an assignment an editor returned to the desk (D96). */
   redraft: "redraft",
+  /** Agents worker: one round of a recheck run of imported news started at the desk (D184). */
+  recheck: "recheck",
   /** Publisher: approved and scheduled publications whose slot has come, every minute. */
   publishSweep: "publish-sweep",
   /**
@@ -71,6 +73,9 @@ export const INGEST_TIMEOUT_SECONDS = 15 * 60;
  */
 export const AGENT_RUN_TIMEOUT_SECONDS = 45 * 60;
 
+/** One round of a recheck run: a few stories' sources, claims and gate, each step under its own timeout. */
+export const RECHECK_ROUND_TIMEOUT_SECONDS = 2 * 60 * 60;
+
 /** One episode's audio: a TTS call per line (cached), then the mix. */
 export const PODCAST_AUDIO_TIMEOUT_SECONDS = 60 * 60;
 
@@ -83,6 +88,7 @@ export const QUEUE_OPTIONS: Partial<Record<QueueName, { expireInSeconds: number 
   [QUEUES.agentRun]: { expireInSeconds: AGENT_RUN_TIMEOUT_SECONDS },
   [QUEUES.gate]: { expireInSeconds: AGENT_RUN_TIMEOUT_SECONDS },
   [QUEUES.podcastAudio]: { expireInSeconds: PODCAST_AUDIO_TIMEOUT_SECONDS },
+  [QUEUES.recheck]: { expireInSeconds: RECHECK_ROUND_TIMEOUT_SECONDS },
 };
 
 /**
@@ -92,6 +98,8 @@ export const QUEUE_OPTIONS: Partial<Record<QueueName, { expireInSeconds: number 
 export const QUEUE_POLICIES: Partial<Record<QueueName, "stately">> = {
   [QUEUES.gate]: "stately",
   [QUEUES.podcastAudio]: "stately",
+  // One round per newsroom at a time, the next queued behind it.
+  [QUEUES.recheck]: "stately",
 };
 
 export interface IngestSourceJob {
@@ -146,6 +154,10 @@ export interface IngestMediaJob {
   sourceUrl?: string;
   leadId?: string;
   addedBy: string;
+}
+export interface RecheckJob {
+  newsroomId: string;
+  recheckRunId: string;
 }
 export interface GateJob {
   newsroomId: string;

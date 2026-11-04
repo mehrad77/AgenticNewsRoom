@@ -1,0 +1,95 @@
+---
+import { type Recheck, safeHref, when } from "../../lib/desk.ts";
+
+interface Props {
+  newsroom: string;
+  recheck: Recheck;
+  chief: boolean;
+}
+const { newsroom, recheck, chief } = Astro.props;
+const run = recheck.run;
+const ended = {
+  done: "Finished: nothing left to try",
+  stopped: "Stopped",
+  blocked: "Blocked, no item's try spent",
+  failed: "Failed",
+} as const;
+const all = Astro.url.searchParams.get("show") === "all";
+const label = {
+  checked: "checked",
+  waiting: "waiting",
+  running: "running",
+  source: "source failed",
+  claims: "claims failed",
+  checks: "checks failed",
+} as const;
+const total = Object.values(recheck.counts).reduce((a, b) => a + b, 0);
+const done = (d: Recheck["days"][number]) => d.items.filter((i) => i.status === "checked").length;
+// The label is per publication: a language's text can lose it before the other's does.
+const texts = new Map<string, number>();
+for (const l of recheck.days.flatMap((d) => d.items.flatMap((i) => i.languages)))
+  texts.set(l.language, (texts.get(l.language) ?? 0) + (l.checked ? 1 : 0));
+const days = all ? recheck.days : recheck.days.filter((d) => done(d) < d.items.length);
+---
+<h1>Checking imported news</h1>
+<p>The archive's news was published by the old system without ANR's gate, so it is checked now the way new news is (D184): a source for each item, claims quoted from it, then the gate. Each language's text of an item loses its "imported" label once it passes; an item counts as checked here when all of them have.</p>
+<div class="card">
+  {run && run.finished_at === null ? (
+    <p><strong>Running</strong> since {when(run.started_at)}{run.started_by && `, started by ${run.started_by}`}. {run.rounds} rounds so far: {run.sourced} days sourced, {run.checked} days checked. Last sign of life {when(run.heartbeat_at)}; reload to follow it.
+      {run.stop_requested && <strong> Stopping after the item in hand.</strong>}</p>
+  ) : run ? (
+    <p><strong>{run.outcome ? ended[run.outcome] : "Ended"}</strong> {when(run.finished_at)}{run.detail && `: ${run.detail}`}. That run: {run.rounds} rounds, {run.sourced} days sourced, {run.checked} days checked{run.started_by && `, started by ${run.started_by}`}.</p>
+  ) : <p>Not started yet.</p>}
+  {chief ? (
+    <div class="actions">
+      {run && run.finished_at === null ? (
+        !run.stop_requested && <form method="post"><input type="hidden" name="action" value="stop-recheck" /><button class="button">Stop</button></form>
+      ) : (
+        <form method="post"><input type="hidden" name="action" value="start-recheck" /><button class="button primary">{run ? "Run again" : "Start checking"}</button></form>
+      )}
+    </div>
+  ) : <p class="meta">Only the Editor-in-Chief can start or stop it.</p>}
+  <p class="meta">The agents worker takes a few days at a time on the newsroom's models, tries a failed item up to three times, and stops by itself when nothing is left; it will not start while the local models are not loaded.</p>
+</div>
+{total === 0 ? <p>No imported news.</p> : (
+  <>
+    <p><strong>{recheck.counts.checked} of {total} items checked</strong> ({Math.round((100 * recheck.counts.checked) / total)}%).
+      <span class="meta"> Texts checked: {[...texts].map(([l, n]) => `${l} ${n}`).join(", ")}.</span>
+      {(["waiting", "running", "source", "claims", "checks"] as const).filter((s) => recheck.counts[s] > 0).map((s) => <span class="meta"> · {recheck.counts[s]} {label[s]}</span>)}
+    </p>
+    {recheck.causes.length > 0 && (
+      <div class="scroll"><table>
+        <thead><tr><th>What stops them</th><th>Items</th></tr></thead>
+        <tbody>{recheck.causes.map((c) => <tr><td>{c.cause}</td><td>{c.items}</td></tr>)}</tbody>
+      </table></div>
+    )}
+    <p>{all ? <a href={`/${newsroom}/imported`}>Show only days with unchecked items</a> : <a href={`/${newsroom}/imported?show=all`}>Show every day ({recheck.days.length})</a>}</p>
+    {days.length === 0 && <p>Every imported item is checked.</p>}
+    {days.map((d) => (
+      <details class="card" open={d.items.some((i) => i.reasons.length > 0)}>
+        <summary>
+          <strong>{d.slot.slice(0, 10)}</strong> {d.publication_id ? <a href={`/${newsroom}/p/${d.publication_id}`}>{d.title ?? "untitled"}</a> : d.title}
+          <span class="meta"> · {done(d)} of {d.items.length} checked</span>
+        </summary>
+        <ol start="0" class="checks">
+          {d.items.map((i) => (
+            <li class={i.status === "checked" ? "pass" : i.reasons.length > 0 ? "fail" : ""}>
+              <span class="label">{label[i.status]}</span>{" "}
+              {safeHref(i.url ?? "") ? <a href={safeHref(i.url ?? "")} rel="noreferrer">{i.headline ?? i.url}</a> : (i.headline ?? "no headline")}
+              <small class="meta"> {i.languages.map((l) => `${l.language} ${l.checked ? "✓" : "✗"}`).join(" · ")}</small>
+              {i.reasons.length > 0 && (
+                <ul>{i.reasons.map((r) => (
+                  <li>
+                    {r.language && <span>{r.language} · </span>}{r.check} <strong>{r.result}</strong>
+                    {r.reason && <span>: {r.reason}</span>}
+                    {r.claim && <small class="meta"> (claim: {r.claim})</small>}
+                  </li>
+                ))}</ul>
+              )}
+            </li>
+          ))}
+        </ol>
+      </details>
+    ))}
+  </>
+)}

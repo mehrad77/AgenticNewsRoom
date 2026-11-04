@@ -242,12 +242,13 @@ async function syncNewsroom(
   for (const s of sources) {
     const { rows } = await client.query<Row>(
       `insert into sources (newsroom_id, slug, kind, url, publisher, tier, fetch_every, use,
-         terms_checked, terms_note, fetch_pages)
-       values ($1, $2, $3, $4, $5, $6, $7::interval, $8, $9, $10, $11)
+         terms_checked, terms_note, fetch_pages, vouches)
+       values ($1, $2, $3, $4, $5, $6, $7::interval, $8, $9, $10, $11, $12)
        on conflict (newsroom_id, slug) do update set kind = excluded.kind, url = excluded.url,
          publisher = excluded.publisher, tier = excluded.tier, fetch_every = excluded.fetch_every,
          use = excluded.use, terms_checked = excluded.terms_checked,
-         terms_note = excluded.terms_note, fetch_pages = excluded.fetch_pages, updated_at = now(),
+         terms_note = excluded.terms_note, fetch_pages = excluded.fetch_pages,
+         vouches = excluded.vouches, updated_at = now(),
          removed_at = null
        ${RETURNING}`,
       [
@@ -262,6 +263,7 @@ async function syncNewsroom(
         s.terms_checked ?? null,
         s.terms_note ?? null,
         s.pages ?? true,
+        s.vouches ?? [],
       ],
     );
     scheduledSources.push({ ...s, id: tally(report.sources, rows[0]) });

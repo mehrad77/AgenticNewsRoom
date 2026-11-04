@@ -605,6 +605,67 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+  /desk/newsrooms/{newsroom}/recheck:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+    get:
+      operationId: getRecheck
+      summary: How far the recheck of imported news has got, and what stops each item (D184)
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      responses:
+        "200":
+          description: Imported days, newest first, with each item's status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Recheck"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /desk/newsrooms/{newsroom}/recheck/start:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+    post:
+      operationId: startRecheck
+      summary: Starts a recheck run; the agents worker works it round by round (D184)
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      responses:
+        "200":
+          description: The run, now open.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecheckRun"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /desk/newsrooms/{newsroom}/recheck/stop:
+    parameters:
+      - $ref: "#/components/parameters/Newsroom"
+    post:
+      operationId: stopRecheck
+      summary: Asks the open recheck run to stop after the item in hand
+      tags: [desk]
+      security: [{ cfAccess: [] }]
+      responses:
+        "200":
+          description: The run, asked to stop.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecheckRun"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /desk/newsrooms/{newsroom}/measures:
     parameters:
       - $ref: "#/components/parameters/Newsroom"
@@ -2054,6 +2115,117 @@ components:
           type: array
           description: This month's latest runs.
           items: { $ref: "#/components/schemas/AgentRun" }
+    Recheck:
+      type: object
+      additionalProperties: false
+      required: [run, counts, causes, days]
+      properties:
+        run:
+          description: The latest run, if any.
+          oneOf:
+            - $ref: "#/components/schemas/RecheckRun"
+            - type: "null"
+        counts:
+          type: object
+          additionalProperties: false
+          required: [checked, waiting, running, source, claims, checks]
+          properties:
+            checked: { type: integer }
+            waiting: { type: integer }
+            running: { type: integer }
+            source: { type: integer }
+            claims: { type: integer }
+            checks: { type: integer }
+        causes:
+          description: What stopped the items that are not checked, most common first.
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [cause, items]
+            properties:
+              cause: { type: string }
+              items: { type: integer }
+        days:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecheckDay"
+    RecheckRun:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          started_by,
+          started_at,
+          heartbeat_at,
+          stop_requested,
+          finished_at,
+          outcome,
+          detail,
+          rounds,
+          sourced,
+          checked,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        started_by:
+          { type: [string, "null"], description: "The email of the person who started it." }
+        started_at: { type: string, format: date-time }
+        heartbeat_at: { type: string, format: date-time }
+        stop_requested: { type: boolean }
+        finished_at: { type: [string, "null"], format: date-time }
+        outcome:
+          description: "done: nothing left; stopped: a person asked; blocked: models or ingestion unavailable, no try spent; failed: an error it could not get past."
+          enum: [done, stopped, blocked, failed, null]
+        detail: { type: [string, "null"] }
+        rounds: { type: integer }
+        sourced: { type: integer, description: "Stories sourced, over all rounds." }
+        checked: { type: integer, description: "Stories checked by the gate, over all rounds." }
+    RecheckDay:
+      type: object
+      additionalProperties: false
+      required: [story_id, slot, publication_id, title, items]
+      properties:
+        story_id: { type: string, format: uuid }
+        slot: { type: string, format: date-time }
+        publication_id: { type: [string, "null"], format: uuid }
+        title: { type: [string, "null"] }
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecheckItem"
+    RecheckItem:
+      type: object
+      additionalProperties: false
+      required: [index, headline, url, status, languages, reasons]
+      properties:
+        index: { type: integer }
+        headline: { type: [string, "null"] }
+        url: { type: [string, "null"] }
+        status: { type: string, enum: [checked, waiting, running, source, claims, checks] }
+        languages:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [language, checked]
+            properties:
+              language: { type: string }
+              checked: { type: boolean }
+        reasons:
+          description: Why it is not checked, first what stopped it; empty when checked or waiting.
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [language, check, result, claim, reason]
+            properties:
+              language: { type: [string, "null"] }
+              check: { type: string }
+              result: { type: string }
+              claim: { type: [string, "null"] }
+              reason: { type: [string, "null"] }
     SourceHealth:
       type: object
       additionalProperties: false

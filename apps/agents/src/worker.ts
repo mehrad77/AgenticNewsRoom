@@ -24,6 +24,8 @@ import { runPlanner } from "./planner/run.ts";
 import { planTick } from "./planner/tick.ts";
 import { assignEpisode } from "./podcast/episode.ts";
 import { isEpisodeRun, runEpisode } from "./podcast/run.ts";
+import { recheckDeps } from "./recheck/deps.ts";
+import { recheckRound } from "./recheck/round.ts";
 import { redraft } from "./redraft.ts";
 import { runRenderer } from "./renderer/run.ts";
 import { readStoredRoles, rolesRefresher } from "./roles.ts";
@@ -152,6 +154,23 @@ await registerJobs(
     redraft: async (job) => {
       const outcome = await redraft(pool, boss, router, job);
       console.log(`[agents] redraft ${job.assignmentId}: ${JSON.stringify(outcome)}`);
+    },
+    recheck: async (job) => {
+      const outcome = await recheckRound(
+        recheckDeps({
+          pool,
+          boss,
+          router,
+          models,
+          catalog,
+          gateway,
+          configDir,
+          ingestionUrl: process.env.ANR_INGESTION_URL ?? "http://127.0.0.1:8101",
+          verifierUrl: process.env.ANR_VERIFIER_URL ?? "http://127.0.0.1:8102",
+        }),
+        job,
+      );
+      console.log(`[agents] recheck ${job.recheckRunId}: ${outcome}`);
     },
     gate: async (job) => {
       await runGate(

@@ -14,6 +14,7 @@ import Ops from "../components/desk/Ops.astro";
 import Voices from "../components/desk/Voices.astro";
 import Publication from "../components/desk/Publication.astro";
 import Queue from "../components/desk/Queue.astro";
+import Imported from "../components/desk/Imported.astro";
 import Samples from "../components/desk/Samples.astro";
 import Schedule from "../components/desk/Schedule.astro";
 import Sources from "../components/desk/Sources.astro";
@@ -73,6 +74,7 @@ const notices = r.kind === "notices" ? await load(() => api.notices(r.newsroom))
 const schedule = r.kind === "schedule" ? await load(() => api.schedule(r.newsroom)) : undefined;
 const budget = r.kind === "budget" ? await load(() => api.budget(r.newsroom)) : undefined;
 const sources = r.kind === "sources" ? await load(() => api.sources(r.newsroom)) : undefined;
+const imported = r.kind === "imported" ? await load(() => api.recheck(r.newsroom)) : undefined;
 const measures = r.kind === "measures" ? await load(() => api.measures(r.newsroom)) : undefined;
 const plan = r.kind === "plan" ? await load(() => api.plan(r.newsroom)) : undefined;
 const voices = r.kind === "voices" ? await load(() => api.newsroomTts(r.newsroom)) : undefined;
@@ -95,6 +97,7 @@ const nav = [
   ["/measures", "Measures"],
   ["/budget", "Budget"],
   ["/sources", "Sources"],
+  ["/imported", "Imported"],
   ["/channels", "Channels"],
 ] as const;
 ---
@@ -133,6 +136,7 @@ const nav = [
     {n && notices && <Notices newsroom={n} notices={notices} />}
     {budget && <Budget budget={budget} />}
     {sources && <Sources sources={sources} />}
+    {n && imported && <Imported newsroom={n} recheck={imported} chief={role === "editor-in-chief"} />}
     {measures && <Measures measures={measures} />}
     {r.kind === "not-found" && <h1>Not found</h1>}
   </main>
