@@ -239,7 +239,7 @@ services:
   # Outbound-only connections to Cloudflare (D122). Its ingress lives in Terraform, so the token is
   # all it needs; deploy.sh refuses to start without one.
   cloudflared:
-    image: cloudflare/cloudflared:2026.10.2@sha256:0e56c13c7058fcef9c4f0e7d83372f82330548dbf8f8b366f3d8b506526d93b2
+    image: cloudflare/cloudflared:2026.10.7@sha256:4955524aeaa379e154023d5a027c250f7b35041a2e7e950cf13f144bc9b9c5ba
     restart: unless-stopped
     logging: *fluent-logging
     # Metrics for the collector: its connections to Cloudflare's edge (D140).
