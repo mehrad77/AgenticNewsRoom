@@ -2,7 +2,7 @@
 # APP picks the c2patool stage below; `none` only names a valid stage, every build sets APP.
 ARG APP=none
 
-FROM node:24-slim AS base
+FROM node:26-slim@sha256:43c3341b3aab024423215fa7ef89bd3e657f8d303c543298d3cd864aa9a4b405 AS base
 WORKDIR /repo
 # Install the pinned pnpm (packageManager) into the base layer, so containers never download it
 # at start; `corepack enable` alone only installs a shim that fetches pnpm on first use.
