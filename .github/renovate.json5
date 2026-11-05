@@ -34,6 +34,12 @@
       matchUpdateTypes: ["minor", "patch"],
       groupName: "Python dependencies (non-major)",
     },
+    // Held at the versions ANR runs: Python 3.13 and Node 24 (AGENTS.md), and TypeScript 6 until
+    // the OpenAPI type generator supports 7. Raise these together with the runtime.
+    { matchDatasources: ["docker"], matchPackageNames: ["python"], allowedVersions: "/^3\\.13/" },
+    { matchDatasources: ["docker"], matchPackageNames: ["node"], allowedVersions: "<25" },
+    { matchPackageNames: ["@types/node"], allowedVersions: "<25" },
+    { matchPackageNames: ["typescript"], allowedVersions: "<7" },
     // Last, so it takes these out of the groups above: only dev-dependency patches merge alone.
     {
       matchDepTypes: ["devDependencies", "dependency-groups"],
