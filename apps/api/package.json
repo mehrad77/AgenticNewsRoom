@@ -28,8 +28,8 @@
     "@anr/telemetry": "workspace:*",
     "@hono/node-server": "2.1.5",
     "@modelcontextprotocol/sdk": "1.32.2",
-    "hono": "4.13.14",
-    "jose": "6.2.14",
+    "hono": "4.13.16",
+    "jose": "6.2.15",
     "pg-boss": "12.38.0"
   },
   "devDependencies": {
