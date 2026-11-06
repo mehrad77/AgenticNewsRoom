@@ -109,7 +109,7 @@ jobs:
       # A fork's pull request gets a read-only token, so only the repository's own upload results.
       - name: Upload scan results
         if: always() && github.event.pull_request.head.repo.full_name == github.repository
-        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        uses: github/codeql-action/upload-sarif@1fc58d04a4d4374f921bdac573c3811c240f9c26 # v4.39.2
         with:
           sarif_file: trivy.sarif
           category: trivy-${{ matrix.image }}-${{ matrix.arch }}
@@ -181,7 +181,7 @@ jobs:
           trivyignores: .trivyignore.yaml
       - name: Upload scan results
         if: always()
-        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        uses: github/codeql-action/upload-sarif@1fc58d04a4d4374f921bdac573c3811c240f9c26 # v4.39.2
         with:
           sarif_file: trivy.sarif
           category: trivy-${{ matrix.image }}-${{ matrix.arch }}
