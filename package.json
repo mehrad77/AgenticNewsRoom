@@ -31,8 +31,8 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.4",
-    "@tailwindcss/cli": "4.3.3",
-    "tailwindcss": "4.3.3",
+    "@tailwindcss/cli": "4.3.4",
+    "tailwindcss": "4.3.4",
     "turbo": "2.11.10",
     "typescript": "5.9.3"
   }
