@@ -91,7 +91,7 @@ jobs:
       - name: Renovate config
         env:
           # renovate: datasource=npm depName=renovate
-          RENOVATE_VERSION: 44.201.0
+          RENOVATE_VERSION: 44.211.0
         run: npx --yes --package "renovate@$RENOVATE_VERSION" -- renovate-config-validator --strict
 
   # The macos host profile's launchd agents (D127).
