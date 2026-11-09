@@ -1,3 +1,5 @@
+<a href="https://0rwx.com/"><img src=".github/ai-x.png" alt="AI:X: made by AI, curated by me" title="AI:X: made by AI, curated by me (0rwx.com)" width="44" align="right"></a>
+
 # ANR — Agentic News Room
 
 [![ci](https://github.com/mehrad77/AgenticNewsRoom/actions/workflows/ci.yml/badge.svg)](https://github.com/mehrad77/AgenticNewsRoom/actions/workflows/ci.yml)
