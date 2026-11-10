@@ -30,9 +30,9 @@
     "telemetry:down": "docker compose --env-file .env -f infra/compose.yaml --profile telemetry stop otel-collector lgtm"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.6.4",
-    "@tailwindcss/cli": "4.3.4",
-    "tailwindcss": "4.3.4",
+    "@biomejs/biome": "2.6.6",
+    "@tailwindcss/cli": "4.3.5",
+    "tailwindcss": "4.3.5",
     "turbo": "2.11.10",
     "typescript": "5.9.3"
   }
