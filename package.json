@@ -34,6 +34,6 @@
     "@tailwindcss/cli": "4.3.4",
     "tailwindcss": "4.3.4",
     "turbo": "2.11.10",
-    "typescript": "5.9.3"
+    "typescript": "6.0.3"
   }
 }
