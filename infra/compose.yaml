@@ -66,7 +66,7 @@ services:
   # viewer instead of the Access sign-in and no Telegram contact point.
   otel-collector:
     profiles: [telemetry]
-    image: otel/opentelemetry-collector-contrib:0.164.0@sha256:340c9ca6a36617084c6661bdc4f0fe92b7cda5a805d61673ec8db375fddc522b
+    image: otel/opentelemetry-collector-contrib:0.165.0@sha256:e40d61f10c9a617cca1ffd1be4d7e2b3a4b0f0001798ff07e58cabe82e618cea
     command: [--config=/etc/anr/collector.yaml]
     cap_drop: [ALL]
     read_only: true
@@ -84,7 +84,7 @@ services:
 
   lgtm:
     profiles: [telemetry]
-    image: grafana/otel-lgtm:0.39.0@sha256:4c8056c9c05fcb3c8fd93800e85334bfd79b4d0271b47a54a121a64af41fe1fe
+    image: grafana/otel-lgtm:0.40.0@sha256:72e05804790e6e0d8c0b70a6d5ff1f721ef7b203463374631e99aa3429bd0cf6
     entrypoint: [/etc/anr/grafana/start.sh]
     environment:
       ANR_GRAFANA_ANONYMOUS: Viewer
