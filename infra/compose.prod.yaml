@@ -225,7 +225,7 @@ services:
 
   # Plain HTTP router behind the tunnel (D122); no host port. Stock image: no TLS, so no modules.
   caddy:
-    image: caddy:2.11.7@sha256:36c24ad91a7ff7bc4c87fe22bfa8df3c4b18da0773d73fc12ee2c52b98c0bb7e
+    image: caddy:2.11.8@sha256:4fcafa98afd1c2e642e353e3c5cf9ddbe892fcee14bc990e7ba2c5b78e51f9cf
     restart: unless-stopped
     logging: *fluent-logging
     environment:
@@ -239,7 +239,7 @@ services:
   # Outbound-only connections to Cloudflare (D122). Its ingress lives in Terraform, so the token is
   # all it needs; deploy.sh refuses to start without one.
   cloudflared:
-    image: cloudflare/cloudflared:2026.10.2@sha256:0e56c13c7058fcef9c4f0e7d83372f82330548dbf8f8b366f3d8b506526d93b2
+    image: cloudflare/cloudflared:2026.10.7@sha256:4955524aeaa379e154023d5a027c250f7b35041a2e7e950cf13f144bc9b9c5ba
     restart: unless-stopped
     logging: *fluent-logging
     # Metrics for the collector: its connections to Cloudflare's edge (D140).
@@ -255,7 +255,7 @@ services:
   # on; /hostfs/host is a host directory, whose filesystem on macOS is the host's own disk, which
   # Docker's VM disk is a file on (D153).
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.164.0@sha256:340c9ca6a36617084c6661bdc4f0fe92b7cda5a805d61673ec8db375fddc522b
+    image: otel/opentelemetry-collector-contrib:0.165.0@sha256:e40d61f10c9a617cca1ffd1be4d7e2b3a4b0f0001798ff07e58cabe82e618cea
     restart: unless-stopped
     logging: *logging
     command: [--config=/etc/anr/collector.yaml]
@@ -278,7 +278,7 @@ services:
   # Sign-in is the Access JWT alone (observability/grafana/start.sh); dashboards, rules and
   # datasources are provisioned read-only. Metrics are kept 30 days, logs and traces 7.
   lgtm:
-    image: grafana/otel-lgtm:0.39.0@sha256:4c8056c9c05fcb3c8fd93800e85334bfd79b4d0271b47a54a121a64af41fe1fe
+    image: grafana/otel-lgtm:0.40.0@sha256:72e05804790e6e0d8c0b70a6d5ff1f721ef7b203463374631e99aa3429bd0cf6
     restart: unless-stopped
     logging: *logging
     entrypoint: [/etc/anr/grafana/start.sh]
