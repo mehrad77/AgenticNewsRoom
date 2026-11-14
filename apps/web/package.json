@@ -19,9 +19,9 @@
     "@anr/schemas": "workspace:*",
     "@anr/storage": "workspace:*",
     "@anr/telemetry": "workspace:*",
-    "@astrojs/node": "11.1.9",
+    "@astrojs/node": "11.1.12",
     "@shabboo/kit": "^0.4.2",
-    "astro": "7.4.4"
+    "astro": "7.4.10"
   },
   "devDependencies": {
     "@anr/api": "workspace:*",
@@ -31,6 +31,6 @@
     "ajv-formats": "3.0.1",
     "tailwindcss": "4.3.4",
     "typescript": "5.9.3",
-    "vitest": "5.0.5"
+    "vitest": "5.1.0"
   }
 }
