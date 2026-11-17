@@ -18,6 +18,9 @@
     "custom.regex",
   ],
   minimumReleaseAge: "3 days",
+  // Branches are created and updated early on Monday (UTC), so CI runs for the week's updates
+  // once; security updates still come at once (D194).
+  schedule: ["* 0-5 * * 1"],
   // Renovate waits for every check itself; GitHub's own auto-merge would not without required checks.
   platformAutomerge: false,
   packageRules: [

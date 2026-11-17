@@ -31,7 +31,7 @@ jobs:
   scan:
     if: github.event_name == 'pull_request'
     name: scan ${{ matrix.image }} (${{ matrix.arch }})
-    runs-on: ${{ matrix.runner }}
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
     timeout-minutes: 45
     permissions:
       contents: read
@@ -40,10 +40,9 @@ jobs:
       fail-fast: false
       matrix:
         image: [api, web, agents, publisher, ingestion, verifier, postgres]
-        arch: [amd64, arm64]
+        # A pull request scans amd64 only; a version tag builds and scans both (D194).
+        arch: [amd64]
         include: &images
-          - { arch: amd64, runner: ubuntu-24.04 }
-          - { arch: arm64, runner: ubuntu-24.04-arm }
           - { image: api, dockerfile: infra/docker/node.Dockerfile, args: APP=api }
           - { image: web, dockerfile: infra/docker/node.Dockerfile, args: APP=web }
           - { image: agents, dockerfile: infra/docker/node.Dockerfile, args: APP=agents }
@@ -117,7 +116,7 @@ jobs:
   release:
     if: startsWith(github.ref, 'refs/tags/v')
     name: release ${{ matrix.image }} (${{ matrix.arch }})
-    runs-on: ${{ matrix.runner }}
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
     timeout-minutes: 45
     permissions:
       contents: read
