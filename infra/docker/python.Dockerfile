@@ -1,5 +1,5 @@
 # One image per Python service: docker build --build-arg SERVICE=verifier -f infra/docker/python.Dockerfile .
-FROM python:3.13-slim
+FROM python:3.13-slim@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90
 COPY --from=ghcr.io/astral-sh/uv:0.13 /uv /usr/local/bin/uv
 ARG SERVICE
 ENV SERVICE=${SERVICE}
