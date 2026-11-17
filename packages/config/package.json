@@ -21,13 +21,13 @@
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
     "pg": "8.23.1",
-    "pg-boss": "12.38.0",
+    "pg-boss": "12.38.2",
     "yaml": "2.9.1"
   },
   "devDependencies": {
     "@types/node": "24.19.2",
     "@types/pg": "8.23.1",
     "typescript": "5.9.3",
-    "vitest": "5.0.5"
+    "vitest": "5.1.0"
   }
 }
