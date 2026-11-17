@@ -3,7 +3,14 @@ name: ci
 on:
   push:
     branches: [main]
+  # A draft, or a pull request that changes only docs, runs nothing (D194); marking a draft ready
+  # runs it. Tests read config's and the web app's Markdown, so only docs/ and the root's Markdown
+  # are left out.
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore:
+      - docs/**
+      - "*.md"
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -14,6 +21,7 @@ permissions:
 
 jobs:
   check:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -40,6 +48,7 @@ jobs:
 
   # Deploy files (D134–D136), checked without credentials: nothing here reaches Cloudflare.
   infra:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-26.04
     timeout-minutes: 15
     permissions:
@@ -75,6 +84,10 @@ jobs:
           export ANR_ENV_FILE="$PWD/.env.example" ANR_VERSION=ci
           docker compose --env-file .env.example -p anr-prod -f infra/compose.prod.yaml config -q
           docker compose --env-file .env.example -f infra/compose.prod.yaml -f infra/compose.build.yaml config -q
+      # The macos host profile's launchd agents (D127), parsed on Linux: a macOS runner costs ten
+      # Linux minutes for each of its own (D194).
+      - name: launchd plists
+        run: python3 -c 'import plistlib, sys; [plistlib.load(open(f, "rb")) for f in sys.argv[1:]]' infra/host/macos/*.plist
       - name: shellcheck
         run: shellcheck -x infra/*.sh infra/backup/*.sh infra/host/*/install.sh infra/terraform/tf.sh infra/observability/*.sh infra/observability/grafana/start.sh infra/drills/*.sh tools/load/run.sh .githooks/pre-commit
       # The SLO recording rules and alerts, against their promtool tests (D158).
@@ -93,15 +106,3 @@ jobs:
           # renovate: datasource=npm depName=renovate
           RENOVATE_VERSION: 44.201.0
         run: npx --yes --package "renovate@$RENOVATE_VERSION" -- renovate-config-validator --strict
-
-  # The macos host profile's launchd agents (D127).
-  host-macos:
-    runs-on: macos-latest
-    timeout-minutes: 5
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - run: plutil -lint infra/host/macos/*.plist
