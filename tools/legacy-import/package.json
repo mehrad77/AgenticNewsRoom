@@ -14,11 +14,11 @@
   },
   "dependencies": {
     "@anr/models": "workspace:*",
-    "@anthropic-ai/sdk": "1.3.0"
+    "@anthropic-ai/sdk": "1.8.0"
   },
   "devDependencies": {
     "@types/node": "24.19.2",
     "typescript": "5.9.3",
-    "vitest": "5.0.5"
+    "vitest": "5.1.0"
   }
 }
