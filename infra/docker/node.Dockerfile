@@ -2,7 +2,7 @@
 # APP picks the c2patool stage below; `none` only names a valid stage, every build sets APP.
 ARG APP=none
 
-FROM node:24-slim AS base
+FROM node:24-slim@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54 AS base
 WORKDIR /repo
 # Install the pinned pnpm (packageManager) into the base layer, so containers never download it
 # at start; `corepack enable` alone only installs a shim that fetches pnpm on first use.
@@ -17,7 +17,7 @@ RUN pnpm install --frozen-lockfile && pnpm --filter "@anr/${APP}..." run --if-pr
 # c2patool signs episodes and images (D25, D120). Its releases have no arm64 Linux binary, so it is
 # built from source; only the publisher's image takes it, the other apps' stage is empty, and
 # BuildKit builds only the stage an image uses.
-FROM rust:1.99.1-slim-bookworm@sha256:24707e70a4f1e23d9a7b25202ec43126d28a52294b96aad5c670df1fd1f1d400 AS c2patool-publisher
+FROM rust:1.100.0-slim-bookworm@sha256:7c7d4eb4d05b7781187a327809466cfddf29753f6defdc3d19a0e291951b7a37 AS c2patool-publisher
 # renovate: datasource=crate depName=c2patool
 ARG C2PATOOL_VERSION=0.27.22
 # c2pa builds its own OpenSSL, which needs perl and make.
