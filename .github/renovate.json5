@@ -21,6 +21,8 @@
   // Branches are created and updated early on Monday (UTC), so CI runs for the week's updates
   // once; security updates still come at once (D194).
   schedule: ["* 0-5 * * 1"],
+  // Opened as drafts, which run no CI; marking one ready runs it (D194).
+  draftPR: true,
   // Renovate waits for every check itself; GitHub's own auto-merge would not without required checks.
   platformAutomerge: false,
   packageRules: [
@@ -43,12 +45,12 @@
     { matchDatasources: ["docker"], matchPackageNames: ["node"], allowedVersions: "<25" },
     { matchPackageNames: ["@types/node"], allowedVersions: "<25" },
     { matchPackageNames: ["typescript"], allowedVersions: "<7" },
-    // Last, so it takes these out of the groups above: only dev-dependency patches merge alone.
+    // Last, so it takes these out of the groups above. Nothing merges on its own: a draft never
+    // gets CI (D194).
     {
       matchDepTypes: ["devDependencies", "dependency-groups"],
       matchUpdateTypes: ["patch"],
       groupName: "dev dependencies (patch)",
-      automerge: true,
     },
   ],
   // Tool versions in workflows and Dockerfile build arguments, each marked

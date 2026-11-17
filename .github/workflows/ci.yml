@@ -3,9 +3,11 @@ name: ci
 on:
   push:
     branches: [main]
-  # A pull request that changes only docs runs nothing (D194); tests read config's and the web
-  # app's Markdown, so only docs/ and the root's Markdown are left out.
+  # A draft, or a pull request that changes only docs, runs nothing (D194); marking a draft ready
+  # runs it. Tests read config's and the web app's Markdown, so only docs/ and the root's Markdown
+  # are left out.
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore:
       - docs/**
       - "*.md"
@@ -19,6 +21,7 @@ permissions:
 
 jobs:
   check:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -45,6 +48,7 @@ jobs:
 
   # Deploy files (D134–D136), checked without credentials: nothing here reaches Cloudflare.
   infra:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-26.04
     timeout-minutes: 15
     permissions:

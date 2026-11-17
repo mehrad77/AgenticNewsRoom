@@ -7,7 +7,9 @@ name: release
 on:
   push:
     tags: ["v*"]
+  # A draft scans nothing; marking it ready does (D194).
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - .dockerignore
       - .github/workflows/release.yml
@@ -29,7 +31,7 @@ permissions:
 
 jobs:
   scan:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && !github.event.pull_request.draft
     name: scan ${{ matrix.image }} (${{ matrix.arch }})
     runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
     timeout-minutes: 45
